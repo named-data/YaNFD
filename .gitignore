@@ -1,0 +1,7 @@
+/yanfd
+/yanfd.exe
+
+*.test
+*.out
+
+.vscode
