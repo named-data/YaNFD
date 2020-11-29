@@ -5,13 +5,7 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package mgmt
+package core
 
-// Thread Represents the management thread
-type Thread struct {
-}
-
-// Run management thread
-func (thread Thread) Run() {
-	// TODO
-}
+// ShouldQuit indicates whether threads should quit
+var ShouldQuit = false
