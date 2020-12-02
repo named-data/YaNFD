@@ -25,6 +25,8 @@ type transport interface {
 	RunSend()
 
 	SendFrame([]byte)
+
+	onClose()
 }
 
 // TransportBase provides logic common types between transport types
@@ -98,6 +100,10 @@ func (t *transportBase) SendFrame(frame []byte) {
 	// Overridden in specific transport implementation
 }
 
+func (t *transportBase) onClose() {
+	// Overridden in specific transport implementation
+}
+
 //
 // Helpers
 //
@@ -111,6 +117,9 @@ func (t *transportBase) changeState(new State) {
 	t.state = new
 
 	if t.state != Up {
+		// Run implementation-specific close mechanisms
+		t.onClose()
+
 		// Send empty slice on link service channels to cause their goroutines to stop
 		t.recvQueueForLS <- ndn.LpPacket{}
 		t.sendQueueFromLS <- []byte{}

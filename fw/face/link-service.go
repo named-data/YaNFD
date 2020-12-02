@@ -8,6 +8,8 @@
 package face
 
 import (
+	"strconv"
+
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/go-ndn"
 )
@@ -41,7 +43,11 @@ type LinkServiceBase struct {
 }
 
 func (l *LinkServiceBase) String() string {
-	return l.transport.String() + " LinkService"
+	if l.transport != nil {
+		return l.transport.String() + " LinkService"
+	}
+
+	return "FaceID=" + strconv.Itoa(l.faceID) + " LinkService"
 }
 
 //
@@ -58,7 +64,7 @@ func (l *LinkServiceBase) newLinkService(faceID int, transport *transportBase) {
 // Run starts the face and associated goroutines
 func (l *LinkServiceBase) Run() {
 	if l.transport == nil {
-		core.LogError("Unable to start face", l.faceID, "due to unset transport")
+		core.LogError(l, "Unable to start face due to unset transport")
 		return
 	}
 
@@ -118,21 +124,21 @@ func (l *LinkServiceBase) State() State {
 func (l *LinkServiceBase) SendPacket(packet *ndn.Packet) {
 	_, encoded, err := packet.MarshalTlv()
 	if err != nil {
-		core.LogWarn(l, "unable to encode outgoing packet for queueing in link service - DROP")
+		core.LogWarn(l, "Unable to encode outgoing packet for queueing in link service - DROP")
 		return
 	}
 
 	if l.State() != Up {
-		core.LogWarn(l, "cannot send packet on down face - DROP")
+		core.LogWarn(l, "Cannot send packet on down face - DROP")
 	}
 
 	select {
 	case l.sendQueueForLS <- encoded:
 		// Packet queued successfully
-		core.LogTrace(l, "queued packet for Link Service")
+		core.LogTrace(l, "Queued packet for Link Service")
 	default:
 		// Drop packet due to congestion
-		core.LogWarn(l, "dropped packet due to congestion")
+		core.LogWarn(l, "Dropped packet due to congestion")
 
 		// TODO: Signal congestion
 	}
