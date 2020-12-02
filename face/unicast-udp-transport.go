@@ -59,7 +59,6 @@ func (t *UnicastUDPTransport) RunReceive() {
 		readSize, err := t.conn.Read(t.recvBuf[t.recvBufLen:])
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket - DROP and Face DOWN")
-			t.conn.Close()
 			t.changeState(Down)
 			t.hasQuit <- true
 			return
@@ -94,7 +93,6 @@ func (t *UnicastUDPTransport) RunSend() {
 			nBytesWritten, err := t.conn.Write(frame[len(frame)-nBytesToWrite:])
 			if err != nil {
 				core.LogWarn("Unable to write on socket - DROP and Face DOWN")
-				t.conn.Close()
 				t.changeState(Down)
 				t.hasQuit <- true
 				return
@@ -104,4 +102,9 @@ func (t *UnicastUDPTransport) RunSend() {
 	}
 
 	t.hasQuit <- true
+}
+
+func (t *UnicastUDPTransport) onClose() {
+	core.LogInfo(t, "Closing UDP socket")
+	t.conn.Close()
 }
