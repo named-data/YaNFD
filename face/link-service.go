@@ -26,20 +26,21 @@ type LinkService interface {
 
 	// Main entry point for running face thread
 	Run()
-	runReceive()
 	runSend()
 
 	// SendPacket Add a packet to the send queue for this link service
 	SendPacket(packet *ndn.Packet)
+	handleIncomingFrame(frame []byte)
 }
 
 // LinkServiceBase is the type upon which all link service implementations should be built
 type LinkServiceBase struct {
-	faceID         int
-	transport      *transportBase
-	HasQuit        chan bool
-	hasImplQuit    chan bool
-	sendQueueForLS chan []byte
+	faceID           int
+	transport        *transportBase
+	HasQuit          chan bool
+	hasImplQuit      chan bool
+	hasTransportQuit chan bool
+	sendQueue        chan []byte
 }
 
 func (l *LinkServiceBase) String() string {
@@ -57,8 +58,11 @@ func (l *LinkServiceBase) String() string {
 func (l *LinkServiceBase) newLinkService(faceID int, transport *transportBase) {
 	l.faceID = faceID
 	l.transport = transport
+	l.transport.linkService = l
 	l.HasQuit = make(chan bool)
-	l.sendQueueForLS = make(chan []byte, core.FaceQueueSize)
+	l.hasImplQuit = make(chan bool)
+	l.hasTransportQuit = make(chan bool)
+	l.sendQueue = make(chan []byte, core.FaceQueueSize)
 }
 
 // Run starts the face and associated goroutines
@@ -69,23 +73,14 @@ func (l *LinkServiceBase) Run() {
 	}
 
 	// Start transport goroutines
-	go l.transport.RunReceive()
-	go l.transport.RunSend()
-
-	go l.runReceive()
+	go l.transport.runReceive()
 	go l.runSend()
 
-	// Wait for link service implementation goroutines to quit
-	<-l.hasImplQuit
+	// Wait for link service send goroutine to quit
 	<-l.hasImplQuit
 
-	// Wait for transport goroutines to quit
+	// Wait for transport receive goroutine to quit
 	<-l.transport.hasQuit
-	<-l.transport.hasQuit
-}
-
-func (l *LinkServiceBase) runReceive() {
-	// Stub
 }
 
 func (l *LinkServiceBase) runSend() {
@@ -133,7 +128,7 @@ func (l *LinkServiceBase) SendPacket(packet *ndn.Packet) {
 	}
 
 	select {
-	case l.sendQueueForLS <- encoded:
+	case l.sendQueue <- encoded:
 		// Packet queued successfully
 		core.LogTrace(l, "Queued packet for Link Service")
 	default:
@@ -142,4 +137,8 @@ func (l *LinkServiceBase) SendPacket(packet *ndn.Packet) {
 
 		// TODO: Signal congestion
 	}
+}
+
+func (l *LinkServiceBase) handleIncomingFrame(frame []byte) {
+	// Stub
 }
