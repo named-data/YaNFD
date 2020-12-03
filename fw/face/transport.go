@@ -21,39 +21,37 @@ type transport interface {
 	State() State
 	MTU() int
 
-	RunReceive()
-	RunSend()
+	runReceive()
 
-	SendFrame([]byte)
+	sendFrame([]byte)
 
 	onClose()
 }
 
 // TransportBase provides logic common types between transport types
 type transportBase struct {
+	linkService *LinkServiceBase
+
 	faceID    int
 	remoteURI URI
 	localURI  URI
 	scope     Scope
 	mtu       int
 
-	state           State
-	recvQueueForLS  chan ndn.LpPacket
-	sendQueueFromLS chan []byte
+	state     State
+	recvQueue chan ndn.LpPacket
 
 	hasQuit chan bool
 }
 
 func newTransportBase(faceID int, remoteURI URI, localURI URI, mtu int) transportBase {
 	return transportBase{
-		faceID:          faceID,
-		remoteURI:       remoteURI,
-		localURI:        localURI,
-		state:           Down,
-		mtu:             mtu,
-		recvQueueForLS:  make(chan ndn.LpPacket, core.FaceQueueSize),
-		sendQueueFromLS: make(chan []byte, core.FaceQueueSize),
-		hasQuit:         make(chan bool, 2)}
+		faceID:    faceID,
+		remoteURI: remoteURI,
+		localURI:  localURI,
+		state:     Down,
+		mtu:       mtu,
+		hasQuit:   make(chan bool, 2)}
 }
 
 func (t *transportBase) String() string {
@@ -88,15 +86,11 @@ func (t *transportBase) MTU() int {
 // Stubs
 //
 
-func (t *transportBase) RunReceive() {
+func (t *transportBase) runReceive() {
 	// Overridden in specific transport implementation
 }
 
-func (t *transportBase) RunSend() {
-	// Overridden in specific transport implementation
-}
-
-func (t *transportBase) SendFrame(frame []byte) {
+func (t *transportBase) sendFrame(frame []byte) {
 	// Overridden in specific transport implementation
 }
 
@@ -120,8 +114,7 @@ func (t *transportBase) changeState(new State) {
 		// Run implementation-specific close mechanisms
 		t.onClose()
 
-		// Send empty slice on link service channels to cause their goroutines to stop
-		t.recvQueueForLS <- ndn.LpPacket{}
-		t.sendQueueFromLS <- []byte{}
+		// Stop link service
+		t.linkService.hasTransportQuit <- true
 	}
 }

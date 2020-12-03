@@ -7,7 +7,11 @@
 
 package face
 
-import "github.com/eric135/YaNFD/core"
+import (
+	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/go-ndn"
+	"github.com/eric135/go-ndn/tlv"
+)
 
 type ndnlpLinkServiceOptions struct {
 	IsFragmentationEnabled bool
@@ -28,31 +32,16 @@ func NewNDNLPLinkService(faceID int, transport *transportBase) NDNLPLinkService 
 	return l
 }
 
-func (l *NDNLPLinkService) runReceive() {
+func (l *NDNLPLinkService) runSend() {
+	var netPacket []byte
 	for !core.ShouldQuit {
-		frame := <-l.transport.recvQueueForLS
-		if l.transport.State() != Up {
-			core.LogWarn(l, "- attempting to receive frame on down face")
+		select {
+		case netPacket = <-l.sendQueue:
+		case <-l.hasTransportQuit:
 			l.hasImplQuit <- true
 			return
-		} else if l.transport.State() == AdminDown {
-			core.LogWarn(l, "- attempting to receive frame on admin down face")
 		}
 
-		// TODO: Do NDNLP things
-
-		core.LogTrace(frame)
-
-		// Hash to forwarding thread and place in queue
-		// TODO
-	}
-
-	l.hasImplQuit <- true
-}
-
-func (l *NDNLPLinkService) runSend() {
-	for !core.ShouldQuit {
-		netPacket := <-l.sendQueueForLS
 		if l.transport.State() != Up {
 			core.LogWarn(l, "- attempting to send frame on down face - DROP and stop LinkService")
 			l.hasImplQuit <- true
@@ -61,16 +50,24 @@ func (l *NDNLPLinkService) runSend() {
 
 		// TODO: Do NDNLP things
 
-		select {
-		case l.transport.sendQueueFromLS <- netPacket:
-			// Passed off to transport
-		default:
-			// Drop packet due to congestion
-			core.LogWarn(l, "dropped packet due to congestion")
-
-			// TODO: Signal congestion
-		}
+		l.transport.sendFrame(netPacket)
 	}
 
 	l.hasImplQuit <- true
+}
+
+func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
+	// Attempt to decode frame from buffer
+	var frame ndn.LpPacket
+	err := tlv.Decode(rawFrame, &frame)
+	if err != nil {
+		core.LogDebug(l, "Received invalid frame - DROP")
+	}
+
+	core.LogDebug(l, "Received NDNLPv2 frame of size", len(rawFrame))
+
+	// TODO: Do NDNLP things
+
+	// Hash to forwarding thread and place in queue
+	// TODO
 }
