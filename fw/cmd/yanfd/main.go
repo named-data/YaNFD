@@ -14,7 +14,6 @@ import (
 	"os/signal"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/fw"
 )
 
@@ -47,7 +46,7 @@ func main() {
 	// TODO
 
 	// Create multicast faces based upon interfaces
-	face.Threads = make(map[int]*face.LinkServiceBase)
+	//face.Threads = make(map[int]*face.LinkService)
 	// TODO
 
 	// Create forwarding threads
@@ -71,7 +70,7 @@ func main() {
 	}
 
 	// Wait for all face threads to have quit
-	for _, face := range face.Threads {
+	/*for _, face := range face.Threads {
 		<-face.HasQuit
-	}
+	}*/
 }

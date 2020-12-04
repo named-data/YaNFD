@@ -22,11 +22,11 @@ type ndnlpLinkServiceOptions struct {
 // NDNLPLinkService is a link service implementing the NDNLPv2 link protocol
 type NDNLPLinkService struct {
 	options ndnlpLinkServiceOptions
-	LinkServiceBase
+	linkServiceBase
 }
 
 // NewNDNLPLinkService creates a new NDNLPv2 link service
-func NewNDNLPLinkService(faceID int, transport *transportBase) NDNLPLinkService {
+func NewNDNLPLinkService(faceID int, transport transport) NDNLPLinkService {
 	l := NDNLPLinkService{options: ndnlpLinkServiceOptions{true, true, false}}
 	l.newLinkService(faceID, transport)
 	return l
