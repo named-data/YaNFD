@@ -14,8 +14,11 @@ import (
 	"github.com/eric135/go-ndn"
 )
 
-// Transport provides an interface for transports for specific face types
+// transport provides an interface for transports for specific face types
 type transport interface {
+	String() string
+	setLinkService(linkService LinkService)
+
 	LocalURI() URI
 	RemoteURI() URI
 	State() State
@@ -28,9 +31,9 @@ type transport interface {
 	onClose()
 }
 
-// TransportBase provides logic common types between transport types
+// transportBase provides logic common types between transport types
 type transportBase struct {
-	linkService *LinkServiceBase
+	linkService LinkService
 
 	faceID    int
 	remoteURI URI
@@ -56,6 +59,10 @@ func newTransportBase(faceID int, remoteURI URI, localURI URI, mtu int) transpor
 
 func (t *transportBase) String() string {
 	return "(FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String() + ")"
+}
+
+func (t *transportBase) setLinkService(linkService LinkService) {
+	t.linkService = linkService
 }
 
 //
@@ -115,6 +122,6 @@ func (t *transportBase) changeState(new State) {
 		t.onClose()
 
 		// Stop link service
-		t.linkService.hasTransportQuit <- true
+		t.linkService.tellTransportQuit()
 	}
 }

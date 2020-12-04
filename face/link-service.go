@@ -14,11 +14,11 @@ import (
 	"github.com/eric135/go-ndn"
 )
 
-// Threads contains all face threads
-var Threads map[int]*LinkServiceBase
-
 // LinkService is an interface for link service implementations
 type LinkService interface {
+	String() string
+	tellTransportQuit()
+
 	FaceID() int
 	LocalURI() URI
 	RemoteURI() URI
@@ -33,17 +33,17 @@ type LinkService interface {
 	handleIncomingFrame(frame []byte)
 }
 
-// LinkServiceBase is the type upon which all link service implementations should be built
-type LinkServiceBase struct {
+// linkServiceBase is the type upon which all link service implementations should be built
+type linkServiceBase struct {
 	faceID           int
-	transport        *transportBase
+	transport        transport
 	HasQuit          chan bool
 	hasImplQuit      chan bool
 	hasTransportQuit chan bool
 	sendQueue        chan []byte
 }
 
-func (l *LinkServiceBase) String() string {
+func (l *linkServiceBase) String() string {
 	if l.transport != nil {
 		return l.transport.String() + " LinkService"
 	}
@@ -51,22 +51,34 @@ func (l *LinkServiceBase) String() string {
 	return "FaceID=" + strconv.Itoa(l.faceID) + " LinkService"
 }
 
+func (l *linkServiceBase) tellTransportQuit() {
+	l.hasTransportQuit <- true
+}
+
 //
 // "Constructors" and threading
 //
 
-func (l *LinkServiceBase) newLinkService(faceID int, transport *transportBase) {
+func (l *linkServiceBase) newLinkService(faceID int, transport transport) {
 	l.faceID = faceID
-	l.transport = transport
-	l.transport.linkService = l
+	l.setTransport(transport)
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)
 	l.hasTransportQuit = make(chan bool)
 	l.sendQueue = make(chan []byte, core.FaceQueueSize)
 }
 
+func (l *linkServiceBase) setTransport(transport transport) {
+	if transport == nil {
+		return
+	}
+
+	l.transport = transport
+	l.transport.setLinkService(l)
+}
+
 // Run starts the face and associated goroutines
-func (l *LinkServiceBase) Run() {
+func (l *linkServiceBase) Run() {
 	if l.transport == nil {
 		core.LogError(l, "Unable to start face due to unset transport")
 		return
@@ -80,10 +92,10 @@ func (l *LinkServiceBase) Run() {
 	<-l.hasImplQuit
 
 	// Wait for transport receive goroutine to quit
-	<-l.transport.hasQuit
+	<-l.hasTransportQuit
 }
 
-func (l *LinkServiceBase) runSend() {
+func (l *linkServiceBase) runSend() {
 	// Stub
 }
 
@@ -92,22 +104,22 @@ func (l *LinkServiceBase) runSend() {
 //
 
 // FaceID returns the ID of the face
-func (l *LinkServiceBase) FaceID() int {
+func (l *linkServiceBase) FaceID() int {
 	return l.faceID
 }
 
 // LocalURI returns the local URI of underlying transport
-func (l *LinkServiceBase) LocalURI() URI {
+func (l *linkServiceBase) LocalURI() URI {
 	return l.transport.LocalURI()
 }
 
 // RemoteURI returns the remote URI of underlying transport
-func (l *LinkServiceBase) RemoteURI() URI {
+func (l *linkServiceBase) RemoteURI() URI {
 	return l.transport.RemoteURI()
 }
 
 // State returns the state of underlying transport
-func (l *LinkServiceBase) State() State {
+func (l *linkServiceBase) State() State {
 	return l.transport.State()
 }
 
@@ -116,7 +128,7 @@ func (l *LinkServiceBase) State() State {
 //
 
 // SendPacket adds a packet to the send queue for this link service
-func (l *LinkServiceBase) SendPacket(packet *ndn.Packet) {
+func (l *linkServiceBase) SendPacket(packet *ndn.Packet) {
 	_, encoded, err := packet.MarshalTlv()
 	if err != nil {
 		core.LogWarn(l, "Unable to encode outgoing packet for queueing in link service - DROP")
@@ -139,6 +151,6 @@ func (l *LinkServiceBase) SendPacket(packet *ndn.Packet) {
 	}
 }
 
-func (l *LinkServiceBase) handleIncomingFrame(frame []byte) {
+func (l *linkServiceBase) handleIncomingFrame(frame []byte) {
 	// Stub
 }
