@@ -14,6 +14,7 @@ import (
 	"os/signal"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/fw"
 )
 
@@ -42,11 +43,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Start management thread
-	// TODO
+	core.LogInfo("Main", "Starting NFD")
 
-	// Create multicast faces based upon interfaces
-	//face.Threads = make(map[int]*face.LinkService)
+	// Start management thread
 	// TODO
 
 	// Create forwarding threads
@@ -57,11 +56,24 @@ func main() {
 		go fw.Threads[i].Run()
 	}
 
+	// Initialize face system
+	face.FaceTable = face.MakeTable()
+	// Create null face
+	face.FaceTable.Add(face.MakeNullLinkService(face.MakeNullTransport()))
+	// Create multicast faces based upon interfaces
+	// TODO
+	// Set up listeners
+	udpListener, err := face.MakeUDPListener(face.MakeUDPFaceURI(4, "127.0.0.1", 6364))
+	if err != nil {
+		core.LogFatal("Main", err)
+	}
+	go udpListener.Run()
+
 	// Set up signal handler channel and wait for interrupt
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt, os.Kill)
 	receivedSig := <-sigChannel
-	core.LogInfo("Received signal", receivedSig, " - exiting")
+	core.LogInfo("Main", "Received signal", receivedSig, " - exiting")
 	core.ShouldQuit = true
 
 	// Wait for all forwarding threads to have quit

@@ -8,37 +8,63 @@
 package face
 
 import (
-	"errors"
 	"net"
-	"strconv"
+	"syscall"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/util"
+	"golang.org/x/sys/unix"
 )
 
 // UnicastUDPTransport is a unicast UDP transport
 type UnicastUDPTransport struct {
-	conn       net.Conn
-	recvBuf    []byte
-	recvBufLen int
+	socket int
 	transportBase
 }
 
-// NewUnicastUDPTransport creates a new unicast UDP transport
-func NewUnicastUDPTransport(faceID int, remoteURI URI) (*UnicastUDPTransport, error) {
-	// Validate remote URI
-	if !remoteURI.IsCanonical() {
-		return nil, errors.New("URI could not be canonized")
+// MakeUnicastUDPTransport creates a new unicast UDP transport
+func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport, error) {
+	// Validate URIs
+	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") || !localURI.IsCanonical() || remoteURI.Scheme() != localURI.Scheme() {
+		return nil, core.ErrNotCanonical
 	}
 
+	var t UnicastUDPTransport
+	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
+
 	// Attempt to connect to remote URI
-	t := UnicastUDPTransport{
-		recvBuf:       make([]byte, 0, core.MaxNDNPacketSize),
-		transportBase: newTransportBase(faceID, remoteURI, URI{}, core.MaxNDNPacketSize)}
 	var err error
-	t.conn, err = net.Dial(remoteURI.Scheme(), remoteURI.Path()+":"+strconv.FormatUint(uint64(remoteURI.Port()), 10))
+	if t.localURI.Scheme() == "udp4" {
+		var remoteAddr syscall.SockaddrInet4
+		copy(remoteAddr.Addr[0:3], net.ParseIP(remoteURI.Path()))
+		remoteAddr.Port = int(remoteURI.Port())
+		t.socket, err = syscall.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
+	} else if t.localURI.Scheme() == "udp6" {
+		var remoteAddr syscall.SockaddrInet6
+		copy(remoteAddr.Addr[0:15], net.ParseIP(remoteURI.Path()))
+		remoteAddr.Port = int(remoteURI.Port())
+		t.socket, err = syscall.Socket(unix.AF_INET6, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
+	}
 	if err != nil {
 		return nil, err
+	}
+
+	err = syscall.SetsockoptInt(t.socket, unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
+	if err != nil {
+		core.LogError(t, "Unable to allow address reuse:", err)
+		return nil, err
+	}
+
+	if t.localURI.Scheme() == "udp4" {
+		var localAddr syscall.SockaddrInet4
+		copy(localAddr.Addr[0:3], net.ParseIP(localURI.Path()))
+		localAddr.Port = int(localURI.Port())
+		err = syscall.Bind(t.socket, &localAddr)
+	} else if t.localURI.Scheme() == "udp6" {
+		var localAddr syscall.SockaddrInet6
+		copy(localAddr.Addr[0:15], net.ParseIP(localURI.Path()))
+		localAddr.Port = int(localURI.Port())
+		err = syscall.Bind(t.socket, &localAddr)
 	}
 
 	return &t, nil
@@ -52,7 +78,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 
 	core.LogDebug(t, "Sending frame of size", len(frame))
 	for nBytesToWrite := len(frame); nBytesToWrite > 0; {
-		nBytesWritten, err := t.conn.Write(frame[len(frame)-nBytesToWrite:])
+		nBytesWritten, err := syscall.Write(t.socket, frame[len(frame)-nBytesToWrite:])
 		if err != nil {
 			core.LogWarn("Unable to write on socket - DROP and Face DOWN")
 			t.changeState(Down)
@@ -64,41 +90,37 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *UnicastUDPTransport) runReceive() {
-	for !core.ShouldQuit {
-		readSize, err := t.conn.Read(t.recvBuf[t.recvBufLen:])
+	recvBuf := make([]byte, core.MaxNDNPacketSize)
+	for !core.ShouldQuit && t.state != Down {
+		readSize, err := syscall.Read(t.socket, recvBuf)
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
 			t.changeState(Down)
-			t.hasQuit <- true
-			return
+			break
 		}
 
 		core.LogTrace(t, "Receive of size", readSize)
 
-		t.recvBufLen += readSize
-
-		if t.recvBufLen > core.MaxNDNPacketSize {
+		if readSize > core.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP and Face DOWN")
 			t.changeState(Down)
-			t.hasQuit <- true
-			return
+			break
 		}
 
-		// Determine whether entire packet received
-		tlvType, tlvLength, err := util.DecodeTypeLength(t.recvBuf[:t.recvBufLen])
+		// Determine whether valid packet received
+		tlvType, tlvLength, err := util.DecodeTypeLength(recvBuf[:readSize])
 		tlvSize := tlvType.Size() + tlvLength.Size() + int(tlvLength)
-		if err == nil && t.recvBufLen >= tlvSize {
-			// Packet should be successfully received, send up to link service
-			t.linkService.handleIncomingFrame(t.recvBuf[:tlvSize])
-			t.recvBuf = t.recvBuf[tlvSize:t.recvBufLen]
-			t.recvBufLen = 0
+		if err == nil && readSize == tlvSize {
+			// Packet was successfully received, send up to link service
+			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
 		}
 	}
 
-	t.hasQuit <- true
+	t.changeState(Down)
 }
 
 func (t *UnicastUDPTransport) onClose() {
 	core.LogInfo(t, "Closing UDP socket")
-	t.conn.Close()
+	t.hasQuit <- true
+	syscall.Close(t.socket)
 }

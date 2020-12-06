@@ -11,8 +11,10 @@ package face
 type Scope int
 
 const (
-	// Local indicates the face is local (to an application)
-	Local State = iota
-	// NonLocal indicates the face is non-local (to another forwarder)
-	NonLocal State = iota
+	// Unknown indicates that the scope is unknown.
+	Unknown Scope = iota
+	// Local indicates the face is local (to an application).
+	Local Scope = iota
+	// NonLocal indicates the face is non-local (to another forwarder).
+	NonLocal Scope = iota
 )
