@@ -8,11 +8,12 @@
 package face
 
 import (
-	"errors"
 	"net"
 	"os"
 	"regexp"
 	"strconv"
+
+	"github.com/eric135/YaNFD/core"
 )
 
 // URIType represents the type of the URI
@@ -37,23 +38,23 @@ type URI struct {
 	port    uint16
 }
 
-// NewNullFaceURI constructs an empty face URI
-func NewNullFaceURI() URI {
-	return URI{nullURI, "", "", 0}
+// MakeNullFaceURI constructs a null face URI
+func MakeNullFaceURI() URI {
+	return URI{nullURI, "null", "", 0}
 }
 
-// NewEthernetFaceURI constructs a URI for an Ethernet face
-func NewEthernetFaceURI(address string) URI {
+// MakeEthernetFaceURI constructs a URI for an Ethernet face
+func MakeEthernetFaceURI(address string) URI {
 	return URI{ethernetURI, "eth", address, 0}
 }
 
-// NewUDPFaceURI constructs a URI for a UDP face
-func NewUDPFaceURI(ipVersion int, host string, port uint16) URI {
+// MakeUDPFaceURI constructs a URI for a UDP face
+func MakeUDPFaceURI(ipVersion int, host string, port uint16) URI {
 	return URI{udpURI, "udp" + strconv.Itoa(ipVersion), host, port}
 }
 
-// NewUnixFaceURI constructs a URI for a Unix face
-func NewUnixFaceURI(path string) URI {
+// MakeUnixFaceURI constructs a URI for a Unix face
+func MakeUnixFaceURI(path string) URI {
 	return URI{unixURI, "unix", path, 0}
 }
 
@@ -88,8 +89,8 @@ func (u *URI) IsCanonical() bool {
 		return u.scheme == "eth" && isEthernet && u.port == 0
 	case udpURI:
 		ip := net.ParseIP(u.path)
-		return ip != nil && ((u.scheme == "udp4" && ip.To4() != nil) || (u.scheme == "udp6" && ip.To16() != nil)) &&
-			u.port > 0 && u.port <= 65535
+		// Port number is implicitly limited to <= 65535 by type uint16
+		return ip != nil && ((u.scheme == "udp4" && ip.To4() != nil) || (u.scheme == "udp6" && ip.To16() != nil)) && u.port > 0
 	case unixURI:
 		// Check whether file exists
 		_, err := os.Stat(u.path)
@@ -100,13 +101,53 @@ func (u *URI) IsCanonical() bool {
 	}
 }
 
-// Canonize attempts to canonize the URI, if not already canonical
+// Canonize attempts to canonize the URI, if not already canonical.
 func (u *URI) Canonize() error {
 	if u.IsCanonical() {
 		return nil
 	}
-	// TODO
-	return errors.New("URI could not be canonized")
+
+	if u.uriType == ethernetURI {
+		// TODO
+	} else if u.uriType == udpURI {
+		ip := net.ParseIP(u.path)
+		if ip == nil {
+			// TODO
+		}
+
+		if ip.To4() != nil {
+			u.scheme = "udp4"
+		} else if ip.To16() != nil {
+			u.scheme = "udp6"
+		} else {
+			return core.ErrNotCanonical
+		}
+	} else if u.uriType == unixURI {
+		// TODO
+	}
+
+	return nil
+}
+
+// Scope returns the scope of the URI.
+func (u *URI) Scope() Scope {
+	if !u.IsCanonical() {
+		return Unknown
+	}
+
+	if u.uriType == ethernetURI {
+		return NonLocal
+	} else if u.uriType == udpURI {
+		if net.ParseIP(u.path).IsLoopback() {
+			return Local
+		}
+		return NonLocal
+	} else if u.uriType == unixURI {
+		return Local
+	}
+
+	// Only type left is null, which is by definition local
+	return Local
 }
 
 func (u *URI) String() string {
@@ -123,6 +164,6 @@ func (u *URI) String() string {
 	} else if u.uriType == unixURI {
 		return u.scheme + "://" + u.path
 	} else {
-		return "null://"
+		return "unknown://"
 	}
 }

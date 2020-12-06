@@ -8,6 +8,7 @@
 package core
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -16,31 +17,31 @@ import (
 var logger *log.Logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 
 // LogFatal logs a message at the FATAL level
-func LogFatal(v ...interface{}) {
-	logger.Fatalln([]interface{}{"FATAL:", v})
+func LogFatal(module interface{}, v ...interface{}) {
+	logger.Fatalln(append([]interface{}{fmt.Sprintf("FATAL: [%v]", module)}, v...)...)
 }
 
 // LogError logs a message at the ERROR level
-func LogError(v ...interface{}) {
-	logger.Println([]interface{}{"ERROR:", v})
+func LogError(module interface{}, v ...interface{}) {
+	logger.Println(append([]interface{}{fmt.Sprintf("ERROR: [%v]", module)}, v...)...)
 }
 
 // LogWarn logs a message at the WARN level
-func LogWarn(v ...interface{}) {
-	logger.Println([]interface{}{"WARN:", v})
+func LogWarn(module interface{}, v ...interface{}) {
+	logger.Println(append([]interface{}{fmt.Sprintf("WARN: [%v]", module)}, v...)...)
 }
 
 // LogInfo logs a message at the INFO level
-func LogInfo(v ...interface{}) {
-	logger.Println([]interface{}{"INFO:", v})
+func LogInfo(module interface{}, v ...interface{}) {
+	logger.Println(append([]interface{}{fmt.Sprintf("INFO: [%v]", module)}, v...)...)
 }
 
 // LogDebug logs a message at the DEBUG level
-func LogDebug(v ...interface{}) {
-	logger.Println([]interface{}{"DEBUG:", v})
+func LogDebug(module interface{}, v ...interface{}) {
+	logger.Println(append([]interface{}{fmt.Sprintf("DEBUG: [%v]", module)}, v...)...)
 }
 
 // LogTrace logs a message at the TRACE level
-func LogTrace(v ...interface{}) {
-	logger.Println([]interface{}{"TRACE:", v})
+func LogTrace(module interface{}, v ...interface{}) {
+	logger.Println(append([]interface{}{fmt.Sprintf("TRACE: [%v]", module)}, v...)...)
 }

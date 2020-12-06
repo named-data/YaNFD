@@ -17,6 +17,7 @@ import (
 // LinkService is an interface for link service implementations
 type LinkService interface {
 	String() string
+	setFaceID(faceID int)
 	tellTransportQuit()
 
 	FaceID() int
@@ -51,6 +52,13 @@ func (l *linkServiceBase) String() string {
 	return "FaceID=" + strconv.Itoa(l.faceID) + " LinkService"
 }
 
+func (l *linkServiceBase) setFaceID(faceID int) {
+	l.faceID = faceID
+	if l.transport != nil {
+		l.transport.setFaceID(faceID)
+	}
+}
+
 func (l *linkServiceBase) tellTransportQuit() {
 	l.hasTransportQuit <- true
 }
@@ -59,8 +67,7 @@ func (l *linkServiceBase) tellTransportQuit() {
 // "Constructors" and threading
 //
 
-func (l *linkServiceBase) newLinkService(faceID int, transport transport) {
-	l.faceID = faceID
+func (l *linkServiceBase) makeLinkServiceBase(transport transport) {
 	l.setTransport(transport)
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)

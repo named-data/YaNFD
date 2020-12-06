@@ -25,11 +25,11 @@ type NDNLPLinkService struct {
 	linkServiceBase
 }
 
-// NewNDNLPLinkService creates a new NDNLPv2 link service
-func NewNDNLPLinkService(faceID int, transport transport) NDNLPLinkService {
+// MakeNDNLPLinkService creates a new NDNLPv2 link service
+func MakeNDNLPLinkService(transport transport) *NDNLPLinkService {
 	l := NDNLPLinkService{options: ndnlpLinkServiceOptions{true, true, false}}
-	l.newLinkService(faceID, transport)
-	return l
+	l.makeLinkServiceBase(transport)
+	return &l
 }
 
 func (l *NDNLPLinkService) runSend() {

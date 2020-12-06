@@ -17,10 +17,11 @@ import (
 // transport provides an interface for transports for specific face types
 type transport interface {
 	String() string
+	setFaceID(faceID int)
 	setLinkService(linkService LinkService)
 
-	LocalURI() URI
 	RemoteURI() URI
+	LocalURI() URI
 	State() State
 	MTU() int
 
@@ -47,18 +48,20 @@ type transportBase struct {
 	hasQuit chan bool
 }
 
-func newTransportBase(faceID int, remoteURI URI, localURI URI, mtu int) transportBase {
-	return transportBase{
-		faceID:    faceID,
-		remoteURI: remoteURI,
-		localURI:  localURI,
-		state:     Down,
-		mtu:       mtu,
-		hasQuit:   make(chan bool, 2)}
+func (t *transportBase) makeTransportBase(remoteURI URI, localURI URI, mtu int) {
+	t.remoteURI = remoteURI
+	t.localURI = localURI
+	t.state = Down
+	t.mtu = mtu
+	t.hasQuit = make(chan bool, 2)
 }
 
 func (t *transportBase) String() string {
-	return "(FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String() + ")"
+	return "FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+}
+
+func (t *transportBase) setFaceID(faceID int) {
+	t.faceID = faceID
 }
 
 func (t *transportBase) setLinkService(linkService LinkService) {
@@ -98,6 +101,10 @@ func (t *transportBase) runReceive() {
 }
 
 func (t *transportBase) sendFrame(frame []byte) {
+	// Overridden in specific transport implementation
+}
+
+func (t *transportBase) receiveInitialFrameFromListener(frame []byte) {
 	// Overridden in specific transport implementation
 }
 

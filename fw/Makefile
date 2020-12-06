@@ -2,7 +2,7 @@
 
 all: yanfd
 
-yanfd:
+yanfd: clean
 	go build github.com/eric135/YaNFD/cmd/yanfd
 
 clean:
