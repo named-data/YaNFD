@@ -1,9 +1,14 @@
-.PHONY: all clean
+PACKAGE=github.com/eric135/YaNFD
+
+.PHONY: all clean test
 
 all: yanfd
 
 yanfd: clean
-	go build github.com/eric135/YaNFD/cmd/yanfd
+	go build ${PACKAGE}/cmd/yanfd
 
 clean:
 	rm -f yanfd
+
+test:
+	go test ./...
