@@ -22,6 +22,8 @@ github.com/eric135/go-ndn v0.0.0-20201128204504-10d8b29cc96a h1:nJidLQUAYCO0U2M4
 github.com/eric135/go-ndn v0.0.0-20201128204504-10d8b29cc96a/go.mod h1:JjolUXeev8LX2hM8O4oBS9m0P6H9Il/Cs8hidMfiPu8=
 github.com/eric135/go-ndn v0.0.0-20201129081936-fa1a619a71dd h1:bfdFYRdvxFP1I9vqpG1Uqye8DQwhPUYrSJ/VKtszVaY=
 github.com/eric135/go-ndn v0.0.0-20201129081936-fa1a619a71dd/go.mod h1:rUms9AM7NgwBmWNfu+b77IPhBsiVGro8rN2uWk6zH/w=
+github.com/eric135/go-ndn v0.0.0-20201210044958-989978f25b19 h1:dl6l7FzCIO/i6RkvYek1zQaJa+0uz/S/JKgs28++6n8=
+github.com/eric135/go-ndn v0.0.0-20201210044958-989978f25b19/go.mod h1:rUms9AM7NgwBmWNfu+b77IPhBsiVGro8rN2uWk6zH/w=
 github.com/gabstv/freeport v0.0.0-20171005142102-7952fe2e67ce/go.mod h1:mCn8UhDWrCaUI1MdkrWOzBxn52geHr/ID9D2PVDDgFw=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-ole/go-ole v1.2.4/go.mod h1:XCwSNxSkXRo4vlyPy93sltvi/qJq0jqQhjqQNIwKuxM=
