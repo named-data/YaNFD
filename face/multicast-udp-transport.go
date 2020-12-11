@@ -64,6 +64,7 @@ func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
 	// Create send socket.
 	if t.isIPv4 {
 		t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, core.MaxNDNPacketSize)
+		// TODO: Get URI from config
 
 		copy(t.localAddr.(*unix.SockaddrInet4).Addr[0:3], net.ParseIP(t.localURI.Path()))
 		t.localAddr.(*unix.SockaddrInet4).Port = int(t.localURI.Port())
@@ -106,6 +107,9 @@ func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
 			unix.Close(t.sendSocket)
 			return nil, err
 		}
+
+		// Set scope
+		t.scope = NonLocal
 	}
 
 	// Create receive socket
