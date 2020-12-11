@@ -22,16 +22,18 @@ type uriType int
 
 //const uriPattern = "^([0-9A-Za-z]+)://([0-9A-Za-z:-\\[\\]%\\.]+)(:([0-9]+))?$"
 const ethernetPattern = "^(?P<scheme>eth)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
+const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
 const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
 const nullPattern = "^(null)://$"
 const udpPattern = "^(?P<scheme>udp[46]?)://\\[?(?P<host>[0-9A-Za-z\\:\\.\\-]+)\\]?:(?P<port>[0-9]+)$"
-const unixPattern = "^(unix)://([/\\\\A-Za-z0-9\\.\\-_]+)$"
+const unixPattern = "^(?P<scheme>unix)://(?P<path>[/\\\\A-Za-z0-9\\.\\-_]+)$"
 
 const (
 	unknownURI  uriType = iota
 	nullURI     uriType = iota
 	ethernetURI uriType = iota
+	fdURI       uriType = iota
 	udpURI      uriType = iota
 	unixURI     uriType = iota
 )
@@ -52,6 +54,11 @@ func MakeNullFaceURI() URI {
 // MakeEthernetFaceURI constructs a URI for an Ethernet face.
 func MakeEthernetFaceURI(mac net.HardwareAddr) URI {
 	return URI{ethernetURI, "eth", mac.String(), 0}
+}
+
+// MakeFDFaceURI constructs a file descriptor URI.
+func MakeFDFaceURI(fd int) URI {
+	return URI{fdURI, "fd", strconv.Itoa(fd), 0}
 }
 
 // MakeUDPFaceURI constructs a URI for a UDP face.
@@ -91,6 +98,20 @@ func DecodeURIString(str string) (u URI) {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("mac")]
+	} else if strings.EqualFold("fd", schemeSplit[0]) {
+		u.uriType = fdURI
+		u.scheme = "fd"
+
+		regex, err := regexp.Compile(fdPattern)
+		if err != nil {
+			return u
+		}
+
+		matches := regex.FindStringSubmatch(str)
+		if len(matches) <= regex.SubexpIndex("path") {
+			return u
+		}
+		u.path = matches[regex.SubexpIndex("path")]
 	} else if strings.EqualFold("udp", schemeSplit[0]) || strings.EqualFold("udp4", schemeSplit[0]) || strings.EqualFold("udp6", schemeSplit[0]) {
 		u.uriType = udpURI
 		u.scheme = "udp"
@@ -178,6 +199,9 @@ func (u *URI) IsCanonical() bool {
 	case ethernetURI:
 		isEthernet, _ := regexp.MatchString(macPattern, u.path)
 		return u.scheme == "eth" && isEthernet && u.port == 0
+	case fdURI:
+		fd, err := strconv.Atoi(u.path)
+		return u.scheme == "fd" && err == nil && fd >= 0 && u.port == 0
 	case udpURI:
 		// Split off zone, if any
 		ip := net.ParseIP(u.PathHost())
@@ -205,6 +229,8 @@ func (u *URI) Canonize() error {
 		u.scheme = "eth"
 		u.path = mac.String()
 		u.port = 0
+	} else if u.uriType == fdURI {
+		// Nothing to do to canonize these
 	} else if u.uriType == udpURI {
 		path := u.path
 		if strings.Contains(u.path, "%") {
@@ -259,6 +285,8 @@ func (u *URI) Scope() Scope {
 
 	if u.uriType == ethernetURI {
 		return NonLocal
+	} else if u.uriType == fdURI {
+		return Local
 	} else if u.uriType == udpURI {
 		if net.ParseIP(u.path).IsLoopback() {
 			return Local
