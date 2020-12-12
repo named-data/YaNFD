@@ -1,0 +1,135 @@
+/* YaNFD - Yet another NDN Forwarding Daemon
+ *
+ * Copyright (C) 2020 Eric Newberry.
+ *
+ * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
+ */
+
+package face
+
+import (
+	"net"
+	"strconv"
+	"time"
+
+	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/util"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+)
+
+// MulticastEthernetTransport is a multicast Ethernet transport.
+type MulticastEthernetTransport struct {
+	pcap       *pcap.Handle
+	shouldQuit chan bool
+	remoteAddr net.HardwareAddr
+	localAddr  net.HardwareAddr
+	transportBase
+}
+
+// MakeMulticastEthernetTransport creates a new multicast Ethernet transport.
+func MakeMulticastEthernetTransport(remoteURI URI, localURI URI) (*MulticastEthernetTransport, error) {
+	// Validate URIs
+	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "eth" || !localURI.IsCanonical() || localURI.Scheme() != "dev" {
+		return nil, core.ErrNotCanonical
+	}
+
+	var t MulticastEthernetTransport
+	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
+	t.shouldQuit = make(chan bool, 1)
+	var err error
+	t.remoteAddr, err = net.ParseMAC(remoteURI.Path())
+	if err != nil {
+		core.LogError(t, "Unable to parse MAC address", remoteURI.Path(), "-", err)
+		return nil, err
+	}
+
+	// Get interface
+	iface, err := net.InterfaceByName(localURI.Path())
+	if err != nil {
+		core.LogError(t, "Unable to get local interface", localURI.Path(), "-", err)
+		return nil, err
+	}
+	t.localAddr = iface.HardwareAddr
+
+	// Set scope
+	t.scope = NonLocal
+
+	// Set up inactive PCAP handle
+	inactive, err := pcap.NewInactiveHandle(localURI.Path())
+	if err != nil {
+		core.LogError(t, "Unable to create PCAP handle", err)
+		return nil, err
+	}
+
+	err = inactive.SetTimeout(time.Minute)
+	if err != nil {
+		core.LogError(t, "Unable to set PCAP timeout", err)
+		return nil, err
+	}
+
+	// Activate PCAP handle
+	t.pcap, err = inactive.Activate()
+
+	// Set PCAP filter
+	err = t.pcap.SetBPFFilter("ether proto " + strconv.Itoa(NDNEtherType) + " and ether dst " + remoteURI.Path())
+	if err != nil {
+		core.LogError(t, "Unable to set PCAP filter", err)
+	}
+
+	return &t, nil
+}
+
+func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
+	if len(frame) > t.MTU() {
+		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
+		return
+	}
+
+	// Wrap in Ethernet frame
+	ethHeader := layers.Ethernet{SrcMAC: t.localAddr, DstMAC: t.remoteAddr, EthernetType: NDNEtherType}
+	ethFrame := gopacket.NewSerializeBuffer()
+	gopacket.SerializeLayers(ethFrame, gopacket.SerializeOptions{}, &ethHeader, gopacket.Payload(frame))
+
+	// Write to PCAP handle
+	core.LogDebug(t, "Sending frame of size", len(ethFrame.Bytes()))
+	err := t.pcap.WritePacketData(ethFrame.Bytes())
+	if err != nil {
+		core.LogWarn(t, "Unable to write frame - DROP and FACE DOWN")
+		t.changeState(Down)
+	}
+}
+
+func (t *MulticastEthernetTransport) runReceive() {
+	packetSource := gopacket.NewPacketSource(t.pcap, t.pcap.LinkType())
+	select {
+	case packet := <-packetSource.Packets():
+		core.LogDebug(t, "Received", len(packet.Data()), "bytes from", packet.LinkLayer().LinkFlow().Src().String())
+
+		// Extract network layer (NDN)
+		ndnLayer := packet.NetworkLayer().LayerContents()
+
+		if len(ndnLayer) > core.MaxNDNPacketSize {
+			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+		}
+
+		// Determine whether valid packet received
+		tlvType, tlvLength, err := util.DecodeTypeLength(ndnLayer)
+		tlvSize := tlvType.Size() + tlvLength.Size() + int(tlvLength)
+		if err == nil && len(ndnLayer) == tlvSize {
+			// Packet was successfully received, send up to link service
+			t.linkService.handleIncomingFrame(ndnLayer)
+		}
+	case <-t.shouldQuit:
+		break
+	}
+
+	t.changeState(Down)
+}
+
+func (t *MulticastEthernetTransport) onClose() {
+	core.LogInfo(t, "Closing unicast Ethernet transport")
+	t.hasQuit <- true
+	t.shouldQuit <- true
+}
