@@ -194,7 +194,6 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	if err != nil {
 		core.LogWarn("Unable to send on socket - DROP and Face DOWN")
 		t.changeState(Down)
-		t.hasQuit <- true
 	}
 }
 

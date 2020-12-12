@@ -96,7 +96,6 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
 		t.changeState(Down)
-		t.hasQuit <- true
 	}
 }
 

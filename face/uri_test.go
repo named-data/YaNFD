@@ -16,19 +16,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNull(t *testing.T) {
-	uri := face.MakeNullFaceURI()
+func TestDev(t *testing.T) {
+	uri := face.MakeDevFaceURI("lo")
 	assert.True(t, uri.IsCanonical())
-	assert.Equal(t, "null", uri.Scheme())
-	assert.Equal(t, "", uri.Path())
+	assert.Equal(t, "dev", uri.Scheme())
+	assert.Equal(t, "lo", uri.Path())
 	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "null://", uri.String())
+	assert.Equal(t, "dev://lo", uri.String())
 
-	uri = face.DecodeURIString("null://")
-	assert.Equal(t, "null", uri.Scheme())
-	assert.Equal(t, "", uri.Path())
+	uri = face.MakeDevFaceURI("fakeif")
+	assert.False(t, uri.IsCanonical())
+	assert.Equal(t, "dev", uri.Scheme())
+
+	uri = face.DecodeURIString("dev://lo")
+	assert.True(t, uri.IsCanonical())
+	assert.Equal(t, "dev", uri.Scheme())
+	assert.Equal(t, "lo", uri.Path())
 	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "null://", uri.String())
+	assert.Equal(t, "dev://lo", uri.String())
+
+	uri = face.DecodeURIString("dev://fakeif")
+	assert.False(t, uri.IsCanonical())
+	assert.Equal(t, "dev", uri.Scheme())
 }
 
 func TestEthernet(t *testing.T) {
@@ -69,6 +78,21 @@ func testFD(t *testing.T) {
 
 	uri = face.DecodeURIString("fd://27:6363")
 	assert.False(t, uri.IsCanonical())
+}
+
+func TestNull(t *testing.T) {
+	uri := face.MakeNullFaceURI()
+	assert.True(t, uri.IsCanonical())
+	assert.Equal(t, "null", uri.Scheme())
+	assert.Equal(t, "", uri.Path())
+	assert.Equal(t, uint16(0), uri.Port())
+	assert.Equal(t, "null://", uri.String())
+
+	uri = face.DecodeURIString("null://")
+	assert.Equal(t, "null", uri.Scheme())
+	assert.Equal(t, "", uri.Path())
+	assert.Equal(t, uint16(0), uri.Port())
+	assert.Equal(t, "null://", uri.String())
 }
 
 func TestUDP(t *testing.T) {

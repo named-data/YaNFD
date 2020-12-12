@@ -7,6 +7,9 @@
 
 package face
 
+// NDNEtherType is the standard EtherType for NDN.
+const NDNEtherType = 0x8624
+
 // NDNUnicastUDPPort is the standard unicast UDP port for NDN.
 const NDNUnicastUDPPort = 6363
 

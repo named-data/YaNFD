@@ -21,6 +21,7 @@ import (
 type uriType int
 
 //const uriPattern = "^([0-9A-Za-z]+)://([0-9A-Za-z:-\\[\\]%\\.]+)(:([0-9]+))?$"
+const devPattern = "^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\\-]+)$"
 const ethernetPattern = "^(?P<scheme>eth)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
 const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
@@ -31,9 +32,10 @@ const unixPattern = "^(?P<scheme>unix)://(?P<path>[/\\\\A-Za-z0-9\\.\\-_]+)$"
 
 const (
 	unknownURI  uriType = iota
-	nullURI     uriType = iota
+	devURI      uriType = iota
 	ethernetURI uriType = iota
 	fdURI       uriType = iota
+	nullURI     uriType = iota
 	udpURI      uriType = iota
 	unixURI     uriType = iota
 )
@@ -46,9 +48,9 @@ type URI struct {
 	port    uint16
 }
 
-// MakeNullFaceURI constructs a null face URI.
-func MakeNullFaceURI() URI {
-	return URI{nullURI, "null", "", 0}
+// MakeDevFaceURI constucts a URI for a network interface.
+func MakeDevFaceURI(ifname string) URI {
+	return URI{devURI, "dev", ifname, 0}
 }
 
 // MakeEthernetFaceURI constructs a URI for an Ethernet face.
@@ -59,6 +61,11 @@ func MakeEthernetFaceURI(mac net.HardwareAddr) URI {
 // MakeFDFaceURI constructs a file descriptor URI.
 func MakeFDFaceURI(fd int) URI {
 	return URI{fdURI, "fd", strconv.Itoa(fd), 0}
+}
+
+// MakeNullFaceURI constructs a null face URI.
+func MakeNullFaceURI() URI {
+	return URI{nullURI, "null", "", 0}
 }
 
 // MakeUDPFaceURI constructs a URI for a UDP face.
@@ -81,9 +88,26 @@ func DecodeURIString(str string) (u URI) {
 		return u
 	}
 
-	if strings.EqualFold("null", schemeSplit[0]) {
-		u.uriType = nullURI
-		u.scheme = "null"
+	if strings.EqualFold("dev", schemeSplit[0]) {
+		u.uriType = devURI
+		u.scheme = "dev"
+
+		regex, err := regexp.Compile(devPattern)
+		if err != nil {
+			return u
+		}
+
+		matches := regex.FindStringSubmatch(str)
+		if len(matches) <= regex.SubexpIndex("ifname") {
+			return u
+		}
+
+		ifname := matches[regex.SubexpIndex("ifname")]
+		_, err = net.InterfaceByName(ifname)
+		if err != nil {
+			return u
+		}
+		u.path = ifname
 	} else if strings.EqualFold("eth", schemeSplit[0]) {
 		u.uriType = ethernetURI
 		u.scheme = "eth"
@@ -112,6 +136,9 @@ func DecodeURIString(str string) (u URI) {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("path")]
+	} else if strings.EqualFold("null", schemeSplit[0]) {
+		u.uriType = nullURI
+		u.scheme = "null"
 	} else if strings.EqualFold("udp", schemeSplit[0]) || strings.EqualFold("udp4", schemeSplit[0]) || strings.EqualFold("udp6", schemeSplit[0]) {
 		u.uriType = udpURI
 		u.scheme = "udp"
@@ -194,14 +221,17 @@ func (u *URI) Port() uint16 {
 func (u *URI) IsCanonical() bool {
 	// Must pass type-specific checks
 	switch u.uriType {
-	case nullURI:
-		return u.scheme == "null" && u.path == "" && u.port == 0
+	case devURI:
+		_, err := net.InterfaceByName(u.path)
+		return u.scheme == "dev" && err == nil && u.port == 0
 	case ethernetURI:
 		isEthernet, _ := regexp.MatchString(macPattern, u.path)
 		return u.scheme == "eth" && isEthernet && u.port == 0
 	case fdURI:
 		fd, err := strconv.Atoi(u.path)
 		return u.scheme == "fd" && err == nil && fd >= 0 && u.port == 0
+	case nullURI:
+		return u.scheme == "null" && u.path == "" && u.port == 0
 	case udpURI:
 		// Split off zone, if any
 		ip := net.ParseIP(u.PathHost())
@@ -221,7 +251,9 @@ func (u *URI) IsCanonical() bool {
 
 // Canonize attempts to canonize the URI, if not already canonical.
 func (u *URI) Canonize() error {
-	if u.uriType == ethernetURI {
+	if u.uriType == devURI {
+		// Nothing to do to canonize these
+	} else if u.uriType == ethernetURI {
 		mac, err := net.ParseMAC(strings.Trim(u.path, "[]"))
 		if err != nil {
 			return core.ErrNotCanonical
@@ -283,7 +315,9 @@ func (u *URI) Scope() Scope {
 		return Unknown
 	}
 
-	if u.uriType == ethernetURI {
+	if u.uriType == devURI {
+		return NonLocal
+	} else if u.uriType == ethernetURI {
 		return NonLocal
 	} else if u.uriType == fdURI {
 		return Local
@@ -296,15 +330,19 @@ func (u *URI) Scope() Scope {
 		return Local
 	}
 
-	// Only type left is null, which is by definition local
+	// Only valid type left is null, which is by definition local
 	return Local
 }
 
 func (u *URI) String() string {
-	if u.uriType == nullURI {
-		return "null://"
+	if u.uriType == devURI {
+		return "dev://" + u.path
 	} else if u.uriType == ethernetURI {
 		return u.scheme + "://[" + u.path + "]"
+	} else if u.uriType == fdURI {
+		return "fd://" + u.path
+	} else if u.uriType == nullURI {
+		return "null://"
 	} else if u.uriType == udpURI {
 		if u.scheme == "udp4" {
 			return u.scheme + "://" + u.path + ":" + strconv.FormatUint(uint64(u.port), 10)
