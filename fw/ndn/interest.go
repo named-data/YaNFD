@@ -64,19 +64,19 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 				return nil, err
 			}
 			mostRecentElem = 1
-			i.SetName(name)
+			i.name = *name.DeepCopy()
 		case tlv.CanBePrefix:
 			if mostRecentElem >= 2 {
 				return nil, errors.New("CanBePrefix is duplicate or out-of-order")
 			}
 			mostRecentElem = 2
-			i.SetCanBePrefix(true)
+			i.canBePrefix = true
 		case tlv.MustBeFresh:
 			if mostRecentElem >= 3 {
 				return nil, errors.New("MustBeFresh is duplicate or out-of-order")
 			}
 			mostRecentElem = 3
-			i.SetMustBeFresh(true)
+			i.mustBeFresh = true
 		case tlv.ForwardingHint:
 			if mostRecentElem >= 4 {
 				return nil, errors.New("ForwardingHint is duplicate or out-of-order")
@@ -95,9 +95,11 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 				return nil, errors.New("Nonce is duplicate or out-of-order")
 			}
 			mostRecentElem = 5
-			if i.SetNonce(elem.Value()) != nil {
+			if len(elem.Value()) != 4 {
 				return nil, errors.New("Error decoding Nonce")
 			}
+			i.nonce = make([]byte, 4)
+			copy(i.nonce, elem.Value())
 		case tlv.InterestLifetime:
 			if mostRecentElem >= 6 {
 				return nil, errors.New("InterestLifetime is duplicate or out-of-order")
@@ -107,7 +109,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			if err != nil {
 				return nil, errors.New("Error decoding InterestLifetime")
 			}
-			i.SetLifetime(time.Duration(lifetime) * time.Millisecond)
+			i.lifetime = time.Duration(lifetime) * time.Millisecond
 		case tlv.HopLimit:
 			if mostRecentElem >= 7 {
 				return nil, errors.New("HopLimit is duplicate or out-of-order")
@@ -116,7 +118,8 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			if len(elem.Value()) != 1 {
 				return nil, errors.New("Error decoding HopLimit")
 			}
-			i.SetHopLimit(&elem.Value()[0])
+			i.hopLimit = new(uint8)
+			*i.hopLimit = elem.Value()[0]
 		case tlv.ApplicationParameters:
 			if mostRecentElem >= 8 {
 				return nil, errors.New("ApplicationParameters is duplicate or out-of-order")
