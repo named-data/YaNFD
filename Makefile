@@ -1,6 +1,6 @@
 PACKAGE=github.com/eric135/YaNFD
 
-.PHONY: all clean test
+.PHONY: all clean test coverage
 
 all: yanfd
 
@@ -11,4 +11,7 @@ clean:
 	rm -f yanfd
 
 test:
-	go test ./...
+	go test ./... -coverprofile=coverage.out
+
+coverage:
+	go tool cover -func=coverage.out
