@@ -77,9 +77,34 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 				return nil, errors.New("Error decoding FinalBlockId")
 			}
 			m.finalBlockID = finalBlockID
+		default:
+			if tlv.IsCritical(elem.Type()) {
+				return nil, tlv.ErrUnrecognizedCritical
+			}
+			// If non-critical, ignore
 		}
 	}
 	return m, nil
+}
+
+// DeepCopy returns a deep copy of the MetaInfo.
+func (m *MetaInfo) DeepCopy() *MetaInfo {
+	copyM := new(MetaInfo)
+	if m.contentType != nil {
+		copyM.contentType = new(uint64)
+		*copyM.contentType = *m.contentType
+	}
+	if m.freshnessPeriod != nil {
+		copyM.freshnessPeriod = new(time.Duration)
+		*copyM.freshnessPeriod = *m.freshnessPeriod
+	}
+	if m.finalBlockID != nil {
+		copyM.finalBlockID = m.finalBlockID.DeepCopy()
+	}
+	if m.wire != nil {
+		copyM.wire = m.wire.DeepCopy()
+	}
+	return copyM
 }
 
 // ContentType returns the ContentType set in the MetaInfo.
