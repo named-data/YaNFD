@@ -220,7 +220,6 @@ func (b *Block) Parse() bool {
 		b.subelements = append(b.subelements, block)
 		startPos += blockLen
 	}
-	b.value = []byte{}
 	return true
 }
 
