@@ -15,8 +15,8 @@ This library implements the Named Data Networking packet format for with with th
 * Interest
 * Link Object (**planned**)
 * Names
-* Signatures (**planned**)
-  * Data signatures (**planned**)
+* Signatures
+  * Data signatures
   * Signed Interests (**planned**)
 
 ### Link Protocol
@@ -28,8 +28,8 @@ This library implements the Named Data Networking packet format for with with th
 
 * Certificates (**planned**)
 * Encryption and Decryption (*not currently planned*)
-* Signing (**planned**)
-  * SHA256 (**planned**)
+* Signing/Validation (**planned**)
+  * SHA256
   * SHA256-RSA (**planned**)
   * SHA256-ECDSA (**planned**)
   * HMAC-SHA256 (**planned**)

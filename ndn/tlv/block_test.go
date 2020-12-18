@@ -258,7 +258,6 @@ func TestBlockDecodeSubelements(t *testing.T) {
 
 	// Parse
 	assert.True(t, block.Parse())
-	assert.Equal(t, 0, len(block.Value()))
 	assert.Equal(t, 3, len(block.Subelements()))
 	assert.Equal(t, uint32(0xBB), block.Subelements()[0].Type())
 	assert.Equal(t, []byte{0x01}, block.Subelements()[0].Value())

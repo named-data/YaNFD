@@ -9,18 +9,22 @@ package ndn
 
 import (
 	"errors"
+	"strconv"
 
+	"github.com/eric135/YaNFD/ndn/security"
 	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/eric135/YaNFD/ndn/util"
 )
 
 // Data represents an NDN Data packet.
 type Data struct {
-	name     Name
-	metaInfo *MetaInfo
-	content  []byte
-	// TODO: Signature
-	wire *tlv.Block
+	name                    *Name
+	metaInfo                *MetaInfo
+	content                 []byte
+	sigInfo                 *SignatureInfo
+	sigValue                []byte
+	shouldValidateSignature bool
+	wire                    *tlv.Block
 }
 
 // NewData creates a new Data packet with the given name and content.
@@ -30,53 +34,69 @@ func NewData(name *Name, content []byte) *Data {
 	}
 
 	d := new(Data)
-	d.name = *name.DeepCopy()
+	d.name = name.DeepCopy()
 	d.metaInfo = NewMetaInfo()
 	d.content = make([]byte, len(content))
+	d.sigInfo = NewSignatureInfo(security.DigestSha256Type)
 	copy(d.content, content)
 	return d
 }
 
 // DecodeData decodes a Data packet from the wire.
-func DecodeData(wire *tlv.Block) (*Data, error) {
+func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 	if wire == nil {
 		return nil, util.ErrNonExistent
 	}
-	wire.Parse()
 
 	d := new(Data)
+	d.shouldValidateSignature = shouldValidateSignature
 	d.wire = wire.DeepCopy()
+	d.wire.Parse()
 	mostRecentElem := 0
-	for _, elem := range wire.Subelements() {
+	var err error
+	for _, elem := range d.wire.Subelements() {
 		switch elem.Type() {
 		case tlv.Name:
 			if mostRecentElem >= 1 {
 				return nil, errors.New("Name is duplicate or out-of-order")
 			}
 			mostRecentElem = 1
-			name, err := DecodeName(elem)
+			d.name, err = DecodeName(elem)
 			if err != nil {
 				return nil, errors.New("Error decoding Name")
 			}
-			d.name = *name
 		case tlv.MetaInfo:
 			if mostRecentElem >= 2 {
 				return nil, errors.New("MetaInfo is duplicate or out-of-order")
 			}
 			mostRecentElem = 2
-			metaInfo, err := DecodeMetaInfo(elem)
+			d.metaInfo, err = DecodeMetaInfo(elem)
 			if err != nil {
 				return nil, err
 			}
-			d.metaInfo = metaInfo
 		case tlv.Content:
-			if mostRecentElem == 3 {
+			if mostRecentElem >= 3 {
 				return nil, errors.New("Content is duplicate or out-or-order")
 			}
 			mostRecentElem = 3
 			d.content = make([]byte, len(elem.Value()))
 			copy(d.content, elem.Value())
-		// TODO: Signature
+		case tlv.SignatureInfo:
+			if mostRecentElem >= 4 {
+				return nil, errors.New("SignatureInfo is duplicate or out-of-order")
+			}
+			mostRecentElem = 4
+			d.sigInfo, err = DecodeSignatureInfo(elem)
+			if err != nil {
+				return nil, errors.New("Error decoding SignatureInfo")
+			}
+		case tlv.SignatureValue:
+			if mostRecentElem >= 5 {
+				return nil, errors.New("SignatureValue is duplicate or out-of-order")
+			}
+			mostRecentElem = 5
+			d.sigValue = make([]byte, len(elem.Value()))
+			copy(d.sigValue, elem.Value())
 		default:
 			if tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical
@@ -84,7 +104,31 @@ func DecodeData(wire *tlv.Block) (*Data, error) {
 			// If non-critical, ignore
 		}
 	}
+
+	if d.name == nil || d.sigInfo == nil || len(d.sigValue) == 0 {
+		return nil, errors.New("Data missing required field")
+	}
+
+	if d.shouldValidateSignature {
+		isSignatureValid, err := d.validateSignature()
+		if err != nil {
+			return nil, err
+		}
+		if !isSignatureValid {
+			return nil, errors.New("Unable to validate signature in decoded Data")
+		}
+	}
+
 	return d, nil
+}
+
+func (d *Data) String() string {
+	str := "Data(" + d.name.String()
+	if d.metaInfo != nil {
+		str += ", " + d.metaInfo.String()
+	}
+	str += ", ContentLen=" + strconv.FormatInt(int64(len(d.content)), 10) + ")"
+	return str
 }
 
 // DeepCopy returns a deep copy of the Data.
@@ -100,8 +144,9 @@ func (d *Data) Name() *Name {
 
 // SetName sets the name of the Data packet.
 func (d *Data) SetName(name *Name) {
-	d.name = *name.DeepCopy()
+	d.name = name.DeepCopy()
 	d.wire = nil
+	d.sigValue = make([]byte, 0)
 }
 
 // MetaInfo returns the MetaInfo of the Data packet.
@@ -117,6 +162,7 @@ func (d *Data) SetMetaInfo(metaInfo *MetaInfo) error {
 
 	d.metaInfo = metaInfo.DeepCopy()
 	d.wire = nil
+	d.sigValue = make([]byte, 0)
 	return nil
 }
 
@@ -132,6 +178,113 @@ func (d *Data) SetContent(content []byte) {
 	d.content = make([]byte, len(content))
 	copy(d.content, content)
 	d.wire = nil
+	d.sigValue = make([]byte, 0)
+}
+
+// SignatureInfo returns a copy of the SignatureInfo in the Data packet.
+func (d *Data) SignatureInfo() *SignatureInfo {
+	if d.sigInfo == nil {
+		return nil
+	}
+	return d.sigInfo.DeepCopy()
+}
+
+// SetSignatureInfo sets the SignatureInfo in the Data packet.
+func (d *Data) SetSignatureInfo(sigInfo *SignatureInfo) {
+	if sigInfo == nil {
+		return
+	}
+
+	d.sigInfo = sigInfo.DeepCopy()
+	d.wire = nil
+	d.sigValue = make([]byte, 0)
+}
+
+// SignatureValue returns a copy of the SignatureValue in the Data packet. If the signature has not yet been calculated,
+func (d *Data) SignatureValue() []byte {
+	if len(d.sigValue) == 0 {
+		if d.computeSignatureValue() != nil {
+			return make([]byte, 0)
+		}
+	}
+
+	sigValue := make([]byte, len(d.sigValue))
+	copy(sigValue, d.sigValue)
+	return sigValue
+}
+
+// ShouldValidateSignature returns whether signature validation is enabled for this Data.
+func (d *Data) ShouldValidateSignature() bool {
+	return d.shouldValidateSignature
+}
+
+func (d *Data) validateSignature() (bool, error) {
+	if d.wire == nil {
+		_, err := d.Encode()
+		if err != nil {
+			// Can't validate signature if can't encode packet
+			return false, errors.New("Cannot encode packet")
+		}
+	}
+
+	if d.wire.Find(tlv.SignatureInfo) == nil {
+		// No SignatureInfo!
+		return false, errors.New("SignatureInfo not present")
+	}
+
+	d.wire.Parse()
+	wire, err := d.wire.Wire()
+	if err != nil {
+		return false, err
+	}
+	buffer := make([]byte, 0, len(wire))
+	for _, elem := range d.wire.Subelements() {
+		if elem.Type() == tlv.SignatureValue {
+			break
+		}
+		elemWire, err := elem.Wire()
+		if err != nil {
+			return false, err
+		}
+		buffer = append(buffer, elemWire...)
+	}
+
+	return security.Verify(d.SignatureInfo().Type(), buffer, d.SignatureValue())
+}
+
+func (d *Data) computeSignatureValue() error {
+	if d.wire == nil {
+		if _, err := d.Encode(); err != nil {
+			return err
+		}
+	}
+	if d.wire.Find(tlv.SignatureInfo) == nil {
+		// No SignatureInfo!
+		return errors.New("SignatureInfo missing")
+	}
+
+	wire, err := d.wire.Wire()
+	if err != nil {
+		return err
+	}
+	buffer := make([]byte, 0, len(wire))
+	for _, elem := range d.wire.Subelements() {
+		if elem.Type() == tlv.SignatureValue {
+			break
+		}
+		elemWire, err := elem.Wire()
+		if err != nil {
+			return err
+		}
+		buffer = append(buffer, elemWire...)
+	}
+
+	signature, err := security.Sign(d.SignatureInfo().Type(), buffer)
+	if err == nil {
+		d.sigValue = make([]byte, len(signature))
+		copy(d.sigValue, signature)
+	}
+	return err
 }
 
 // Encode encodes the Data into a block.
@@ -149,7 +302,18 @@ func (d *Data) Encode() (*tlv.Block, error) {
 		}
 		d.wire.Append(tlv.NewBlock(tlv.Content, d.content))
 
-		// TODO: Signature
+		sigInfo, err := d.sigInfo.Encode()
+		if err != nil {
+			d.wire = nil
+			return nil, errors.New("Unable to encode SignatureInfo")
+		}
+		d.wire.Append(sigInfo)
+
+		if d.computeSignatureValue() != nil {
+			d.wire = nil
+			return nil, errors.New("Unable to encode SignatureValue")
+		}
+		d.wire.Append(tlv.NewBlock(tlv.SignatureValue, d.sigValue))
 	}
 
 	d.wire.Wire()

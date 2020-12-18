@@ -9,6 +9,7 @@ package ndn
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/eric135/YaNFD/ndn/tlv"
@@ -85,6 +86,34 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 		}
 	}
 	return m, nil
+}
+
+func (m *MetaInfo) String() string {
+	str := "MetaInfo("
+
+	isFirst := true
+	if m.contentType != nil {
+		if !isFirst {
+			str += ", "
+		}
+		str += "ContentType=" + strconv.FormatUint(*m.contentType, 10)
+		isFirst = false
+	}
+	if m.freshnessPeriod != nil {
+		if !isFirst {
+			str += ", "
+		}
+		str += "FreshnessPeriod=" + strconv.FormatInt(m.freshnessPeriod.Milliseconds(), 10) + "ms"
+	}
+	if m.finalBlockID != nil {
+		if !isFirst {
+			str += ", "
+		}
+		str += "FinalBlockId=" + m.finalBlockID.String()
+	}
+
+	str += ")"
+	return str
 }
 
 // DeepCopy returns a deep copy of the MetaInfo.
