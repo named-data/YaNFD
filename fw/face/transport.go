@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/go-ndn"
+	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 // transport provides an interface for transports for specific face types
@@ -43,7 +43,7 @@ type transportBase struct {
 	mtu       int
 
 	state     State
-	recvQueue chan ndn.LpPacket
+	recvQueue chan *tlv.Block
 
 	hasQuit chan bool
 }

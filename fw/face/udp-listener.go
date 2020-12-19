@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/util"
+	"github.com/eric135/YaNFD/ndn/tlv"
 	"golang.org/x/sys/unix"
 )
 
@@ -112,9 +112,10 @@ func (u *UDPListener) Run() {
 		}
 
 		// Determine whether valid packet received
-		tlvType, tlvLength, err := util.DecodeTypeLength(recvBuf[:readSize])
-		tlvSize := tlvType.Size() + tlvLength.Size() + int(tlvLength)
-		if err == nil && readSize == tlvSize {
+		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
+		if err != nil {
+			core.LogInfo("Unable to process received packet: " + err.Error())
+		} else if readSize >= tlvSize {
 			// If frame received here, must be for new remote endpoint
 			newTransport, err := MakeUnicastUDPTransport(remoteURI, u.localURI)
 			if err != nil {

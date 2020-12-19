@@ -4,7 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 
-	"github.com/eric135/go-ndn"
+	"github.com/eric135/YaNFD/ndn"
 )
 
 // MaxFwThreads Maximum number of forwarding threads
@@ -14,17 +14,17 @@ const MaxFwThreads = 32
 var Threads map[int]*Thread
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.
-func HashNameToFwThread(name ndn.Name) int {
+func HashNameToFwThread(name *ndn.Name) int {
 	sum := sha512.Sum512([]byte(name.String()))
 	return int(binary.BigEndian.Uint64(sum[56:]) % uint64(len(Threads)))
 }
 
 // HashNameToAllPrefixFwThreads hahes an NDN name to all forwarding threads for all prefixes of the name.
-func HashNameToAllPrefixFwThreads(name ndn.Name) []int {
+func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
 	threadMap := make(map[int]interface{})
 
-	for i := name.Length(); i > 0; i++ {
-		threadMap[HashNameToFwThread(name.GetPrefix(i))] = true
+	for i := name.Size(); i > 0; i++ {
+		threadMap[HashNameToFwThread(name.Prefix(i))] = true
 	}
 
 	threadList := make([]int, 0, len(threadMap))

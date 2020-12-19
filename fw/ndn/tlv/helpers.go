@@ -9,6 +9,8 @@ package tlv
 
 import (
 	"encoding/binary"
+	"errors"
+	"math"
 
 	"github.com/eric135/YaNFD/ndn/util"
 )
@@ -81,4 +83,24 @@ func DecodeNNIBlock(wire *Block) (uint64, error) {
 		return 0, ErrBufferTooShort
 	}
 	return binary.BigEndian.Uint64(wire.Value()), nil
+}
+
+// DecodeTypeLength decodes the TLV type, TLV length, and total size of the block from a byte slice.
+func DecodeTypeLength(bytes []byte) (uint32, int, int, error) {
+	var tlvType uint64
+	var tlvLength uint64
+
+	tlvType, tlvTypeSize, err := DecodeVarNum(bytes)
+	if err != nil {
+		return 0, 0, 0, err
+	} else if tlvType > math.MaxUint32 {
+		return 0, 0, 0, errors.New("TLV type out of range")
+	}
+
+	tlvLength, tlvLengthSize, err := DecodeVarNum(bytes[tlvTypeSize:])
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return uint32(tlvType), int(tlvLength), tlvTypeSize + tlvLengthSize + int(tlvLength), nil
 }

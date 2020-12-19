@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/go-ndn"
+	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 // LinkService is an interface for link service implementations
@@ -30,7 +30,7 @@ type LinkService interface {
 	runSend()
 
 	// SendPacket Add a packet to the send queue for this link service
-	SendPacket(packet *ndn.Packet)
+	SendPacket(packet *tlv.Block)
 	handleIncomingFrame(frame []byte)
 }
 
@@ -135,8 +135,8 @@ func (l *linkServiceBase) State() State {
 //
 
 // SendPacket adds a packet to the send queue for this link service
-func (l *linkServiceBase) SendPacket(packet *ndn.Packet) {
-	_, encoded, err := packet.MarshalTlv()
+func (l *linkServiceBase) SendPacket(packet *tlv.Block) {
+	encoded, err := packet.Wire()
 	if err != nil {
 		core.LogWarn(l, "Unable to encode outgoing packet for queueing in link service - DROP")
 		return

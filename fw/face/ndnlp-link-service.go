@@ -9,8 +9,8 @@ package face
 
 import (
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/go-ndn"
-	"github.com/eric135/go-ndn/tlv"
+	"github.com/eric135/YaNFD/ndn/lpv2"
+	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 type ndnlpLinkServiceOptions struct {
@@ -57,9 +57,11 @@ func (l *NDNLPLinkService) runSend() {
 }
 
 func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
-	// Attempt to decode frame from buffer
-	var frame ndn.LpPacket
-	err := tlv.Decode(rawFrame, &frame)
+	// Attempt to decode buffer into TLV block
+	block, _, err := tlv.DecodeBlock(rawFrame)
+
+	// Now attempt to decode LpPacket from block
+	frame, err := lpv2.DecodePacket(block)
 	if err != nil {
 		core.LogDebug(l, "Received invalid frame - DROP")
 	}
@@ -69,7 +71,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	// Reassembly
 	if l.options.IsReassemblyEnabled {
 		// TODO
-	} else if frame.FragCount != -1 {
+	} else if frame.FragCount() != nil {
 		// TODO
 	}
 

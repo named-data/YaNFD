@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/util"
+	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -115,11 +115,15 @@ func (t *MulticastEthernetTransport) runReceive() {
 		}
 
 		// Determine whether valid packet received
-		tlvType, tlvLength, err := util.DecodeTypeLength(ndnLayer)
-		tlvSize := tlvType.Size() + tlvLength.Size() + int(tlvLength)
-		if err == nil && len(ndnLayer) == tlvSize {
+		// Determine whether valid packet received
+		_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)
+		if err != nil {
+			core.LogInfo("Unable to process received packet: " + err.Error())
+		} else if len(ndnLayer) >= tlvSize {
 			// Packet was successfully received, send up to link service
-			t.linkService.handleIncomingFrame(ndnLayer)
+			t.linkService.handleIncomingFrame(ndnLayer[:tlvSize])
+		} else {
+			core.LogInfo("Received packet is incomplete")
 		}
 	case <-t.shouldQuit:
 		break
