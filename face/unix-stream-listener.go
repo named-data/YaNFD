@@ -9,15 +9,15 @@
 package face
 
 import (
-	"syscall"
+	"net"
+	"strconv"
 
 	"github.com/eric135/YaNFD/core"
-	"golang.org/x/sys/unix"
 )
 
 // UnixStreamListener listens for incoming Unix stream connections.
 type UnixStreamListener struct {
-	socket   int
+	conn     net.Listener
 	localURI URI
 	HasQuit  chan bool
 }
@@ -29,76 +29,65 @@ func MakeUnixStreamListener(localURI URI) (*UnixStreamListener, error) {
 		return nil, core.ErrNotCanonical
 	}
 
-	var u UnixStreamListener
-	u.localURI = localURI
-	u.HasQuit = make(chan bool, 1)
-	return &u, nil
+	l := new(UnixStreamListener)
+	l.localURI = localURI
+	l.HasQuit = make(chan bool, 1)
+	return l, nil
 }
 
-func (u *UnixStreamListener) String() string {
-	return "UnixStreamListener, " + u.localURI.String()
+func (l *UnixStreamListener) String() string {
+	return "UnixStreamListener, " + l.localURI.String()
 }
 
 // Run starts the Unix stream listener.
-func (u *UnixStreamListener) Run() {
+func (l *UnixStreamListener) Run() {
 	// Create listener
 	var err error
-	u.socket, err = syscall.Socket(unix.AF_UNIX, unix.SOCK_STREAM, 0)
+	l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path()+":"+strconv.Itoa(int(l.localURI.Port())))
 	if err != nil {
-		core.LogError(u, "Unable to start Unix stream listener:", err)
-		u.HasQuit <- true
-		return
-	}
-
-	err = syscall.SetsockoptInt(u.socket, unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
-	if err != nil {
-		core.LogError(u, "Unable to allow address reuse:", err)
-		u.HasQuit <- true
-		return
-	}
-
-	listenAddr := syscall.SockaddrUnix{Name: u.localURI.Path()}
-	err = syscall.Bind(u.socket, &listenAddr)
-	if err != nil {
-		core.LogError(u, "Unable to start UDP listener:", err)
-		syscall.Close(u.socket)
-		u.HasQuit <- true
+		core.LogError(l, "Unable to start Unix stream listener:", err)
+		l.HasQuit <- true
 		return
 	}
 
 	// Run accept loop
 	for !core.ShouldQuit {
-		fd, _, err := syscall.Accept(u.socket)
+		newConn, err := l.conn.Accept()
 		if err != nil {
-			core.LogWarn(u, "Unable to read from socket (", err, ") - DROP ")
+			core.LogWarn(l, "Unable to accept connection: "+err.Error())
 			break
 		}
 
 		// Construct remote URI
+		fd, err := strconv.Atoi(newConn.LocalAddr().(*net.UnixAddr).String())
+		if err != nil {
+			core.LogWarn(l, "Unable to parse FD: "+err.Error())
+			continue
+		}
 		remoteURI := MakeFDFaceURI(fd)
 		if !remoteURI.IsCanonical() {
-			core.LogWarn(u, "Unable to create face from", remoteURI.String(), " as remote URI is not canonical")
+			core.LogWarn(l, "Unable to create face from", remoteURI.String(), " as remote URI is not canonical")
 			continue
 		}
 
-		newTransport, err := MakeUnixStreamTransport(remoteURI, u.localURI, fd)
+		newTransport, err := MakeUnixStreamTransport(remoteURI, l.localURI, newConn)
 		if err != nil {
-			core.LogError(u, "Failed to create new Unix stream transport:", err)
+			core.LogError(l, "Failed to create new Unix stream transport:", err)
 			continue
 		}
 		newLinkService := MakeNDNLPLinkService(newTransport)
 		if err != nil {
-			core.LogError(u, "Failed to create new NDNLPv2 transport:", err)
+			core.LogError(l, "Failed to create new NDNLPv2 transport:", err)
 			continue
 		}
 
-		core.LogInfo(u, "Creating new Unix stream face", remoteURI)
+		core.LogInfo(l, "Creating new Unix stream face", remoteURI)
 
 		// Add face to table and start its thread
 		FaceTable.Add(newLinkService)
 		newLinkService.Run()
 	}
 
-	syscall.Close(u.socket)
-	u.HasQuit <- true
+	l.conn.Close()
+	l.HasQuit <- true
 }

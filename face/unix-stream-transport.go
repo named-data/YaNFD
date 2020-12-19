@@ -9,33 +9,33 @@
 package face
 
 import (
+	"net"
+
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn/tlv"
-	"golang.org/x/sys/unix"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	socket     int
-	remoteAddr unix.Sockaddr
+	conn net.Conn
 	transportBase
 }
 
 // MakeUnixStreamTransport creates a Unix stream transport.
-func MakeUnixStreamTransport(remoteURI URI, localURI URI, socket int) (*UnixStreamTransport, error) {
+func MakeUnixStreamTransport(remoteURI URI, localURI URI, conn net.Conn) (*UnixStreamTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "fd" || !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
 	}
 
-	var t UnixStreamTransport
+	t := new(UnixStreamTransport)
 	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
 
-	// Set scope and socket
+	// Set scope and connection
 	t.scope = Local
-	t.socket = socket
+	t.conn = conn
 
-	return &t, nil
+	return t, nil
 }
 
 func (t *UnixStreamTransport) sendFrame(frame []byte) {
@@ -45,7 +45,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 	}
 
 	core.LogDebug(t, "Sending frame of size", len(frame))
-	err := unix.Sendto(t.socket, frame, 0, t.remoteAddr)
+	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
 		t.changeState(Down)
@@ -55,9 +55,9 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 func (t *UnixStreamTransport) runReceive() {
 	recvBuf := make([]byte, core.MaxNDNPacketSize)
 	for !core.ShouldQuit && t.state != Down {
-		readSize, err := unix.Read(t.socket, recvBuf)
+		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
-			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
+			core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
 			t.changeState(Down)
 			break
 		}
@@ -87,5 +87,5 @@ func (t *UnixStreamTransport) runReceive() {
 func (t *UnixStreamTransport) onClose() {
 	core.LogInfo(t, "Closing Unix stream socket")
 	t.hasQuit <- true
-	unix.Close(t.socket)
+	t.conn.Close()
 }
