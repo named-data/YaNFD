@@ -21,14 +21,14 @@ This library implements the Named Data Networking packet format for with with th
 
 ### Link Protocol
 
-* NDNLPv2 (**planned**)
-  * Encoding and decoding (**planned**)
+* NDNLPv2
+  * Encoding and decoding
 
 ### Security (tentative)
 
 * Certificates (**planned**)
 * Encryption and Decryption (*not currently planned*)
-* Signing/Validation (**planned**)
+* Signing/Validation (**in progress**)
   * SHA256
   * SHA256-RSA (**planned**)
   * SHA256-ECDSA (**planned**)
