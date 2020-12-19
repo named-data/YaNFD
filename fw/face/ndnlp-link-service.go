@@ -66,7 +66,12 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 
 	core.LogDebug(l, "Received NDNLPv2 frame of size", len(rawFrame))
 
-	// TODO: Do NDNLP things
+	// Reassembly
+	if l.options.IsReassemblyEnabled {
+		// TODO
+	} else if frame.FragCount != -1 {
+		// TODO
+	}
 
 	// Hash to forwarding thread and place in queue
 	// TODO

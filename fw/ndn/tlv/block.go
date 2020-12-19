@@ -209,18 +209,18 @@ func (b *Block) Insert(in *Block) {
 }
 
 // Parse parses the block value into subelements, if possible.
-func (b *Block) Parse() bool {
+func (b *Block) Parse() error {
 	startPos := uint64(0)
 	b.subelements = []*Block{}
 	for startPos < uint64(len(b.value)) {
 		block, blockLen, err := DecodeBlock(b.value[startPos:])
 		if err != nil {
-			return false
+			return err
 		}
 		b.subelements = append(b.subelements, block)
 		startPos += blockLen
 	}
-	return true
+	return nil
 }
 
 ////////////////////
