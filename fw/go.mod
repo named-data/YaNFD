@@ -6,5 +6,5 @@ require (
 	github.com/cornelk/hashmap v1.0.1
 	github.com/google/gopacket v1.1.19
 	github.com/stretchr/testify v1.6.1
-	golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d
+	golang.org/x/sys v0.0.0-20201218084310-7d0127a74742
 )
