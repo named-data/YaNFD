@@ -1,4 +1,3 @@
-// +build !windows
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
  * Copyright (C) 2020 Eric Newberry.
@@ -9,17 +8,20 @@
 package face
 
 import (
+	"errors"
 	"net"
+	"strconv"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/face/impl"
 	"github.com/eric135/YaNFD/ndn/tlv"
-	"golang.org/x/sys/unix"
 )
 
 // UnicastUDPTransport is a unicast UDP transport.
 type UnicastUDPTransport struct {
-	socket     int
-	remoteAddr unix.Sockaddr
+	conn       net.Conn
+	localAddr  net.UDPAddr
+	remoteAddr net.UDPAddr
 	transportBase
 }
 
@@ -30,7 +32,7 @@ func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport,
 		return nil, core.ErrNotCanonical
 	}
 
-	var t UnicastUDPTransport
+	t := new(UnicastUDPTransport)
 	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
 
 	// Set scope
@@ -41,48 +43,22 @@ func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport,
 		t.scope = NonLocal
 	}
 
-	// Attempt to connect to remote URI
+	// Set local and remote addresses
+	t.localAddr.IP = net.ParseIP(localURI.Path())
+	t.localAddr.Port = int(localURI.Port())
+	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
+	t.remoteAddr.Port = int(remoteURI.Port())
+
+	// Attempt to "dial" remote URI
 	var err error
-	if t.localURI.Scheme() == "udp4" {
-		t.remoteAddr = new(unix.SockaddrInet4)
-		copy(t.remoteAddr.(*unix.SockaddrInet4).Addr[0:3], net.ParseIP(remoteURI.Path()))
-		t.remoteAddr.(*unix.SockaddrInet4).Port = int(remoteURI.Port())
-		t.socket, err = unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
-	} else if t.localURI.Scheme() == "udp6" {
-		t.remoteAddr = new(unix.SockaddrInet6)
-		copy(t.remoteAddr.(*unix.SockaddrInet6).Addr[0:15], net.ParseIP(remoteURI.Path()))
-		t.remoteAddr.(*unix.SockaddrInet6).Port = int(remoteURI.Port())
-		t.socket, err = unix.Socket(unix.AF_INET6, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
-	}
+	// Configure dialer so we can allow address reuse
+	dialer := &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
+	t.conn, err = dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
 
-	err = unix.SetsockoptInt(t.socket, unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
-	if err != nil {
-		core.LogError(t, "Unable to allow address reuse:", err)
-		unix.Close(t.socket)
-		return nil, err
-	}
-
-	if t.localURI.Scheme() == "udp4" {
-		var localAddr unix.SockaddrInet4
-		copy(localAddr.Addr[0:3], net.ParseIP(localURI.Path()))
-		localAddr.Port = int(localURI.Port())
-		err = unix.Bind(t.socket, &localAddr)
-	} else if t.localURI.Scheme() == "udp6" {
-		var localAddr unix.SockaddrInet6
-		copy(localAddr.Addr[0:15], net.ParseIP(localURI.Path()))
-		localAddr.Port = int(localURI.Port())
-		err = unix.Bind(t.socket, &localAddr)
-	}
-
-	if err != nil {
-		unix.Close(t.socket)
-		return nil, err
-	}
-
-	return &t, nil
+	return t, nil
 }
 
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {
@@ -92,7 +68,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	}
 
 	core.LogDebug(t, "Sending frame of size", len(frame))
-	err := unix.Sendto(t.socket, frame, 0, t.remoteAddr)
+	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
 		t.changeState(Down)
@@ -102,7 +78,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 func (t *UnicastUDPTransport) runReceive() {
 	recvBuf := make([]byte, core.MaxNDNPacketSize)
 	for !core.ShouldQuit && t.state != Down {
-		readSize, _, err := unix.Recvfrom(t.socket, recvBuf, 0)
+		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
 			t.changeState(Down)
@@ -134,5 +110,5 @@ func (t *UnicastUDPTransport) runReceive() {
 func (t *UnicastUDPTransport) onClose() {
 	core.LogInfo(t, "Closing UDP socket")
 	t.hasQuit <- true
-	unix.Close(t.socket)
+	t.conn.Close()
 }
