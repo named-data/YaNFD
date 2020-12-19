@@ -10,7 +10,7 @@ package face
 
 import (
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/util"
+	"github.com/eric135/YaNFD/ndn/tlv"
 	"golang.org/x/sys/unix"
 )
 
@@ -70,11 +70,14 @@ func (t *UnixStreamTransport) runReceive() {
 		}
 
 		// Determine whether valid packet received
-		tlvType, tlvLength, err := util.DecodeTypeLength(recvBuf[:readSize])
-		tlvSize := tlvType.Size() + tlvLength.Size() + int(tlvLength)
-		if err == nil && readSize == tlvSize {
+		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
+		if err != nil {
+			core.LogInfo("Unable to process received packet: " + err.Error())
+		} else if readSize >= tlvSize {
 			// Packet was successfully received, send up to link service
 			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
+		} else {
+			core.LogInfo("Received packet is incomplete")
 		}
 	}
 
