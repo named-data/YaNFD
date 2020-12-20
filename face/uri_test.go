@@ -104,13 +104,11 @@ func TestUDP(t *testing.T) {
 	assert.Equal(t, "udp4://192.0.2.1:6363", uri.String())
 
 	uri = face.MakeUDPFaceURI(4, "[2001:db8::1]", 6363)
-	assert.False(t, uri.IsCanonical())
-	assert.Equal(t, "udp4", uri.Scheme())
-	assert.Equal(t, "[2001:db8::1]", uri.Path()) // Braces are not trimmed until canonization
+	assert.True(t, uri.IsCanonical())
+	assert.Equal(t, "udp6", uri.Scheme())      // Canonized into UDP6
+	assert.Equal(t, "2001:db8::1", uri.Path()) // Braces are trimmed by canonization
 	assert.Equal(t, uint16(6363), uri.Port())
-	// Now we'll canonize it into a UDP6
 	assert.NoError(t, uri.Canonize())
-	fmt.Println(uri.String())
 	assert.True(t, uri.IsCanonical())
 	assert.Equal(t, "udp6", uri.Scheme())
 	assert.Equal(t, "2001:db8::1", uri.Path())
@@ -131,12 +129,22 @@ func TestUDP(t *testing.T) {
 	assert.Equal(t, uint16(6363), uri.Port())
 	assert.Equal(t, "udp6://[2001:db8::1]:6363", uri.String())
 
-	uri = face.MakeUDPFaceURI(6, "192.0.2.1", 6363)
-	assert.False(t, uri.IsCanonical())
+	fmt.Println("A")
+	uri = face.MakeUDPFaceURI(6, "2001:db8::1%eth0", 6363)
+	fmt.Println("B")
+	assert.True(t, uri.IsCanonical())
 	assert.Equal(t, "udp6", uri.Scheme())
+	assert.Equal(t, "2001:db8::1%eth0", uri.Path())
+	assert.Equal(t, "2001:db8::1", uri.PathHost())
+	assert.Equal(t, "eth0", uri.PathZone())
+	assert.Equal(t, uint16(6363), uri.Port())
+	assert.Equal(t, "udp6://[2001:db8::1%eth0]:6363", uri.String())
+
+	uri = face.MakeUDPFaceURI(6, "192.0.2.1", 6363)
+	assert.True(t, uri.IsCanonical())
+	assert.Equal(t, "udp4", uri.Scheme())
 	assert.Equal(t, "192.0.2.1", uri.Path())
 	assert.Equal(t, uint16(6363), uri.Port())
-	// Now we'll canonize it into a UDP4
 	assert.NoError(t, uri.Canonize())
 	assert.True(t, uri.IsCanonical())
 	assert.Equal(t, "udp4", uri.Scheme())
@@ -153,8 +161,8 @@ func TestUDP(t *testing.T) {
 
 	// Test DNS resolution
 	uri = face.MakeUDPFaceURI(4, "named-data.net", 6363)
-	assert.False(t, uri.IsCanonical())
-	assert.Equal(t, "udp4://named-data.net:6363", uri.String())
+	assert.True(t, uri.IsCanonical())
+	assert.Equal(t, "udp4://104.154.51.235:6363", uri.String())
 	assert.NoError(t, uri.Canonize())
 	assert.True(t, uri.IsCanonical())
 	assert.Equal(t, "udp4", uri.Scheme())

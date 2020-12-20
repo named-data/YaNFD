@@ -10,6 +10,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 
@@ -26,6 +27,10 @@ func main() {
 	var numForwardingThreads int
 	flag.IntVar(&numForwardingThreads, "threads", 8, "Number of forwarding threads")
 	flag.IntVar(&numForwardingThreads, "t", 8, "Number of forwarding threads")
+	var disableEthernet bool
+	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
+	var disableUnix bool
+	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -59,15 +64,81 @@ func main() {
 	// Initialize face system
 	face.FaceTable = face.MakeTable()
 	// Create null face
-	face.FaceTable.Add(face.MakeNullLinkService(face.MakeNullTransport()))
-	// Create multicast faces based upon interfaces
-	// TODO
-	// Set up listeners
-	udpListener, err := face.MakeUDPListener(face.MakeUDPFaceURI(4, "127.0.0.1", 6364))
+	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
+	face.FaceTable.Add(nullFace)
+	go nullFace.Run()
+
+	// Perform setup operations for each network interface
+	ifaces, err := net.Interfaces()
+	multicastEthURI := face.DecodeURIString(face.NDNMulticastEtherURI)
 	if err != nil {
-		core.LogFatal("Main", err)
+		core.LogFatal("Main", "Unable to access network interfaces: "+err.Error())
+		os.Exit(2)
 	}
-	go udpListener.Run()
+	for _, iface := range ifaces {
+		if !disableEthernet {
+			// Create multicast Ethernet face for interface
+			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, face.MakeDevFaceURI(iface.Name))
+			if err != nil {
+				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for "+iface.Name+": "+err.Error())
+				os.Exit(2)
+			}
+			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport)
+			face.FaceTable.Add(multicastEthFace)
+			go multicastEthFace.Run()
+			core.LogInfo("Main", "Created multicast Ethernet face for "+iface.Name)
+
+			// Create Ethernet listener for interface
+			// TODO
+		}
+
+		// Create UDP listener and multicast UDP interface for every address on interface
+		addrs, err := iface.Addrs()
+		if err != nil {
+			core.LogFatal("Main", "Unable to access addresses on network interface "+iface.Name+": "+err.Error())
+		}
+		for _, addr := range addrs {
+			ipAddr := addr.(*net.IPNet)
+
+			ipVersion := 4
+			path := ipAddr.IP.String()
+			if ipAddr.IP.To4() == nil {
+				ipVersion = 6
+				path += "%" + iface.Name
+			}
+
+			if !addr.(*net.IPNet).IP.IsLoopback() {
+				multicastUDPTransport, err := face.MakeMulticastUDPTransport(face.MakeUDPFaceURI(ipVersion, path, face.NDNMulticastUDPPort))
+				if err != nil {
+					core.LogFatal("Main", "Unable to create MulticastUDPTransport for "+path+" on "+iface.Name+": "+err.Error())
+					os.Exit(2)
+				}
+				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport)
+				face.FaceTable.Add(multicastUDPFace)
+				go multicastUDPFace.Run()
+				core.LogInfo("Main", "Created multicast UDP face for "+path+" on "+iface.Name)
+			}
+
+			udpListener, err := face.MakeUDPListener(face.MakeUDPFaceURI(ipVersion, path, 6363))
+			if err != nil {
+				core.LogFatal("Main", "Unable to create UDP listener for "+path+" on "+iface.Name+": "+err.Error())
+				os.Exit(2)
+			}
+			go udpListener.Run()
+			core.LogInfo("Main", "Created UDP listener for "+path+" on "+iface.Name)
+		}
+	}
+
+	if !disableUnix {
+		// Set up Unix stream listener
+		unixListener, err := face.MakeUnixStreamListener(face.MakeUnixFaceURI(face.NDNUnixSocketFile))
+		if err != nil {
+			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.NDNUnixSocketFile+": "+err.Error())
+			os.Exit(2)
+		}
+		go unixListener.Run()
+		core.LogInfo("Main", "Created Unix stream listener for "+face.NDNUnixSocketFile)
+	}
 
 	// Set up signal handler channel and wait for interrupt
 	sigChannel := make(chan os.Signal, 1)
@@ -77,12 +148,12 @@ func main() {
 	core.ShouldQuit = true
 
 	// Wait for all forwarding threads to have quit
-	for _, fw := range fw.Threads {
+	/*for _, fw := range fw.Threads {
 		<-fw.HasQuit
-	}
+	}*/
 
 	// Wait for all face threads to have quit
-	/*for _, face := range face.Threads {
+	/*for _, face := range face.FaceTable.Faces {
 		<-face.HasQuit
 	}*/
 }

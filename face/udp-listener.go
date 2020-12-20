@@ -48,7 +48,13 @@ func (l *UDPListener) Run() {
 
 	// Create listener
 	var err error
-	l.conn, err = listenConfig.ListenPacket(context.Background(), l.localURI.Scheme(), l.localURI.Path()+":"+strconv.Itoa(int(l.localURI.Port())))
+	var remote string
+	if l.localURI.Scheme() == "udp4" {
+		remote = l.localURI.PathHost() + ":" + strconv.Itoa(int(l.localURI.Port()))
+	} else {
+		remote = "[" + l.localURI.Path() + "]:" + strconv.Itoa(int(l.localURI.Port()))
+	}
+	l.conn, err = listenConfig.ListenPacket(context.Background(), l.localURI.Scheme(), remote)
 	if err != nil {
 		core.LogError(l, "Unable to start UDP listener:", err)
 		l.HasQuit <- true
