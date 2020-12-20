@@ -8,6 +8,8 @@
 package face
 
 import (
+	"math"
+
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn/lpv2"
 	"github.com/eric135/YaNFD/ndn/tlv"
@@ -44,14 +46,45 @@ func (l *NDNLPLinkService) runSend() {
 		}
 
 		if l.transport.State() != Up {
-			core.LogWarn(l, "- attempting to send frame on down face - DROP and stop LinkService")
+			core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
 			l.hasImplQuit <- true
 			return
 		}
 
-		// TODO: Do NDNLP things
+		// Fragmentation
+		fragments := []*lpv2.Packet{}
+		if len(l.sendQueue) > l.transport.MTU() {
+			if !l.options.IsFragmentationEnabled {
+				core.LogInfo(l, "Attempted to send frame over MTU on link without fragmentation - DROP")
+			}
 
-		l.transport.sendFrame(netPacket)
+			// Split up fragment
+			nFragments := int(math.Ceil(float64(len(netPacket)) / float64(l.transport.MTU())))
+			fragments = make([]*lpv2.Packet, nFragments)
+			for i := 0; i < nFragments; i++ {
+				if i < nFragments-1 {
+					fragments[i] = lpv2.NewPacket(netPacket[l.transport.MTU()*i : l.transport.MTU()*(i+1)])
+				} else {
+					fragments[i] = lpv2.NewPacket(netPacket[l.transport.MTU()*i:])
+				}
+			}
+		} else {
+			fragments[0] = lpv2.NewPacket(netPacket)
+		}
+
+		// TODO: Reliability
+
+		// TODO: PIT tokens
+
+		// TODO: Incoming face indication
+
+		// TODO: Congestion marking
+
+		if len(fragments) == 0 {
+			l.transport.sendFrame(netPacket)
+		} else {
+
+		}
 	}
 
 	l.hasImplQuit <- true

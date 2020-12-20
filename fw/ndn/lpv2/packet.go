@@ -33,9 +33,9 @@ type Packet struct {
 }
 
 // NewPacket returns an NDNLPv2 frame containing a copy of the provided network-layer packet.
-func NewPacket(fragment *tlv.Block) *Packet {
+func NewPacket(fragment []byte) *Packet {
 	p := new(Packet)
-	p.fragment = fragment.DeepCopy()
+	p.fragment = tlv.NewBlock(Fragment, fragment)
 	return p
 }
 
@@ -143,6 +143,16 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 	}
 
 	return p, nil
+}
+
+// IsBare returns whether the LpPacket only contains a fragment and has no headers fields.
+func (p *Packet) IsBare() bool {
+	return p.sequence == nil && p.fragIndex == nil && p.fragCount == nil && len(p.pitToken) == 0 && p.nextHopFaceID == nil && p.incomingFaceID == nil && p.cachePolicyType == nil && p.congestionMark == nil && p.txSequence == nil && len(p.acks) == 0 && p.nonDiscovery == false && p.prefixAnnouncement == nil && p.prefixAnnouncement != nil
+}
+
+// IsIdle returns whether the LpPacket is an "IDLE" frame and does not contain a fragment.
+func (p *Packet) IsIdle() bool {
+	return p.fragment == nil
 }
 
 // Sequence returns the Sequence of the LpPacket or nil if it is unset.
