@@ -30,32 +30,39 @@ type MulticastUDPTransport struct {
 // MakeMulticastUDPTransport creates a new multicast UDP transport.
 func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
 	// Validate local URI
+	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
 		return nil, core.ErrNotCanonical
 	}
 
 	t := new(MulticastUDPTransport)
-	t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, core.MaxNDNPacketSize)
-	// TODO: Get group address from config
-	t.scope = NonLocal
-
 	// Get local interface
 	localIf, err := InterfaceByIP(net.ParseIP(localURI.PathHost()))
 	if err != nil || localIf == nil {
 		core.LogError(t, "Unable to get interface for local URI", localURI.String(), ":", err)
 	}
 
+	if localURI.Scheme() == "udp4" {
+		t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, core.MaxNDNPacketSize)
+	} else if localURI.Scheme() == "udp6" {
+		t.makeTransportBase(DecodeURIString("udp6://["+NDNMulticastUDP6Address+"%"+localIf.Name+"]:"+strconv.Itoa(NDNMulticastUDPPort)), localURI, core.MaxNDNPacketSize)
+	}
+	// TODO: Get group address from config
+	t.scope = NonLocal
+
 	// Format group and local addresses
-	t.groupAddr.IP = net.ParseIP(t.remoteURI.Path())
+	t.groupAddr.IP = net.ParseIP(t.remoteURI.PathHost())
 	t.groupAddr.Port = int(t.remoteURI.Port())
-	t.localAddr.IP = net.ParseIP(t.localURI.Path())
-	t.localAddr.Port = int(t.localURI.Port())
+	t.groupAddr.Zone = t.remoteURI.PathZone()
+	t.localAddr.IP = net.ParseIP(t.localURI.PathHost())
+	t.localAddr.Port = 0 // int(t.localURI.Port())
+	t.localAddr.Zone = t.localURI.PathZone()
 
 	// Configure dialer so we can allow address reuse
 	dialer := &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
 
 	// Create send connection
-	t.sendConn, err = dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+	t.sendConn, err = dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 	if err != nil {
 		return nil, errors.New("Unable to create send connection to group address: " + err.Error())
 	}

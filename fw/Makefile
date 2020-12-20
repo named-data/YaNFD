@@ -8,7 +8,7 @@ yanfd: clean
 	go build ${PACKAGE}/cmd/yanfd
 
 clean:
-	rm -f yanfd
+	rm -f yanfd coverage.out
 
 test:
 	go test ./... -coverprofile=coverage.out

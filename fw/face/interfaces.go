@@ -42,11 +42,8 @@ func InterfaceByIP(ip net.IP) (*net.Interface, error) {
 			continue
 		}
 		for _, addr := range addrs {
-			hostAddr, _, err := net.SplitHostPort(addr.String())
-			if err != nil {
-				continue
-			}
-			if bytes.Equal(net.ParseIP(hostAddr), ip) {
+			hostAddr := addr.(*net.IPNet)
+			if bytes.Equal(hostAddr.IP, ip) {
 				return &iface, nil
 			}
 		}

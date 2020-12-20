@@ -27,7 +27,7 @@ const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
 const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
 const nullPattern = "^(null)://$"
-const udpPattern = "^(?P<scheme>udp[46]?)://\\[?(?P<host>[0-9A-Za-z\\:\\.\\-]+)\\]?:(?P<port>[0-9]+)$"
+const udpPattern = "^(?P<scheme>udp[46]?)://\\[?(?P<host>[0-9A-Za-z\\:\\.\\-]+)(%(?P<zone>[A-Za-z0-9\\-]+))?\\]?:(?P<port>[0-9]+)$"
 const unixPattern = "^(?P<scheme>unix)://(?P<path>[/\\\\A-Za-z0-9\\.\\-_]+)$"
 
 const (
@@ -50,32 +50,48 @@ type URI struct {
 
 // MakeDevFaceURI constucts a URI for a network interface.
 func MakeDevFaceURI(ifname string) URI {
-	return URI{devURI, "dev", ifname, 0}
+	uri := URI{devURI, "dev", ifname, 0}
+	uri.Canonize()
+	return uri
 }
 
 // MakeEthernetFaceURI constructs a URI for an Ethernet face.
 func MakeEthernetFaceURI(mac net.HardwareAddr) URI {
-	return URI{ethernetURI, "eth", mac.String(), 0}
+	uri := URI{ethernetURI, "eth", mac.String(), 0}
+	uri.Canonize()
+	return uri
 }
 
 // MakeFDFaceURI constructs a file descriptor URI.
 func MakeFDFaceURI(fd int) URI {
-	return URI{fdURI, "fd", strconv.Itoa(fd), 0}
+	uri := URI{fdURI, "fd", strconv.Itoa(fd), 0}
+	uri.Canonize()
+	return uri
 }
 
 // MakeNullFaceURI constructs a null face URI.
 func MakeNullFaceURI() URI {
-	return URI{nullURI, "null", "", 0}
+	uri := URI{nullURI, "null", "", 0}
+	uri.Canonize()
+	return uri
 }
 
 // MakeUDPFaceURI constructs a URI for a UDP face.
 func MakeUDPFaceURI(ipVersion int, host string, port uint16) URI {
-	return URI{udpURI, "udp" + strconv.Itoa(ipVersion), host, port}
+	/*path := host
+	if zone != "" {
+		path += "%" + zone
+	}*/
+	uri := URI{udpURI, "udp" + strconv.Itoa(ipVersion), host, port}
+	uri.Canonize()
+	return uri
 }
 
 // MakeUnixFaceURI constructs a URI for a Unix face.
 func MakeUnixFaceURI(path string) URI {
-	return URI{unixURI, "unix", path, 0}
+	uri := URI{unixURI, "unix", path, 0}
+	uri.Canonize()
+	return uri
 }
 
 // DecodeURIString decodes a URI from a string.
@@ -153,6 +169,9 @@ func DecodeURIString(str string) (u URI) {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("host")]
+		if len(matches) >= regex.SubexpIndex("zone") && matches[regex.SubexpIndex("zone")] != "" {
+			u.path += "%" + matches[regex.SubexpIndex("zone")]
+		}
 		port, err := strconv.Atoi(matches[regex.SubexpIndex("port")])
 		if err != nil || port <= 0 || port > 65535 {
 			return u
@@ -265,9 +284,11 @@ func (u *URI) Canonize() error {
 		// Nothing to do to canonize these
 	} else if u.uriType == udpURI {
 		path := u.path
+		zone := ""
 		if strings.Contains(u.path, "%") {
 			// Has zone, so separate out
 			path = u.PathHost()
+			zone = "%" + u.PathZone()
 		}
 		ip := net.ParseIP(strings.Trim(path, "[]"))
 		if ip == nil {
@@ -284,10 +305,10 @@ func (u *URI) Canonize() error {
 
 		if ip.To4() != nil {
 			u.scheme = "udp4"
-			u.path = ip.String()
+			u.path = ip.String() + zone
 		} else if ip.To16() != nil {
 			u.scheme = "udp6"
-			u.path = ip.String()
+			u.path = ip.String() + zone
 		} else {
 			return core.ErrNotCanonical
 		}
