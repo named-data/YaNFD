@@ -9,6 +9,7 @@ package ndn
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/eric135/YaNFD/ndn/security"
@@ -25,6 +26,8 @@ type Data struct {
 	sigValue                []byte
 	shouldValidateSignature bool
 	wire                    *tlv.Block
+
+	pitToken []byte
 }
 
 // NewData creates a new Data packet with the given name and content.
@@ -106,6 +109,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 	}
 
 	if d.name == nil || d.sigInfo == nil || len(d.sigValue) == 0 {
+		fmt.Println(d.name, d.sigInfo, d.sigValue)
 		return nil, errors.New("Data missing required field")
 	}
 
@@ -323,4 +327,17 @@ func (d *Data) Encode() (*tlv.Block, error) {
 // HasWire returns whether the Data packet has an existing valid wire encoding.
 func (d *Data) HasWire() bool {
 	return d.wire != nil
+}
+
+// PitToken returns the PIT token attached to the Data (if any).
+func (d *Data) PitToken() []byte {
+	pitToken := make([]byte, len(d.pitToken))
+	copy(pitToken, d.pitToken)
+	return pitToken
+}
+
+// SetPitToken sets the PIT token attached to the Data.
+func (d *Data) SetPitToken(pitToken []byte) {
+	d.pitToken = make([]byte, len(pitToken))
+	copy(d.pitToken, pitToken)
 }

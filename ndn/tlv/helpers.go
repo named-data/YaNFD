@@ -70,7 +70,16 @@ func EncodeNNIBlock(t uint32, v uint64) *Block {
 	b.SetType(t)
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, v)
-	b.SetValue(value)
+
+	if v <= math.MaxUint8 {
+		b.SetValue(value[7:])
+	} else if v <= math.MaxUint16 {
+		b.SetValue(value[6:])
+	} else if v <= math.MaxUint32 {
+		b.SetValue(value[4:])
+	} else {
+		b.SetValue(value)
+	}
 	return b
 }
 
@@ -79,10 +88,15 @@ func DecodeNNIBlock(wire *Block) (uint64, error) {
 	if wire == nil {
 		return 0, util.ErrNonExistent
 	}
-	if len(wire.Value()) != 8 {
+	if len(wire.Value()) < 1 {
 		return 0, ErrBufferTooShort
+	} else if len(wire.Value()) > 8 {
+		return 0, util.ErrTooLong
 	}
-	return binary.BigEndian.Uint64(wire.Value()), nil
+	buf := make([]byte, 8)
+	copy(buf[8-len(wire.Value()):], wire.Value())
+
+	return binary.BigEndian.Uint64(buf), nil
 }
 
 // DecodeTypeLength decodes the TLV type, TLV length, and total size of the block from a byte slice.
