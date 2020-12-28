@@ -1,4 +1,5 @@
 // +build windows
+
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
  * Copyright (C) 2020 Eric Newberry.
@@ -18,7 +19,7 @@ import (
 func SyscallReuseAddr(network string, address string, c syscall.RawConn) error {
 	var err error
 	c.Control(func(fd uintptr) {
-		err = windows.SetsockoptInt(fd, windows.SOL_SOCKET, windows.SO_REUSEADDR, 1)
+		err = windows.SetsockoptInt(windows.Handle(fd), windows.SOL_SOCKET, windows.SO_REUSEADDR, 1)
 	})
 	return err
 }
