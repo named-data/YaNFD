@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
@@ -30,12 +31,17 @@ func main() {
 	var disableEthernet bool
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
-	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
+	if runtime.GOOS == "windows" {
+		// Disable Unix stream on Windows
+		disableUnix = true
+	} else {
+		flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
+	}
 	flag.Parse()
 
 	if shouldPrintVersion {
 		fmt.Println("YaNFD: Yet another NDN Forwarding Daemon")
-		fmt.Println("Version", core.Version)
+		fmt.Println("Version " + Version + " (Built " + BuildTime + ")")
 		fmt.Println("Copyright (C) 2020 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
