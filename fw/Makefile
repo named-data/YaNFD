@@ -1,11 +1,14 @@
-PACKAGE=github.com/eric135/YaNFD
+PACKAGE = github.com/eric135/YaNFD
+VERSION = 0.0.1
+COMMIT != git rev-parse --short HEAD
+DATE != date
 
 .PHONY: all clean test coverage
 
 all: yanfd
 
 yanfd: clean
-	go build ${PACKAGE}/cmd/yanfd
+	go build -ldflags "-X 'main.Version=${VERSION}-${COMMIT}' -X 'main.BuildTime=${DATE}'" ${PACKAGE}/cmd/yanfd
 
 clean:
 	rm -f yanfd coverage.out

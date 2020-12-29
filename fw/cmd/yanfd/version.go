@@ -5,7 +5,10 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package core
+package main
 
-// Version of YaNFD
-const Version = "0.0.1"
+// Version of YaNFD.
+var Version string
+
+// BuildTime contains the timestamp of when the version of YaNFD was built.
+var BuildTime string
