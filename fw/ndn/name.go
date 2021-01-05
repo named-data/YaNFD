@@ -9,7 +9,6 @@ package ndn
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"math"
@@ -50,15 +49,15 @@ func DecodeNameComponent(wire *tlv.Block) (NameComponent, error) {
 	case tlv.KeywordNameComponent:
 		n = NewKeywordNameComponent(wire.Value())
 	case tlv.SegmentNameComponent:
-		n = NewSegmentNameComponent(binary.BigEndian.Uint64(wire.Value()))
+		n = DecodeSegmentNameComponent(wire.Value())
 	case tlv.ByteOffsetNameComponent:
-		n = NewByteOffsetNameComponent(binary.BigEndian.Uint64(wire.Value()))
+		n = DecodeByteOffsetNameComponent(wire.Value())
 	case tlv.VersionNameComponent:
-		n = NewVersionNameComponent(binary.BigEndian.Uint64(wire.Value()))
+		n = DecodeVersionNameComponent(wire.Value())
 	case tlv.TimestampNameComponent:
-		n = NewTimestampNameComponent(binary.BigEndian.Uint64(wire.Value()))
+		n = DecodeTimestampNameComponent(wire.Value())
 	case tlv.SequenceNumNameComponent:
-		n = NewSequenceNumNameComponent(binary.BigEndian.Uint64(wire.Value()))
+		n = DecodeSequenceNumNameComponent(wire.Value())
 	default:
 		if wire.Type() > math.MaxUint16 {
 			n = nil
@@ -300,34 +299,50 @@ func (n *KeywordNameComponent) SetValue(value []byte) {
 // SegmentNameComponent is a component containing a segment number.
 type SegmentNameComponent struct {
 	BaseNameComponent
+	rawValue uint64
 }
 
 // NewSegmentNameComponent creates a new SegmentNameComponent.
 func NewSegmentNameComponent(value uint64) *SegmentNameComponent {
 	n := new(SegmentNameComponent)
 	n.tlvType = tlv.SegmentNameComponent
-	n.value = make([]byte, 8)
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
+	return n
+}
+
+// DecodeSegmentNameComponent decodes a SegmentNameComponent from a TLV wire value.
+func DecodeSegmentNameComponent(value []byte) *SegmentNameComponent {
+	n := new(SegmentNameComponent)
+	n.tlvType = tlv.SegmentNameComponent
+	n.value = make([]byte, len(value))
+	copy(n.value, value)
+	var err error
+	n.rawValue, err = tlv.DecodeNNI(n.value)
+	if err != nil {
+		return nil
+	}
 	return n
 }
 
 func (n *SegmentNameComponent) String() string {
-	return "seg=" + strconv.FormatUint(binary.BigEndian.Uint64(n.value), 10)
-}
-
-// DeepCopy creates a deep copy of the name component.
-func (n *SegmentNameComponent) DeepCopy() NameComponent {
-	return &SegmentNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent)}
+	return "seg=" + strconv.FormatUint(n.rawValue, 10)
 }
 
 // Encode encodes a SegmentNameComponent.
 func (n *SegmentNameComponent) Encode() *tlv.Block {
-	return tlv.EncodeNNIBlock(uint32(n.tlvType), binary.BigEndian.Uint64(n.value))
+	return tlv.NewBlock(uint32(n.tlvType), n.value)
+}
+
+// DeepCopy creates a deep copy of the name component.
+func (n *SegmentNameComponent) DeepCopy() NameComponent {
+	return &SegmentNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
 // SetValue sets the value of a KeywordNameComponent.
 func (n *SegmentNameComponent) SetValue(value uint64) {
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
 	n.wire = nil
 }
 
@@ -338,34 +353,50 @@ func (n *SegmentNameComponent) SetValue(value uint64) {
 // ByteOffsetNameComponent is a component containing a byte offset.
 type ByteOffsetNameComponent struct {
 	BaseNameComponent
+	rawValue uint64
 }
 
 // NewByteOffsetNameComponent creates a new ByteOffsetNameComponent.
 func NewByteOffsetNameComponent(value uint64) *ByteOffsetNameComponent {
 	n := new(ByteOffsetNameComponent)
 	n.tlvType = tlv.ByteOffsetNameComponent
-	n.value = make([]byte, 8)
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
+	return n
+}
+
+// DecodeByteOffsetNameComponent decodes a ByteOffsetNameComponent from a TLV wire value.
+func DecodeByteOffsetNameComponent(value []byte) *ByteOffsetNameComponent {
+	n := new(ByteOffsetNameComponent)
+	n.tlvType = tlv.ByteOffsetNameComponent
+	n.value = make([]byte, len(value))
+	copy(n.value, value)
+	var err error
+	n.rawValue, err = tlv.DecodeNNI(n.value)
+	if err != nil {
+		return nil
+	}
 	return n
 }
 
 func (n *ByteOffsetNameComponent) String() string {
-	return "off=" + strconv.FormatUint(binary.BigEndian.Uint64(n.value), 10)
+	return "off=" + strconv.FormatUint(n.rawValue, 10)
 }
 
 // DeepCopy creates a deep copy of the name component.
 func (n *ByteOffsetNameComponent) DeepCopy() NameComponent {
-	return &ByteOffsetNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent)}
+	return &ByteOffsetNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
 // Encode encodes a ByteOffsetNameComponent.
 func (n *ByteOffsetNameComponent) Encode() *tlv.Block {
-	return tlv.EncodeNNIBlock(uint32(n.tlvType), binary.BigEndian.Uint64(n.value))
+	return tlv.NewBlock(uint32(n.tlvType), n.value)
 }
 
 // SetValue sets the value of a ByteOffsetNameComponent.
 func (n *ByteOffsetNameComponent) SetValue(value uint64) {
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
 	n.wire = nil
 }
 
@@ -376,34 +407,50 @@ func (n *ByteOffsetNameComponent) SetValue(value uint64) {
 // VersionNameComponent is a component containing a version number.
 type VersionNameComponent struct {
 	BaseNameComponent
+	rawValue uint64
 }
 
 // NewVersionNameComponent creates a new VersionNameComponent.
 func NewVersionNameComponent(value uint64) *VersionNameComponent {
 	n := new(VersionNameComponent)
 	n.tlvType = tlv.VersionNameComponent
-	n.value = make([]byte, 8)
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
+	return n
+}
+
+// DecodeVersionNameComponent decodes a VersionNameComponent from a TLV wire value.
+func DecodeVersionNameComponent(value []byte) *VersionNameComponent {
+	n := new(VersionNameComponent)
+	n.tlvType = tlv.VersionNameComponent
+	n.value = make([]byte, len(value))
+	copy(n.value, value)
+	var err error
+	n.rawValue, err = tlv.DecodeNNI(n.value)
+	if err != nil {
+		return nil
+	}
 	return n
 }
 
 func (n *VersionNameComponent) String() string {
-	return "v=" + strconv.FormatUint(binary.BigEndian.Uint64(n.value), 10)
-}
-
-// DeepCopy creates a deep copy of the name component.
-func (n *VersionNameComponent) DeepCopy() NameComponent {
-	return &VersionNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent)}
+	return "v=" + strconv.FormatUint(n.rawValue, 10)
 }
 
 // Encode encodes a VersionNameComponent.
 func (n *VersionNameComponent) Encode() *tlv.Block {
-	return tlv.EncodeNNIBlock(uint32(n.tlvType), binary.BigEndian.Uint64(n.value))
+	return tlv.NewBlock(uint32(n.tlvType), n.value)
+}
+
+// DeepCopy creates a deep copy of the name component.
+func (n *VersionNameComponent) DeepCopy() NameComponent {
+	return &VersionNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
 // SetValue sets the value of a VersionNameComponent.
 func (n *VersionNameComponent) SetValue(value uint64) {
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
 	n.wire = nil
 }
 
@@ -414,34 +461,50 @@ func (n *VersionNameComponent) SetValue(value uint64) {
 // TimestampNameComponent is a component containing a Unix timestamp (in microseconds).
 type TimestampNameComponent struct {
 	BaseNameComponent
+	rawValue uint64
 }
 
 // NewTimestampNameComponent creates a new TimestampNameComponent.
 func NewTimestampNameComponent(value uint64) *TimestampNameComponent {
 	n := new(TimestampNameComponent)
 	n.tlvType = tlv.TimestampNameComponent
-	n.value = make([]byte, 8)
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
+	return n
+}
+
+// DecodeTimestampNameComponent decodes a TimestampNameComponent from a TLV wire value.
+func DecodeTimestampNameComponent(value []byte) *TimestampNameComponent {
+	n := new(TimestampNameComponent)
+	n.tlvType = tlv.TimestampNameComponent
+	n.value = make([]byte, len(value))
+	copy(n.value, value)
+	var err error
+	n.rawValue, err = tlv.DecodeNNI(n.value)
+	if err != nil {
+		return nil
+	}
 	return n
 }
 
 func (n *TimestampNameComponent) String() string {
-	return "t=" + strconv.FormatUint(binary.BigEndian.Uint64(n.value), 10)
-}
-
-// DeepCopy creates a deep copy of the name component.
-func (n *TimestampNameComponent) DeepCopy() NameComponent {
-	return &TimestampNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent)}
+	return "t=" + strconv.FormatUint(n.rawValue, 10)
 }
 
 // Encode encodes a TimestampNameComponent.
 func (n *TimestampNameComponent) Encode() *tlv.Block {
-	return tlv.EncodeNNIBlock(uint32(n.tlvType), binary.BigEndian.Uint64(n.value))
+	return tlv.NewBlock(uint32(n.tlvType), n.value)
+}
+
+// DeepCopy creates a deep copy of the name component.
+func (n *TimestampNameComponent) DeepCopy() NameComponent {
+	return &TimestampNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
 // SetValue sets the value of a TimestampNameComponent.
 func (n *TimestampNameComponent) SetValue(value uint64) {
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
 	n.wire = nil
 }
 
@@ -452,34 +515,50 @@ func (n *TimestampNameComponent) SetValue(value uint64) {
 // SequenceNumNameComponent is a component containing a sequence number.
 type SequenceNumNameComponent struct {
 	BaseNameComponent
+	rawValue uint64
 }
 
 // NewSequenceNumNameComponent creates a new SequenceNumNameComponent.
 func NewSequenceNumNameComponent(value uint64) *SequenceNumNameComponent {
 	n := new(SequenceNumNameComponent)
 	n.tlvType = tlv.SequenceNumNameComponent
-	n.value = make([]byte, 8)
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
+	return n
+}
+
+// DecodeSequenceNumNameComponent decodes a SequenceNumNameComponent from a TLV wire value.
+func DecodeSequenceNumNameComponent(value []byte) *SequenceNumNameComponent {
+	n := new(SequenceNumNameComponent)
+	n.tlvType = tlv.SequenceNumNameComponent
+	n.value = make([]byte, len(value))
+	copy(n.value, value)
+	var err error
+	n.rawValue, err = tlv.DecodeNNI(n.value)
+	if err != nil {
+		return nil
+	}
 	return n
 }
 
 func (n *SequenceNumNameComponent) String() string {
-	return "seq=" + strconv.FormatUint(binary.BigEndian.Uint64(n.value), 10)
-}
-
-// DeepCopy creates a deep copy of the name component.
-func (n *SequenceNumNameComponent) DeepCopy() NameComponent {
-	return &SequenceNumNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent)}
+	return "seq=" + strconv.FormatUint(n.rawValue, 10)
 }
 
 // Encode encodes a SequenceNumNameComponent.
 func (n *SequenceNumNameComponent) Encode() *tlv.Block {
-	return tlv.EncodeNNIBlock(uint32(n.tlvType), binary.BigEndian.Uint64(n.value))
+	return tlv.NewBlock(uint32(n.tlvType), n.value)
+}
+
+// DeepCopy creates a deep copy of the name component.
+func (n *SequenceNumNameComponent) DeepCopy() NameComponent {
+	return &SequenceNumNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
 // SetValue sets the value of a SequenceNumNameComponent.
 func (n *SequenceNumNameComponent) SetValue(value uint64) {
-	binary.BigEndian.PutUint64(n.value, value)
+	n.rawValue = value
+	n.value = tlv.EncodeNNI(n.rawValue)
 	n.wire = nil
 }
 

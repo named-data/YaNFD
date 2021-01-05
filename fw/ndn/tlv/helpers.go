@@ -64,6 +64,21 @@ func DecodeVarNum(in []byte) (uint64, int, error) {
 	}
 }
 
+// EncodeNNI encodes a non-negative integer value into a TLV value slice.
+func EncodeNNI(v uint64) []byte {
+	value := make([]byte, 8)
+	binary.BigEndian.PutUint64(value, v)
+
+	if v <= math.MaxUint8 {
+		return value[7:]
+	} else if v <= math.MaxUint16 {
+		return value[6:]
+	} else if v <= math.MaxUint32 {
+		return value[4:]
+	}
+	return value
+}
+
 // EncodeNNIBlock encodes a non-negative integer value in a block of the specified type.
 func EncodeNNIBlock(t uint32, v uint64) *Block {
 	b := new(Block)
@@ -83,6 +98,19 @@ func EncodeNNIBlock(t uint32, v uint64) *Block {
 	return b
 }
 
+// GetNNIBlockSize returns the size that a non-negative integer block will take when encoded.
+func GetNNIBlockSize(t uint32, v uint64) int {
+	typeLen := len(EncodeVarNum(uint64(t)))
+	if v <= math.MaxUint8 {
+		return typeLen + 1
+	} else if v <= math.MaxUint16 {
+		return typeLen + 2
+	} else if v <= math.MaxUint32 {
+		return typeLen + 4
+	}
+	return typeLen + 8
+}
+
 // DecodeNNIBlock decodes a non-negative integer value from a block.
 func DecodeNNIBlock(wire *Block) (uint64, error) {
 	if wire == nil {
@@ -96,6 +124,20 @@ func DecodeNNIBlock(wire *Block) (uint64, error) {
 	buf := make([]byte, 8)
 	copy(buf[8-len(wire.Value()):], wire.Value())
 
+	return binary.BigEndian.Uint64(buf), nil
+}
+
+// DecodeNNI decodes a non-negative integer value from a TLV value slice.
+func DecodeNNI(value []byte) (uint64, error) {
+	if len(value) > 8 {
+		return 0, util.ErrTooLong
+	} else if len(value) == 0 {
+		return 0, util.ErrTooShort
+	}
+
+	// Pad buffer
+	buf := make([]byte, 8)
+	copy(buf[8-len(value):], value)
 	return binary.BigEndian.Uint64(buf), nil
 }
 
