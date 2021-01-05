@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -42,7 +42,7 @@ func main() {
 	if shouldPrintVersion {
 		fmt.Println("YaNFD: Yet another NDN Forwarding Daemon")
 		fmt.Println("Version " + Version + " (Built " + BuildTime + ")")
-		fmt.Println("Copyright (C) 2020 Eric Newberry")
+		fmt.Println("Copyright (C) 2020-2021 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
 	}
