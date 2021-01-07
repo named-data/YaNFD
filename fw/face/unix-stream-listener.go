@@ -2,7 +2,7 @@
 
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -11,6 +11,7 @@ package face
 
 import (
 	"net"
+	"os"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -44,17 +45,20 @@ func (l *UnixStreamListener) String() string {
 func (l *UnixStreamListener) Run() {
 	// Create listener
 	var err error
-	l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path()+":"+strconv.Itoa(int(l.localURI.Port())))
+	l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path())
 	if err != nil {
-		core.LogError(l, "Unable to start Unix stream listener:", err)
-		l.HasQuit <- true
-		return
+		core.LogError(l, "Unable to start Unix stream listener: "+err.Error())
+		os.Exit(2)
 	}
 
 	// Run accept loop
 	for !core.ShouldQuit {
 		newConn, err := l.conn.Accept()
 		if err != nil {
+			if core.ShouldQuit {
+				// Must have failed due to being closed, so quit quietly
+				break
+			}
 			core.LogWarn(l, "Unable to accept connection: "+err.Error())
 			break
 		}
@@ -67,28 +71,33 @@ func (l *UnixStreamListener) Run() {
 		}
 		remoteURI := MakeFDFaceURI(fd)
 		if !remoteURI.IsCanonical() {
-			core.LogWarn(l, "Unable to create face from", remoteURI.String(), " as remote URI is not canonical")
+			core.LogWarn(l, "Unable to create face from "+remoteURI.String()+" as remote URI is not canonical")
 			continue
 		}
 
 		newTransport, err := MakeUnixStreamTransport(remoteURI, l.localURI, newConn)
 		if err != nil {
-			core.LogError(l, "Failed to create new Unix stream transport:", err)
+			core.LogError(l, "Failed to create new Unix stream transport: "+err.Error())
 			continue
 		}
 		newLinkService := MakeNDNLPLinkService(newTransport)
 		if err != nil {
-			core.LogError(l, "Failed to create new NDNLPv2 transport:", err)
+			core.LogError(l, "Failed to create new NDNLPv2 transport: "+err.Error())
 			continue
 		}
 
-		core.LogInfo(l, "Creating new Unix stream face", remoteURI)
+		core.LogInfo(l, "Accepting new Unix stream face "+remoteURI.String())
 
 		// Add face to table and start its thread
 		FaceTable.Add(newLinkService)
 		newLinkService.Run()
 	}
 
-	l.conn.Close()
 	l.HasQuit <- true
+}
+
+// Close closes the UnixStreamListener.
+func (l *UnixStreamListener) Close() {
+	core.LogInfo(l, "Stopping listener")
+	l.conn.Close()
 }

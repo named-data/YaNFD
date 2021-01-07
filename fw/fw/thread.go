@@ -3,7 +3,9 @@ package fw
 import (
 	"crypto/sha512"
 	"encoding/binary"
+	"strconv"
 
+	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
 
@@ -45,9 +47,16 @@ func NewThread(id int) Thread {
 	return Thread{id, make(chan bool)}
 }
 
+func (t *Thread) String() string {
+	return "FwThread-" + strconv.Itoa(t.threadID)
+}
+
 // Run forwarding thread
 func (t *Thread) Run() {
 	// TODO
+
+	core.LogInfo(t, "Stopping thread")
+	t.HasQuit <- true
 }
 
 // GetID returns the ID of the forwarding thread
