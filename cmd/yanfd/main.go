@@ -54,7 +54,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	core.LogInfo("Main", "Starting NFD")
+	core.LogInfo("Main", "Starting YaNFD")
 
 	// Start management thread
 	// TODO
@@ -82,7 +82,12 @@ func main() {
 		os.Exit(2)
 	}
 	for _, iface := range ifaces {
-		if !disableEthernet {
+		if iface.Flags&net.FlagUp == 0 {
+			core.LogInfo("Main", "Skipping interface "+iface.Name+" because not up")
+			continue
+		}
+
+		if !disableEthernet && iface.Flags&net.FlagMulticast != 0 {
 			// Create multicast Ethernet face for interface
 			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, face.MakeDevFaceURI(iface.Name))
 			if err != nil {
@@ -135,9 +140,10 @@ func main() {
 		}
 	}
 
+	var unixListener *face.UnixStreamListener
 	if !disableUnix {
 		// Set up Unix stream listener
-		unixListener, err := face.MakeUnixStreamListener(face.MakeUnixFaceURI(face.NDNUnixSocketFile))
+		unixListener, err = face.MakeUnixStreamListener(face.MakeUnixFaceURI(face.NDNUnixSocketFile))
 		if err != nil {
 			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.NDNUnixSocketFile+": "+err.Error())
 			os.Exit(2)
@@ -150,16 +156,17 @@ func main() {
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt, os.Kill)
 	receivedSig := <-sigChannel
-	core.LogInfo("Main", "Received signal", receivedSig, " - exiting")
+	core.LogInfo("Main", "Received signal "+receivedSig.String()+" - exiting")
 	core.ShouldQuit = true
 
-	// Wait for all forwarding threads to have quit
-	/*for _, fw := range fw.Threads {
-		<-fw.HasQuit
-	}*/
+	// Wait for unix socket listener to quit
+	if !disableUnix {
+		unixListener.Close()
+		<-unixListener.HasQuit
+	}
 
-	// Wait for all face threads to have quit
-	/*for _, face := range face.FaceTable.Faces {
-		<-face.HasQuit
-	}*/
+	// Wait for all forwarding threads to have quit
+	for _, fw := range fw.Threads {
+		<-fw.HasQuit
+	}
 }
