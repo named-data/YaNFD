@@ -58,7 +58,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 	s := new(SignatureInfo)
 	// We already ensured is SignatureInfo or InterestSignatureInfo
 	s.isInterest = wire.Type() == tlv.InterestSignatureInfo
-	s.wire = wire.DeepCopy()
+	s.wire = wire
 	s.wire.Parse()
 	mostRecentElem := 0
 	for _, elem := range wire.Subelements() {
@@ -158,28 +158,6 @@ func (s *SignatureInfo) String() string {
 	return str
 }
 
-// DeepCopy creates a deep copy of the SignatureInfo.
-func (s *SignatureInfo) DeepCopy() *SignatureInfo {
-	copyS := new(SignatureInfo)
-
-	copyS.signatureType = s.signatureType
-	if s.keyLocator != nil {
-		copyS.keyLocator = s.keyLocator.DeepCopy()
-	}
-	copyS.nonce = make([]byte, len(s.nonce))
-	copy(copyS.nonce, s.nonce)
-	if s.time != nil {
-		copyS.time = new(time.Time)
-		*copyS.time = time.Unix(s.time.Unix(), s.time.UnixNano())
-	}
-	if s.seqNum != nil {
-		copyS.seqNum = new(uint64)
-		*copyS.seqNum = *s.seqNum
-	}
-
-	return copyS
-}
-
 // Type returns the type of the signature.
 func (s *SignatureInfo) Type() security.SignatureType {
 	return s.signatureType
@@ -193,20 +171,13 @@ func (s *SignatureInfo) SetType(signatureType security.SignatureType) {
 
 // KeyLocator returns the KeyLocator of the signature.
 func (s *SignatureInfo) KeyLocator() *tlv.Block {
-	if s.keyLocator == nil {
-		return nil
-	}
-	return s.keyLocator.DeepCopy()
+	return s.keyLocator
 }
 
 // SetKeyLocator sets the KeyLocator of the signature.
 func (s *SignatureInfo) SetKeyLocator(keyLocator *tlv.Block) {
+	s.keyLocator = keyLocator
 	s.wire = nil
-	if keyLocator == nil {
-		s.keyLocator = nil
-		return
-	}
-	s.keyLocator = keyLocator.DeepCopy()
 }
 
 // UnsetKeyLocator unsets the KeyLocator of the signature.
@@ -224,8 +195,7 @@ func (s *SignatureInfo) Nonce() []byte {
 
 // SetNonce sets the SignatureNonce of the signature.
 func (s *SignatureInfo) SetNonce(nonce []byte) {
-	s.nonce = make([]byte, len(nonce))
-	copy(s.nonce, nonce)
+	s.nonce = nonce
 	s.wire = nil
 }
 
@@ -252,7 +222,7 @@ func (s *SignatureInfo) SetTime(newTime *time.Time) {
 		return
 	}
 	s.time = new(time.Time)
-	*s.time = time.Unix(s.time.Unix(), s.time.UnixNano())
+	*s.time = time.Unix(newTime.Unix(), newTime.UnixNano())
 }
 
 // UnsetTime unsets the SignatureTime of the signature.
@@ -263,12 +233,7 @@ func (s *SignatureInfo) UnsetTime() {
 
 // SeqNum returns the SignatureSeqNum of the signature.
 func (s *SignatureInfo) SeqNum() *uint64 {
-	if s.seqNum == nil {
-		return nil
-	}
-	seqNum := new(uint64)
-	*seqNum = *s.seqNum
-	return seqNum
+	return s.seqNum
 }
 
 // SetSeqNum sets the SignatureSeqNum of the signature.

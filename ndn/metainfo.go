@@ -38,7 +38,7 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 	wire.Parse()
 
 	m := new(MetaInfo)
-	m.wire = wire.DeepCopy()
+	m.wire = wire
 	mostRecentElem := 0
 	for _, elem := range wire.Subelements() {
 		switch elem.Type() {
@@ -116,35 +116,9 @@ func (m *MetaInfo) String() string {
 	return str
 }
 
-// DeepCopy returns a deep copy of the MetaInfo.
-func (m *MetaInfo) DeepCopy() *MetaInfo {
-	copyM := new(MetaInfo)
-	if m.contentType != nil {
-		copyM.contentType = new(uint64)
-		*copyM.contentType = *m.contentType
-	}
-	if m.freshnessPeriod != nil {
-		copyM.freshnessPeriod = new(time.Duration)
-		*copyM.freshnessPeriod = *m.freshnessPeriod
-	}
-	if m.finalBlockID != nil {
-		copyM.finalBlockID = m.finalBlockID.DeepCopy()
-	}
-	if m.wire != nil {
-		copyM.wire = m.wire.DeepCopy()
-	}
-	return copyM
-}
-
 // ContentType returns the ContentType set in the MetaInfo.
 func (m *MetaInfo) ContentType() *uint64 {
-	if m.contentType == nil {
-		return nil
-	}
-
-	contentType := new(uint64)
-	*contentType = *m.contentType
-	return contentType
+	return m.contentType
 }
 
 // SetContentType sets the ContentType in the MetaInfo.
@@ -162,13 +136,7 @@ func (m *MetaInfo) UnsetContentType() {
 
 // FreshnessPeriod returns the FreshnessPeriod set in the MetaInfo.
 func (m *MetaInfo) FreshnessPeriod() *time.Duration {
-	if m.freshnessPeriod == nil {
-		return nil
-	}
-
-	freshnessPeriod := new(time.Duration)
-	*freshnessPeriod = *m.freshnessPeriod
-	return freshnessPeriod
+	return m.freshnessPeriod
 }
 
 // SetFreshnessPeriod sets the FreshnessPeriod in the MetaInfo.
@@ -186,16 +154,12 @@ func (m *MetaInfo) UnsetFreshnessPeriod() {
 
 // FinalBlockID returns the FinalBlockId set in the MetaInfo.
 func (m *MetaInfo) FinalBlockID() NameComponent {
-	if m.finalBlockID == nil {
-		return nil
-	}
-
-	return m.finalBlockID.DeepCopy()
+	return m.finalBlockID
 }
 
 // SetFinalBlockID sets the FinalBlockId in the MetaInfo.
 func (m *MetaInfo) SetFinalBlockID(finalBlockID NameComponent) {
-	m.finalBlockID = finalBlockID.DeepCopy()
+	m.finalBlockID = finalBlockID
 	m.wire = nil
 }
 

@@ -37,7 +37,7 @@ func NewData(name *Name, content []byte) *Data {
 	}
 
 	d := new(Data)
-	d.name = name.DeepCopy()
+	d.name = name
 	d.metaInfo = NewMetaInfo()
 	d.content = make([]byte, len(content))
 	d.sigInfo = NewSignatureInfo(security.DigestSha256Type)
@@ -53,7 +53,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 
 	d := new(Data)
 	d.shouldValidateSignature = shouldValidateSignature
-	d.wire = wire.DeepCopy()
+	d.wire = wire
 	d.wire.Parse()
 	mostRecentElem := 0
 	var err error
@@ -135,86 +135,61 @@ func (d *Data) String() string {
 	return str
 }
 
-// DeepCopy returns a deep copy of the Data.
-func (d *Data) DeepCopy() *Data {
-	// TODO
-	return nil
-}
-
 // Name returns the name of the Data packet.
 func (d *Data) Name() *Name {
-	return d.name.DeepCopy()
+	return d.name
 }
 
 // SetName sets the name of the Data packet.
 func (d *Data) SetName(name *Name) {
-	d.name = name.DeepCopy()
+	d.name = name
 	d.wire = nil
 	d.sigValue = make([]byte, 0)
 }
 
 // MetaInfo returns the MetaInfo of the Data packet.
 func (d *Data) MetaInfo() *MetaInfo {
-	return d.metaInfo.DeepCopy()
+	return d.metaInfo
 }
 
 // SetMetaInfo sets the MetaInfo of the Data packet.
-func (d *Data) SetMetaInfo(metaInfo *MetaInfo) error {
-	if metaInfo == nil {
-		return util.ErrOutOfRange
-	}
-
-	d.metaInfo = metaInfo.DeepCopy()
+func (d *Data) SetMetaInfo(metaInfo *MetaInfo) {
+	d.metaInfo = metaInfo
 	d.wire = nil
 	d.sigValue = make([]byte, 0)
-	return nil
 }
 
 // Content returns a copy of the content in the Data packet.
 func (d *Data) Content() []byte {
-	content := make([]byte, len(d.content))
-	copy(content, d.content)
-	return content
+	return d.content
 }
 
 // SetContent sets the content of the Data packet.
 func (d *Data) SetContent(content []byte) {
-	d.content = make([]byte, len(content))
-	copy(d.content, content)
+	d.content = content
 	d.wire = nil
 	d.sigValue = make([]byte, 0)
 }
 
 // SignatureInfo returns a copy of the SignatureInfo in the Data packet.
 func (d *Data) SignatureInfo() *SignatureInfo {
-	if d.sigInfo == nil {
-		return nil
-	}
-	return d.sigInfo.DeepCopy()
+	return d.sigInfo
 }
 
 // SetSignatureInfo sets the SignatureInfo in the Data packet.
 func (d *Data) SetSignatureInfo(sigInfo *SignatureInfo) {
-	if sigInfo == nil {
-		return
-	}
-
-	d.sigInfo = sigInfo.DeepCopy()
+	d.sigInfo = sigInfo
 	d.wire = nil
 	d.sigValue = make([]byte, 0)
 }
 
 // SignatureValue returns a copy of the SignatureValue in the Data packet. If the signature has not yet been calculated,
 func (d *Data) SignatureValue() []byte {
-	if len(d.sigValue) == 0 {
-		if d.computeSignatureValue() != nil {
-			return make([]byte, 0)
-		}
+	if len(d.sigValue) == 0 && d.computeSignatureValue() != nil {
+		return make([]byte, 0)
 	}
 
-	sigValue := make([]byte, len(d.sigValue))
-	copy(sigValue, d.sigValue)
-	return sigValue
+	return d.sigValue
 }
 
 // ShouldValidateSignature returns whether signature validation is enabled for this Data.
@@ -331,13 +306,10 @@ func (d *Data) HasWire() bool {
 
 // PitToken returns the PIT token attached to the Data (if any).
 func (d *Data) PitToken() []byte {
-	pitToken := make([]byte, len(d.pitToken))
-	copy(pitToken, d.pitToken)
-	return pitToken
+	return d.pitToken
 }
 
 // SetPitToken sets the PIT token attached to the Data.
 func (d *Data) SetPitToken(pitToken []byte) {
-	d.pitToken = make([]byte, len(pitToken))
-	copy(d.pitToken, pitToken)
+	d.pitToken = pitToken
 }
