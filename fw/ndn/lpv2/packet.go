@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -55,17 +55,17 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 
 	// If type is not LpPacket, then this is a "bare" packet.
 	if wire.Type() != LpPacket {
-		p.fragment = wire.DeepCopy()
+		p.fragment = wire
 		return p, nil
 	}
 
 	p.wire = wire.DeepCopy()
 	p.wire.Parse()
 	var err error
-	for _, elem := range p.wire.Subelements() {
+	for _, elem := range wire.Subelements() {
 		switch elem.Type() {
 		case Fragment:
-			p.fragment = elem.DeepCopy()
+			p.fragment = elem
 		case Sequence:
 			*p.sequence, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
@@ -340,7 +340,7 @@ func (p *Packet) PrefixAnnouncement() *ndn.Data {
 	if p.prefixAnnouncement == nil {
 		return nil
 	}
-	return p.prefixAnnouncement.DeepCopy()
+	return p.prefixAnnouncement
 }
 
 // SetPrefixAnnouncement sets the PrefixAnnouncement field of the LpPacket.
@@ -348,7 +348,7 @@ func (p *Packet) SetPrefixAnnouncement(prefixAnnouncement *ndn.Data) {
 	if prefixAnnouncement == nil {
 		p.prefixAnnouncement = nil
 	} else {
-		p.prefixAnnouncement = p.prefixAnnouncement.DeepCopy()
+		p.prefixAnnouncement = prefixAnnouncement
 	}
 	p.wire = nil
 }
@@ -358,7 +358,7 @@ func (p *Packet) Fragment() *tlv.Block {
 	if p.fragment == nil {
 		return nil
 	}
-	return p.fragment.DeepCopy()
+	return p.fragment
 }
 
 // SetFragment sets the Fragment field of the LpPacket.
@@ -366,7 +366,7 @@ func (p *Packet) SetFragment(fragment *tlv.Block) {
 	if fragment == nil {
 		p.fragment = nil
 	} else {
-		p.fragment = fragment.DeepCopy()
+		p.fragment = fragment
 	}
 	p.wire = nil
 }
@@ -459,5 +459,5 @@ func (p *Packet) Encode() (*tlv.Block, error) {
 		}
 	}
 	p.wire.Wire()
-	return p.wire.DeepCopy(), nil
+	return p.wire, nil
 }

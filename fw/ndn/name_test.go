@@ -184,7 +184,7 @@ func TestNameComparison(t *testing.T) {
 	assert.False(t, n.Equals(nNdnGo))
 	assert.False(t, nNdnGo.Equals(n))
 
-	n1 := n.DeepCopy()
+	n1 := n.Prefix(n.Size())
 	goComponent := ndn.NewGenericNameComponent([]byte("go"))
 	assert.NotNil(t, goComponent)
 	assert.NoError(t, n1.Set(1, goComponent))

@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -18,7 +18,7 @@ import (
 type Delegation struct {
 	preference uint64
 	name       Name
-	wire       tlv.Block
+	wire       *tlv.Block
 }
 
 // NewDelegation creates a new delegation.
@@ -52,20 +52,12 @@ func DecodeDelegation(wire *tlv.Block) (*Delegation, error) {
 	}
 	d.name = *name
 
-	d.wire = *wire.DeepCopy()
+	d.wire = wire
 	return d, nil
 }
 
 func (d *Delegation) String() string {
 	return "Delegation(" + strconv.FormatUint(d.preference, 10) + ", " + d.name.String() + ")"
-}
-
-// DeepCopy returns a deep copy of the delegation.
-func (d *Delegation) DeepCopy() *Delegation {
-	copyD := new(Delegation)
-	copyD.preference = d.preference
-	copyD.name = *d.name.DeepCopy()
-	return copyD
 }
 
 // Preference returns the preference set in the delegation.
@@ -76,27 +68,27 @@ func (d *Delegation) Preference() uint64 {
 // SetPreference sets the preference in the delegation.
 func (d *Delegation) SetPreference(preference uint64) {
 	d.preference = preference
-	d.wire.Reset()
+	d.wire = nil
 }
 
 // Name returns a copy of the name set in the delegation.
 func (d *Delegation) Name() *Name {
-	return d.name.DeepCopy()
+	return &d.name
 }
 
 // SetName sets the name in the delegation.
 func (d *Delegation) SetName(name *Name) {
-	d.name = *name.DeepCopy()
-	d.wire.Reset()
+	d.name = *name
+	d.wire = nil
 }
 
 // Encode encodes the delegation into a block.
 func (d *Delegation) Encode() *tlv.Block {
-	if !d.wire.HasWire() {
+	if d.wire == nil {
 		d.wire.SetType(tlv.Delegation)
 		d.wire.Append(tlv.EncodeNNIBlock(tlv.Preference, d.preference))
 		d.wire.Append(d.name.Encode())
 		d.wire.Wire()
 	}
-	return d.wire.DeepCopy()
+	return d.wire
 }

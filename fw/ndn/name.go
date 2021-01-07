@@ -712,7 +712,7 @@ func (n *Name) String() string {
 
 // Append adds the specified name component to the end of the name.
 func (n *Name) Append(component NameComponent) *Name {
-	n.components = append(n.components, component.DeepCopy())
+	n.components = append(n.components, component)
 	n.wire = nil
 	return n
 }
@@ -768,16 +768,6 @@ func (n *Name) Compare(other *Name) int {
 
 	// The only possibility left is that they exactly match.
 	return 0
-}
-
-// DeepCopy makes a deep copy of the name component.
-func (n *Name) DeepCopy() *Name {
-	newN := new(Name)
-	newN.components = make([]NameComponent, 0, len(n.components))
-	for _, component := range n.components {
-		newN.components = append(newN.components, component.DeepCopy())
-	}
-	return newN
 }
 
 // Equals returns whether the specified name is equal to this name.
@@ -837,9 +827,9 @@ func (n *Name) Insert(index int, component NameComponent) error {
 // Prefix returns a name prefix of the specified number of components. If greater than or equal to the size of the name, this returns a copy of the name.
 func (n *Name) Prefix(size int) *Name {
 	prefix := *n
-	// We have to deep copy this
 	prefix.components = make([]NameComponent, 0, len(n.components))
 	for i := 0; i < size; i++ {
+		// We have to deep copy this
 		//prefix.components = append(prefix.components, reflect.New(reflect.ValueOf(component).Elem().Type()).Interface().(NameComponent))
 		prefix.components = append(prefix.components, n.components[i].DeepCopy())
 	}
@@ -870,7 +860,7 @@ func (n *Name) Set(index int, component NameComponent) error {
 	}
 
 	//n.components[index] = reflect.New(reflect.ValueOf(component).Elem().Type()).Interface().(NameComponent)
-	n.components[index] = component.DeepCopy()
+	n.components[index] = component
 	n.wire = nil
 	return nil
 }

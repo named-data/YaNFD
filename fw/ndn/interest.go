@@ -36,7 +36,7 @@ type Interest struct {
 // NewInterest creates a new Interest with the specified name and default values.
 func NewInterest(name *Name) *Interest {
 	i := new(Interest)
-	i.name = *name.DeepCopy()
+	i.name = *name
 	i.lifetime = 4000 * time.Millisecond
 	i.ResetNonce()
 	return i
@@ -64,7 +64,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 				return nil, err
 			}
 			mostRecentElem = 1
-			i.name = *name.DeepCopy()
+			i.name = *name
 		case tlv.CanBePrefix:
 			if mostRecentElem >= 2 {
 				return nil, errors.New("CanBePrefix is duplicate or out-of-order")
@@ -126,12 +126,12 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			}
 			mostRecentElem = 8
 			hasApplicationParameters = true
-			i.parameters = append(i.parameters, elem.DeepCopy())
+			i.parameters = append(i.parameters, elem)
 		default:
 			if !hasApplicationParameters && tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical
 			} else if hasApplicationParameters {
-				i.parameters = append(i.parameters, elem.DeepCopy())
+				i.parameters = append(i.parameters, elem)
 			}
 			// If non-critical and not after ApplicationParameters, ignore
 		}
@@ -201,14 +201,14 @@ func (i *Interest) String() string {
 // Setters/Getters
 //////////////////
 
-// Name returns a copy of the name of the Interest.
+// Name returns the name of the Interest.
 func (i *Interest) Name() *Name {
-	return i.name.DeepCopy()
+	return &i.name
 }
 
 // SetName sets the name of the Interest.
 func (i *Interest) SetName(name *Name) {
-	i.name = *name.DeepCopy()
+	i.name = *name
 	i.wire = nil
 }
 
@@ -236,15 +236,7 @@ func (i *Interest) SetMustBeFresh(mustBeFresh bool) {
 
 // ForwardingHint returns a copy of the delegations in the ForwardingHint in the Interest.
 func (i *Interest) ForwardingHint() []Delegation {
-	if i.forwardingHint == nil {
-		return make([]Delegation, 0)
-	}
-
-	fh := make([]Delegation, 0, len(i.forwardingHint))
-	for _, delegation := range i.forwardingHint {
-		fh = append(fh, delegation)
-	}
-	return fh
+	return i.forwardingHint
 }
 
 // AppendForwardingHint appends a delegation to the ForwardingHint in the Interest.
@@ -272,9 +264,7 @@ func (i *Interest) EraseForwardingHint(index int) error {
 
 // Nonce gets the nonce of the Interest.
 func (i *Interest) Nonce() []byte {
-	nonce := make([]byte, 4)
-	copy(nonce, i.nonce)
-	return nonce
+	return i.nonce
 }
 
 // ResetNonce regenerates the value of the nonce.
@@ -292,8 +282,7 @@ func (i *Interest) SetNonce(nonce []byte) error {
 		return util.ErrTooShort
 	}
 
-	i.nonce = make([]byte, 4)
-	copy(i.nonce, nonce)
+	i.nonce = nonce
 	i.wire = nil
 	return nil
 }
@@ -311,13 +300,7 @@ func (i *Interest) SetLifetime(lifetime time.Duration) {
 
 // HopLimit returns the hop limit of the Interest or nil if no hop limit is set.
 func (i *Interest) HopLimit() *uint8 {
-	if i.hopLimit == nil {
-		return nil
-	}
-
-	hopLimit := new(uint8)
-	*hopLimit = *i.hopLimit
-	return hopLimit
+	return i.hopLimit
 }
 
 // SetHopLimit sets the hop limit of the Interest (or unsets it if nil is specified).
@@ -335,7 +318,7 @@ func (i *Interest) SetHopLimit(hopLimit *uint8) {
 func (i *Interest) ApplicationParameters() []tlv.Block {
 	params := make([]tlv.Block, 0, len(i.parameters))
 	for _, param := range i.parameters {
-		params = append(params, *param.DeepCopy())
+		params = append(params, *param)
 	}
 	return params
 }
@@ -345,7 +328,7 @@ func (i *Interest) AppendApplicationParameter(block *tlv.Block) {
 	if block.Type() != tlv.ApplicationParameters && len(i.parameters) == 0 {
 		i.parameters = append(i.parameters, tlv.NewEmptyBlock(tlv.ApplicationParameters))
 	}
-	i.parameters = append(i.parameters, block.DeepCopy())
+	i.parameters = append(i.parameters, block)
 
 	// Reset ParametersDigestSha256Component
 	i.recomputeParametersDigestComponent()
