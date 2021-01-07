@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -78,7 +78,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 				return nil, errors.New("KeyLocator is duplicate or out-of-order")
 			}
 			mostRecentElem = 2
-			s.keyLocator = elem.DeepCopy()
+			s.keyLocator = elem
 		case tlv.SignatureNonce:
 			if mostRecentElem >= 3 {
 				return nil, errors.New("SignatureNonce is duplicate or out-or-order")
@@ -321,7 +321,7 @@ func (s *SignatureInfo) Encode() (*tlv.Block, error) {
 	}
 
 	s.wire.Wire()
-	return s.wire.DeepCopy(), nil
+	return s.wire, nil
 }
 
 // HasWire returns whether a valid up-to-date wire encoding exists for the SignatureInfo.

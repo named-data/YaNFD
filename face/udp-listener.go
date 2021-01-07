@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -62,7 +62,7 @@ func (l *UDPListener) Run() {
 	}
 
 	// Run accept loop
-	recvBuf := make([]byte, core.MaxNDNPacketSize)
+	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for !core.ShouldQuit {
 		readSize, remoteAddr, err := l.conn.ReadFrom(recvBuf)
 		if err != nil {
@@ -91,7 +91,7 @@ func (l *UDPListener) Run() {
 
 		core.LogTrace(l, "Receive of size", readSize, "from", remoteURI.String())
 
-		if readSize > core.MaxNDNPacketSize {
+		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(l, "Received too much data without valid TLV block - DROP")
 		}
 

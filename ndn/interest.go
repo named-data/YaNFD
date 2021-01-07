@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -403,62 +403,60 @@ func (i *Interest) ClearApplicationParameters() {
 
 // Encode encodes the data into a block.
 func (i *Interest) Encode() (*tlv.Block, error) {
-	if i.wire != nil {
-		return i.wire.DeepCopy(), nil
-	}
+	if i.wire == nil {
+		i.wire = new(tlv.Block)
+		i.wire.SetType(tlv.Interest)
 
-	i.wire = new(tlv.Block)
-	i.wire.SetType(tlv.Interest)
-
-	// Validate fields
-	if i.name.Size() == 0 {
-		return nil, errors.New("Name cannot be empty")
-	}
-
-	if len(i.nonce) != 4 {
-		return nil, errors.New("Nonce must be set to encode")
-	}
-
-	// Name
-	i.wire.Append(i.name.Encode())
-
-	// CanBePrefix
-	if i.canBePrefix {
-		i.wire.Append(tlv.NewEmptyBlock(tlv.CanBePrefix))
-	}
-
-	// MustBeFresh
-	if i.mustBeFresh {
-		i.wire.Append(tlv.NewEmptyBlock(tlv.MustBeFresh))
-	}
-
-	// ForwardingHint
-	if len(i.forwardingHint) > 0 {
-		fhBlock := tlv.NewEmptyBlock(tlv.ForwardingHint)
-		for _, delegation := range i.forwardingHint {
-			fhBlock.Append(delegation.Encode())
+		// Validate fields
+		if i.name.Size() == 0 {
+			return nil, errors.New("Name cannot be empty")
 		}
-		i.wire.Append(fhBlock)
-	}
 
-	// Nonce
-	i.wire.Append(tlv.NewBlock(tlv.Nonce, i.nonce))
+		if len(i.nonce) != 4 {
+			return nil, errors.New("Nonce must be set to encode")
+		}
 
-	// InterestLifetime
-	i.wire.Append(tlv.EncodeNNIBlock(tlv.InterestLifetime, uint64(i.lifetime.Milliseconds())))
+		// Name
+		i.wire.Append(i.name.Encode())
 
-	// HopLimit
-	if i.hopLimit != nil {
-		i.wire.Append(tlv.NewBlock(tlv.HopLimit, []byte{*i.hopLimit}))
-	}
+		// CanBePrefix
+		if i.canBePrefix {
+			i.wire.Append(tlv.NewEmptyBlock(tlv.CanBePrefix))
+		}
 
-	// ApplicationParameters
-	for _, param := range i.parameters {
-		i.wire.Append(param)
+		// MustBeFresh
+		if i.mustBeFresh {
+			i.wire.Append(tlv.NewEmptyBlock(tlv.MustBeFresh))
+		}
+
+		// ForwardingHint
+		if len(i.forwardingHint) > 0 {
+			fhBlock := tlv.NewEmptyBlock(tlv.ForwardingHint)
+			for _, delegation := range i.forwardingHint {
+				fhBlock.Append(delegation.Encode())
+			}
+			i.wire.Append(fhBlock)
+		}
+
+		// Nonce
+		i.wire.Append(tlv.NewBlock(tlv.Nonce, i.nonce))
+
+		// InterestLifetime
+		i.wire.Append(tlv.EncodeNNIBlock(tlv.InterestLifetime, uint64(i.lifetime.Milliseconds())))
+
+		// HopLimit
+		if i.hopLimit != nil {
+			i.wire.Append(tlv.NewBlock(tlv.HopLimit, []byte{*i.hopLimit}))
+		}
+
+		// ApplicationParameters
+		for _, param := range i.parameters {
+			i.wire.Append(param)
+		}
 	}
 
 	i.wire.Wire()
-	return i.wire.DeepCopy(), nil
+	return i.wire, nil
 }
 
 // HasWire returns whether a wire encoding exists for the Interest.

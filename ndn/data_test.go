@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -182,4 +182,24 @@ func TestDataWire(t *testing.T) {
 	assert.False(t, d.HasWire())
 	d.Encode()
 	assert.True(t, d.HasWire())
+}
+
+func BenchmarkEncode(b *testing.B) {
+	name, _ := ndn.NameFromString("/go/ndn/2020")
+	d := ndn.NewData(name, []byte{0x01, 0x02, 0x03, 0x04})
+	m := ndn.NewMetaInfo()
+	m.SetContentType(0x04)
+	m.SetFreshnessPeriod(time.Duration(5000) * time.Millisecond)
+	m.SetFinalBlockID(ndn.NewGenericNameComponent([]byte("ndn")))
+	d.SetMetaInfo(m)
+	s := ndn.NewSignatureInfo(security.DigestSha256Type)
+	d.SetSignatureInfo(s)
+
+	for i := 0; i < b.N; i++ {
+		// Reset wire
+		d.SetName(name)
+		d.SetMetaInfo(m)
+		encoded, _ := d.Encode()
+		encoded.Wire()
+	}
 }
