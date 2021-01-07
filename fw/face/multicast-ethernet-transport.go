@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -36,7 +36,7 @@ func MakeMulticastEthernetTransport(remoteURI URI, localURI URI) (*MulticastEthe
 	}
 
 	var t MulticastEthernetTransport
-	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, tlv.MaxNDNPacketSize)
 	t.shouldQuit = make(chan bool, 1)
 	var err error
 	t.remoteAddr, err = net.ParseMAC(remoteURI.Path())
@@ -110,7 +110,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 		// Extract network layer (NDN)
 		ndnLayer := packet.NetworkLayer().LayerContents()
 
-		if len(ndnLayer) > core.MaxNDNPacketSize {
+		if len(ndnLayer) > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 		}
 

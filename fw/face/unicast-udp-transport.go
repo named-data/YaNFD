@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -33,7 +33,7 @@ func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport,
 	}
 
 	t := new(UnicastUDPTransport)
-	t.makeTransportBase(remoteURI, localURI, core.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, tlv.MaxNDNPacketSize)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -76,7 +76,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *UnicastUDPTransport) runReceive() {
-	recvBuf := make([]byte, core.MaxNDNPacketSize)
+	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for !core.ShouldQuit && t.state != Down {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
@@ -87,7 +87,7 @@ func (t *UnicastUDPTransport) runReceive() {
 
 		core.LogTrace(t, "Receive of size", readSize)
 
-		if readSize > core.MaxNDNPacketSize {
+		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 			continue
 		}

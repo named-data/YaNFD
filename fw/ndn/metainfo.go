@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -208,7 +208,7 @@ func (m *MetaInfo) UnsetFinalBlockID() {
 // Encode encodes the MetaInfo into a block.
 func (m *MetaInfo) Encode() (*tlv.Block, error) {
 	if m.wire != nil {
-		return m.wire.DeepCopy(), nil
+		return m.wire, nil
 	}
 
 	m.wire = new(tlv.Block)
@@ -234,7 +234,7 @@ func (m *MetaInfo) Encode() (*tlv.Block, error) {
 	}
 
 	m.wire.Wire()
-	return m.wire.DeepCopy(), nil
+	return m.wire, nil
 }
 
 // HasWire returns whether the MetaInfo has an existing valid wire encoding.

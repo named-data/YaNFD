@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -43,9 +43,9 @@ func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
 	}
 
 	if localURI.Scheme() == "udp4" {
-		t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, core.MaxNDNPacketSize)
+		t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, tlv.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
-		t.makeTransportBase(DecodeURIString("udp6://["+NDNMulticastUDP6Address+"%"+localIf.Name+"]:"+strconv.Itoa(NDNMulticastUDPPort)), localURI, core.MaxNDNPacketSize)
+		t.makeTransportBase(DecodeURIString("udp6://["+NDNMulticastUDP6Address+"%"+localIf.Name+"]:"+strconv.Itoa(NDNMulticastUDPPort)), localURI, tlv.MaxNDNPacketSize)
 	}
 	// TODO: Get group address from config
 	t.scope = NonLocal
@@ -91,7 +91,7 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *MulticastUDPTransport) runReceive() {
-	recvBuf := make([]byte, core.MaxNDNPacketSize)
+	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for !core.ShouldQuit && t.state != Down {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
@@ -102,7 +102,7 @@ func (t *MulticastUDPTransport) runReceive() {
 
 		core.LogTrace(t, "Receive of size", readSize, "from", remoteAddr.String())
 
-		if readSize > core.MaxNDNPacketSize {
+		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 		}
 

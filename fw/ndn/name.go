@@ -127,7 +127,7 @@ func (n *BaseNameComponent) Encode() *tlv.Block {
 		n.wire = tlv.NewBlock(uint32(n.tlvType), n.value)
 		n.wire.Wire()
 	}
-	return n.wire.DeepCopy()
+	return n.wire
 }
 
 ////////////////////////////////
@@ -329,11 +329,6 @@ func (n *SegmentNameComponent) String() string {
 	return "seg=" + strconv.FormatUint(n.rawValue, 10)
 }
 
-// Encode encodes a SegmentNameComponent.
-func (n *SegmentNameComponent) Encode() *tlv.Block {
-	return tlv.NewBlock(uint32(n.tlvType), n.value)
-}
-
 // DeepCopy creates a deep copy of the name component.
 func (n *SegmentNameComponent) DeepCopy() NameComponent {
 	return &SegmentNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
@@ -388,11 +383,6 @@ func (n *ByteOffsetNameComponent) DeepCopy() NameComponent {
 	return &ByteOffsetNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
 }
 
-// Encode encodes a ByteOffsetNameComponent.
-func (n *ByteOffsetNameComponent) Encode() *tlv.Block {
-	return tlv.NewBlock(uint32(n.tlvType), n.value)
-}
-
 // SetValue sets the value of a ByteOffsetNameComponent.
 func (n *ByteOffsetNameComponent) SetValue(value uint64) {
 	n.rawValue = value
@@ -435,11 +425,6 @@ func DecodeVersionNameComponent(value []byte) *VersionNameComponent {
 
 func (n *VersionNameComponent) String() string {
 	return "v=" + strconv.FormatUint(n.rawValue, 10)
-}
-
-// Encode encodes a VersionNameComponent.
-func (n *VersionNameComponent) Encode() *tlv.Block {
-	return tlv.NewBlock(uint32(n.tlvType), n.value)
 }
 
 // DeepCopy creates a deep copy of the name component.
@@ -491,11 +476,6 @@ func (n *TimestampNameComponent) String() string {
 	return "t=" + strconv.FormatUint(n.rawValue, 10)
 }
 
-// Encode encodes a TimestampNameComponent.
-func (n *TimestampNameComponent) Encode() *tlv.Block {
-	return tlv.NewBlock(uint32(n.tlvType), n.value)
-}
-
 // DeepCopy creates a deep copy of the name component.
 func (n *TimestampNameComponent) DeepCopy() NameComponent {
 	return &TimestampNameComponent{BaseNameComponent: *n.BaseNameComponent.DeepCopy().(*BaseNameComponent), rawValue: n.rawValue}
@@ -543,11 +523,6 @@ func DecodeSequenceNumNameComponent(value []byte) *SequenceNumNameComponent {
 
 func (n *SequenceNumNameComponent) String() string {
 	return "seq=" + strconv.FormatUint(n.rawValue, 10)
-}
-
-// Encode encodes a SequenceNumNameComponent.
-func (n *SequenceNumNameComponent) Encode() *tlv.Block {
-	return tlv.NewBlock(uint32(n.tlvType), n.value)
 }
 
 // DeepCopy creates a deep copy of the name component.
@@ -917,5 +892,5 @@ func (n *Name) Encode() *tlv.Block {
 
 		n.wire.Wire()
 	}
-	return n.wire.DeepCopy()
+	return n.wire
 }
