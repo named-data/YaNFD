@@ -30,7 +30,7 @@ type LinkService interface {
 	runSend()
 
 	// SendPacket Add a packet to the send queue for this link service
-	SendPacket(packet *tlv.Block)
+	SendPacket(packet *PendingPacket)
 	handleIncomingFrame(frame []byte)
 }
 
@@ -41,7 +41,17 @@ type linkServiceBase struct {
 	HasQuit          chan bool
 	hasImplQuit      chan bool
 	hasTransportQuit chan bool
-	sendQueue        chan []byte
+	sendQueue        chan *PendingPacket
+}
+
+// PendingPacket represents a pending network-layer packet to be sent or recently received on the link, plus any associated metadata.
+type PendingPacket struct {
+	wire           *tlv.Block
+	pitToken       *uint16
+	congestionMark *uint64
+	incomingFaceID *uint64
+	nextHopFaceID  *uint64
+	cachePolicy    *uint64
 }
 
 func (l *linkServiceBase) String() string {
@@ -72,7 +82,7 @@ func (l *linkServiceBase) makeLinkServiceBase(transport transport) {
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)
 	l.hasTransportQuit = make(chan bool)
-	l.sendQueue = make(chan []byte, core.FaceQueueSize)
+	l.sendQueue = make(chan *PendingPacket, core.FaceQueueSize)
 }
 
 func (l *linkServiceBase) setTransport(transport transport) {
@@ -135,19 +145,13 @@ func (l *linkServiceBase) State() State {
 //
 
 // SendPacket adds a packet to the send queue for this link service
-func (l *linkServiceBase) SendPacket(packet *tlv.Block) {
-	encoded, err := packet.Wire()
-	if err != nil {
-		core.LogWarn(l, "Unable to encode outgoing packet for queueing in link service - DROP")
-		return
-	}
-
-	if l.State() != Up {
+func (l *linkServiceBase) SendPacket(packet *PendingPacket) {
+	/*if l.State() != Up {
 		core.LogWarn(l, "Cannot send packet on down face - DROP")
-	}
+	}*/
 
 	select {
-	case l.sendQueue <- encoded:
+	case l.sendQueue <- packet:
 		// Packet queued successfully
 		core.LogTrace(l, "Queued packet for Link Service")
 	default:

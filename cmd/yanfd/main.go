@@ -94,7 +94,7 @@ func main() {
 				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for "+iface.Name+": "+err.Error())
 				os.Exit(2)
 			}
-			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport)
+			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.NDNLPLinkServiceOptions{})
 			face.FaceTable.Add(multicastEthFace)
 			go multicastEthFace.Run()
 			core.LogInfo("Main", "Created multicast Ethernet face for "+iface.Name)
@@ -124,7 +124,7 @@ func main() {
 					core.LogFatal("Main", "Unable to create MulticastUDPTransport for "+path+" on "+iface.Name+": "+err.Error())
 					os.Exit(2)
 				}
-				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport)
+				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.NDNLPLinkServiceOptions{})
 				face.FaceTable.Add(multicastUDPFace)
 				go multicastUDPFace.Run()
 				core.LogInfo("Main", "Created multicast UDP face for "+path+" on "+iface.Name)

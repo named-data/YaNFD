@@ -27,7 +27,7 @@ type Data struct {
 	shouldValidateSignature bool
 	wire                    *tlv.Block
 
-	pitToken []byte
+	pitToken int
 }
 
 // NewData creates a new Data packet with the given name and content.
@@ -305,11 +305,11 @@ func (d *Data) HasWire() bool {
 }
 
 // PitToken returns the PIT token attached to the Data (if any).
-func (d *Data) PitToken() []byte {
+func (d *Data) PitToken() int {
 	return d.pitToken
 }
 
 // SetPitToken sets the PIT token attached to the Data.
-func (d *Data) SetPitToken(pitToken []byte) {
+func (d *Data) SetPitToken(pitToken int) {
 	d.pitToken = pitToken
 }

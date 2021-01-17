@@ -1,3 +1,10 @@
+/* YaNFD - Yet another NDN Forwarding Daemon
+ *
+ * Copyright (C) 2020-2021 Eric Newberry.
+ *
+ * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
+ */
+
 package fw
 
 import (
@@ -38,13 +45,19 @@ func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
 
 // Thread Represents a forwarding thread
 type Thread struct {
-	threadID int
-	HasQuit  chan bool
+	threadID         int
+	pendingInterests chan *ndn.Interest
+	pendingDatas     chan *ndn.Data
+	HasQuit          chan bool
 }
 
 // NewThread creates a new forwarding thread
 func NewThread(id int) Thread {
-	return Thread{id, make(chan bool)}
+	return Thread{
+		threadID:         id,
+		pendingInterests: make(chan *ndn.Interest),
+		pendingDatas:     make(chan *ndn.Data),
+		HasQuit:          make(chan bool)}
 }
 
 func (t *Thread) String() string {
@@ -53,10 +66,31 @@ func (t *Thread) String() string {
 
 // Run forwarding thread
 func (t *Thread) Run() {
-	// TODO
+	for !core.ShouldQuit {
+		select {
+		case data := <-t.pendingDatas:
+			core.LogTrace(t, "Processing Data "+data.Name().String())
+
+			// TODO
+		case interest := <-t.pendingInterests:
+			core.LogTrace(t, "Processing Interest "+interest.Name().String())
+
+			// TODO
+		}
+	}
 
 	core.LogInfo(t, "Stopping thread")
 	t.HasQuit <- true
+}
+
+// QueueInterest queues an Interest for processing by this forwarding thread.
+func (t *Thread) QueueInterest(interest *ndn.Interest) {
+	t.pendingInterests <- interest
+}
+
+// QueueData queues a DAta packet for processing by this forwarding thread.
+func (t *Thread) QueueData(data *ndn.Data) {
+	t.pendingDatas <- data
 }
 
 // GetID returns the ID of the forwarding thread

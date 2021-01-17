@@ -80,7 +80,7 @@ func (l *UnixStreamListener) Run() {
 			core.LogError(l, "Failed to create new Unix stream transport: "+err.Error())
 			continue
 		}
-		newLinkService := MakeNDNLPLinkService(newTransport)
+		newLinkService := MakeNDNLPLinkService(newTransport, NDNLPLinkServiceOptions{})
 		if err != nil {
 			core.LogError(l, "Failed to create new NDNLPv2 transport: "+err.Error())
 			continue
