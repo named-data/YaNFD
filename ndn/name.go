@@ -25,6 +25,7 @@ type NameComponent interface {
 	DeepCopy() NameComponent
 	Type() uint16
 	Value() []byte
+	Equals(other NameComponent) bool
 	Encode() *tlv.Block
 }
 
@@ -119,6 +120,11 @@ func (n *BaseNameComponent) Type() uint16 {
 // Value returns the TLV value of the name component.
 func (n *BaseNameComponent) Value() []byte {
 	return n.value
+}
+
+// Equals returns whether the two name components match.
+func (n *BaseNameComponent) Equals(other NameComponent) bool {
+	return n.tlvType == other.Type() && bytes.Equal(n.value, other.Value())
 }
 
 // Encode encodes the name component into a block.
@@ -563,6 +569,10 @@ func NameFromString(str string) (*Name, error) {
 	}
 
 	components := strings.Split(str, "/")[1:] // Skip first since empty
+	if len(components[0]) == 0 {
+		// Empty name
+		return n, nil
+	}
 	for _, component := range components {
 		var c NameComponent
 		if strings.Contains(component, "=") {
@@ -622,7 +632,12 @@ func NameFromString(str string) (*Name, error) {
 				}
 				c = NewSequenceNumNameComponent(seq)
 			default:
-				return nil, errors.New("Unknown name component " + unescapedValue)
+				t, err := strconv.ParseUint(componentSplit[0], 10, 16)
+				if err != nil {
+					return nil, errors.New("Unable to decode component type \"" + componentSplit[0] + "\"")
+				}
+				c = NewBaseNameComponent(uint16(t), []byte(unescapedValue))
+				//return nil, errors.New("Unknown name component " + unescapedValue)
 			}
 		} else {
 			// Treat as GenericNameComponent
