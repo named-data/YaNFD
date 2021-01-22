@@ -18,6 +18,7 @@ import (
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/fw"
+	"github.com/eric135/YaNFD/ndn"
 )
 
 func main() {
@@ -67,8 +68,6 @@ func main() {
 		go fw.Threads[i].Run()
 	}
 
-	// Initialize face system
-	face.FaceTable = face.MakeTable()
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)
@@ -76,7 +75,7 @@ func main() {
 
 	// Perform setup operations for each network interface
 	ifaces, err := net.Interfaces()
-	multicastEthURI := face.DecodeURIString(face.NDNMulticastEtherURI)
+	multicastEthURI := ndn.DecodeURIString(face.NDNMulticastEtherURI)
 	if err != nil {
 		core.LogFatal("Main", "Unable to access network interfaces: "+err.Error())
 		os.Exit(2)
@@ -89,7 +88,7 @@ func main() {
 
 		if !disableEthernet && iface.Flags&net.FlagMulticast != 0 {
 			// Create multicast Ethernet face for interface
-			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, face.MakeDevFaceURI(iface.Name))
+			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
 			if err != nil {
 				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for "+iface.Name+": "+err.Error())
 				os.Exit(2)
@@ -119,7 +118,7 @@ func main() {
 			}
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
-				multicastUDPTransport, err := face.MakeMulticastUDPTransport(face.MakeUDPFaceURI(ipVersion, path, face.NDNMulticastUDPPort))
+				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.NDNMulticastUDPPort))
 				if err != nil {
 					core.LogFatal("Main", "Unable to create MulticastUDPTransport for "+path+" on "+iface.Name+": "+err.Error())
 					os.Exit(2)
@@ -130,7 +129,7 @@ func main() {
 				core.LogInfo("Main", "Created multicast UDP face for "+path+" on "+iface.Name)
 			}
 
-			udpListener, err := face.MakeUDPListener(face.MakeUDPFaceURI(ipVersion, path, 6363))
+			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, 6363))
 			if err != nil {
 				core.LogFatal("Main", "Unable to create UDP listener for "+path+" on "+iface.Name+": "+err.Error())
 				os.Exit(2)
@@ -143,7 +142,7 @@ func main() {
 	var unixListener *face.UnixStreamListener
 	if !disableUnix {
 		// Set up Unix stream listener
-		unixListener, err = face.MakeUnixStreamListener(face.MakeUnixFaceURI(face.NDNUnixSocketFile))
+		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.NDNUnixSocketFile))
 		if err != nil {
 			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.NDNUnixSocketFile+": "+err.Error())
 			os.Exit(2)

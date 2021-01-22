@@ -14,6 +14,7 @@ import (
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face/impl"
+	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
@@ -26,7 +27,7 @@ type UnicastUDPTransport struct {
 }
 
 // MakeUnicastUDPTransport creates a new unicast UDP transport.
-func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport, error) {
+func MakeUnicastUDPTransport(remoteURI ndn.URI, localURI ndn.URI) (*UnicastUDPTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") || !localURI.IsCanonical() || remoteURI.Scheme() != localURI.Scheme() {
 		return nil, core.ErrNotCanonical
@@ -38,9 +39,9 @@ func MakeUnicastUDPTransport(remoteURI URI, localURI URI) (*UnicastUDPTransport,
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
 	if ip.IsLoopback() {
-		t.scope = Local
+		t.scope = ndn.Local
 	} else {
-		t.scope = NonLocal
+		t.scope = ndn.NonLocal
 	}
 
 	// Set local and remote addresses
@@ -71,17 +72,17 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(Down)
+		t.changeState(ndn.Down)
 	}
 }
 
 func (t *UnicastUDPTransport) runReceive() {
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	for !core.ShouldQuit && t.state != Down {
+	for !core.ShouldQuit && t.state != ndn.Down {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
-			t.changeState(Down)
+			t.changeState(ndn.Down)
 			break
 		}
 
@@ -104,7 +105,7 @@ func (t *UnicastUDPTransport) runReceive() {
 		}
 	}
 
-	t.changeState(Down)
+	t.changeState(ndn.Down)
 }
 
 func (t *UnicastUDPTransport) onClose() {

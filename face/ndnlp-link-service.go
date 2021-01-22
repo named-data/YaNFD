@@ -9,14 +9,12 @@ package face
 
 import (
 	"container/list"
-	"encoding/binary"
 	"math"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/fw"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/lpv2"
 	"github.com/eric135/YaNFD/ndn/tlv"
@@ -137,23 +135,23 @@ func (l *NDNLPLinkService) runSend() {
 	for !core.ShouldQuit {
 		select {
 		case netPacket := <-l.sendQueue:
-			wire, err := netPacket.wire.Wire()
+			wire, err := netPacket.Wire.Wire()
 			if err != nil {
 				core.LogWarn(l, "Unable to encode outgoing packet for queueing in link service - DROP")
 				return
 			}
 
-			if l.transport.State() != Up {
+			if l.transport.State() != ndn.Up {
 				core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
 				l.hasImplQuit <- true
 				return
 			}
 
 			effectiveMtu := l.transport.MTU() - l.headerOverhead
-			if netPacket.pitToken != nil {
+			if netPacket.PitToken != nil {
 				effectiveMtu -= pitTokenOverhead
 			}
-			if netPacket.congestionMark != nil {
+			if netPacket.CongestionMark != nil {
 				effectiveMtu -= congestionMarkOverhead
 			}
 
@@ -210,20 +208,18 @@ func (l *NDNLPLinkService) runSend() {
 			}
 
 			// PIT tokens
-			if netPacket.pitToken != nil {
-				pitToken := make([]byte, 2)
-				binary.BigEndian.PutUint16(pitToken, *netPacket.pitToken)
-				fragments[0].SetPitToken(pitToken)
+			if len(netPacket.PitToken) > 0 {
+				fragments[0].SetPitToken(netPacket.PitToken)
 			}
 
 			// Incoming face indication
-			if netPacket.incomingFaceID != nil {
-				fragments[0].SetIncomingFaceID(uint64(*netPacket.incomingFaceID))
+			if netPacket.IncomingFaceID != nil {
+				fragments[0].SetIncomingFaceID(uint64(*netPacket.IncomingFaceID))
 			}
 
 			// Congestion marking
-			if netPacket.congestionMark != nil {
-				fragments[0].SetCongestionMark(*netPacket.congestionMark)
+			if netPacket.CongestionMark != nil {
+				fragments[0].SetCongestionMark(*netPacket.CongestionMark)
 			}
 
 			// Fill up remaining space with Acks if Reliability enabled
@@ -367,67 +363,31 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		return
 	}
 
-	var netPacket PendingPacket
-	netPacket.wire = netPkt
+	netPacket := new(ndn.PendingPacket)
+	netPacket.IncomingFaceID = new(uint64)
+	*netPacket.IncomingFaceID = uint64(l.faceID)
+	netPacket.Wire = netPkt
 
 	// Congestion marking
-	netPacket.congestionMark = frame.CongestionMark()
+	netPacket.CongestionMark = frame.CongestionMark()
 
 	// Consumer-controlled forwarding (NextHopFaceId)
 	if l.options.IsConsumedControlledForwardingEnabled && frame.NextHopFaceID() != nil {
-		netPacket.nextHopFaceID = frame.NextHopFaceID()
+		netPacket.NextHopFaceID = frame.NextHopFaceID()
 	}
 
 	// Local cache policy
 	if l.options.IsLocalCachePolicyEnabled && frame.CachePolicyType() != nil {
-		netPacket.cachePolicy = frame.CachePolicyType()
+		netPacket.CachePolicy = frame.CachePolicyType()
 	}
 
 	// PIT Token
-	if len(frame.PitToken()) == 2 {
-		// YaNFD only sends PIT tokens as uint16, so implictly ignore other sizes.
-		netPacket.pitToken = new(uint16)
-		*netPacket.pitToken = binary.BigEndian.Uint16(frame.PitToken())
+	if len(frame.PitToken()) > 0 {
+		netPacket.PitToken = make([]byte, len(frame.PitToken()))
+		copy(netPacket.PitToken, frame.PitToken())
 	}
 
-	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
-	switch netPkt.Type() {
-	case tlv.Interest:
-		interest, err := ndn.DecodeInterest(netPkt)
-		if err != nil {
-			core.LogError(l, "Unable to decode Interest ("+err.Error()+") - DROP")
-			break
-		}
-		thread := fw.HashNameToFwThread(interest.Name())
-		core.LogTrace(l, "Dispatched Interest to thread "+strconv.Itoa(thread))
-		fw.Threads[thread].QueueInterest(interest)
-	case tlv.Data:
-		data, err := ndn.DecodeData(netPkt, false)
-		if err != nil {
-			core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
-			break
-		}
-
-		if netPacket.pitToken != nil {
-			// If valid PIT token present, dispatch to that thread.
-			if int(*netPacket.pitToken) >= len(fw.Threads) {
-				// If invalid PIT token present, drop.
-				core.LogError(l, "Invalid PIT token attached to Data packet - DROP")
-				break
-			}
-			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(*netPacket.pitToken), 10))
-			fw.Threads[int(*netPacket.pitToken)].QueueData(data)
-		} else {
-			// Otherwise, dispatch to threads matching every prefix.
-			core.LogDebug(l, "Missing PIT token from Data packet - performing prefix dispatching")
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
-				core.LogTrace(l, "Prefix dispatched Data packet to thread "+strconv.Itoa(thread))
-				fw.Threads[thread].QueueData(data)
-			}
-		}
-	default:
-		core.LogError(l, "Cannot dispatch packet of unknown type "+strconv.FormatUint(uint64(netPkt.Type()), 10))
-	}
+	l.dispatchIncomingPacket(netPacket)
 }
 
 func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uint64, fragIndex uint64, fragCount uint64) *tlv.Block {

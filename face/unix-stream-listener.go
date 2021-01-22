@@ -15,17 +15,18 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/ndn"
 )
 
 // UnixStreamListener listens for incoming Unix stream connections.
 type UnixStreamListener struct {
 	conn     net.Listener
-	localURI URI
+	localURI ndn.URI
 	HasQuit  chan bool
 }
 
 // MakeUnixStreamListener constructs a UnixStreamListener.
-func MakeUnixStreamListener(localURI URI) (*UnixStreamListener, error) {
+func MakeUnixStreamListener(localURI ndn.URI) (*UnixStreamListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
@@ -69,7 +70,7 @@ func (l *UnixStreamListener) Run() {
 			core.LogWarn(l, "Unable to parse FD: "+err.Error())
 			continue
 		}
-		remoteURI := MakeFDFaceURI(fd)
+		remoteURI := ndn.MakeFDFaceURI(fd)
 		if !remoteURI.IsCanonical() {
 			core.LogWarn(l, "Unable to create face from "+remoteURI.String()+" as remote URI is not canonical")
 			continue
