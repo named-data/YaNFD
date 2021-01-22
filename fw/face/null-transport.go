@@ -7,7 +7,10 @@
 
 package face
 
-import "github.com/eric135/YaNFD/ndn/tlv"
+import (
+	"github.com/eric135/YaNFD/ndn"
+	"github.com/eric135/YaNFD/ndn/tlv"
+)
 
 // NullTransport is a transport that drops all packets.
 type NullTransport struct {
@@ -17,6 +20,6 @@ type NullTransport struct {
 // MakeNullTransport makes a NullTransport.
 func MakeNullTransport() *NullTransport {
 	var t NullTransport
-	t.makeTransportBase(MakeNullFaceURI(), MakeNullFaceURI(), tlv.MaxNDNPacketSize)
+	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), tlv.MaxNDNPacketSize)
 	return &t
 }

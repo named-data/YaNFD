@@ -13,6 +13,7 @@ import (
 	"net"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
@@ -23,7 +24,7 @@ type UnixStreamTransport struct {
 }
 
 // MakeUnixStreamTransport creates a Unix stream transport.
-func MakeUnixStreamTransport(remoteURI URI, localURI URI, conn net.Conn) (*UnixStreamTransport, error) {
+func MakeUnixStreamTransport(remoteURI ndn.URI, localURI ndn.URI, conn net.Conn) (*UnixStreamTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "fd" || !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
@@ -33,7 +34,7 @@ func MakeUnixStreamTransport(remoteURI URI, localURI URI, conn net.Conn) (*UnixS
 	t.makeTransportBase(remoteURI, localURI, tlv.MaxNDNPacketSize)
 
 	// Set scope and connection
-	t.scope = Local
+	t.scope = ndn.Local
 	t.conn = conn
 
 	return t, nil
@@ -49,17 +50,17 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(Down)
+		t.changeState(ndn.Down)
 	}
 }
 
 func (t *UnixStreamTransport) runReceive() {
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	for !core.ShouldQuit && t.state != Down {
+	for !core.ShouldQuit && t.state != ndn.Down {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
-			t.changeState(Down)
+			t.changeState(ndn.Down)
 			break
 		}
 
@@ -82,7 +83,7 @@ func (t *UnixStreamTransport) runReceive() {
 		}
 	}
 
-	t.changeState(Down)
+	t.changeState(ndn.Down)
 }
 
 func (t *UnixStreamTransport) onClose() {

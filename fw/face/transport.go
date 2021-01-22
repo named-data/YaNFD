@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
@@ -20,10 +21,11 @@ type transport interface {
 	setFaceID(faceID int)
 	setLinkService(linkService LinkService)
 
-	RemoteURI() URI
-	LocalURI() URI
-	State() State
+	RemoteURI() ndn.URI
+	LocalURI() ndn.URI
+	Scope() ndn.Scope
 	MTU() int
+	State() ndn.State
 
 	runReceive()
 
@@ -37,21 +39,21 @@ type transportBase struct {
 	linkService LinkService
 
 	faceID    int
-	remoteURI URI
-	localURI  URI
-	scope     Scope
+	remoteURI ndn.URI
+	localURI  ndn.URI
+	scope     ndn.Scope
 	mtu       int
 
-	state     State
+	state     ndn.State
 	recvQueue chan *tlv.Block
 
 	hasQuit chan bool
 }
 
-func (t *transportBase) makeTransportBase(remoteURI URI, localURI URI, mtu int) {
+func (t *transportBase) makeTransportBase(remoteURI ndn.URI, localURI ndn.URI, mtu int) {
 	t.remoteURI = remoteURI
 	t.localURI = localURI
-	t.state = Down
+	t.state = ndn.Down
 	t.mtu = mtu
 	t.hasQuit = make(chan bool, 2)
 }
@@ -73,23 +75,28 @@ func (t *transportBase) setLinkService(linkService LinkService) {
 //
 
 // LocalURI returns the local URI of the transport
-func (t *transportBase) LocalURI() URI {
+func (t *transportBase) LocalURI() ndn.URI {
 	return t.localURI
 }
 
 // RemoteURI returns the remote URI of the transport
-func (t *transportBase) RemoteURI() URI {
+func (t *transportBase) RemoteURI() ndn.URI {
 	return t.remoteURI
 }
 
-// State returns the state of the transport
-func (t *transportBase) State() State {
-	return t.state
+// Scope returns the scope of the transport
+func (t *transportBase) Scope() ndn.Scope {
+	return t.scope
 }
 
 // MTU returns the maximum transmission unit (MTU) of the Transport
 func (t *transportBase) MTU() int {
 	return t.mtu
+}
+
+// State returns the state of the transport
+func (t *transportBase) State() ndn.State {
+	return t.state
 }
 
 //
@@ -116,7 +123,7 @@ func (t *transportBase) onClose() {
 // Helpers
 //
 
-func (t *transportBase) changeState(new State) {
+func (t *transportBase) changeState(new ndn.State) {
 	if t.state == new {
 		return
 	}
@@ -124,7 +131,7 @@ func (t *transportBase) changeState(new State) {
 	core.LogInfo(t, "- state:", t.state, "->", new)
 	t.state = new
 
-	if t.state != Up {
+	if t.state != ndn.Up {
 		// Run implementation-specific close mechanisms
 		t.onClose()
 

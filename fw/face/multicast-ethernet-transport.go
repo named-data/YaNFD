@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -29,7 +30,7 @@ type MulticastEthernetTransport struct {
 }
 
 // MakeMulticastEthernetTransport creates a new multicast Ethernet transport.
-func MakeMulticastEthernetTransport(remoteURI URI, localURI URI) (*MulticastEthernetTransport, error) {
+func MakeMulticastEthernetTransport(remoteURI ndn.URI, localURI ndn.URI) (*MulticastEthernetTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "eth" || !localURI.IsCanonical() || localURI.Scheme() != "dev" {
 		return nil, core.ErrNotCanonical
@@ -54,7 +55,7 @@ func MakeMulticastEthernetTransport(remoteURI URI, localURI URI) (*MulticastEthe
 	t.localAddr = iface.HardwareAddr
 
 	// Set scope
-	t.scope = NonLocal
+	t.scope = ndn.NonLocal
 
 	// Set up inactive PCAP handle
 	inactive, err := pcap.NewInactiveHandle(localURI.Path())
@@ -97,7 +98,7 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 	err := t.pcap.WritePacketData(ethFrame.Bytes())
 	if err != nil {
 		core.LogWarn(t, "Unable to write frame - DROP and FACE DOWN")
-		t.changeState(Down)
+		t.changeState(ndn.Down)
 	}
 }
 
@@ -129,7 +130,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 		break
 	}
 
-	t.changeState(Down)
+	t.changeState(ndn.Down)
 }
 
 func (t *MulticastEthernetTransport) onClose() {

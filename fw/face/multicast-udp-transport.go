@@ -14,6 +14,7 @@ import (
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face/impl"
+	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
@@ -28,7 +29,7 @@ type MulticastUDPTransport struct {
 }
 
 // MakeMulticastUDPTransport creates a new multicast UDP transport.
-func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
+func MakeMulticastUDPTransport(localURI ndn.URI) (*MulticastUDPTransport, error) {
 	// Validate local URI
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
@@ -43,12 +44,12 @@ func MakeMulticastUDPTransport(localURI URI) (*MulticastUDPTransport, error) {
 	}
 
 	if localURI.Scheme() == "udp4" {
-		t.makeTransportBase(DecodeURIString(NDNMulticastUDP4URI), localURI, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(ndn.DecodeURIString(NDNMulticastUDP4URI), localURI, tlv.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
-		t.makeTransportBase(DecodeURIString("udp6://["+NDNMulticastUDP6Address+"%"+localIf.Name+"]:"+strconv.Itoa(NDNMulticastUDPPort)), localURI, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(ndn.DecodeURIString("udp6://["+NDNMulticastUDP6Address+"%"+localIf.Name+"]:"+strconv.Itoa(NDNMulticastUDPPort)), localURI, tlv.MaxNDNPacketSize)
 	}
 	// TODO: Get group address from config
-	t.scope = NonLocal
+	t.scope = ndn.NonLocal
 
 	// Format group and local addresses
 	t.groupAddr.IP = net.ParseIP(t.remoteURI.PathHost())
@@ -86,17 +87,17 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	_, err := t.sendConn.Write(frame)
 	if err != nil {
 		core.LogWarn("Unable to send on socket - DROP and Face DOWN")
-		t.changeState(Down)
+		t.changeState(ndn.Down)
 	}
 }
 
 func (t *MulticastUDPTransport) runReceive() {
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	for !core.ShouldQuit && t.state != Down {
+	for !core.ShouldQuit && t.state != ndn.Down {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
 			core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
-			t.changeState(Down)
+			t.changeState(ndn.Down)
 			break
 		}
 
@@ -118,7 +119,7 @@ func (t *MulticastUDPTransport) runReceive() {
 		}
 	}
 
-	t.changeState(Down)
+	t.changeState(ndn.Down)
 }
 
 func (t *MulticastUDPTransport) onClose() {
