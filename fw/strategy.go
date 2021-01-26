@@ -17,8 +17,13 @@ import (
 	"github.com/eric135/YaNFD/table"
 )
 
+// StrategyPrefix is the prefix of all strategy names for YaNFD
+const StrategyPrefix = "/localhost/yanfd/strategy"
+
 // Strategy represents a forwarding strategy.
 type Strategy interface {
+	GetName() *ndn.Name
+
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data)
 	AfterReceiveData(pitEntry *table.PitEntry, inFace int, data *ndn.Data)
 	AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest)
@@ -53,9 +58,11 @@ func (s *StrategyBase) SendInterest(interest *ndn.Interest, faceID int) {
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(data *ndn.Data, inRecord *table.PitInRecord, faceID int) {
+func (s *StrategyBase) SendData(data *ndn.Data, pitEntry *table.PitEntry, faceID int) {
 	pendingPacket := new(ndn.PendingPacket)
-	pendingPacket.PitToken = inRecord.PitToken
+	if inRecord, ok := pitEntry.InRecords[faceID]; ok {
+		pendingPacket.PitToken = inRecord.PitToken
+	}
 	var err error
 	pendingPacket.Wire, err = data.Encode()
 	if err != nil {
