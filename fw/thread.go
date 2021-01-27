@@ -51,7 +51,9 @@ type Thread struct {
 	pendingInterests chan *ndn.PendingPacket
 	pendingDatas     chan *ndn.PendingPacket
 	pitCS            *table.PitCsNode
-	HasQuit          chan bool
+	strategies       map[string]Strategy
+	shouldQuit       chan interface{}
+	HasQuit          chan interface{}
 }
 
 // NewThread creates a new forwarding thread
@@ -60,7 +62,10 @@ func NewThread(id int) Thread {
 		threadID:         id,
 		pendingInterests: make(chan *ndn.PendingPacket),
 		pendingDatas:     make(chan *ndn.PendingPacket),
-		HasQuit:          make(chan bool)}
+		pitCS:            table.NewPitCS(),
+		strategies:       InstantiateStrategies(),
+		shouldQuit:       make(chan interface{}),
+		HasQuit:          make(chan interface{})}
 }
 
 func (t *Thread) String() string {
@@ -72,6 +77,12 @@ func (t *Thread) GetID() int {
 	return t.GetID()
 }
 
+// TellToQuit tells the forwarding thread to quit
+func (t *Thread) TellToQuit() {
+	core.LogInfo(t, "Told to quit")
+	t.shouldQuit <- true
+}
+
 // Run forwarding thread
 func (t *Thread) Run() {
 	for !core.ShouldQuit {
@@ -80,6 +91,8 @@ func (t *Thread) Run() {
 			t.processIncomingInterest(pendingPacket)
 		case pendingPacket := <-t.pendingDatas:
 			t.processIncomingData(pendingPacket)
+		case <-t.shouldQuit:
+			continue
 		}
 	}
 
@@ -139,6 +152,10 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
+	// Get strategy for name
+	strategyName := table.FibStrategyTable.LongestPrefixStrategy(interest.Name())
+	strategy := t.strategies[strategyName.String()]
+
 	// Add in-record and determine if already pending
 	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, int(*pendingPacket.IncomingFaceID))
 	if !isAlreadyPending {
@@ -148,7 +165,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		csEntry := t.pitCS.FindMatchingDataCS(interest)
 		if csEntry != nil {
 			// Pass to strategy AfterContentStoreHit pipeline
-			// TODO
+			strategy.AfterContentStoreHit(pitEntry, int(*pendingPacket.IncomingFaceID), csEntry.Data)
 			return
 		}
 	} else {
@@ -173,8 +190,8 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
-	// Pass to strategy AfterContentStoreMiss pipeline
-	// TODO
+	// Pass to strategy AfterReceiveInterest pipeline
+	strategy.AfterReceiveInterest(pitEntry, int(*pendingPacket.IncomingFaceID), interest)
 }
 
 func (t *Thread) processOutgoingInterest(interest *ndn.Interest, nexthop int) {
@@ -238,12 +255,16 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	// Add to Content Store
 	t.pitCS.InsertDataCS(data)
 
+	// Get strategy for name
+	strategyName := table.FibStrategyTable.LongestPrefixStrategy(data.Name())
+	strategy := t.strategies[strategyName.String()]
+
 	if len(pitEntries) == 1 {
 		// Set PIT entry expiration to now
 		pitEntries[0].SetExpirationTimerToNow()
 
 		// Invoke strategy's AfterReceiveData
-		// TODO
+		strategy.AfterReceiveData(pitEntries[0], int(*pendingPacket.IncomingFaceID), data)
 
 		// Mark PIT entry as satisfied
 		// TODO - how do we do this?
@@ -269,7 +290,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 			pitEntry.SetExpirationTimerToNow()
 
 			// Invoke strategy's BeforeSatisfyInterest
-			// TODO
+			strategy.BeforeSatisfyInterest(pitEntry, int(*pendingPacket.IncomingFaceID), data)
 
 			// Mark PIT entry as satisfied
 			// TODO - how do we do this?

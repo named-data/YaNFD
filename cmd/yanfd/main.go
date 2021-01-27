@@ -57,6 +57,10 @@ func main() {
 
 	core.LogInfo("Main", "Starting YaNFD")
 
+	// Load strategies
+	core.LogInfo("Main", "Loading strategies")
+	fw.LoadStrategies()
+
 	// Start management thread
 	// TODO
 
@@ -162,6 +166,11 @@ func main() {
 	if !disableUnix {
 		unixListener.Close()
 		<-unixListener.HasQuit
+	}
+
+	// Tell all forwarding threads to quit
+	for _, fw := range fw.Threads {
+		fw.TellToQuit()
 	}
 
 	// Wait for all forwarding threads to have quit

@@ -62,8 +62,8 @@ type PitOutRecord struct {
 type CsEntry struct {
 	node *PitCsNode
 
-	data      *ndn.Data
-	staleTime time.Time
+	Data      *ndn.Data
+	StaleTime time.Time
 }
 
 // NewPitCS creates a new combined PIT-CS for a forwarding thread.
@@ -185,17 +185,17 @@ func (p *PitCsNode) InsertDataCS(data *ndn.Data) {
 	node := p.fillTreeToPrefix(data.Name())
 	if node.csEntry != nil {
 		// Replace
-		node.csEntry.data = data
+		node.csEntry.Data = data
 		if data.MetaInfo() == nil || data.MetaInfo().FinalBlockID() == nil {
-			node.csEntry.staleTime = time.Now()
+			node.csEntry.StaleTime = time.Now()
 		} else {
-			node.csEntry.staleTime = time.Now().Add(*data.MetaInfo().FreshnessPeriod())
+			node.csEntry.StaleTime = time.Now().Add(*data.MetaInfo().FreshnessPeriod())
 		}
 	}
 }
 
 func (p *PitCsNode) findMatchingDataCSPrefix(interest *ndn.Interest) *CsEntry {
-	if p.csEntry != nil && (!interest.MustBeFresh() || time.Now().Before(p.csEntry.staleTime)) {
+	if p.csEntry != nil && (!interest.MustBeFresh() || time.Now().Before(p.csEntry.StaleTime)) {
 		return p.csEntry
 	}
 
