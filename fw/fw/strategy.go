@@ -27,7 +27,7 @@ type Strategy interface {
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data)
 	AfterReceiveData(pitEntry *table.PitEntry, inFace int, data *ndn.Data)
 	AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest)
-	BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest)
+	BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Data)
 }
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
