@@ -22,7 +22,6 @@ import (
 type LinkService interface {
 	String() string
 	SetFaceID(faceID int)
-	tellTransportQuit()
 
 	FaceID() int
 	LocalURI() ndn.URI
@@ -34,11 +33,14 @@ type LinkService interface {
 
 	// Main entry point for running face thread
 	Run()
-	runSend()
 
 	// SendPacket Add a packet to the send queue for this link service
 	SendPacket(packet *ndn.PendingPacket)
 	handleIncomingFrame(frame []byte)
+
+	Close()
+	tellTransportQuit()
+	GetHasQuit() chan bool
 }
 
 // linkServiceBase is the type upon which all link service implementations should be built
@@ -49,14 +51,6 @@ type linkServiceBase struct {
 	hasImplQuit      chan bool
 	hasTransportQuit chan bool
 	sendQueue        chan *ndn.PendingPacket
-}
-
-func (l *linkServiceBase) String() string {
-	if l.transport != nil {
-		return l.transport.String() + " LinkService"
-	}
-
-	return "FaceID=" + strconv.Itoa(l.faceID) + " LinkService"
 }
 
 func (l *linkServiceBase) SetFaceID(faceID int) {
@@ -70,47 +64,20 @@ func (l *linkServiceBase) tellTransportQuit() {
 	l.hasTransportQuit <- true
 }
 
+// GetHasQuit returns the channel that indicates when the face has quit.
+func (l *linkServiceBase) GetHasQuit() chan bool {
+	return l.HasQuit
+}
+
 //
 // "Constructors" and threading
 //
 
-func (l *linkServiceBase) makeLinkServiceBase(transport transport) {
-	l.setTransport(transport)
+func (l *linkServiceBase) makeLinkServiceBase() {
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)
 	l.hasTransportQuit = make(chan bool)
 	l.sendQueue = make(chan *ndn.PendingPacket, core.FaceQueueSize)
-}
-
-func (l *linkServiceBase) setTransport(transport transport) {
-	if transport == nil {
-		return
-	}
-
-	l.transport = transport
-	l.transport.setLinkService(l)
-}
-
-// Run starts the face and associated goroutines
-func (l *linkServiceBase) Run() {
-	if l.transport == nil {
-		core.LogError(l, "Unable to start face due to unset transport")
-		return
-	}
-
-	// Start transport goroutines
-	go l.transport.runReceive()
-	go l.runSend()
-
-	// Wait for link service send goroutine to quit
-	<-l.hasImplQuit
-
-	// Wait for transport receive goroutine to quit
-	<-l.hasTransportQuit
-}
-
-func (l *linkServiceBase) runSend() {
-	// Stub
 }
 
 //
@@ -169,10 +136,6 @@ func (l *linkServiceBase) SendPacket(packet *ndn.PendingPacket) {
 	}
 }
 
-func (l *linkServiceBase) handleIncomingFrame(frame []byte) {
-	// Stub
-}
-
 func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
 	switch netPacket.Wire.Type() {
@@ -216,4 +179,8 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 	default:
 		core.LogError(l, "Cannot dispatch packet of unknown type "+strconv.FormatUint(uint64(netPacket.Wire.Type()), 10))
 	}
+}
+
+func (l *linkServiceBase) Close() {
+	l.transport.changeState(ndn.Down)
 }

@@ -22,6 +22,7 @@ const StrategyPrefix = "/localhost/yanfd/strategy"
 
 // Strategy represents a forwarding strategy.
 type Strategy interface {
+	Instantiate(fib *table.FibStrategyEntry)
 	GetName() *ndn.Name
 
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data)

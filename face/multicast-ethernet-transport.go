@@ -79,7 +79,13 @@ func MakeMulticastEthernetTransport(remoteURI ndn.URI, localURI ndn.URI) (*Multi
 		core.LogError(t, "Unable to set PCAP filter", err)
 	}
 
+	t.changeState(ndn.Up)
+
 	return &t, nil
+}
+
+func (t *MulticastEthernetTransport) String() string {
+	return "MulticastEthernetTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
@@ -133,8 +139,20 @@ func (t *MulticastEthernetTransport) runReceive() {
 	t.changeState(ndn.Down)
 }
 
-func (t *MulticastEthernetTransport) onClose() {
-	core.LogInfo(t, "Closing unicast Ethernet transport")
-	t.hasQuit <- true
-	t.shouldQuit <- true
+func (t *MulticastEthernetTransport) changeState(new ndn.State) {
+	if t.state == new {
+		return
+	}
+
+	core.LogInfo(t, "- state:", t.state, "->", new)
+	t.state = new
+
+	if t.state != ndn.Up {
+		core.LogInfo(t, "Closing unicast Ethernet transport")
+		t.hasQuit <- true
+		t.shouldQuit <- true
+
+		// Stop link service
+		t.linkService.tellTransportQuit()
+	}
 }

@@ -12,7 +12,6 @@ package face
 import (
 	"net"
 	"os"
-	"strconv"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
@@ -22,6 +21,7 @@ import (
 type UnixStreamListener struct {
 	conn     net.Listener
 	localURI ndn.URI
+	nextFD   int // We can't (at least easily) access the actual FD through net.Conn, so we'll make our own
 	HasQuit  chan bool
 }
 
@@ -34,6 +34,7 @@ func MakeUnixStreamListener(localURI ndn.URI) (*UnixStreamListener, error) {
 
 	l := new(UnixStreamListener)
 	l.localURI = localURI
+	l.nextFD = 1
 	l.HasQuit = make(chan bool, 1)
 	return l, nil
 }
@@ -65,12 +66,8 @@ func (l *UnixStreamListener) Run() {
 		}
 
 		// Construct remote URI
-		fd, err := strconv.Atoi(newConn.LocalAddr().(*net.UnixAddr).String())
-		if err != nil {
-			core.LogWarn(l, "Unable to parse FD: "+err.Error())
-			continue
-		}
-		remoteURI := ndn.MakeFDFaceURI(fd)
+		remoteURI := ndn.MakeFDFaceURI(l.nextFD)
+		l.nextFD++
 		if !remoteURI.IsCanonical() {
 			core.LogWarn(l, "Unable to create face from "+remoteURI.String()+" as remote URI is not canonical")
 			continue
