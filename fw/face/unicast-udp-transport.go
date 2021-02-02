@@ -59,7 +59,13 @@ func MakeUnicastUDPTransport(remoteURI ndn.URI, localURI ndn.URI) (*UnicastUDPTr
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
 
+	t.changeState(ndn.Up)
+
 	return t, nil
+}
+
+func (t *UnicastUDPTransport) String() string {
+	return "UnicastUDPTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {
@@ -108,8 +114,20 @@ func (t *UnicastUDPTransport) runReceive() {
 	t.changeState(ndn.Down)
 }
 
-func (t *UnicastUDPTransport) onClose() {
-	core.LogInfo(t, "Closing UDP socket")
-	t.hasQuit <- true
-	t.conn.Close()
+func (t *UnicastUDPTransport) changeState(new ndn.State) {
+	if t.state == new {
+		return
+	}
+
+	core.LogInfo(t, "- state:", t.state, "->", new)
+	t.state = new
+
+	if t.state != ndn.Up {
+		core.LogInfo(t, "Closing UDP socket")
+		t.hasQuit <- true
+		t.conn.Close()
+
+		// Stop link service
+		t.linkService.tellTransportQuit()
+	}
 }

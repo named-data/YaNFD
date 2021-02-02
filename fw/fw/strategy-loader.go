@@ -8,20 +8,20 @@
 package fw
 
 import (
-	"os"
-	"path/filepath"
-	"plugin"
+	"reflect"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/table"
 )
 
 const strategyDir = "strategy"
 
-var strategyPlugins []*plugin.Plugin
+//var strategyPlugins []*plugin.Plugin
+var strategyTypes []reflect.Type
 
 // LoadStrategies loads the strategy modules.
 func LoadStrategies() {
-	strategyPlugins = make([]*plugin.Plugin, 0)
+	/*strategyPlugins = make([]*plugin.Plugin, 0)
 
 	// TODO: Make path configurable
 	filepath.Walk("strategies", func(path string, info os.FileInfo, err error) error {
@@ -64,20 +64,27 @@ func LoadStrategies() {
 		core.LogDebug("StrategyLoader", "Loaded "+strategyName.(string))
 		strategyPlugins = append(strategyPlugins, strategyPlugin)
 		return nil
-	})
+	})*/
 }
 
 // InstantiateStrategies instantiates all strategies for a forwarding thread.
 func InstantiateStrategies() map[string]Strategy {
-	strategies := make(map[string]Strategy, len(strategyPlugins))
+	strategies := make(map[string]Strategy, len(strategyTypes))
 
-	for _, plugin := range strategyPlugins {
+	for _, strategyType := range strategyTypes {
+		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
+		strategy.Instantiate(table.FibStrategyTable)
+		strategies[strategy.GetName().String()] = strategy
+		core.LogDebug("StrategyLoader", "Instantiated strategy "+strategy.GetName().String())
+	}
+
+	/*for _, plugin := range strategyPlugins {
 		// We've already guaranteed that these won't error out in LoadStrategies
 		name, _ := plugin.Lookup("Name")
 		rawStrategy, _ := plugin.Lookup(name.(string))
 		strategy := rawStrategy.(Strategy)
 		strategies[strategy.GetName().String()] = strategy
-	}
+	}*/
 
 	return strategies
 }

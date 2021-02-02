@@ -78,7 +78,9 @@ type NDNLPLinkService struct {
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
 func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) *NDNLPLinkService {
 	l := new(NDNLPLinkService)
-	l.makeLinkServiceBase(transport)
+	l.makeLinkServiceBase()
+	l.transport = transport
+	l.transport.setLinkService(l)
 	l.options = options
 	l.computeHeaderOverhead()
 
@@ -91,6 +93,14 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.rto = 0
 	l.nextTxSequence = 0
 	return l
+}
+
+func (l *NDNLPLinkService) String() string {
+	if l.transport != nil {
+		return "NDNLPLinkService, " + l.transport.String()
+	}
+
+	return "NDNLPLinkService, FaceID=" + strconv.Itoa(l.faceID)
 }
 
 // SetOptions changes the settings of the NDNLPLinkService.
@@ -126,7 +136,28 @@ func (l *NDNLPLinkService) computeHeaderOverhead() {
 	}
 }
 
+// Run starts the face and associated goroutines
+func (l *NDNLPLinkService) Run() {
+	if l.transport == nil {
+		core.LogError(l, "Unable to start face due to unset transport")
+		return
+	}
+
+	// Start transport goroutines
+	go l.transport.runReceive()
+	go l.runSend()
+
+	// Wait for link service send goroutine to quit
+	<-l.hasImplQuit
+
+	// Wait for transport receive goroutine to quit
+	//<-l.hasTransportQuit
+
+	l.HasQuit <- true
+}
+
 func (l *NDNLPLinkService) runSend() {
+	core.LogTrace(l, "Starting send thread")
 	if l.options.IsReliabilityEnabled {
 		go l.runRetransmit()
 		go l.runIdleAckTimer()

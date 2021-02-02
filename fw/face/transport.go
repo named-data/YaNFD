@@ -8,9 +8,6 @@
 package face
 
 import (
-	"strconv"
-
-	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
@@ -31,7 +28,7 @@ type transport interface {
 
 	sendFrame([]byte)
 
-	onClose()
+	changeState(newState ndn.State)
 }
 
 // transportBase provides logic common types between transport types
@@ -56,10 +53,6 @@ func (t *transportBase) makeTransportBase(remoteURI ndn.URI, localURI ndn.URI, m
 	t.state = ndn.Down
 	t.mtu = mtu
 	t.hasQuit = make(chan bool, 2)
-}
-
-func (t *transportBase) String() string {
-	return "FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *transportBase) setFaceID(faceID int) {
@@ -113,29 +106,4 @@ func (t *transportBase) sendFrame(frame []byte) {
 
 func (t *transportBase) receiveInitialFrameFromListener(frame []byte) {
 	// Overridden in specific transport implementation
-}
-
-func (t *transportBase) onClose() {
-	// Overridden in specific transport implementation
-}
-
-//
-// Helpers
-//
-
-func (t *transportBase) changeState(new ndn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "- state:", t.state, "->", new)
-	t.state = new
-
-	if t.state != ndn.Up {
-		// Run implementation-specific close mechanisms
-		t.onClose()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-	}
 }

@@ -168,6 +168,18 @@ func main() {
 		<-unixListener.HasQuit
 	}
 
+	// Tell all faces to quit
+	for _, face := range face.FaceTable.Faces {
+		face.Close()
+	}
+
+	// Wait for all faces to quit
+	for _, face := range face.FaceTable.Faces {
+		//core.LogTrace("Main", "Waiting for face "+strconv.Itoa(face.FaceID())+" to quit")
+		core.LogTrace("Main", "Waiting for face "+face.String()+" to quit")
+		<-face.GetHasQuit()
+	}
+
 	// Tell all forwarding threads to quit
 	for _, fw := range fw.Threads {
 		fw.TellToQuit()

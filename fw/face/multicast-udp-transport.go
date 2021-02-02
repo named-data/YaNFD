@@ -74,7 +74,13 @@ func MakeMulticastUDPTransport(localURI ndn.URI) (*MulticastUDPTransport, error)
 		return nil, errors.New("Unable to create receive connection for group address on " + localIf.Name + ": " + err.Error())
 	}
 
+	t.changeState(ndn.Up)
+
 	return t, nil
+}
+
+func (t *MulticastUDPTransport) String() string {
+	return "MulticastUDPTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *MulticastUDPTransport) sendFrame(frame []byte) {
@@ -122,9 +128,21 @@ func (t *MulticastUDPTransport) runReceive() {
 	t.changeState(ndn.Down)
 }
 
-func (t *MulticastUDPTransport) onClose() {
-	core.LogInfo(t, "Closing UDP socket")
-	t.hasQuit <- true
-	t.sendConn.Close()
-	t.recvConn.Close()
+func (t *MulticastUDPTransport) changeState(new ndn.State) {
+	if t.state == new {
+		return
+	}
+
+	core.LogInfo(t, "- state:", t.state, "->", new)
+	t.state = new
+
+	if t.state != ndn.Up {
+		core.LogInfo(t, "Closing UDP socket")
+		t.hasQuit <- true
+		t.sendConn.Close()
+		t.recvConn.Close()
+
+		// Stop link service
+		t.linkService.tellTransportQuit()
+	}
 }

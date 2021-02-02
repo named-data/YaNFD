@@ -18,3 +18,16 @@ const (
 	// AdminDown indicates the face is administratively down
 	AdminDown State = iota
 )
+
+func (s State) String() string {
+	switch s {
+	case Up:
+		return "Up"
+	case Down:
+		return "Down"
+	case AdminDown:
+		return "AdminDown"
+	default:
+		return "Unknown"
+	}
+}
