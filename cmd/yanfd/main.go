@@ -13,7 +13,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
@@ -32,12 +31,7 @@ func main() {
 	var disableEthernet bool
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
-	if runtime.GOOS == "windows" {
-		// Disable Unix stream on Windows
-		disableUnix = true
-	} else {
-		flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
-	}
+	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -156,7 +150,7 @@ func main() {
 	}
 
 	// Set up signal handler channel and wait for interrupt
-	sigChannel := make(chan os.Signal, 1)
+	sigChannel := make(chan os.Signal)
 	signal.Notify(sigChannel, os.Interrupt, os.Kill)
 	receivedSig := <-sigChannel
 	core.LogInfo("Main", "Received signal "+receivedSig.String()+" - exiting")

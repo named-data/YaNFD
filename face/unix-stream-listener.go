@@ -1,5 +1,3 @@
-// +build !windows
-
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
  * Copyright (C) 2020-2021 Eric Newberry.
@@ -88,7 +86,7 @@ func (l *UnixStreamListener) Run() {
 
 		// Add face to table and start its thread
 		FaceTable.Add(newLinkService)
-		newLinkService.Run()
+		go newLinkService.Run()
 	}
 
 	l.HasQuit <- true
