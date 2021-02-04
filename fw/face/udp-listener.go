@@ -117,7 +117,7 @@ func (l *UDPListener) Run() {
 
 			// Add face to table and start its thread
 			FaceTable.Add(newLinkService)
-			newLinkService.Run()
+			go newLinkService.Run()
 		} else {
 			core.LogDebug(l, "Received non-TLV from", remoteAddr)
 		}
