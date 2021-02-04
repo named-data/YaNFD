@@ -127,14 +127,15 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	// Get incoming face
 	incomingFace := dispatch.GetFace(int(*pendingPacket.IncomingFaceID))
 	if incomingFace == nil {
-		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID)))
+		core.LogError(t, "Non-existent incoming face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" - DROP")
+		return
 	}
 
 	core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", Face="+strconv.Itoa(incomingFace.FaceID()))
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && interest.Name().Size() > 0 && interest.Name().At(0).String() == "localhost" {
-		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.FormatUint(*pendingPacket.IncomingFaceID, 10)+" violates /localhost scope - DROP")
+		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.Itoa(incomingFace.FaceID())+" violates /localhost scope - DROP")
 		return
 	}
 
@@ -145,7 +146,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	// TODO
 
 	// Check if any matching PIT entries (and if duplicate)
-	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, int(*pendingPacket.IncomingFaceID))
+	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
 		core.LogInfo(t, "Interest "+interest.Name().String()+" is looping - DROP")
@@ -157,7 +158,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	strategy := t.strategies[strategyName.String()]
 
 	// Add in-record and determine if already pending
-	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, int(*pendingPacket.IncomingFaceID))
+	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID())
 	if !isAlreadyPending {
 		core.LogTrace(t, "Interest "+interest.Name().String()+" is not pending")
 
@@ -165,7 +166,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		csEntry := t.pitCS.FindMatchingDataCS(interest)
 		if csEntry != nil {
 			// Pass to strategy AfterContentStoreHit pipeline
-			strategy.AfterContentStoreHit(pitEntry, int(*pendingPacket.IncomingFaceID), csEntry.Data)
+			strategy.AfterContentStoreHit(pitEntry, incomingFace.FaceID(), csEntry.Data)
 			return
 		}
 	} else {
@@ -174,7 +175,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// Otherwise, prepare to forward further
 	// Create in-record
-	pitEntry.FindOrInsertInRecord(interest, int(*pendingPacket.IncomingFaceID))
+	pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID())
 
 	// Update PIT entry expiration timer
 	pitEntry.UpdateExpirationTimer()
@@ -191,7 +192,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Pass to strategy AfterReceiveInterest pipeline
-	strategy.AfterReceiveInterest(pitEntry, int(*pendingPacket.IncomingFaceID), interest)
+	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest)
 }
 
 func (t *Thread) processOutgoingInterest(interest *ndn.Interest, nexthop int) {

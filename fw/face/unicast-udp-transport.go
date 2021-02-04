@@ -131,5 +131,7 @@ func (t *UnicastUDPTransport) changeState(new ndn.State) {
 
 		// Stop link service
 		t.linkService.tellTransportQuit()
+
+		FaceTable.Remove(t.faceID)
 	}
 }

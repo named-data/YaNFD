@@ -9,7 +9,6 @@ package ndn
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/eric135/YaNFD/ndn/security"
@@ -109,7 +108,6 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 	}
 
 	if d.name == nil || d.sigInfo == nil || len(d.sigValue) == 0 {
-		fmt.Println(d.name, d.sigInfo, d.sigValue)
 		return nil, errors.New("Data missing required field")
 	}
 

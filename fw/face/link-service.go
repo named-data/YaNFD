@@ -53,6 +53,14 @@ type linkServiceBase struct {
 	sendQueue        chan *ndn.PendingPacket
 }
 
+func (l *linkServiceBase) String() string {
+	if l.transport != nil {
+		return "LinkService, " + l.transport.String()
+	}
+
+	return "LinkService, FaceID=" + strconv.Itoa(l.faceID)
+}
+
 func (l *linkServiceBase) SetFaceID(faceID int) {
 	l.faceID = faceID
 	if l.transport != nil {

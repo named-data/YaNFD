@@ -34,7 +34,7 @@ func MakeInternalTransport() *InternalTransport {
 }
 
 // RegisterInternalTransport creates, registers, and starts an InternalTransport.
-func RegisterInternalTransport() *InternalTransport {
+func RegisterInternalTransport() (LinkService, *InternalTransport) {
 	t := MakeInternalTransport()
 	l := MakeNDNLPLinkService(t, NDNLPLinkServiceOptions{
 		IsIncomingFaceIndicationEnabled:       true,
@@ -42,7 +42,7 @@ func RegisterInternalTransport() *InternalTransport {
 	})
 	FaceTable.Add(l)
 	go l.Run()
-	return t
+	return l, t
 }
 
 func (t *InternalTransport) String() string {
@@ -62,12 +62,35 @@ func (t *InternalTransport) Send(block *tlv.Block, nextHopFaceID *int) {
 
 // Receive receives a packet from the perspective of the internal component.
 func (t *InternalTransport) Receive() (*tlv.Block, int) {
-	select {
-	case frame := <-t.recvQueue:
-		block, _, _ := tlv.DecodeBlock(frame)
-		packet, _ := lpv2.DecodePacket(block)
-		return block, int(*packet.IncomingFaceID())
-	case <-t.hasQuit:
+	shouldContinue := true
+	// We need to use a for loop to silently ignore invalid packets
+	for shouldContinue {
+		select {
+		case frame := <-t.recvQueue:
+			lpBlock, _, err := tlv.DecodeBlock(frame)
+			if err != nil {
+				core.LogWarn(t, "Unable to decode block")
+				continue
+			}
+			lpPacket, err := lpv2.DecodePacket(lpBlock)
+			if err != nil {
+				core.LogWarn(t, "Unable to decode block")
+				continue
+			}
+			if len(lpPacket.Fragment()) == 0 {
+				core.LogWarn(t, "Sent empty fragment")
+				continue
+			}
+
+			block, _, err := tlv.DecodeBlock(lpPacket.Fragment())
+			if err != nil {
+				core.LogWarn(t, "Unable to decode block")
+				continue
+			}
+			return block, int(*lpPacket.IncomingFaceID())
+		case <-t.hasQuit:
+			shouldContinue = false
+		}
 	}
 	return nil, 0
 }
@@ -120,5 +143,7 @@ func (t *InternalTransport) changeState(new ndn.State) {
 		t.hasQuit <- true
 		t.hasQuit <- true // Send again to stop any pending receives
 		t.linkService.tellTransportQuit()
+
+		FaceTable.Remove(t.faceID)
 	}
 }

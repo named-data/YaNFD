@@ -8,8 +8,10 @@
 package face
 
 import (
+	"strconv"
 	"sync"
 
+	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/dispatch"
 )
 
@@ -39,6 +41,8 @@ func (t *Table) Add(face LinkService) {
 
 	// Add to dispatch
 	dispatch.AddFace(faceID, face)
+
+	core.LogDebug("FaceTable", "Registered "+strconv.Itoa(faceID))
 }
 
 // Get gets the face with the specified ID from the face table.
@@ -63,4 +67,6 @@ func (t *Table) Remove(id int) {
 	dispatch.FaceDispatchSync.Lock()
 	delete(dispatch.FaceDispatch, id)
 	dispatch.FaceDispatchSync.Unlock()
+
+	core.LogDebug("FaceTable", "Unregistered "+strconv.Itoa(id))
 }

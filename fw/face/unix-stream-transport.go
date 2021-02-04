@@ -61,7 +61,6 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
-	t.state = ndn.Up
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for {
 		core.LogTrace(t, "Reading from socket")
@@ -111,5 +110,7 @@ func (t *UnixStreamTransport) changeState(new ndn.State) {
 
 		// Stop link service
 		t.linkService.tellTransportQuit()
+
+		FaceTable.Remove(t.faceID)
 	}
 }
