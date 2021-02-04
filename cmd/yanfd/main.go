@@ -17,6 +17,7 @@ import (
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/fw"
+	"github.com/eric135/YaNFD/mgmt"
 	"github.com/eric135/YaNFD/ndn"
 )
 
@@ -55,8 +56,14 @@ func main() {
 	core.LogInfo("Main", "Loading strategies")
 	fw.LoadStrategies()
 
+	// Create null face
+	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
+	face.FaceTable.Add(nullFace)
+	go nullFace.Run()
+
 	// Start management thread
-	// TODO
+	management := mgmt.MakeMgmtThread()
+	go management.Run()
 
 	// Create forwarding threads
 	fw.Threads = make(map[int]*fw.Thread)
@@ -65,11 +72,6 @@ func main() {
 		fw.Threads[i] = &newThread
 		go fw.Threads[i].Run()
 	}
-
-	// Create null face
-	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
-	face.FaceTable.Add(nullFace)
-	go nullFace.Run()
 
 	// Perform setup operations for each network interface
 	ifaces, err := net.Interfaces()

@@ -110,33 +110,32 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 
 func (t *MulticastEthernetTransport) runReceive() {
 	packetSource := gopacket.NewPacketSource(t.pcap, t.pcap.LinkType())
-	select {
-	case packet := <-packetSource.Packets():
-		core.LogDebug(t, "Received", len(packet.Data()), "bytes from", packet.LinkLayer().LinkFlow().Src().String())
+	for {
+		select {
+		case packet := <-packetSource.Packets():
+			core.LogDebug(t, "Received", len(packet.Data()), "bytes from", packet.LinkLayer().LinkFlow().Src().String())
 
-		// Extract network layer (NDN)
-		ndnLayer := packet.NetworkLayer().LayerContents()
+			// Extract network layer (NDN)
+			ndnLayer := packet.NetworkLayer().LayerContents()
 
-		if len(ndnLayer) > tlv.MaxNDNPacketSize {
-			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+			if len(ndnLayer) > tlv.MaxNDNPacketSize {
+				core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+			}
+
+			// Determine whether valid packet received
+			_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)
+			if err != nil {
+				core.LogInfo("Unable to process received frame: " + err.Error() + " - DROP")
+			} else if len(ndnLayer) >= tlvSize {
+				// Packet was successfully received, send up to link service
+				t.linkService.handleIncomingFrame(ndnLayer[:tlvSize])
+			} else {
+				core.LogInfo("Received frame is incomplete - DROP")
+			}
+		case <-t.shouldQuit:
+			return
 		}
-
-		// Determine whether valid packet received
-		// Determine whether valid packet received
-		_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)
-		if err != nil {
-			core.LogInfo("Unable to process received packet: " + err.Error())
-		} else if len(ndnLayer) >= tlvSize {
-			// Packet was successfully received, send up to link service
-			t.linkService.handleIncomingFrame(ndnLayer[:tlvSize])
-		} else {
-			core.LogInfo("Received packet is incomplete")
-		}
-	case <-t.shouldQuit:
-		break
 	}
-
-	t.changeState(ndn.Down)
 }
 
 func (t *MulticastEthernetTransport) changeState(new ndn.State) {
@@ -149,7 +148,6 @@ func (t *MulticastEthernetTransport) changeState(new ndn.State) {
 
 	if t.state != ndn.Up {
 		core.LogInfo(t, "Closing unicast Ethernet transport")
-		t.hasQuit <- true
 		t.shouldQuit <- true
 
 		// Stop link service
