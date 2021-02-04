@@ -316,7 +316,7 @@ func (u *URI) Canonize() error {
 		u.scheme = "unix"
 		fileInfo, err := os.Stat("/" + u.path)
 		if err != nil && !os.IsNotExist(err) {
-			// File couldn't be opened, but not just becaue it doesn't exit
+			// File couldn't be opened, but not just because it doesn't exist
 			return core.ErrNotCanonical
 		} else if err == nil && fileInfo.IsDir() {
 			// File is a directory
