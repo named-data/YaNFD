@@ -187,7 +187,7 @@ func (l *NDNLPLinkService) runSend() {
 			}
 
 			// Fragmentation
-			fragments := []*lpv2.Packet{}
+			var fragments []*lpv2.Packet
 			if len(wire) > effectiveMtu {
 				if !l.options.IsFragmentationEnabled {
 					core.LogInfo(l, "Attempted to send frame over MTU on link without fragmentation - DROP")
@@ -205,11 +205,12 @@ func (l *NDNLPLinkService) runSend() {
 					}
 				}
 			} else {
+				fragments = make([]*lpv2.Packet, 1)
 				fragments[0] = lpv2.NewPacket(wire)
 			}
 
 			// Sequence
-			if len(fragments) > 0 || l.options.IsReliabilityEnabled {
+			if len(fragments) > 1 || l.options.IsReliabilityEnabled {
 				for _, fragment := range fragments {
 					fragment.SetSequence(l.nextSequence)
 					l.nextSequence++
@@ -244,7 +245,7 @@ func (l *NDNLPLinkService) runSend() {
 			}
 
 			// Incoming face indication
-			if netPacket.IncomingFaceID != nil {
+			if l.options.IsIncomingFaceIndicationEnabled && netPacket.IncomingFaceID != nil {
 				fragments[0].SetIncomingFaceID(uint64(*netPacket.IncomingFaceID))
 			}
 
@@ -395,7 +396,11 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	netPacket := new(ndn.PendingPacket)
 	netPacket.IncomingFaceID = new(uint64)
 	*netPacket.IncomingFaceID = uint64(l.faceID)
-	netPacket.Wire = netPkt
+	netPacket.Wire, _, err = tlv.DecodeBlock(netPkt)
+	if err != nil {
+		core.LogWarn(l, "Unable to decode network-layer packet: "+err.Error()+" - DROP")
+		return
+	}
 
 	// Congestion marking
 	netPacket.CongestionMark = frame.CongestionMark()
@@ -419,7 +424,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	l.dispatchIncomingPacket(netPacket)
 }
 
-func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uint64, fragIndex uint64, fragCount uint64) *tlv.Block {
+func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uint64, fragIndex uint64, fragCount uint64) []byte {
 	_, hasSequence := l.partialMessageStore[baseSequence]
 	if !hasSequence {
 		// Create map entry
@@ -427,8 +432,8 @@ func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uin
 	}
 
 	// Insert into PartialMessageStore
-	l.partialMessageStore[baseSequence][fragIndex] = make([]byte, len(frame.Fragment().Value()))
-	copy(l.partialMessageStore[baseSequence][fragIndex], frame.Fragment().Value())
+	l.partialMessageStore[baseSequence][fragIndex] = make([]byte, len(frame.Fragment()))
+	copy(l.partialMessageStore[baseSequence][fragIndex], frame.Fragment())
 
 	// Determine whether it is time to reassemble
 	receivedCount := 0
@@ -442,15 +447,12 @@ func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uin
 
 	if receivedCount == len(l.partialMessageStore[baseSequence]) {
 		// Time to reassemble!
-		reassembled := new(tlv.Block)
-		reassembled.SetType(lpv2.Fragment)
-
-		reassembledValue := make([]byte, receivedTotalLen)
+		reassembled := make([]byte, receivedTotalLen)
 		reassembledSize := 0
 		for _, fragment := range l.partialMessageStore[baseSequence] {
-			copy(reassembledValue[reassembledSize:], fragment)
+			copy(reassembled[reassembledSize:], fragment)
+			reassembledSize += len(fragment)
 		}
-		reassembled.SetValue(reassembledValue)
 
 		delete(l.partialMessageStore, baseSequence)
 		return reassembled

@@ -46,10 +46,12 @@ func (s *StrategyBase) String() string {
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, faceID int) {
+func (s *StrategyBase) SendInterest(interest *ndn.Interest, faceID int, inFace int) {
 	pendingPacket := new(ndn.PendingPacket)
 	pendingPacket.PitToken = make([]byte, 2)
 	binary.BigEndian.PutUint16(pendingPacket.PitToken, uint16(s.ThreadID))
+	pendingPacket.IncomingFaceID = new(uint64)
+	*pendingPacket.IncomingFaceID = uint64(inFace)
 	var err error
 	pendingPacket.Wire, err = interest.Encode()
 	if err != nil {

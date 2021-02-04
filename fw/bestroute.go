@@ -73,7 +73,7 @@ func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, i
 	}
 
 	core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to "+strconv.Itoa(lowestCost.Nexthop))
-	s.SendInterest(interest, lowestCost.Nexthop)
+	s.SendInterest(interest, lowestCost.Nexthop, inFace)
 }
 
 // BeforeSatisfyInterest ...

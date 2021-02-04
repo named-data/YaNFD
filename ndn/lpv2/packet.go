@@ -28,14 +28,15 @@ type Packet struct {
 	acks               []uint64
 	nonDiscovery       bool
 	prefixAnnouncement *ndn.Data
-	fragment           *tlv.Block
+	fragment           []byte
 	wire               *tlv.Block
 }
 
 // NewPacket returns an NDNLPv2 frame containing a copy of the provided network-layer packet.
 func NewPacket(fragment []byte) *Packet {
 	p := new(Packet)
-	p.fragment = tlv.NewBlock(Fragment, fragment)
+	p.fragment = make([]byte, len(fragment))
+	copy(p.fragment, fragment)
 	return p
 }
 
@@ -55,28 +56,37 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 
 	// If type is not LpPacket, then this is a "bare" packet.
 	if wire.Type() != LpPacket {
-		p.fragment = wire
+		encodedFragment, err := wire.Wire()
+		if err != nil {
+			return nil, errors.New("Unable to encode bare fragment: " + err.Error())
+		}
+		p.fragment = make([]byte, len(encodedFragment))
+		copy(p.fragment, encodedFragment)
 		return p, nil
 	}
 
 	p.wire = wire.DeepCopy()
 	p.wire.Parse()
 	var err error
-	for _, elem := range wire.Subelements() {
+	for _, elem := range p.wire.Subelements() {
 		switch elem.Type() {
 		case Fragment:
-			p.fragment = elem
+			p.fragment = make([]byte, len(elem.Value()))
+			copy(p.fragment, elem.Value())
 		case Sequence:
+			p.sequence = new(uint64)
 			*p.sequence, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode Sequence")
 			}
 		case FragIndex:
+			p.fragIndex = new(uint64)
 			*p.fragIndex, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode FragIndex")
 			}
 		case FragCount:
+			p.fragCount = new(uint64)
 			*p.fragCount, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode FragCount")
@@ -85,11 +95,13 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			p.pitToken = make([]byte, len(elem.Value()))
 			copy(p.pitToken, elem.Value())
 		case NextHopFaceID:
+			p.nextHopFaceID = new(uint64)
 			*p.nextHopFaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode NextHopFaceId")
 			}
 		case IncomingFaceID:
+			p.incomingFaceID = new(uint64)
 			*p.incomingFaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode IncomingFaceId")
@@ -97,6 +109,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 		case CachePolicy:
 			elem.Parse()
 			if cachePolicyTypeBlock := elem.Find(CachePolicyType); cachePolicyTypeBlock != nil {
+				p.cachePolicyType = new(uint64)
 				*p.cachePolicyType, err = tlv.DecodeNNIBlock(cachePolicyTypeBlock)
 				if err != nil {
 					return nil, errors.New("Unable to decode CachePolicyType")
@@ -105,6 +118,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 				return nil, errors.New("CachePolicy element does not contain CachePolicyType")
 			}
 		case CongestionMark:
+			p.congestionMark = new(uint64)
 			*p.congestionMark, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode CongestionMark")
@@ -116,6 +130,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			}
 			p.acks = append(p.acks, ack)
 		case TxSequence:
+			p.txSequence = new(uint64)
 			*p.txSequence, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("Unable to decode TxSequence")
@@ -152,7 +167,7 @@ func (p *Packet) IsBare() bool {
 
 // IsIdle returns whether the LpPacket is an "IDLE" frame and does not contain a fragment.
 func (p *Packet) IsIdle() bool {
-	return p.fragment == nil
+	return len(p.fragment) == 0
 }
 
 // Sequence returns the Sequence of the LpPacket or nil if it is unset.
@@ -168,6 +183,7 @@ func (p *Packet) Sequence() *uint64 {
 
 // SetSequence sets the Sequence of the LpPacket.
 func (p *Packet) SetSequence(sequence uint64) {
+	p.sequence = new(uint64)
 	*p.sequence = sequence
 	p.wire = nil
 }
@@ -185,6 +201,7 @@ func (p *Packet) FragIndex() *uint64 {
 
 // SetFragIndex sets the FragIndex of the LpPacket.
 func (p *Packet) SetFragIndex(fragIndex uint64) {
+	p.fragIndex = new(uint64)
 	*p.fragIndex = fragIndex
 	p.wire = nil
 }
@@ -202,6 +219,7 @@ func (p *Packet) FragCount() *uint64 {
 
 // SetFragCount sets the FragCount of the LpPacket.
 func (p *Packet) SetFragCount(fragCount uint64) {
+	p.fragCount = new(uint64)
 	*p.fragCount = fragCount
 	p.wire = nil
 }
@@ -233,6 +251,7 @@ func (p *Packet) NextHopFaceID() *uint64 {
 
 // SetNextHopFaceID sets the NextHopFaceId of the LpPacket.
 func (p *Packet) SetNextHopFaceID(nextHopFaceID uint64) {
+	p.nextHopFaceID = new(uint64)
 	*p.nextHopFaceID = nextHopFaceID
 	p.wire = nil
 }
@@ -250,6 +269,7 @@ func (p *Packet) IncomingFaceID() *uint64 {
 
 // SetIncomingFaceID sets the IncomingFaceId of the LpPacket.
 func (p *Packet) SetIncomingFaceID(incomingFaceID uint64) {
+	p.incomingFaceID = new(uint64)
 	*p.incomingFaceID = incomingFaceID
 	p.wire = nil
 }
@@ -267,6 +287,7 @@ func (p *Packet) CachePolicyType() *uint64 {
 
 // SetCachePolicytype sets the CachePolicyType of the LpPacket.
 func (p *Packet) SetCachePolicytype(cachePolicyType uint64) {
+	p.cachePolicyType = new(uint64)
 	*p.cachePolicyType = cachePolicyType
 	p.wire = nil
 }
@@ -284,6 +305,7 @@ func (p *Packet) CongestionMark() *uint64 {
 
 // SetCongestionMark sets the CongestionMark of the LpPacket.
 func (p *Packet) SetCongestionMark(congestionMark uint64) {
+	p.congestionMark = new(uint64)
 	*p.congestionMark = congestionMark
 	p.wire = nil
 }
@@ -301,6 +323,7 @@ func (p *Packet) TxSequence() *uint64 {
 
 // SetTxSequence sets the TxSequence of the LpPacket.
 func (p *Packet) SetTxSequence(txSequence uint64) {
+	p.txSequence = new(uint64)
 	*p.txSequence = txSequence
 	p.wire = nil
 }
@@ -354,20 +377,16 @@ func (p *Packet) SetPrefixAnnouncement(prefixAnnouncement *ndn.Data) {
 }
 
 // Fragment returns the Fragment field of the LpPacket or nil if it is unset.
-func (p *Packet) Fragment() *tlv.Block {
-	if p.fragment == nil {
-		return nil
-	}
-	return p.fragment
+func (p *Packet) Fragment() []byte {
+	fragment := make([]byte, len(p.fragment))
+	copy(fragment, p.fragment)
+	return fragment
 }
 
 // SetFragment sets the Fragment field of the LpPacket.
-func (p *Packet) SetFragment(fragment *tlv.Block) {
-	if fragment == nil {
-		p.fragment = nil
-	} else {
-		p.fragment = fragment
-	}
+func (p *Packet) SetFragment(fragment []byte) {
+	p.fragment = make([]byte, len(fragment))
+	copy(p.fragment, fragment)
 	p.wire = nil
 }
 
@@ -450,12 +469,8 @@ func (p *Packet) Encode() (*tlv.Block, error) {
 		}
 
 		// Fragment
-		if p.fragment != nil {
-			fragmentWire, err := p.fragment.Wire()
-			if err != nil {
-				return nil, errors.New("Unable to encode Fragment: " + err.Error())
-			}
-			p.wire.Append(tlv.NewBlock(Fragment, fragmentWire))
+		if len(p.fragment) > 0 {
+			p.wire.Append(tlv.NewBlock(Fragment, p.fragment))
 		}
 	}
 	p.wire.Wire()

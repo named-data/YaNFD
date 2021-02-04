@@ -43,5 +43,7 @@ func (t *NullTransport) changeState(new ndn.State) {
 	if t.state != ndn.Up {
 		// Stop link service
 		t.linkService.tellTransportQuit()
+
+		FaceTable.Remove(t.faceID)
 	}
 }

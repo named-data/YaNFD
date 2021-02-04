@@ -67,7 +67,7 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, i
 
 	for _, nexthop := range nexthops {
 		core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to "+strconv.Itoa(nexthop.Nexthop))
-		s.SendInterest(interest, nexthop.Nexthop)
+		s.SendInterest(interest, nexthop.Nexthop, inFace)
 	}
 }
 

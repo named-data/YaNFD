@@ -43,23 +43,31 @@ func (l *UnixStreamListener) String() string {
 
 // Run starts the Unix stream listener.
 func (l *UnixStreamListener) Run() {
+	// Delete any existing socket
+	os.Remove(l.localURI.Path())
+
 	// Create listener
 	var err error
-	l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path())
-	if err != nil {
-		core.LogError(l, "Unable to start Unix stream listener: "+err.Error())
-		os.Exit(2)
+	if l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path()); err != nil {
+		core.LogFatal(l, "Unable to start Unix stream listener: "+err.Error())
 	}
 
+	// Set permissions to allow all local apps to communicate with us
+	if err := os.Chmod(l.localURI.Path(), 0777); err != nil {
+		core.LogFatal(l, "Unable to change permissions on Unix stream listener: "+err.Error())
+	}
+
+	core.LogInfo(l, "Listening")
+
 	// Run accept loop
-	for !core.ShouldQuit {
+	for {
 		newConn, err := l.conn.Accept()
 		if err != nil {
-			if core.ShouldQuit {
+			if err.Error() == "EOF" {
 				// Must have failed due to being closed, so quit quietly
-				break
+			} else {
+				core.LogWarn(l, "Unable to accept connection: "+err.Error())
 			}
-			core.LogWarn(l, "Unable to accept connection: "+err.Error())
 			break
 		}
 
