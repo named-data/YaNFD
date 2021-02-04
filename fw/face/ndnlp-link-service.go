@@ -36,7 +36,7 @@ type NDNLPLinkServiceOptions struct {
 	// ReservedAckSpace represents the number of Acks to reserve space for in
 	ReservedAckSpace int
 
-	IsConsumedControlledForwardingEnabled bool
+	IsConsumerControlledForwardingEnabled bool
 
 	IsIncomingFaceIndicationEnabled bool
 
@@ -163,7 +163,7 @@ func (l *NDNLPLinkService) runSend() {
 		go l.runIdleAckTimer()
 	}
 
-	for !core.ShouldQuit {
+	for {
 		select {
 		case netPacket := <-l.sendQueue:
 			wire, err := netPacket.Wire.Wire()
@@ -308,8 +308,6 @@ func (l *NDNLPLinkService) runSend() {
 			return
 		}
 	}
-
-	l.hasImplQuit <- true
 }
 
 func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
@@ -403,7 +401,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	netPacket.CongestionMark = frame.CongestionMark()
 
 	// Consumer-controlled forwarding (NextHopFaceId)
-	if l.options.IsConsumedControlledForwardingEnabled && frame.NextHopFaceID() != nil {
+	if l.options.IsConsumerControlledForwardingEnabled && frame.NextHopFaceID() != nil {
 		netPacket.NextHopFaceID = frame.NextHopFaceID()
 	}
 

@@ -99,10 +99,14 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 
 func (t *MulticastUDPTransport) runReceive() {
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	for !core.ShouldQuit && t.state != ndn.Down {
+	for {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
-			core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
+			if err.Error() == "EOF" {
+				core.LogDebug(t, "EOF - Face DOWN")
+			} else {
+				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
+			}
 			t.changeState(ndn.Down)
 			break
 		}
@@ -124,8 +128,6 @@ func (t *MulticastUDPTransport) runReceive() {
 			core.LogInfo("Received packet is incomplete")
 		}
 	}
-
-	t.changeState(ndn.Down)
 }
 
 func (t *MulticastUDPTransport) changeState(new ndn.State) {

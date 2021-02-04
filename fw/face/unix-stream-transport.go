@@ -63,7 +63,7 @@ func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
 	t.state = ndn.Up
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	for !core.ShouldQuit && t.state != ndn.Down {
+	for {
 		core.LogTrace(t, "Reading from socket")
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
@@ -94,8 +94,6 @@ func (t *UnixStreamTransport) runReceive() {
 			core.LogInfo("Received packet is incomplete")
 		}
 	}
-
-	t.changeState(ndn.Down)
 }
 
 func (t *UnixStreamTransport) changeState(new ndn.State) {
