@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -13,6 +13,7 @@ import (
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/ndn"
+	"github.com/eric135/YaNFD/ndn/mgmt"
 	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/eric135/YaNFD/table"
 )
@@ -22,16 +23,51 @@ type Thread struct {
 	face      face.LinkService
 	transport *face.InternalTransport
 	prefix    *ndn.Name
+	modules   map[string]Module
 }
 
 // MakeMgmtThread creates a new management thread.
 func MakeMgmtThread() *Thread {
 	m := new(Thread)
+	m.modules = make(map[string]Module)
+	m.registerModule("faces", new(FaceModule))
 	return m
 }
 
 func (m *Thread) String() string {
 	return "Management"
+}
+
+func (m *Thread) registerModule(name string, module Module) {
+	m.modules[name] = module
+	module.registerManager(m)
+}
+
+func (m *Thread) prefixLength() int {
+	return m.prefix.Size()
+}
+
+func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *ndn.Interest, pitToken []byte, inFace int) {
+	encodedResponse, err := response.Encode()
+	if err != nil {
+		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		return
+	}
+	encodedWire, err := encodedResponse.Wire()
+	if err != nil {
+		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		return
+	}
+	data := ndn.NewData(interest.Name(), encodedWire)
+
+	encodedData, err := data.Encode()
+	if err != nil {
+		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		return
+	}
+
+	m.transport.Send(encodedData, pitToken, &inFace)
+	core.LogTrace(m, "Sent ControlResponse for "+interest.Name().String())
 }
 
 // Run management thread
@@ -48,7 +84,7 @@ func (m *Thread) Run() {
 	table.FibStrategyTable.AddNexthop(m.prefix, m.face.FaceID(), 0)
 
 	for {
-		block, inFace := m.transport.Receive()
+		block, pitToken, inFace := m.transport.Receive()
 		if block == nil {
 			// Indicates that internal face has quit, which means it's time for us to quit
 			core.LogInfo(m, "Face quit, so management quitting")
@@ -80,6 +116,13 @@ func (m *Thread) Run() {
 		core.LogTrace(m, "Received management Interest "+interest.Name().String())
 
 		// Dispatch interest based on name
-		// TODO
+		moduleName := interest.Name().At(m.prefix.Size()).String()
+		if module, ok := m.modules[moduleName]; ok {
+			module.handleIncomingInterest(interest, pitToken, inFace)
+		} else {
+			core.LogWarn(m, "Received management Interest for unknown module "+moduleName)
+			response := mgmt.MakeControlResponse(501, "Unknown module", nil)
+			m.sendResponse(response, interest, pitToken, inFace)
+		}
 	}
 }

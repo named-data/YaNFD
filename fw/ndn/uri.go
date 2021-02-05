@@ -22,7 +22,7 @@ type uriType int
 
 //const uriPattern = "^([0-9A-Za-z]+)://([0-9A-Za-z:-\\[\\]%\\.]+)(:([0-9]+))?$"
 const devPattern = "^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\\-]+)$"
-const ethernetPattern = "^(?P<scheme>eth)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
+const ethernetPattern = "^(?P<scheme>ether)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
 const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
 const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
@@ -49,53 +49,78 @@ type URI struct {
 }
 
 // MakeDevFaceURI constucts a URI for a network interface.
-func MakeDevFaceURI(ifname string) URI {
-	uri := URI{devURI, "dev", ifname, 0}
+func MakeDevFaceURI(ifname string) *URI {
+	uri := new(URI)
+	uri.uriType = devURI
+	uri.scheme = "dev"
+	uri.path = ifname
+	uri.port = 0
 	uri.Canonize()
 	return uri
 }
 
 // MakeEthernetFaceURI constructs a URI for an Ethernet face.
-func MakeEthernetFaceURI(mac net.HardwareAddr) URI {
-	uri := URI{ethernetURI, "eth", mac.String(), 0}
+func MakeEthernetFaceURI(mac net.HardwareAddr) *URI {
+	uri := new(URI)
+	uri.uriType = ethernetURI
+	uri.scheme = "ether"
+	uri.path = mac.String()
+	uri.port = 0
 	uri.Canonize()
 	return uri
 }
 
 // MakeFDFaceURI constructs a file descriptor URI.
-func MakeFDFaceURI(fd int) URI {
-	uri := URI{fdURI, "fd", strconv.Itoa(fd), 0}
+func MakeFDFaceURI(fd int) *URI {
+	uri := new(URI)
+	uri.uriType = fdURI
+	uri.scheme = "fd"
+	uri.path = strconv.Itoa(fd)
+	uri.port = 0
 	uri.Canonize()
 	return uri
 }
 
 // MakeNullFaceURI constructs a null face URI.
-func MakeNullFaceURI() URI {
-	uri := URI{nullURI, "null", "", 0}
+func MakeNullFaceURI() *URI {
+	uri := new(URI)
+	uri.uriType = nullURI
+	uri.scheme = "null"
+	uri.path = ""
+	uri.port = 0
 	uri.Canonize()
 	return uri
 }
 
 // MakeUDPFaceURI constructs a URI for a UDP face.
-func MakeUDPFaceURI(ipVersion int, host string, port uint16) URI {
+func MakeUDPFaceURI(ipVersion int, host string, port uint16) *URI {
 	/*path := host
 	if zone != "" {
 		path += "%" + zone
 	}*/
-	uri := URI{udpURI, "udp" + strconv.Itoa(ipVersion), host, port}
+	uri := new(URI)
+	uri.uriType = udpURI
+	uri.scheme = "udp" + strconv.Itoa(ipVersion)
+	uri.path = host
+	uri.port = port
 	uri.Canonize()
 	return uri
 }
 
 // MakeUnixFaceURI constructs a URI for a Unix face.
-func MakeUnixFaceURI(path string) URI {
-	uri := URI{unixURI, "unix", path, 0}
+func MakeUnixFaceURI(path string) *URI {
+	uri := new(URI)
+	uri.uriType = unixURI
+	uri.scheme = "unix"
+	uri.path = path
+	uri.port = 0
 	uri.Canonize()
 	return uri
 }
 
 // DecodeURIString decodes a URI from a string.
-func DecodeURIString(str string) (u URI) {
+func DecodeURIString(str string) *URI {
+	u := new(URI)
 	u.uriType = unknownURI
 	u.scheme = "unknown"
 	schemeSplit := strings.SplitN(str, ":", 2)
@@ -124,9 +149,9 @@ func DecodeURIString(str string) (u URI) {
 			return u
 		}
 		u.path = ifname
-	} else if strings.EqualFold("eth", schemeSplit[0]) {
+	} else if strings.EqualFold("ether", schemeSplit[0]) {
 		u.uriType = ethernetURI
-		u.scheme = "eth"
+		u.scheme = "ether"
 
 		regex, err := regexp.Compile(ethernetPattern)
 		if err != nil {
@@ -245,7 +270,7 @@ func (u *URI) IsCanonical() bool {
 		return u.scheme == "dev" && err == nil && u.port == 0
 	case ethernetURI:
 		isEthernet, _ := regexp.MatchString(macPattern, u.path)
-		return u.scheme == "eth" && isEthernet && u.port == 0
+		return u.scheme == "ether" && isEthernet && u.port == 0
 	case fdURI:
 		fd, err := strconv.Atoi(u.path)
 		return u.scheme == "fd" && err == nil && fd >= 0 && u.port == 0
@@ -277,7 +302,7 @@ func (u *URI) Canonize() error {
 		if err != nil {
 			return core.ErrNotCanonical
 		}
-		u.scheme = "eth"
+		u.scheme = "ether"
 		u.path = mac.String()
 		u.port = 0
 	} else if u.uriType == fdURI {

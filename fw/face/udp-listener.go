@@ -21,12 +21,12 @@ import (
 // UDPListener listens for incoming UDP unicast connections.
 type UDPListener struct {
 	conn     net.PacketConn
-	localURI ndn.URI
+	localURI *ndn.URI
 	HasQuit  chan bool
 }
 
 // MakeUDPListener constructs a UDPListener.
-func MakeUDPListener(localURI ndn.URI) (*UDPListener, error) {
+func MakeUDPListener(localURI *ndn.URI) (*UDPListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
 		return nil, core.ErrNotCanonical
@@ -72,7 +72,7 @@ func (l *UDPListener) Run() {
 		}
 
 		// Construct remote URI
-		var remoteURI ndn.URI
+		var remoteURI *ndn.URI
 		host, port, err := net.SplitHostPort(remoteAddr.String())
 		if err != nil {
 			core.LogWarn(l, "Unable to create face from "+remoteAddr.String()+": could not split host from port")

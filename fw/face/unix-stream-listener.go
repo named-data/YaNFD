@@ -18,13 +18,13 @@ import (
 // UnixStreamListener listens for incoming Unix stream connections.
 type UnixStreamListener struct {
 	conn     net.Listener
-	localURI ndn.URI
+	localURI *ndn.URI
 	nextFD   int // We can't (at least easily) access the actual FD through net.Conn, so we'll make our own
 	HasQuit  chan bool
 }
 
 // MakeUnixStreamListener constructs a UnixStreamListener.
-func MakeUnixStreamListener(localURI ndn.URI) (*UnixStreamListener, error) {
+func MakeUnixStreamListener(localURI *ndn.URI) (*UnixStreamListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical

@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -11,7 +11,7 @@ package face
 const NDNEtherType = 0x8624
 
 // NDNMulticastEtherURI is the standard multicast Ethernet URI for NDN.
-const NDNMulticastEtherURI = "eth://[01:00:5e:00:17:aa]"
+const NDNMulticastEtherURI = "ether://[01:00:5e:00:17:aa]"
 
 // NDNUnicastUDPPort is the standard unicast UDP port for NDN.
 const NDNUnicastUDPPort = 6363

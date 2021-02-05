@@ -15,8 +15,8 @@ type Face interface {
 	SetFaceID(faceID int)
 
 	FaceID() int
-	LocalURI() ndn.URI
-	RemoteURI() ndn.URI
+	LocalURI() *ndn.URI
+	RemoteURI() *ndn.URI
 	Scope() ndn.Scope
 	MTU() int
 

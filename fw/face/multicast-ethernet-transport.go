@@ -30,9 +30,9 @@ type MulticastEthernetTransport struct {
 }
 
 // MakeMulticastEthernetTransport creates a new multicast Ethernet transport.
-func MakeMulticastEthernetTransport(remoteURI ndn.URI, localURI ndn.URI) (*MulticastEthernetTransport, error) {
+func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*MulticastEthernetTransport, error) {
 	// Validate URIs
-	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "eth" || !localURI.IsCanonical() || localURI.Scheme() != "dev" {
+	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "ether" || !localURI.IsCanonical() || localURI.Scheme() != "dev" {
 		return nil, core.ErrNotCanonical
 	}
 
