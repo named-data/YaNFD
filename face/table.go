@@ -13,6 +13,7 @@ import (
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/dispatch"
+	"github.com/eric135/YaNFD/ndn"
 )
 
 // FaceTable is the global face table for this forwarder
@@ -45,7 +46,7 @@ func (t *Table) Add(face LinkService) {
 	core.LogDebug("FaceTable", "Registered "+strconv.Itoa(faceID))
 }
 
-// Get gets the face with the specified ID from the face table.
+// Get gets the face with the specified ID (if any) from the face table.
 func (t *Table) Get(id int) LinkService {
 	t.mutex.RLock()
 	face, ok := t.Faces[id]
@@ -54,6 +55,19 @@ func (t *Table) Get(id int) LinkService {
 	if ok {
 		return face
 	}
+	return nil
+}
+
+// GetByURI gets the face with the specified remote URI (if any) from the face table.
+func (t *Table) GetByURI(remoteURI *ndn.URI) LinkService {
+	t.mutex.RLock()
+	for _, face := range t.Faces {
+		if face.RemoteURI().String() == remoteURI.String() {
+			t.mutex.RUnlock()
+			return face
+		}
+	}
+	t.mutex.RUnlock()
 	return nil
 }
 

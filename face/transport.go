@@ -18,8 +18,8 @@ type transport interface {
 	setFaceID(faceID int)
 	setLinkService(linkService LinkService)
 
-	RemoteURI() ndn.URI
-	LocalURI() ndn.URI
+	RemoteURI() *ndn.URI
+	LocalURI() *ndn.URI
 	Scope() ndn.Scope
 	MTU() int
 	State() ndn.State
@@ -36,8 +36,8 @@ type transportBase struct {
 	linkService LinkService
 
 	faceID    int
-	remoteURI ndn.URI
-	localURI  ndn.URI
+	remoteURI *ndn.URI
+	localURI  *ndn.URI
 	scope     ndn.Scope
 	mtu       int
 
@@ -47,7 +47,7 @@ type transportBase struct {
 	hasQuit chan bool
 }
 
-func (t *transportBase) makeTransportBase(remoteURI ndn.URI, localURI ndn.URI, mtu int) {
+func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, mtu int) {
 	t.remoteURI = remoteURI
 	t.localURI = localURI
 	t.state = ndn.Down
@@ -68,12 +68,12 @@ func (t *transportBase) setLinkService(linkService LinkService) {
 //
 
 // LocalURI returns the local URI of the transport
-func (t *transportBase) LocalURI() ndn.URI {
+func (t *transportBase) LocalURI() *ndn.URI {
 	return t.localURI
 }
 
 // RemoteURI returns the remote URI of the transport
-func (t *transportBase) RemoteURI() ndn.URI {
+func (t *transportBase) RemoteURI() *ndn.URI {
 	return t.remoteURI
 }
 

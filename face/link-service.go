@@ -24,8 +24,8 @@ type LinkService interface {
 	SetFaceID(faceID int)
 
 	FaceID() int
-	LocalURI() ndn.URI
-	RemoteURI() ndn.URI
+	LocalURI() *ndn.URI
+	RemoteURI() *ndn.URI
 	Scope() ndn.Scope
 	MTU() int
 
@@ -98,12 +98,12 @@ func (l *linkServiceBase) FaceID() int {
 }
 
 // LocalURI returns the local URI of the underlying transport
-func (l *linkServiceBase) LocalURI() ndn.URI {
+func (l *linkServiceBase) LocalURI() *ndn.URI {
 	return l.transport.LocalURI()
 }
 
 // RemoteURI returns the remote URI of the underlying transport
-func (l *linkServiceBase) RemoteURI() ndn.URI {
+func (l *linkServiceBase) RemoteURI() *ndn.URI {
 	return l.transport.RemoteURI()
 }
 

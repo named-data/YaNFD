@@ -23,7 +23,7 @@ type UnixStreamTransport struct {
 }
 
 // MakeUnixStreamTransport creates a Unix stream transport.
-func MakeUnixStreamTransport(remoteURI ndn.URI, localURI ndn.URI, conn net.Conn) (*UnixStreamTransport, error) {
+func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Conn) (*UnixStreamTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "fd" || !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical

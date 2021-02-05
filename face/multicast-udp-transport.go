@@ -29,7 +29,7 @@ type MulticastUDPTransport struct {
 }
 
 // MakeMulticastUDPTransport creates a new multicast UDP transport.
-func MakeMulticastUDPTransport(localURI ndn.URI) (*MulticastUDPTransport, error) {
+func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error) {
 	// Validate local URI
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {

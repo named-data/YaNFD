@@ -50,9 +50,13 @@ func (t *InternalTransport) String() string {
 }
 
 // Send sends a packet from the perspective of the internal component.
-func (t *InternalTransport) Send(block *tlv.Block, nextHopFaceID *int) {
+func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *int) {
 	pendingPacket := new(ndn.PendingPacket)
 	pendingPacket.Wire = block
+	if len(pitToken) > 0 {
+		pendingPacket.PitToken = make([]byte, len(pitToken))
+		copy(pendingPacket.PitToken, pitToken)
+	}
 	if nextHopFaceID != nil {
 		pendingPacket.NextHopFaceID = new(uint64)
 		*pendingPacket.NextHopFaceID = uint64(*nextHopFaceID)
@@ -61,7 +65,7 @@ func (t *InternalTransport) Send(block *tlv.Block, nextHopFaceID *int) {
 }
 
 // Receive receives a packet from the perspective of the internal component.
-func (t *InternalTransport) Receive() (*tlv.Block, int) {
+func (t *InternalTransport) Receive() (*tlv.Block, []byte, int) {
 	shouldContinue := true
 	// We need to use a for loop to silently ignore invalid packets
 	for shouldContinue {
@@ -87,12 +91,12 @@ func (t *InternalTransport) Receive() (*tlv.Block, int) {
 				core.LogWarn(t, "Unable to decode block")
 				continue
 			}
-			return block, int(*lpPacket.IncomingFaceID())
+			return block, lpPacket.PitToken(), int(*lpPacket.IncomingFaceID())
 		case <-t.hasQuit:
 			shouldContinue = false
 		}
 	}
-	return nil, 0
+	return nil, []byte{}, 0
 }
 
 func (t *InternalTransport) sendFrame(frame []byte) {

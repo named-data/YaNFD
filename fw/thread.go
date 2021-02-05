@@ -34,7 +34,7 @@ func HashNameToFwThread(name *ndn.Name) int {
 func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
 	threadMap := make(map[int]interface{})
 
-	for i := name.Size(); i > 0; i++ {
+	for i := name.Size(); i > 0; i-- {
 		threadMap[HashNameToFwThread(name.Prefix(i))] = true
 	}
 

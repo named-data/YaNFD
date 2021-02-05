@@ -44,17 +44,17 @@ func TestEthernet(t *testing.T) {
 	assert.NoError(t, err)
 	uri := ndn.MakeEthernetFaceURI(mac)
 	assert.True(t, uri.IsCanonical())
-	assert.Equal(t, "eth", uri.Scheme())
+	assert.Equal(t, "ether", uri.Scheme())
 	assert.Equal(t, "00:11:22:33:44:aa", uri.Path())
 	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "eth://[00:11:22:33:44:aa]", uri.String())
+	assert.Equal(t, "ether://[00:11:22:33:44:aa]", uri.String())
 
-	uri = ndn.DecodeURIString("eth://[00:11:22:33:44:AA]")
+	uri = ndn.DecodeURIString("ether://[00:11:22:33:44:AA]")
 	assert.True(t, uri.IsCanonical())
-	assert.Equal(t, "eth", uri.Scheme())
+	assert.Equal(t, "ether", uri.Scheme())
 	assert.Equal(t, "00:11:22:33:44:aa", uri.Path())
 	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "eth://[00:11:22:33:44:aa]", uri.String())
+	assert.Equal(t, "ether://[00:11:22:33:44:aa]", uri.String())
 }
 
 func testFD(t *testing.T) {
