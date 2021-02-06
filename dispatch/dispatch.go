@@ -25,6 +25,7 @@ var FWDispatchSync sync.RWMutex
 
 func init() {
 	FaceDispatch = make(map[int]Face)
+	FWDispatch = make(map[int]FWThread)
 }
 
 // AddFace adds the specified face to the dispatch list.

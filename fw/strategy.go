@@ -8,11 +8,8 @@
 package fw
 
 import (
-	"encoding/binary"
 	"strconv"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/dispatch"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/table"
 )
@@ -22,7 +19,7 @@ const StrategyPrefix = "/localhost/yanfd/strategy"
 
 // Strategy represents a forwarding strategy.
 type Strategy interface {
-	Instantiate(fib *table.FibStrategyEntry)
+	Instantiate(fwThread *Thread)
 	GetName() *ndn.Name
 
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data)
@@ -33,43 +30,33 @@ type Strategy interface {
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
 type StrategyBase struct {
-	ThreadID int
+	thread   *Thread
+	threadID int
+	name     *ndn.Name
 }
 
 // NewStrategyBase is a helper that allows specific strategies to initialize the base.
-func (s *StrategyBase) NewStrategyBase(threadID int) {
-	s.ThreadID = threadID
+func (s *StrategyBase) NewStrategyBase(fwThread *Thread, name *ndn.Name) {
+	s.thread = fwThread
+	s.threadID = s.thread.threadID
+	s.name = name
 }
 
 func (s *StrategyBase) String() string {
-	return "StrategyBase-" + strconv.Itoa(s.ThreadID)
+	return "StrategyBase-" + strconv.Itoa(s.threadID)
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, faceID int, inFace int) {
-	pendingPacket := new(ndn.PendingPacket)
-	pendingPacket.PitToken = make([]byte, 2)
-	binary.BigEndian.PutUint16(pendingPacket.PitToken, uint16(s.ThreadID))
-	pendingPacket.IncomingFaceID = new(uint64)
-	*pendingPacket.IncomingFaceID = uint64(inFace)
-	var err error
-	pendingPacket.Wire, err = interest.Encode()
-	if err != nil {
-		core.LogWarn(s, "Unable to encode Interest "+interest.Name().String()+" before sending - DROP")
-	}
-	dispatch.GetFace(faceID).SendPacket(pendingPacket)
+func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop int, inFace int) {
+	s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(data *ndn.Data, pitEntry *table.PitEntry, faceID int) {
-	pendingPacket := new(ndn.PendingPacket)
-	if inRecord, ok := pitEntry.InRecords[faceID]; ok {
-		pendingPacket.PitToken = inRecord.PitToken
+func (s *StrategyBase) SendData(data *ndn.Data, pitEntry *table.PitEntry, nexthop int, inFace int) {
+	var pitToken []byte
+	if inRecord, ok := pitEntry.InRecords[nexthop]; ok {
+		pitToken = inRecord.PitToken
+		delete(pitEntry.InRecords, nexthop)
 	}
-	var err error
-	pendingPacket.Wire, err = data.Encode()
-	if err != nil {
-		core.LogWarn(s, "Unable to encode Data "+data.Name().String()+" before sending - DROP")
-	}
-	dispatch.GetFace(faceID).SendPacket(pendingPacket)
+	s.thread.processOutgoingData(data, nexthop, pitToken, inFace)
 }

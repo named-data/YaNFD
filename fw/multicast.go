@@ -18,8 +18,6 @@ import (
 
 // Multicast is a forwarding strategy that forwards Interests to all nexthop faces.
 type Multicast struct {
-	fib  *table.FibStrategyEntry
-	name *ndn.Name
 	StrategyBase
 }
 
@@ -28,9 +26,9 @@ func init() {
 }
 
 // Instantiate creates a new instance of the Multicast strategy.
-func (s *Multicast) Instantiate(fib *table.FibStrategyEntry) {
-	s.fib = fib
-	s.name, _ = ndn.NameFromString(StrategyPrefix + "/multicast/%FD%01")
+func (s *Multicast) Instantiate(fwThread *Thread) {
+	name, _ := ndn.NameFromString(StrategyPrefix + "/multicast/%FD%01")
+	s.NewStrategyBase(fwThread, name)
 }
 
 func (s *Multicast) String() string {
@@ -46,20 +44,20 @@ func (s *Multicast) GetName() *ndn.Name {
 func (s *Multicast) AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
 	// Send downstream
 	core.LogTrace(s, "Forwarding content store hit Data "+data.Name().String()+" to "+strconv.Itoa(inFace))
-	s.SendData(data, pitEntry, inFace)
+	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
 func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
 	for faceID := range pitEntry.InRecords {
 		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to "+strconv.Itoa(faceID))
-		s.SendData(data, pitEntry, faceID)
+		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
 func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest) {
-	nexthops := s.fib.LongestPrefixNexthops(interest.Name())
+	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "No nexthop for Interest "+interest.Name().String()+" - DROP")
 		return
@@ -67,7 +65,7 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, i
 
 	for _, nexthop := range nexthops {
 		core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to "+strconv.Itoa(nexthop.Nexthop))
-		s.SendInterest(interest, nexthop.Nexthop, inFace)
+		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
 

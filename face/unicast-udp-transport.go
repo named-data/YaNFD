@@ -48,6 +48,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDP
 	if localURI != nil {
 		t.localAddr.IP = net.ParseIP(localURI.Path())
 		t.localAddr.Port = int(localURI.Port())
+	} else {
+		t.localAddr.Port = NDNUnicastUDPPort
 	}
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())
@@ -55,12 +57,7 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDP
 	// Attempt to "dial" remote URI
 	var err error
 	// Configure dialer so we can allow address reuse
-	var dialer *net.Dialer
-	if localURI != nil {
-		dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	} else {
-		dialer = &net.Dialer{Control: impl.SyscallReuseAddr}
-	}
+	dialer := &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
 	t.conn, err = dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())

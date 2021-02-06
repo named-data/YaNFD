@@ -71,6 +71,17 @@ func (t *Table) GetByURI(remoteURI *ndn.URI) LinkService {
 	return nil
 }
 
+// GetAll returns points to all faces.
+func (t *Table) GetAll() []LinkService {
+	t.mutex.RLock()
+	faces := make([]LinkService, 0, len(t.Faces))
+	for _, face := range t.Faces {
+		faces = append(faces, face)
+	}
+	t.mutex.RUnlock()
+	return faces
+}
+
 // Remove removes a face from the face table.
 func (t *Table) Remove(id int) {
 	t.mutex.Lock()

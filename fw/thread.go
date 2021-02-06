@@ -57,15 +57,16 @@ type Thread struct {
 }
 
 // NewThread creates a new forwarding thread
-func NewThread(id int) Thread {
-	return Thread{
-		threadID:         id,
-		pendingInterests: make(chan *ndn.PendingPacket),
-		pendingDatas:     make(chan *ndn.PendingPacket),
-		pitCS:            table.NewPitCS(),
-		strategies:       InstantiateStrategies(),
-		shouldQuit:       make(chan interface{}),
-		HasQuit:          make(chan interface{})}
+func NewThread(id int) *Thread {
+	t := new(Thread)
+	t.threadID = id
+	t.pendingInterests = make(chan *ndn.PendingPacket)
+	t.pendingDatas = make(chan *ndn.PendingPacket)
+	t.pitCS = table.NewPitCS()
+	t.strategies = InstantiateStrategies(t)
+	t.shouldQuit = make(chan interface{})
+	t.HasQuit = make(chan interface{})
+	return t
 }
 
 func (t *Thread) String() string {
@@ -195,8 +196,11 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest)
 }
 
-func (t *Thread) processOutgoingInterest(interest *ndn.Interest, nexthop int) {
+func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop int, inFace int) {
 	core.LogTrace(t, "OnOutgoingInterest: "+interest.Name().String()+", Face="+strconv.Itoa(nexthop))
+
+	// Create or update out-record
+	pitEntry.FindOrInsertOutRecord(interest, nexthop)
 
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
@@ -206,6 +210,9 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, nexthop int) {
 
 	// Send on outgoing face
 	pendingPacket := new(ndn.PendingPacket)
+	pendingPacket.IncomingFaceID = new(uint64)
+	*pendingPacket.IncomingFaceID = uint64(inFace)
+	pendingPacket.PitToken = make([]byte, 2)
 	binary.BigEndian.PutUint16(pendingPacket.PitToken, uint16(t.threadID))
 	var err error
 	pendingPacket.Wire, err = interest.Encode()
@@ -244,17 +251,16 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
+	// Add to Content Store
+	t.pitCS.InsertDataCS(data)
+
 	// Check for matching PIT entries
 	pitEntries := t.pitCS.FindPITFromData(data)
 	if len(pitEntries) == 0 {
-		// Unsolicated Data - DROP
-		// TODO: Add configuration option to accept these Data packets
-		core.LogDebug(t, "Unsolicited Data "+data.Name().String()+" - DROP")
+		// Unsolicated Data - nothing more to do
+		core.LogDebug(t, "Unsolicited data "+data.Name().String()+" - DROP")
 		return
 	}
-
-	// Add to Content Store
-	t.pitCS.InsertDataCS(data)
 
 	// Get strategy for name
 	strategyName := table.FibStrategyTable.LongestPrefixStrategy(data.Name())
@@ -265,6 +271,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		pitEntries[0].SetExpirationTimerToNow()
 
 		// Invoke strategy's AfterReceiveData
+		core.LogTrace(t, "Only one PIT entry for "+data.Name().String()+": sending to strategy "+strategyName.String())
 		strategy.AfterReceiveData(pitEntries[0], int(*pendingPacket.IncomingFaceID), data)
 
 		// Mark PIT entry as satisfied
@@ -305,13 +312,14 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 
 			// Call outoing Data pipeline for each pending downstream
 			for downstreamFaceID, downstreamPITToken := range downstreams {
-				t.processOutgoingData(data, downstreamFaceID, downstreamPITToken)
+				core.LogTrace(t, "Multiple matching PIT entries for "+data.Name().String()+": sending to do OnOutgoingData pipeline")
+				t.processOutgoingData(data, downstreamFaceID, downstreamPITToken, int(*pendingPacket.IncomingFaceID))
 			}
 		}
 	}
 }
 
-func (t *Thread) processOutgoingData(data *ndn.Data, nexthop int, pitToken []byte) {
+func (t *Thread) processOutgoingData(data *ndn.Data, nexthop int, pitToken []byte, inFace int) {
 	core.LogTrace(t, "OnOutgoingData: "+data.Name().String()+", Face="+strconv.Itoa(nexthop))
 
 	// Get outgoing face
@@ -333,6 +341,8 @@ func (t *Thread) processOutgoingData(data *ndn.Data, nexthop int, pitToken []byt
 		pendingPacket.PitToken = make([]byte, len(pitToken))
 		copy(pendingPacket.PitToken, pitToken)
 	}
+	pendingPacket.IncomingFaceID = new(uint64)
+	*pendingPacket.IncomingFaceID = uint64(inFace)
 	pendingPacket.Wire, err = data.Encode()
 	if err != nil {
 		core.LogWarn(t, "Unable to encode Data "+data.Name().String()+" ("+err.Error()+" ) - DROP")

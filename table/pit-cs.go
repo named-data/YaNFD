@@ -199,9 +199,11 @@ func (p *PitCsNode) findMatchingDataCSPrefix(interest *ndn.Interest) *CsEntry {
 		return p.csEntry
 	}
 
-	for _, child := range p.children {
-		if interest.Name().At(p.depth).Equals(child.component) {
-			return child.findMatchingDataCSPrefix(interest)
+	if p.depth < interest.Name().Size() {
+		for _, child := range p.children {
+			if interest.Name().At(p.depth).Equals(child.component) {
+				return child.findMatchingDataCSPrefix(interest)
+			}
 		}
 	}
 
@@ -225,7 +227,7 @@ func (e *PitEntry) lazilyEraseExpiredPITRecords() {
 	}
 }
 
-// FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether the record already existed.
+// FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
 func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face int) (*PitInRecord, bool) {
 	// Lazily erase expired records
 	e.lazilyEraseExpiredPITRecords()
@@ -249,6 +251,32 @@ func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face int) (*PitI
 	record.LatestInterest = interest
 	record.ExpirationTime = time.Now().Add(interest.Lifetime())
 	return record, true
+}
+
+// FindOrInsertOutRecord finds or inserts an OutRecord for the face, updating the metadata.
+func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face int) *PitOutRecord {
+	// Lazily erase expired records
+	e.lazilyEraseExpiredPITRecords()
+
+	var record *PitOutRecord
+	var ok bool
+	if record, ok = e.OutRecords[face]; !ok {
+		record := new(PitOutRecord)
+		record.Face = face
+		record.LatestNonce = interest.Nonce()
+		record.LatestTimestamp = time.Now()
+		record.LatestInterest = interest
+		record.ExpirationTime = time.Now().Add(interest.Lifetime())
+		e.OutRecords[face] = record
+		return record
+	}
+
+	// Existing record
+	record.LatestNonce = interest.Nonce()
+	record.LatestTimestamp = time.Now()
+	record.LatestInterest = interest
+	record.ExpirationTime = time.Now().Add(interest.Lifetime())
+	return record
 }
 
 // UpdateExpirationTimer updates the expiration timer to the latest expiration time of any in or out record in the entry.

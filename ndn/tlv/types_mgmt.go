@@ -40,8 +40,10 @@ const (
 	NCsEntries            = 0x87
 	NInInterests          = 0x90
 	NInData               = 0x91
+	NInNacks              = 0x97
 	NOutInterests         = 0x92
 	NOutData              = 0x93
+	NOutNacks             = 0x98
 	NSatisfiedInterests   = 0x99
 	NUnsatisfiedInterests = 0x9A
 

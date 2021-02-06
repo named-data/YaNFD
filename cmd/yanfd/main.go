@@ -15,6 +15,7 @@ import (
 	"os/signal"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/dispatch"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/fw"
 	"github.com/eric135/YaNFD/mgmt"
@@ -69,7 +70,8 @@ func main() {
 	fw.Threads = make(map[int]*fw.Thread)
 	for i := 0; i < numForwardingThreads; i++ {
 		newThread := fw.NewThread(i)
-		fw.Threads[i] = &newThread
+		fw.Threads[i] = newThread
+		dispatch.AddFWThread(i, newThread)
 		go fw.Threads[i].Run()
 	}
 

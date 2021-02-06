@@ -18,8 +18,8 @@ import (
 
 // InternalTransport is a transport for use by internal YaNFD modules (e.g., management).
 type InternalTransport struct {
-	recvQueue chan []byte             // Contains pending packets sent to internal component
-	sendQueue chan *ndn.PendingPacket // Contains pending packets sent by the internal component
+	recvQueue chan []byte // Contains pending packets sent to internal component
+	sendQueue chan []byte // Contains pending packets sent by the internal component
 	transportBase
 }
 
@@ -27,8 +27,9 @@ type InternalTransport struct {
 func MakeInternalTransport() *InternalTransport {
 	t := new(InternalTransport)
 	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), tlv.MaxNDNPacketSize)
+	t.scope = ndn.Local
 	t.recvQueue = make(chan []byte)
-	t.sendQueue = make(chan *ndn.PendingPacket)
+	t.sendQueue = make(chan []byte)
 	t.changeState(ndn.Up)
 	return t
 }
@@ -51,17 +52,29 @@ func (t *InternalTransport) String() string {
 
 // Send sends a packet from the perspective of the internal component.
 func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *int) {
-	pendingPacket := new(ndn.PendingPacket)
-	pendingPacket.Wire = block
+	netWire, err := block.Wire()
+	if err != nil {
+		core.LogWarn(t, "Unable to decode net packet to send - DROP")
+		return
+	}
+	lpPacket := lpv2.NewPacket(netWire)
 	if len(pitToken) > 0 {
-		pendingPacket.PitToken = make([]byte, len(pitToken))
-		copy(pendingPacket.PitToken, pitToken)
+		lpPacket.SetPitToken(pitToken)
 	}
 	if nextHopFaceID != nil {
-		pendingPacket.NextHopFaceID = new(uint64)
-		*pendingPacket.NextHopFaceID = uint64(*nextHopFaceID)
+		lpPacket.SetNextHopFaceID(uint64(*nextHopFaceID))
 	}
-	t.sendQueue <- pendingPacket
+	lpPacketWire, err := lpPacket.Encode()
+	if err != nil {
+		core.LogWarn(t, "Unable to encode block to send - DROP")
+		return
+	}
+	frame, err := lpPacketWire.Wire()
+	if err != nil {
+		core.LogWarn(t, "Unable to encode block to send - DROP")
+		return
+	}
+	t.sendQueue <- frame
 }
 
 // Receive receives a packet from the perspective of the internal component.
@@ -73,22 +86,22 @@ func (t *InternalTransport) Receive() (*tlv.Block, []byte, int) {
 		case frame := <-t.recvQueue:
 			lpBlock, _, err := tlv.DecodeBlock(frame)
 			if err != nil {
-				core.LogWarn(t, "Unable to decode block")
+				core.LogWarn(t, "Unable to decode received block - DROP")
 				continue
 			}
 			lpPacket, err := lpv2.DecodePacket(lpBlock)
 			if err != nil {
-				core.LogWarn(t, "Unable to decode block")
+				core.LogWarn(t, "Unable to decode received block - DROP")
 				continue
 			}
 			if len(lpPacket.Fragment()) == 0 {
-				core.LogWarn(t, "Sent empty fragment")
+				core.LogWarn(t, "Received empty fragment - DROP")
 				continue
 			}
 
 			block, _, err := tlv.DecodeBlock(lpPacket.Fragment())
 			if err != nil {
-				core.LogWarn(t, "Unable to decode block")
+				core.LogWarn(t, "Unable to decode received block - DROP")
 				continue
 			}
 			return block, lpPacket.PitToken(), int(*lpPacket.IncomingFaceID())
@@ -116,20 +129,15 @@ func (t *InternalTransport) runReceive() {
 		select {
 		case <-t.hasQuit:
 			return
-		case pendingPacket := <-t.sendQueue:
-			core.LogTrace(t, "Receive of size "+strconv.Itoa(pendingPacket.Wire.Size()))
+		case frame := <-t.sendQueue:
+			core.LogTrace(t, "Component send of size "+strconv.Itoa(len(frame)))
 
-			if pendingPacket.Wire.Size() > tlv.MaxNDNPacketSize {
-				core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+			if len(frame) > tlv.MaxNDNPacketSize {
+				core.LogWarn(t, "Component trying to send too much data - DROP")
 				continue
 			}
 
-			// Packet was successfully received, send up to link service
-			if frame, err := pendingPacket.Wire.Wire(); err != nil {
-				core.LogWarn(t, "Unable to encode frame from component ("+err.Error()+" - DROP")
-			} else {
-				t.linkService.handleIncomingFrame(frame)
-			}
+			t.linkService.handleIncomingFrame(frame)
 		}
 	}
 }
