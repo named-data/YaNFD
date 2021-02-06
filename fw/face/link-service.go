@@ -27,6 +27,7 @@ type LinkService interface {
 	LocalURI() *ndn.URI
 	RemoteURI() *ndn.URI
 	Scope() ndn.Scope
+	LinkType() ndn.LinkType
 	MTU() int
 
 	State() ndn.State
@@ -112,6 +113,11 @@ func (l *linkServiceBase) Scope() ndn.Scope {
 	return l.transport.Scope()
 }
 
+// LinkType returns the type of the link.
+func (l *linkServiceBase) LinkType() ndn.LinkType {
+	return l.transport.LinkType()
+}
+
 // MTU returns the MTU of the underlying transport
 func (l *linkServiceBase) MTU() int {
 	return l.transport.MTU()
@@ -155,7 +161,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 		}
 		thread := fw.HashNameToFwThread(interest.Name())
 		core.LogTrace(l, "Dispatched Interest to thread "+strconv.Itoa(thread))
-		fw.Threads[thread].QueueInterest(netPacket)
+		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case tlv.Data:
 		if len(netPacket.PitToken) == 2 {
 			// Decode PitToken. If it's for us, it's a uint16.
@@ -181,7 +187,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			core.LogDebug(l, "Missing PIT token from Data packet - performing prefix dispatching")
 			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
 				core.LogTrace(l, "Prefix dispatched Data packet to thread "+strconv.Itoa(thread))
-				fw.Threads[thread].QueueData(netPacket)
+				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
 		}
 	default:

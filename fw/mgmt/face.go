@@ -8,6 +8,8 @@
 package mgmt
 
 import (
+	"math"
+	"net"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -18,7 +20,8 @@ import (
 
 // FaceModule is the module that handles for Face Management.
 type FaceModule struct {
-	manager *Thread
+	manager                *Thread
+	nextFaceDatasetVersion uint64
 }
 
 func (f *FaceModule) String() string {
@@ -109,11 +112,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace int)
 	var linkService face.LinkService
 
 	if params.URI.Scheme() == "udp4" || params.URI.Scheme() == "udp6" {
-		// Check if multicast address
-		// TODO
+		// Check that remote endpoint is not a unicast address
+		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address "+params.URI.String())
+			response = mgmt.MakeControlResponse(406, "URI must be unicast", nil)
+		}
 
 		// Validate and populate missing optional params
-		if params.LocalURI != nil {
+		// TODO: Validate and use LocalURI if present
+		/*if params.LocalURI != nil {
 			if params.LocalURI.Canonize() != nil {
 				core.LogWarn(f, "Cannot canonize local URI in ControlParameters for "+interest.Name().String())
 				response = mgmt.MakeControlResponse(406, "LocalURI could not be canonized", nil)
@@ -122,15 +129,16 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace int)
 			if params.LocalURI.Scheme() != params.URI.Scheme() {
 				core.LogWarn(f, "Local URI scheme does not match remote URI scheme in ControlParameters for "+interest.Name().String())
 				response = mgmt.MakeControlResponse(406, "LocalURI scheme does not match URI scheme", nil)
+				f.manager.sendResponse(response, interest, pitToken, inFace)
+				return
 			}
-			f.manager.sendResponse(response, interest, pitToken, inFace)
-			return
-		}
+			// TODO: Check if matches a local interface IP
+		}*/
 
 		// FacePersistency, BaseCongestionMarkingInterval, DefaultCongestionThreshold, Mtu, and Flags are ignored for now
 
 		// Create new UDP face
-		transport, err := face.MakeUnicastUDPTransport(params.URI, params.LocalURI)
+		transport, err := face.MakeUnicastUDPTransport(params.URI, nil)
 		if err != nil {
 			core.LogWarn(f, "Unable to create unicast UDP face with URI "+params.URI.String()+": Unsupported scheme "+params.URI.Scheme())
 			response = mgmt.MakeControlResponse(406, "Unsupported scheme "+params.URI.Scheme(), nil)
@@ -181,11 +189,80 @@ func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace int
 }
 
 func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace int) {
-	// TODO
+	if interest.Name().Size() > f.manager.prefixLength()+2 {
+		// Ignore because contains version and/or segment components
+		return
+	}
+
+	dataset := make([]byte, 0)
+
+	// Generate new dataset
+	for _, face := range face.FaceTable.GetAll() {
+		dataset = append(dataset, f.createDataset(face)...)
+	}
+
+	// Split into 8000 byte segments and publish
+	nSegments := int(math.Ceil(float64(len(dataset)) / float64(8000)))
+	for segment := 0; segment < nSegments; segment++ {
+		var content []byte
+		if segment < segment-1 {
+			content = dataset[8000*segment : 8000*(segment+1)]
+		} else {
+			content = dataset[8000*segment:]
+		}
+		name, _ := ndn.NameFromString(f.manager.prefix.String() + "/faces/list")
+		name.Append(ndn.NewVersionNameComponent(f.nextFaceDatasetVersion)).Append(ndn.NewSegmentNameComponent(uint64(segment)))
+		data := ndn.NewData(name, content)
+		encoded, err := data.Encode()
+		if err != nil {
+			core.LogError(f, "Unable to enable face status dataset: "+err.Error())
+		}
+		f.manager.transport.Send(encoded, []byte{}, nil)
+	}
+
+	core.LogTrace(f, "Published face dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(nSegments)+" segments")
+	f.nextFaceDatasetVersion++
 }
 
 func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace int) {
 	// TODO
+}
+
+func (f *FaceModule) createDataset(face face.LinkService) []byte {
+	faceDataset := mgmt.MakeFaceStatus()
+	faceDataset.FaceID = uint64(face.FaceID())
+	faceDataset.URI = face.RemoteURI()
+	faceDataset.LocalURI = face.LocalURI()
+	// TODO: ExpirationPeriod
+	faceDataset.FaceScope = uint64(face.Scope())
+	// TODO: Put a real value here
+	faceDataset.FacePersistency = 0
+	faceDataset.LinkType = uint64(face.LinkType())
+	// TODO: BaseCongestionMarkingInterval
+	// TODO: DefaultCongestionThreshold
+	faceDataset.MTU = new(uint64)
+	*faceDataset.MTU = uint64(face.MTU())
+	// TODO: Put real values here
+	faceDataset.NInInterests = 0
+	faceDataset.NInData = 0
+	faceDataset.NInNacks = 0
+	faceDataset.NOutInterests = 0
+	faceDataset.NOutData = 0
+	faceDataset.NOutNacks = 0
+	// TODO: Put a real value here
+	faceDataset.Flags = 0
+
+	faceDatasetEncoded, err := faceDataset.Encode()
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.Itoa(face.FaceID())+": "+err.Error())
+		return []byte{}
+	}
+	faceDatasetWire, err := faceDatasetEncoded.Wire()
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.Itoa(face.FaceID())+": "+err.Error())
+		return []byte{}
+	}
+	return faceDatasetWire
 }
 
 func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace int) {

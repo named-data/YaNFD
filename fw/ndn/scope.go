@@ -12,9 +12,9 @@ type Scope int
 
 const (
 	// Unknown indicates that the scope is unknown.
-	Unknown Scope = iota
-	// Local indicates the face is local (to an application).
-	Local Scope = iota
+	Unknown Scope = -1
 	// NonLocal indicates the face is non-local (to another forwarder).
-	NonLocal Scope = iota
+	NonLocal Scope = 0
+	// Local indicates the face is local (to an application).
+	Local Scope = 1
 )

@@ -18,6 +18,7 @@ type Face interface {
 	LocalURI() *ndn.URI
 	RemoteURI() *ndn.URI
 	Scope() ndn.Scope
+	LinkType() ndn.LinkType
 	MTU() int
 
 	State() ndn.State

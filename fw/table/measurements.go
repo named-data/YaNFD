@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -11,32 +11,40 @@ import (
 	"github.com/cornelk/hashmap"
 )
 
-// Measurements contains the global measurements table,
-var measurements *hashmap.HashMap
+type measurements struct {
+	table hashmap.HashMap
+}
 
-// GetMeasurement returns the measurement table value at the specified key or nil if it does not exist.
-func GetMeasurement(key string) interface{} {
-	value, isOk := measurements.GetStringKey(key)
+// Measurements contains the global measurements table,
+var Measurements *measurements
+
+func init() {
+	Measurements = new(measurements)
+}
+
+// Get returns the measurement table value at the specified key or nil if it does not exist.
+func (m *measurements) Get(key string) interface{} {
+	value, isOk := m.table.GetStringKey(key)
 	if !isOk {
 		return nil
 	}
 	return value
 }
 
-// SetMeasurement atomically sets the value of the specified measurement table key only if it is equal to the expected value, returning whether the operation was successful.
-func SetMeasurement(key string, expected interface{}, value interface{}) bool {
-	return measurements.Cas(key, expected, value)
+// Set atomically sets the value of the specified measurement table key only if it is equal to the expected value, returning whether the operation was successful.
+func (m *measurements) Set(key string, expected interface{}, value interface{}) bool {
+	return m.table.Cas(key, expected, value)
 }
 
-// AddToMeasurementInt adds the specified value to the given measurement key, setting as value if unitialized.
-func AddToMeasurementInt(key string, value int) {
+// AddToInt adds the specified value to the given measurement key, setting as value if unitialized.
+func (m *measurements) AddToInt(key string, value int) {
 	wasSet := false
 	for !wasSet {
-		expected := GetMeasurement(key)
+		expected := m.Get(key)
 		if expected != nil {
-			wasSet = SetMeasurement(key, expected, expected.(int)+value)
+			wasSet = m.Set(key, expected, expected.(int)+value)
 		} else {
-			_, wasSet = measurements.GetOrInsert(key, value)
+			_, wasSet = m.table.GetOrInsert(key, value)
 			// We need to flip this because it returns false if set
 			wasSet = !wasSet
 		}
@@ -44,15 +52,15 @@ func AddToMeasurementInt(key string, value int) {
 }
 
 // AddSampleToEWMA adds a sample to an exponentially weighted moving average
-func AddSampleToEWMA(key string, measurement float64, alpha float64) {
+func (m *measurements) AddSampleToEWMA(key string, measurement float64, alpha float64) {
 	wasSet := false
 	for !wasSet {
-		expected := GetMeasurement(key)
+		expected := m.Get(key)
 		if expected != nil {
 			newValue := measurement + alpha*(measurement-expected.(float64))
-			wasSet = SetMeasurement(key, expected, newValue)
+			wasSet = m.Set(key, expected, newValue)
 		} else {
-			_, wasSet = measurements.GetOrInsert(key, measurement)
+			_, wasSet = m.table.GetOrInsert(key, measurement)
 			// We need to flip this because it returns false if set
 			wasSet = !wasSet
 		}

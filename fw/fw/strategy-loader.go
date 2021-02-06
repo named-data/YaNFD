@@ -11,7 +11,6 @@ import (
 	"reflect"
 
 	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/table"
 )
 
 const strategyDir = "strategy"
@@ -68,12 +67,12 @@ func LoadStrategies() {
 }
 
 // InstantiateStrategies instantiates all strategies for a forwarding thread.
-func InstantiateStrategies() map[string]Strategy {
+func InstantiateStrategies(fwThread *Thread) map[string]Strategy {
 	strategies := make(map[string]Strategy, len(strategyTypes))
 
 	for _, strategyType := range strategyTypes {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
-		strategy.Instantiate(table.FibStrategyTable)
+		strategy.Instantiate(fwThread)
 		strategies[strategy.GetName().String()] = strategy
 		core.LogDebug("StrategyLoader", "Instantiated strategy "+strategy.GetName().String())
 	}

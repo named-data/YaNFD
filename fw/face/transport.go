@@ -21,6 +21,7 @@ type transport interface {
 	RemoteURI() *ndn.URI
 	LocalURI() *ndn.URI
 	Scope() ndn.Scope
+	LinkType() ndn.LinkType
 	MTU() int
 	State() ndn.State
 
@@ -39,6 +40,7 @@ type transportBase struct {
 	remoteURI *ndn.URI
 	localURI  *ndn.URI
 	scope     ndn.Scope
+	linkType  ndn.LinkType
 	mtu       int
 
 	state     ndn.State
@@ -80,6 +82,11 @@ func (t *transportBase) RemoteURI() *ndn.URI {
 // Scope returns the scope of the transport
 func (t *transportBase) Scope() ndn.Scope {
 	return t.scope
+}
+
+// LinkType returns the type of the transport
+func (t *transportBase) LinkType() ndn.LinkType {
+	return t.linkType
 }
 
 // MTU returns the maximum transmission unit (MTU) of the Transport
