@@ -14,5 +14,5 @@ type Module interface {
 	String() string
 	registerManager(manager *Thread)
 	getManager() *Thread
-	handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace int)
+	handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64)
 }

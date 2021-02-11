@@ -100,7 +100,7 @@ func (l *NDNLPLinkService) String() string {
 		return "NDNLPLinkService, " + l.transport.String()
 	}
 
-	return "NDNLPLinkService, FaceID=" + strconv.Itoa(l.faceID)
+	return "NDNLPLinkService, FaceID=" + strconv.FormatUint(l.faceID, 10)
 }
 
 // SetOptions changes the settings of the NDNLPLinkService.
@@ -246,7 +246,7 @@ func (l *NDNLPLinkService) runSend() {
 
 			// Incoming face indication
 			if l.options.IsIncomingFaceIndicationEnabled && netPacket.IncomingFaceID != nil {
-				fragments[0].SetIncomingFaceID(uint64(*netPacket.IncomingFaceID))
+				fragments[0].SetIncomingFaceID(*netPacket.IncomingFaceID)
 			}
 
 			// Congestion marking
@@ -395,7 +395,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 
 	netPacket := new(ndn.PendingPacket)
 	netPacket.IncomingFaceID = new(uint64)
-	*netPacket.IncomingFaceID = uint64(l.faceID)
+	*netPacket.IncomingFaceID = l.faceID
 	netPacket.Wire, _, err = tlv.DecodeBlock(netPkt)
 	if err != nil {
 		core.LogWarn(l, "Unable to decode network-layer packet: "+err.Error()+" - DROP")

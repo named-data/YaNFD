@@ -32,7 +32,7 @@ func (l *NullLinkService) String() string {
 		return "NullLinkService, " + l.transport.String()
 	}
 
-	return "NullLinkService, FaceID=" + strconv.Itoa(l.faceID)
+	return "NullLinkService, FaceID=" + strconv.FormatUint(l.faceID, 10)
 }
 
 // Run runs the NullLinkService.

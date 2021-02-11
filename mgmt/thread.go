@@ -47,7 +47,7 @@ func (m *Thread) prefixLength() int {
 	return m.prefix.Size()
 }
 
-func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *ndn.Interest, pitToken []byte, inFace int) {
+func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	encodedResponse, err := response.Encode()
 	if err != nil {
 		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
@@ -90,7 +90,7 @@ func (m *Thread) Run() {
 			core.LogInfo(m, "Face quit, so management quitting")
 			break
 		}
-		core.LogTrace(m, "Received block on face, IncomingFaceID="+strconv.Itoa(inFace))
+		core.LogTrace(m, "Received block on face, IncomingFaceID="+strconv.FormatUint(inFace, 10))
 
 		// We only expect Interests, so drop Data packets
 		if block.Type() != tlv.Interest {

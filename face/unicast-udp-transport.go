@@ -74,7 +74,7 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDP
 }
 
 func (t *UnicastUDPTransport) String() string {
-	return "UnicastUDPTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "UnicastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {

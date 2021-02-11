@@ -15,7 +15,7 @@ import (
 // transport provides an interface for transports for specific face types
 type transport interface {
 	String() string
-	setFaceID(faceID int)
+	setFaceID(faceID uint64)
 	setLinkService(linkService LinkService)
 
 	RemoteURI() *ndn.URI
@@ -36,7 +36,7 @@ type transport interface {
 type transportBase struct {
 	linkService LinkService
 
-	faceID    int
+	faceID    uint64
 	remoteURI *ndn.URI
 	localURI  *ndn.URI
 	scope     ndn.Scope
@@ -57,7 +57,7 @@ func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI,
 	t.hasQuit = make(chan bool, 2)
 }
 
-func (t *transportBase) setFaceID(faceID int) {
+func (t *transportBase) setFaceID(faceID uint64) {
 	t.faceID = faceID
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 // FaceDispatch is used to allow forwarding to interact with faces without a circular dependency issue.
-var FaceDispatch map[int]Face
+var FaceDispatch map[uint64]Face
 
 // FaceDispatchSync controls access to FaceDispatch.
 var FaceDispatchSync sync.RWMutex
@@ -24,19 +24,19 @@ var FWDispatch map[int]FWThread
 var FWDispatchSync sync.RWMutex
 
 func init() {
-	FaceDispatch = make(map[int]Face)
+	FaceDispatch = make(map[uint64]Face)
 	FWDispatch = make(map[int]FWThread)
 }
 
 // AddFace adds the specified face to the dispatch list.
-func AddFace(id int, face Face) {
+func AddFace(id uint64, face Face) {
 	FaceDispatchSync.Lock()
 	FaceDispatch[id] = face
 	FaceDispatchSync.Unlock()
 }
 
 // GetFace returns the specified face or nil if it does not exist.
-func GetFace(id int) Face {
+func GetFace(id uint64) Face {
 	FaceDispatchSync.RLock()
 	face, ok := FaceDispatch[id]
 	FaceDispatchSync.RUnlock()
@@ -44,6 +44,13 @@ func GetFace(id int) Face {
 		return nil
 	}
 	return face
+}
+
+// RemoveFace removes the specified face from the dispatch map.
+func RemoveFace(id uint64) {
+	FaceDispatchSync.Lock()
+	delete(FaceDispatch, id)
+	FaceDispatchSync.Unlock()
 }
 
 // AddFWThread adds the specified forwarding thread to the dispatch list.

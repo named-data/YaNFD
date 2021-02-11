@@ -41,23 +41,23 @@ func (s *BestRoute) GetName() *ndn.Name {
 }
 
 // AfterContentStoreHit ...
-func (s *BestRoute) AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *BestRoute) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data "+data.Name().String()+" to "+strconv.Itoa(inFace))
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
-func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	core.LogTrace(s, "AfterReceiveData: "+data.Name().String()+", "+strconv.Itoa(len(pitEntry.InRecords))+" In-Records")
 	for faceID := range pitEntry.InRecords {
-		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to "+strconv.Itoa(faceID))
+		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
-func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest) {
+func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest) {
 	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "No nexthop for Interest "+interest.Name().String()+" - DROP")
@@ -71,12 +71,12 @@ func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, i
 		}
 	}
 
-	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest "+interest.Name().String()+" to "+strconv.Itoa(lowestCost.Nexthop))
+	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest "+interest.Name().String()+" to FaceID="+strconv.FormatUint(lowestCost.Nexthop, 10))
 	s.SendInterest(interest, pitEntry, lowestCost.Nexthop, inFace)
 }
 
 // BeforeSatisfyInterest ...
-func (s *BestRoute) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *BestRoute) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Does nothing in BestRoute
-	core.LogTrace(s, "BeforeSatisfyInterest: "+data.Name().String())
+	core.LogTrace(s, "BeforeSatisfyInterest: "+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
 }

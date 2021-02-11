@@ -12,9 +12,9 @@ import "github.com/eric135/YaNFD/ndn"
 // Face provides an interface that faces can satisfy (to avoid circular dependency between faces and forwarding)
 type Face interface {
 	String() string
-	SetFaceID(faceID int)
+	SetFaceID(faceID uint64)
 
-	FaceID() int
+	FaceID() uint64
 	LocalURI() *ndn.URI
 	RemoteURI() *ndn.URI
 	Scope() ndn.Scope

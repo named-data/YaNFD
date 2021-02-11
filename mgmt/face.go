@@ -36,7 +36,7 @@ func (f *FaceModule) getManager() *Thread {
 	return f.manager
 }
 
-func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	// Dispatch by verb
 	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
 	switch verb {
@@ -60,7 +60,7 @@ func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []b
 	}
 }
 
-func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
 	if interest.Name().Size() < 5 {
@@ -95,7 +95,7 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace int)
 	// Ensure does not conflict with existing face
 	existingFace := face.FaceTable.GetByURI(params.URI)
 	if existingFace != nil {
-		core.LogWarn(f, "Cannot create face "+params.URI.String()+": Conflicts with existing face FaceID="+strconv.Itoa(existingFace.FaceID())+", RemoteURI="+existingFace.RemoteURI().String())
+		core.LogWarn(f, "Cannot create face "+params.URI.String()+": Conflicts with existing face FaceID="+strconv.FormatUint(existingFace.FaceID(), 10)+", RemoteURI="+existingFace.RemoteURI().String())
 		responseParams := mgmt.MakeControlParameters()
 		f.fillFaceProperties(responseParams, existingFace)
 		responseParamsWire, err := responseParams.Encode()
@@ -180,15 +180,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace int)
 	return
 }
 
-func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	// TODO
 }
 
-func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	// TODO
 }
 
-func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	if interest.Name().Size() > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
@@ -197,14 +197,14 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace int) {
 	dataset := make([]byte, 0)
 
 	// Generate new dataset
-	faces := make(map[int]face.LinkService)
-	faceIDs := make([]int, 0)
+	faces := make(map[uint64]face.LinkService)
+	faceIDs := make([]uint64, 0)
 	for _, face := range face.FaceTable.GetAll() {
 		faces[face.FaceID()] = face
 		faceIDs = append(faceIDs, face.FaceID())
 	}
 	// We have to sort these or they appear in a strange order
-	sort.Sort(sort.IntSlice(faceIDs))
+	sort.Slice(faceIDs, func(a int, b int) bool { return faceIDs[a] < faceIDs[b] })
 	for _, faceID := range faceIDs {
 		dataset = append(dataset, f.createDataset(faces[faceID])...)
 	}
@@ -223,7 +223,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace int) {
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	// TODO
 }
 
@@ -255,18 +255,18 @@ func (f *FaceModule) createDataset(face face.LinkService) []byte {
 
 	faceDatasetEncoded, err := faceDataset.Encode()
 	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.Itoa(face.FaceID())+": "+err.Error())
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(face.FaceID(), 10)+": "+err.Error())
 		return []byte{}
 	}
 	faceDatasetWire, err := faceDatasetEncoded.Wire()
 	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.Itoa(face.FaceID())+": "+err.Error())
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(face.FaceID(), 10)+": "+err.Error())
 		return []byte{}
 	}
 	return faceDatasetWire
 }
 
-func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace int) {
+func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	// We don't have channels in YaNFD, so just return an empty list
 	// TODO
 }

@@ -34,14 +34,14 @@ type PitEntry struct {
 	CanBePrefix bool
 	MustBeFresh bool
 	//forwardingHint *ndn.ForwardingHint // TODO: Interests must match in terms of Forwarding Hint to be aggregated in PIT.
-	InRecords      map[int]*PitInRecord  // Key is face ID
-	OutRecords     map[int]*PitOutRecord // Key is face ID
+	InRecords      map[uint64]*PitInRecord  // Key is face ID
+	OutRecords     map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime time.Time
 }
 
 // PitInRecord records an incoming Interest on a given face.
 type PitInRecord struct {
-	Face            int
+	Face            uint64
 	LatestNonce     []byte
 	LatestTimestamp time.Time
 	LatestInterest  *ndn.Interest
@@ -51,7 +51,7 @@ type PitInRecord struct {
 
 // PitOutRecord records an outgoing Interest on a given face.
 type PitOutRecord struct {
-	Face            int
+	Face            uint64
 	LatestNonce     []byte
 	LatestTimestamp time.Time
 	LatestInterest  *ndn.Interest
@@ -112,7 +112,7 @@ func (p *PitCsNode) fillTreeToPrefix(name *ndn.Name) *PitCsNode {
 }
 
 // FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
-func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace int) (*PitEntry, bool) {
+func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*PitEntry, bool) {
 	node := p.fillTreeToPrefix(interest.Name())
 
 	var entry *PitEntry
@@ -131,8 +131,8 @@ func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace int) (*PitEnt
 		entry.CanBePrefix = interest.CanBePrefix()
 		entry.MustBeFresh = interest.MustBeFresh()
 		// TODO: ForwardingHint
-		entry.InRecords = make(map[int]*PitInRecord, 0)
-		entry.OutRecords = make(map[int]*PitOutRecord, 0)
+		entry.InRecords = make(map[uint64]*PitInRecord, 0)
+		entry.OutRecords = make(map[uint64]*PitOutRecord, 0)
 		node.pitEntries = append(node.pitEntries, entry)
 	}
 
@@ -228,7 +228,7 @@ func (e *PitEntry) lazilyEraseExpiredPITRecords() {
 }
 
 // FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
-func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face int) (*PitInRecord, bool) {
+func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64) (*PitInRecord, bool) {
 	// Lazily erase expired records
 	e.lazilyEraseExpiredPITRecords()
 
@@ -254,7 +254,7 @@ func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face int) (*PitI
 }
 
 // FindOrInsertOutRecord finds or inserts an OutRecord for the face, updating the metadata.
-func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face int) *PitOutRecord {
+func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face uint64) *PitOutRecord {
 	// Lazily erase expired records
 	e.lazilyEraseExpiredPITRecords()
 
@@ -302,10 +302,10 @@ func (e *PitEntry) SetExpirationTimerToNow() {
 
 // ClearInRecords removes all in-records from the PIT entry.
 func (e *PitEntry) ClearInRecords() {
-	e.InRecords = make(map[int]*PitInRecord)
+	e.InRecords = make(map[uint64]*PitInRecord)
 }
 
 // ClearOutRecords removes all out-records from the PIT entry.
 func (e *PitEntry) ClearOutRecords() {
-	e.OutRecords = make(map[int]*PitOutRecord)
+	e.OutRecords = make(map[uint64]*PitOutRecord)
 }

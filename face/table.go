@@ -21,21 +21,26 @@ var FaceTable Table
 
 // Table hold all faces used by the forwarder.
 type Table struct {
-	Faces      map[int]LinkService
+	Faces      map[uint64]LinkService
 	mutex      sync.RWMutex
-	nextFaceID int
+	nextFaceID uint64
 }
 
 func init() {
-	FaceTable.Faces = make(map[int]LinkService)
+	FaceTable.Faces = make(map[uint64]LinkService)
 	FaceTable.nextFaceID = 1
 }
 
 // Add adds a face to the face table.
 func (t *Table) Add(face LinkService) {
 	t.mutex.Lock()
-	faceID := t.nextFaceID
-	t.nextFaceID++
+	faceID := uint64(0)
+	isExistingFaceID := true
+	for isExistingFaceID {
+		faceID = t.nextFaceID
+		t.nextFaceID++
+		_, isExistingFaceID = t.Faces[faceID]
+	}
 	t.Faces[faceID] = face
 	face.SetFaceID(faceID)
 	t.mutex.Unlock()
@@ -43,11 +48,11 @@ func (t *Table) Add(face LinkService) {
 	// Add to dispatch
 	dispatch.AddFace(faceID, face)
 
-	core.LogDebug("FaceTable", "Registered "+strconv.Itoa(faceID))
+	core.LogDebug("FaceTable", "Registered FaceID="+strconv.FormatUint(faceID, 10))
 }
 
 // Get gets the face with the specified ID (if any) from the face table.
-func (t *Table) Get(id int) LinkService {
+func (t *Table) Get(id uint64) LinkService {
 	t.mutex.RLock()
 	face, ok := t.Faces[id]
 	t.mutex.RUnlock()
@@ -83,15 +88,13 @@ func (t *Table) GetAll() []LinkService {
 }
 
 // Remove removes a face from the face table.
-func (t *Table) Remove(id int) {
+func (t *Table) Remove(id uint64) {
 	t.mutex.Lock()
 	delete(t.Faces, id)
 	t.mutex.Unlock()
 
 	// Remove from dispatch
-	dispatch.FaceDispatchSync.Lock()
-	delete(dispatch.FaceDispatch, id)
-	dispatch.FaceDispatchSync.Unlock()
+	dispatch.RemoveFace(id)
 
-	core.LogDebug("FaceTable", "Unregistered "+strconv.Itoa(id))
+	core.LogDebug("FaceTable", "Unregistered FaceID="+strconv.FormatUint(id, 10))
 }

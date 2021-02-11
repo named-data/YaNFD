@@ -47,11 +47,11 @@ func RegisterInternalTransport() (LinkService, *InternalTransport) {
 }
 
 func (t *InternalTransport) String() string {
-	return "InternalTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // Send sends a packet from the perspective of the internal component.
-func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *int) {
+func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *uint64) {
 	netWire, err := block.Wire()
 	if err != nil {
 		core.LogWarn(t, "Unable to decode net packet to send - DROP")
@@ -62,7 +62,7 @@ func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceI
 		lpPacket.SetPitToken(pitToken)
 	}
 	if nextHopFaceID != nil {
-		lpPacket.SetNextHopFaceID(uint64(*nextHopFaceID))
+		lpPacket.SetNextHopFaceID(*nextHopFaceID)
 	}
 	lpPacketWire, err := lpPacket.Encode()
 	if err != nil {
@@ -78,7 +78,7 @@ func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceI
 }
 
 // Receive receives a packet from the perspective of the internal component.
-func (t *InternalTransport) Receive() (*tlv.Block, []byte, int) {
+func (t *InternalTransport) Receive() (*tlv.Block, []byte, uint64) {
 	shouldContinue := true
 	// We need to use a for loop to silently ignore invalid packets
 	for shouldContinue {
@@ -104,7 +104,7 @@ func (t *InternalTransport) Receive() (*tlv.Block, []byte, int) {
 				core.LogWarn(t, "Unable to decode received block - DROP")
 				continue
 			}
-			return block, lpPacket.PitToken(), int(*lpPacket.IncomingFaceID())
+			return block, lpPacket.PitToken(), *lpPacket.IncomingFaceID()
 		case <-t.hasQuit:
 			shouldContinue = false
 		}
