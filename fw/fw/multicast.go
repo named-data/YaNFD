@@ -41,22 +41,22 @@ func (s *Multicast) GetName() *ndn.Name {
 }
 
 // AfterContentStoreHit ...
-func (s *Multicast) AfterContentStoreHit(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *Multicast) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
-	core.LogTrace(s, "Forwarding content store hit Data "+data.Name().String()+" to "+strconv.Itoa(inFace))
+	core.LogTrace(s, "Forwarding content store hit Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
-func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	for faceID := range pitEntry.InRecords {
-		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to "+strconv.Itoa(faceID))
+		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
-func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, interest *ndn.Interest) {
+func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest) {
 	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "No nexthop for Interest "+interest.Name().String()+" - DROP")
@@ -64,12 +64,13 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace int, i
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to "+strconv.Itoa(nexthop.Nexthop))
+		core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to FaceID="+strconv.FormatUint(nexthop.Nexthop, 10))
 		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
 
 // BeforeSatisfyInterest ...
-func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace int, data *ndn.Data) {
+func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Does nothing in Multicast
+	core.LogTrace(s, "BeforeSatisfyInterest: "+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
 }

@@ -28,7 +28,7 @@ type FibStrategyEntry struct {
 
 // FibNextHopEntry represents a nexthop in a FIB entry.
 type FibNextHopEntry struct {
-	Nexthop int
+	Nexthop uint64
 	Cost    uint
 }
 
@@ -142,7 +142,7 @@ func (f *FibStrategyEntry) LongestPrefixStrategy(name *ndn.Name) *ndn.Name {
 }
 
 // AddNexthop adds or updates a nexthop entry for the specified prefix.
-func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop int, cost uint) {
+func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint) {
 	fibStrategyRWMutex.Lock()
 	entry := f.fillTreeToPrefix(name)
 	for _, existingNexthop := range entry.nexthops {
@@ -161,7 +161,7 @@ func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop int, cost uint) {
 }
 
 // RemoveNexthop removes the specified nexthop entry from the specified prefix.
-func (f *FibStrategyEntry) RemoveNexthop(name *ndn.Name, nexthop int) {
+func (f *FibStrategyEntry) RemoveNexthop(name *ndn.Name, nexthop uint64) {
 	fibStrategyRWMutex.Lock()
 	entry := f.findExactMatchEntry(name)
 	if entry != nil {

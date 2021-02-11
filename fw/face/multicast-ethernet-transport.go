@@ -85,7 +85,7 @@ func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*Mul
 }
 
 func (t *MulticastEthernetTransport) String() string {
-	return "MulticastEthernetTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "MulticastEthernetTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *MulticastEthernetTransport) sendFrame(frame []byte) {

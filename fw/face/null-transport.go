@@ -29,7 +29,7 @@ func MakeNullTransport() *NullTransport {
 }
 
 func (t *NullTransport) String() string {
-	return "NullTransport, FaceID=" + strconv.Itoa(t.faceID) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "NullTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 func (t *NullTransport) changeState(new ndn.State) {

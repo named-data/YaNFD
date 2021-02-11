@@ -136,17 +136,17 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Get incoming face
-	incomingFace := dispatch.GetFace(int(*pendingPacket.IncomingFaceID))
+	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
 	if incomingFace == nil {
 		core.LogError(t, "Non-existent incoming face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" - DROP")
 		return
 	}
 
-	core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", Face="+strconv.Itoa(incomingFace.FaceID()))
+	core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && interest.Name().Size() > 0 && interest.Name().At(0).String() == "localhost" {
-		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.Itoa(incomingFace.FaceID())+" violates /localhost scope - DROP")
+		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.FormatUint(incomingFace.FaceID(), 10)+" violates /localhost scope - DROP")
 		return
 	}
 
@@ -193,9 +193,9 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// If NextHopFaceId set, forward to that face (if it exists) or drop
 	if pendingPacket.NextHopFaceID != nil {
-		if dispatch.GetFace(int(*pendingPacket.NextHopFaceID)) != nil {
+		if dispatch.GetFace(*pendingPacket.NextHopFaceID) != nil {
 			core.LogTrace(t, "NextHopFaceId is set for Interest "+interest.Name().String()+" - dispatching directly to face")
-			dispatch.GetFace(int(*pendingPacket.NextHopFaceID)).SendPacket(pendingPacket)
+			dispatch.GetFace(*pendingPacket.NextHopFaceID).SendPacket(pendingPacket)
 		} else {
 			core.LogInfo(t, "Non-existent face specified in NextHopFaceId for Interest "+interest.Name().String()+" - DROP")
 		}
@@ -206,8 +206,8 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest)
 }
 
-func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop int, inFace int) {
-	core.LogTrace(t, "OnOutgoingInterest: "+interest.Name().String()+", Face="+strconv.Itoa(nexthop))
+func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
+	core.LogTrace(t, "OnOutgoingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(nexthop, 10))
 
 	// Create or update out-record
 	pitEntry.FindOrInsertOutRecord(interest, nexthop)
@@ -215,7 +215,7 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(nexthop))
+		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10))
 	}
 
 	// Send on outgoing face
@@ -248,16 +248,16 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Get incoming face
-	incomingFace := dispatch.GetFace(int(*pendingPacket.IncomingFaceID))
+	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
 	if incomingFace == nil {
 		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID)))
 	}
 
-	core.LogTrace(t, "OnIncomingData: "+data.Name().String()+", Face="+strconv.Itoa(incomingFace.FaceID()))
+	core.LogTrace(t, "OnIncomingData: "+data.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && data.Name().Size() > 0 && data.Name().At(0).String() == "localhost" {
-		core.LogWarn(t, "Data "+data.Name().String()+" from non-local face="+strconv.FormatUint(*pendingPacket.IncomingFaceID, 10)+" violates /localhost scope - DROP")
+		core.LogWarn(t, "Data "+data.Name().String()+" from non-local FaceID="+strconv.FormatUint(*pendingPacket.IncomingFaceID, 10)+" violates /localhost scope - DROP")
 		return
 	}
 
@@ -282,7 +282,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 
 		// Invoke strategy's AfterReceiveData
 		core.LogTrace(t, "Only one PIT entry for "+data.Name().String()+": sending to strategy "+strategyName.String())
-		strategy.AfterReceiveData(pitEntries[0], int(*pendingPacket.IncomingFaceID), data)
+		strategy.AfterReceiveData(pitEntries[0], *pendingPacket.IncomingFaceID, data)
 
 		// Mark PIT entry as satisfied
 		// TODO - how do we do this?
@@ -295,9 +295,9 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	} else {
 		for _, pitEntry := range pitEntries {
 			// Store all pending downstreams (except face Data packet arrived on) and PIT tokens
-			downstreams := make(map[int][]byte)
+			downstreams := make(map[uint64][]byte)
 			for downstreamFaceID, downstreamFaceRecord := range pitEntry.InRecords {
-				if downstreamFaceID != int(*pendingPacket.IncomingFaceID) {
+				if downstreamFaceID != *pendingPacket.IncomingFaceID {
 					// TODO: Ad-hoc faces
 					downstreams[downstreamFaceID] = make([]byte, len(downstreamFaceRecord.PitToken))
 					copy(downstreams[downstreamFaceID], downstreamFaceRecord.PitToken)
@@ -308,7 +308,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 			pitEntry.SetExpirationTimerToNow()
 
 			// Invoke strategy's BeforeSatisfyInterest
-			strategy.BeforeSatisfyInterest(pitEntry, int(*pendingPacket.IncomingFaceID), data)
+			strategy.BeforeSatisfyInterest(pitEntry, *pendingPacket.IncomingFaceID, data)
 
 			// Mark PIT entry as satisfied
 			// TODO - how do we do this?
@@ -323,24 +323,24 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 			// Call outoing Data pipeline for each pending downstream
 			for downstreamFaceID, downstreamPITToken := range downstreams {
 				core.LogTrace(t, "Multiple matching PIT entries for "+data.Name().String()+": sending to do OnOutgoingData pipeline")
-				t.processOutgoingData(data, downstreamFaceID, downstreamPITToken, int(*pendingPacket.IncomingFaceID))
+				t.processOutgoingData(data, downstreamFaceID, downstreamPITToken, *pendingPacket.IncomingFaceID)
 			}
 		}
 	}
 }
 
-func (t *Thread) processOutgoingData(data *ndn.Data, nexthop int, pitToken []byte, inFace int) {
-	core.LogTrace(t, "OnOutgoingData: "+data.Name().String()+", Face="+strconv.Itoa(nexthop))
+func (t *Thread) processOutgoingData(data *ndn.Data, nexthop uint64, pitToken []byte, inFace uint64) {
+	core.LogTrace(t, "OnOutgoingData: "+data.Name().String()+", FaceID="+strconv.FormatUint(nexthop, 10))
 
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(nexthop))
+		core.LogError(t, "Non-existent nexthop FaceID"+strconv.FormatUint(nexthop, 10))
 	}
 
 	// Check if violates /localhost
 	if outgoingFace.Scope() == ndn.NonLocal && data.Name().Size() > 0 && data.Name().At(0).String() == "localhost" {
-		core.LogWarn(t, "Data "+data.Name().String()+" cannot be sent to non-local face="+strconv.Itoa(nexthop)+" since violates /localhost scope - DROP")
+		core.LogWarn(t, "Data "+data.Name().String()+" cannot be sent to non-local FaceID="+strconv.FormatUint(nexthop, 10)+" since violates /localhost scope - DROP")
 		return
 	}
 

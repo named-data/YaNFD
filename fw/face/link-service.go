@@ -21,9 +21,9 @@ import (
 // LinkService is an interface for link service implementations
 type LinkService interface {
 	String() string
-	SetFaceID(faceID int)
+	SetFaceID(faceID uint64)
 
-	FaceID() int
+	FaceID() uint64
 	LocalURI() *ndn.URI
 	RemoteURI() *ndn.URI
 	Scope() ndn.Scope
@@ -46,7 +46,7 @@ type LinkService interface {
 
 // linkServiceBase is the type upon which all link service implementations should be built
 type linkServiceBase struct {
-	faceID           int
+	faceID           uint64
 	transport        transport
 	HasQuit          chan bool
 	hasImplQuit      chan bool
@@ -59,10 +59,10 @@ func (l *linkServiceBase) String() string {
 		return "LinkService, " + l.transport.String()
 	}
 
-	return "LinkService, FaceID=" + strconv.Itoa(l.faceID)
+	return "LinkService, FaceID=" + strconv.FormatUint(l.faceID, 10)
 }
 
-func (l *linkServiceBase) SetFaceID(faceID int) {
+func (l *linkServiceBase) SetFaceID(faceID uint64) {
 	l.faceID = faceID
 	if l.transport != nil {
 		l.transport.setFaceID(faceID)
@@ -94,7 +94,7 @@ func (l *linkServiceBase) makeLinkServiceBase() {
 //
 
 // FaceID returns the ID of the face
-func (l *linkServiceBase) FaceID() int {
+func (l *linkServiceBase) FaceID() uint64 {
 	return l.faceID
 }
 
