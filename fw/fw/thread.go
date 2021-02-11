@@ -26,12 +26,22 @@ var Threads map[int]*Thread
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.
 func HashNameToFwThread(name *ndn.Name) int {
+	// Dispatch all management requests to thread 0
+	if name.Size() > 0 && name.At(0).String() == "localhost" {
+		return 0
+	}
+
 	sum := sha512.Sum512([]byte(name.String()))
 	return int(binary.BigEndian.Uint64(sum[56:]) % uint64(len(Threads)))
 }
 
 // HashNameToAllPrefixFwThreads hahes an NDN name to all forwarding threads for all prefixes of the name.
 func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
+	// Dispatch all management requests to thread 0
+	if name.Size() > 0 && name.At(0).String() == "localhost" {
+		return []int{0}
+	}
+
 	threadMap := make(map[int]interface{})
 
 	for i := name.Size(); i > 0; i-- {

@@ -77,6 +77,8 @@ func (f *FaceStatus) Encode() (*tlv.Block, error) {
 	wire.Append(tlv.EncodeNNIBlock(tlv.NOutInterests, f.NOutInterests))
 	wire.Append(tlv.EncodeNNIBlock(tlv.NOutData, f.NOutData))
 	wire.Append(tlv.EncodeNNIBlock(tlv.NOutNacks, f.NOutNacks))
+	wire.Append(tlv.EncodeNNIBlock(tlv.NInBytes, f.NInBytes))
+	wire.Append(tlv.EncodeNNIBlock(tlv.NOutBytes, f.NOutBytes))
 	wire.Append(tlv.EncodeNNIBlock(tlv.Flags, f.Flags))
 
 	wire.Encode()
