@@ -8,8 +8,8 @@
 package mgmt
 
 import (
-	"math"
 	"net"
+	"sort"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -197,30 +197,29 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace int) {
 	dataset := make([]byte, 0)
 
 	// Generate new dataset
+	faces := make(map[int]face.LinkService)
+	faceIDs := make([]int, 0)
 	for _, face := range face.FaceTable.GetAll() {
-		dataset = append(dataset, f.createDataset(face)...)
+		faces[face.FaceID()] = face
+		faceIDs = append(faceIDs, face.FaceID())
+	}
+	// We have to sort these or they appear in a strange order
+	sort.Sort(sort.IntSlice(faceIDs))
+	for _, faceID := range faceIDs {
+		dataset = append(dataset, f.createDataset(faces[faceID])...)
 	}
 
-	// Split into 8000 byte segments and publish
-	nSegments := int(math.Ceil(float64(len(dataset)) / float64(8000)))
-	for segment := 0; segment < nSegments; segment++ {
-		var content []byte
-		if segment < segment-1 {
-			content = dataset[8000*segment : 8000*(segment+1)]
-		} else {
-			content = dataset[8000*segment:]
-		}
-		name, _ := ndn.NameFromString(f.manager.prefix.String() + "/faces/list")
-		name.Append(ndn.NewVersionNameComponent(f.nextFaceDatasetVersion)).Append(ndn.NewSegmentNameComponent(uint64(segment)))
-		data := ndn.NewData(name, content)
-		encoded, err := data.Encode()
+	name, _ := ndn.NameFromString(f.manager.prefix.String() + "/faces/list")
+	segments := mgmt.MakeStatusDataset(name, f.nextFaceDatasetVersion, dataset)
+	for _, segment := range segments {
+		encoded, err := segment.Encode()
 		if err != nil {
 			core.LogError(f, "Unable to enable face status dataset: "+err.Error())
 		}
 		f.manager.transport.Send(encoded, []byte{}, nil)
 	}
 
-	core.LogTrace(f, "Published face dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(nSegments)+" segments")
+	core.LogTrace(f, "Published face dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
 	f.nextFaceDatasetVersion++
 }
 
@@ -249,6 +248,8 @@ func (f *FaceModule) createDataset(face face.LinkService) []byte {
 	faceDataset.NOutInterests = 0
 	faceDataset.NOutData = 0
 	faceDataset.NOutNacks = 0
+	faceDataset.NInBytes = 0
+	faceDataset.NOutBytes = 0
 	// TODO: Put a real value here
 	faceDataset.Flags = 0
 
