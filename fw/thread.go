@@ -250,7 +250,8 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
 	if incomingFace == nil {
-		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID)))
+		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" DROP")
+		return
 	}
 
 	core.LogTrace(t, "OnIncomingData: "+data.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))

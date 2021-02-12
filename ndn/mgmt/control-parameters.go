@@ -75,19 +75,19 @@ func DecodeControlParameters(wire *tlv.Block) (*ControlParameters, error) {
 			}
 		case tlv.URI:
 			if c.URI != nil {
-				return nil, errors.New("Duplicate URI")
+				return nil, errors.New("Duplicate Uri")
 			}
 			c.URI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode URI: " + err.Error())
+				return nil, errors.New("Unable to decode Uri: " + err.Error())
 			}
 		case tlv.LocalURI:
 			if c.LocalURI != nil {
-				return nil, errors.New("Duplicate LocalURI")
+				return nil, errors.New("Duplicate LocalUri")
 			}
 			c.LocalURI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode LocalURI: " + err.Error())
+				return nil, errors.New("Unable to decode LocalUri: " + err.Error())
 			}
 		case tlv.Origin:
 			if c.Origin != nil {
