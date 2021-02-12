@@ -18,6 +18,16 @@ import (
 func MakeStatusDataset(name *ndn.Name, version uint64, dataset []byte) []*ndn.Data {
 	// Split into 8000 byte segments and publish
 	nSegments := int(math.Ceil(float64(len(dataset)) / float64(8000)))
+	if nSegments == 0 {
+		// Make a single empty segment
+		name.Append(ndn.NewVersionNameComponent(version)).Append(ndn.NewSegmentNameComponent(uint64(0)))
+		data := ndn.NewData(name, []byte{})
+		metaInfo := ndn.NewMetaInfo()
+		metaInfo.SetFreshnessPeriod(1000 * time.Millisecond)
+		metaInfo.SetFinalBlockID(ndn.NewSegmentNameComponent(0))
+		data.SetMetaInfo(metaInfo)
+		return []*ndn.Data{data}
+	}
 	segments := make([]*ndn.Data, nSegments)
 	for segment := 0; segment < nSegments; segment++ {
 		var content []byte

@@ -63,7 +63,7 @@ func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []b
 func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < 5 {
+	if interest.Name().Size() < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in "+interest.Name().String())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
@@ -174,10 +174,9 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		core.LogError(f, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
-		response = mgmt.MakeControlResponse(200, "Face created", responseParamsWire)
+		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
 	}
 	f.manager.sendResponse(response, interest, pitToken, inFace)
-	return
 }
 
 func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint64) {
@@ -185,7 +184,45 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 }
 
 func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	// TODO
+	var response *mgmt.ControlResponse
+
+	if interest.Name().Size() < f.manager.prefixLength()+3 {
+		// Name not long enough to contain ControlParameters
+		core.LogWarn(f, "Missing ControlParameters in "+interest.Name().String())
+		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	params := decodeControlParameters(f, interest)
+	if params == nil {
+		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	if params.FaceID == nil {
+		core.LogWarn(f, "Missing FaceId in ControlParameters for "+interest.Name().String())
+		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	if face.FaceTable.Get(*params.FaceID) != nil {
+		face.FaceTable.Remove(*params.FaceID)
+		core.LogInfo(f, "Destroyed face with FaceID="+strconv.FormatUint(*params.FaceID, 10))
+	} else {
+		core.LogInfo(f, "Ignoring attempt to delete non-existent face with FaceID="+strconv.FormatUint(*params.FaceID, 10))
+	}
+
+	responseParamsWire, err := params.Encode()
+	if err != nil {
+		core.LogError(f, "Unable to encode response parameters: "+err.Error())
+		response = mgmt.MakeControlResponse(500, "Internal error", nil)
+	} else {
+		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	}
+	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
 func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64) {
@@ -193,8 +230,6 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 		// Ignore because contains version and/or segment components
 		return
 	}
-
-	dataset := make([]byte, 0)
 
 	// Generate new dataset
 	faces := make(map[uint64]face.LinkService)
@@ -205,6 +240,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 	}
 	// We have to sort these or they appear in a strange order
 	sort.Slice(faceIDs, func(a int, b int) bool { return faceIDs[a] < faceIDs[b] })
+	dataset := make([]byte, 0)
 	for _, faceID := range faceIDs {
 		dataset = append(dataset, f.createDataset(faces[faceID])...)
 	}
@@ -214,7 +250,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 	for _, segment := range segments {
 		encoded, err := segment.Encode()
 		if err != nil {
-			core.LogError(f, "Unable to enable face status dataset: "+err.Error())
+			core.LogError(f, "Unable to encode face status dataset: "+err.Error())
 		}
 		f.manager.transport.Send(encoded, []byte{}, nil)
 	}
@@ -224,7 +260,77 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 }
 
 func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	// TODO
+	var response *mgmt.ControlResponse
+
+	if interest.Name().Size() < f.manager.prefixLength()+3 {
+		// Name not long enough to contain FaceQueryFilter
+		core.LogWarn(f, "Missing FaceQueryFilter in "+interest.Name().String())
+		response = mgmt.MakeControlResponse(400, "FaceQueryFilter is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	filter, err := mgmt.DecodeFaceQueryFilterFromEncoded(interest.Name().At(f.manager.prefixLength() + 2).Value())
+	if err != nil {
+		response = mgmt.MakeControlResponse(400, "FaceQueryFilter is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	faces := face.FaceTable.GetAll()
+	matchingFaces := make([]int, 0)
+	for pos, face := range faces {
+		if filter.FaceID != nil && *filter.FaceID != face.FaceID() {
+			continue
+		}
+
+		if filter.URIScheme != nil && *filter.URIScheme != face.LocalURI().Scheme() && *filter.URIScheme != face.RemoteURI().Scheme() {
+			continue
+		}
+
+		if filter.URI != nil && filter.URI.String() != face.RemoteURI().String() {
+			continue
+		}
+
+		if filter.LocalURI != nil && filter.LocalURI.String() != face.LocalURI().String() {
+			continue
+		}
+
+		if filter.FaceScope != nil && *filter.FaceScope != uint64(face.Scope()) {
+			continue
+		}
+
+		// TODO: Add FacePersistency to Face
+		/*if filter.FacePersistency != nil && *filter.FacePersistency != uint64(face.Persistency) {
+			continue
+		}*/
+
+		if filter.LinkType != nil && *filter.LinkType != uint64(face.LinkType()) {
+			continue
+		}
+
+		matchingFaces = append(matchingFaces, pos)
+	}
+
+	// We have to sort these or they appear in a strange order
+	//sort.Slice(matchingFaces, func(a int, b int) bool { return matchingFaces[a] < matchingFaces[b] })
+
+	dataset := make([]byte, 0)
+	for _, pos := range matchingFaces {
+		dataset = append(dataset, f.createDataset(faces[pos])...)
+	}
+
+	segments := mgmt.MakeStatusDataset(interest.Name(), f.nextFaceDatasetVersion, dataset)
+	for _, segment := range segments {
+		encoded, err := segment.Encode()
+		if err != nil {
+			core.LogError(f, "Unable to encode face query dataset: "+err.Error())
+		}
+		f.manager.transport.Send(encoded, []byte{}, nil)
+	}
+
+	core.LogTrace(f, "Published face query dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	f.nextFaceDatasetVersion++
 }
 
 func (f *FaceModule) createDataset(face face.LinkService) []byte {
