@@ -20,8 +20,9 @@ import (
 
 // FaceModule is the module that handles for Face Management.
 type FaceModule struct {
-	manager                *Thread
-	nextFaceDatasetVersion uint64
+	manager                   *Thread
+	nextFaceDatasetVersion    uint64
+	nextChannelDatasetVersion uint64
 }
 
 func (f *FaceModule) String() string {
@@ -251,6 +252,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 		encoded, err := segment.Encode()
 		if err != nil {
 			core.LogError(f, "Unable to encode face status dataset: "+err.Error())
+			return
 		}
 		f.manager.transport.Send(encoded, []byte{}, nil)
 	}
@@ -260,20 +262,14 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 }
 
 func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	var response *mgmt.ControlResponse
-
 	if interest.Name().Size() < f.manager.prefixLength()+3 {
 		// Name not long enough to contain FaceQueryFilter
 		core.LogWarn(f, "Missing FaceQueryFilter in "+interest.Name().String())
-		response = mgmt.MakeControlResponse(400, "FaceQueryFilter is incorrect", nil)
-		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	filter, err := mgmt.DecodeFaceQueryFilterFromEncoded(interest.Name().At(f.manager.prefixLength() + 2).Value())
 	if err != nil {
-		response = mgmt.MakeControlResponse(400, "FaceQueryFilter is incorrect", nil)
-		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
@@ -325,6 +321,7 @@ func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint6
 		encoded, err := segment.Encode()
 		if err != nil {
 			core.LogError(f, "Unable to encode face query dataset: "+err.Error())
+			return
 		}
 		f.manager.transport.Send(encoded, []byte{}, nil)
 	}
@@ -373,8 +370,79 @@ func (f *FaceModule) createDataset(face face.LinkService) []byte {
 }
 
 func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	// We don't have channels in YaNFD, so just return an empty list
-	// TODO
+	if interest.Name().Size() < f.manager.prefixLength()+2 {
+		core.LogWarn(f, "Channel dataset Interest too short: "+interest.Name().String())
+		return
+	}
+
+	dataset := make([]byte, 0)
+	// UDP channel
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		core.LogWarn(f, "Unable to access channel dataset: "+err.Error())
+		return
+	}
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			core.LogWarn(f, "Unable to access IP addresses for "+iface.Name+": "+err.Error())
+			return
+		}
+		for _, addr := range addrs {
+			ipAddr := addr.(*net.IPNet)
+
+			ipVersion := 4
+			path := ipAddr.IP.String()
+			if ipAddr.IP.To4() == nil {
+				ipVersion = 6
+				path += "%" + iface.Name
+			}
+
+			if !addr.(*net.IPNet).IP.IsLoopback() {
+				uri := ndn.MakeUDPFaceURI(ipVersion, path, face.NDNUnicastUDPPort)
+				channel := mgmt.MakeChannelStatus(uri)
+				channelEncoded, err := channel.Encode()
+				if err != nil {
+					core.LogError(f, "Cannot encode ChannelStatus for Channel="+uri.String()+": "+err.Error())
+					continue
+				}
+				channelWire, err := channelEncoded.Wire()
+				if err != nil {
+					core.LogError(f, "Cannot encode ChannelStatus for Channel="+uri.String()+": "+err.Error())
+					continue
+				}
+				dataset = append(dataset, channelWire...)
+			}
+		}
+	}
+
+	// Unix channel
+	uri := ndn.MakeUnixFaceURI(face.NDNUnixSocketFile)
+	channel := mgmt.MakeChannelStatus(uri)
+	channelEncoded, err := channel.Encode()
+	if err != nil {
+		core.LogError(f, "Cannot encode ChannelStatus for Channel="+uri.String()+": "+err.Error())
+		return
+	}
+	channelWire, err := channelEncoded.Wire()
+	if err != nil {
+		core.LogError(f, "Cannot encode ChannelStatus for Channel="+uri.String()+": "+err.Error())
+		return
+	}
+	dataset = append(dataset, channelWire...)
+
+	segments := mgmt.MakeStatusDataset(interest.Name(), f.nextChannelDatasetVersion, dataset)
+	for _, segment := range segments {
+		encoded, err := segment.Encode()
+		if err != nil {
+			core.LogError(f, "Unable to encode channel dataset: "+err.Error())
+			return
+		}
+		f.manager.transport.Send(encoded, []byte{}, nil)
+	}
+
+	core.LogTrace(f, "Published channel dataset version="+strconv.FormatUint(f.nextChannelDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	f.nextChannelDatasetVersion++
 }
 
 func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, face face.LinkService) {
