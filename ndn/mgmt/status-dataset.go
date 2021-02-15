@@ -18,6 +18,16 @@ import (
 func MakeStatusDataset(name *ndn.Name, version uint64, dataset []byte) []*ndn.Data {
 	// Split into 8000 byte segments and publish
 	nSegments := int(math.Ceil(float64(len(dataset)) / float64(8000)))
+	if nSegments == 0 {
+		// Empty dataset
+		segmentName := name.DeepCopy().Append(ndn.NewVersionNameComponent(version)).Append(ndn.NewSegmentNameComponent(0))
+		data := ndn.NewData(segmentName, []byte{})
+		metaInfo := ndn.NewMetaInfo()
+		metaInfo.SetFreshnessPeriod(1000 * time.Millisecond)
+		metaInfo.SetFinalBlockID(ndn.NewSegmentNameComponent(0))
+		data.SetMetaInfo(metaInfo)
+		return []*ndn.Data{data}
+	}
 	segments := make([]*ndn.Data, nSegments)
 	for segment := 0; segment < nSegments; segment++ {
 		var content []byte
@@ -26,8 +36,8 @@ func MakeStatusDataset(name *ndn.Name, version uint64, dataset []byte) []*ndn.Da
 		} else {
 			content = dataset[8000*segment:]
 		}
-		name.Append(ndn.NewVersionNameComponent(version)).Append(ndn.NewSegmentNameComponent(uint64(segment)))
-		data := ndn.NewData(name, content)
+		segmentName := name.DeepCopy().Append(ndn.NewVersionNameComponent(version)).Append(ndn.NewSegmentNameComponent(uint64(segment)))
+		data := ndn.NewData(segmentName, content)
 		metaInfo := ndn.NewMetaInfo()
 		metaInfo.SetFreshnessPeriod(1000 * time.Millisecond)
 		metaInfo.SetFinalBlockID(ndn.NewSegmentNameComponent(uint64(nSegments - 1)))

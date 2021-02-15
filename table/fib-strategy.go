@@ -31,7 +31,7 @@ type FibStrategyEntry struct {
 // FibNextHopEntry represents a nexthop in a FIB entry.
 type FibNextHopEntry struct {
 	Nexthop uint64
-	Cost    uint
+	Cost    uint64
 }
 
 // FibStrategyTable is a table containing FIB and Strategy entries for given prefixes.
@@ -146,7 +146,7 @@ func (f *FibStrategyEntry) LongestPrefixStrategy(name *ndn.Name) *ndn.Name {
 }
 
 // AddNexthop adds or updates a nexthop entry for the specified prefix.
-func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint) {
+func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint64) {
 	fibStrategyRWMutex.Lock()
 	entry := f.fillTreeToPrefix(name)
 	if entry.Name == nil {
@@ -195,7 +195,7 @@ func (f *FibStrategyEntry) RemoveNexthop(name *ndn.Name, nexthop uint64) {
 	fibStrategyRWMutex.Unlock()
 }
 
-// GetAllFIBEntries returns all nexthop entries in the FIB (with paired names).
+// GetAllFIBEntries returns all nexthop entries in the FIB.
 func (f *FibStrategyEntry) GetAllFIBEntries() []*FibStrategyEntry {
 	fibStrategyRWMutex.Lock()
 	entries := make([]*FibStrategyEntry, 0)

@@ -32,6 +32,7 @@ func MakeMgmtThread() *Thread {
 	m.modules = make(map[string]Module)
 	m.registerModule("faces", new(FaceModule))
 	m.registerModule("fib", new(FIBModule))
+	m.registerModule("rib", new(RIBModule))
 	return m
 }
 

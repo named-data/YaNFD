@@ -39,9 +39,9 @@ func (f *FIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []by
 	// Dispatch by verb
 	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
 	switch verb {
-	case "create":
+	case "add-nexthop":
 		f.add(interest, pitToken, inFace)
-	case "update":
+	case "remove-nexthop":
 		f.remove(interest, pitToken, inFace)
 	case "list":
 		f.list(interest, pitToken, inFace)
@@ -88,19 +88,20 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 		}
 	}
 
-	cost := uint(0)
+	cost := uint64(0)
 	if params.Cost != nil {
-		cost = uint(*params.Cost)
+		cost = *params.Cost
 	}
 
 	table.FibStrategyTable.AddNexthop(params.Name, faceID, cost)
 
-	core.LogInfo(f, "Created nexthop for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10)+"with Cost="+strconv.FormatUint(uint64(cost), 10))
+	core.LogInfo(f, "Created nexthop for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10)+"with Cost="+strconv.FormatUint(cost, 10))
 	responseParams := mgmt.MakeControlParameters()
+	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
 	*responseParams.FaceID = faceID
 	responseParams.Cost = new(uint64)
-	*responseParams.Cost = uint64(cost)
+	*responseParams.Cost = cost
 	responseParamsWire, err := params.Encode()
 	if err != nil {
 		core.LogError(f, "Unable to encode response parameters: "+err.Error())
@@ -173,7 +174,7 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 		for _, nexthop := range fsEntry.GetNexthops() {
 			var record mgmt.NextHopRecord
 			record.FaceID = nexthop.Nexthop
-			record.Cost = uint64(nexthop.Cost)
+			record.Cost = nexthop.Cost
 			fibEntry.Nexthops = append(fibEntry.Nexthops, record)
 		}
 
