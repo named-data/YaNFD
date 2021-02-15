@@ -23,6 +23,7 @@ type transport interface {
 	Scope() ndn.Scope
 	LinkType() ndn.LinkType
 	MTU() int
+	SetMTU(mtu int)
 	State() ndn.State
 
 	runReceive()
@@ -92,6 +93,10 @@ func (t *transportBase) LinkType() ndn.LinkType {
 // MTU returns the maximum transmission unit (MTU) of the Transport
 func (t *transportBase) MTU() int {
 	return t.mtu
+}
+
+func (t *transportBase) SetMTU(mtu int) {
+	t.mtu = mtu
 }
 
 // State returns the state of the transport

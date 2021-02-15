@@ -41,6 +41,8 @@ type NDNLPLinkServiceOptions struct {
 	IsIncomingFaceIndicationEnabled bool
 
 	IsLocalCachePolicyEnabled bool
+
+	IsCongestionMarkingEnabled bool
 }
 
 type ndnlpUnacknowledgedFrame struct {
@@ -101,6 +103,11 @@ func (l *NDNLPLinkService) String() string {
 	}
 
 	return "NDNLPLinkService, FaceID=" + strconv.FormatUint(l.faceID, 10)
+}
+
+// Options gets the settings of the NDNLPLinkService.
+func (l *NDNLPLinkService) Options() NDNLPLinkServiceOptions {
+	return l.options
 }
 
 // SetOptions changes the settings of the NDNLPLinkService.
@@ -283,27 +290,29 @@ func (l *NDNLPLinkService) runSend() {
 			core.LogDebug(l, "Retransmitting TxSequence="+strconv.FormatUint(oldTxSequence, 10)+" of Sequence="+strconv.FormatUint(frame.netPacket, 10))
 			// TODO
 		case <-l.idleAckTimer:
-			core.LogTrace(l, "Idle Ack timer expired")
-			idle := new(lpv2.Packet)
+			//core.LogTrace(l, "Idle Ack timer expired")
+			if l.pendingAcksToSend.Len() > 0 {
+				idle := new(lpv2.Packet)
 
-			// Add up to enough Acks to fill MTU
-			for remainingAcks := (l.transport.MTU() - lpPacketOverhead) / ackOverhead; remainingAcks > 0 && l.pendingAcksToSend.Len() > 0; remainingAcks-- {
-				// TODO: Make pendingAcksToSend thread safe
-				idle.AppendAck(l.pendingAcksToSend.Front().Value.(uint64))
-				l.pendingAcksToSend.Remove(l.pendingAcksToSend.Front())
-			}
+				// Add up to enough Acks to fill MTU
+				for remainingAcks := (l.transport.MTU() - lpPacketOverhead) / ackOverhead; remainingAcks > 0 && l.pendingAcksToSend.Len() > 0; remainingAcks-- {
+					// TODO: Make pendingAcksToSend thread safe
+					idle.AppendAck(l.pendingAcksToSend.Front().Value.(uint64))
+					l.pendingAcksToSend.Remove(l.pendingAcksToSend.Front())
+				}
 
-			encoded, err := idle.Encode()
-			if err != nil {
-				core.LogError(l, "Unable to encode IDLE frame - DROP")
-				break
+				encoded, err := idle.Encode()
+				if err != nil {
+					core.LogError(l, "Unable to encode IDLE frame - DROP")
+					break
+				}
+				wire, err := encoded.Wire()
+				if err != nil {
+					core.LogError(l, "Unable to encode IDLE frame - DROP")
+					break
+				}
+				l.transport.sendFrame(wire)
 			}
-			wire, err := encoded.Wire()
-			if err != nil {
-				core.LogError(l, "Unable to encode IDLE frame - DROP")
-				break
-			}
-			l.transport.sendFrame(wire)
 		case <-l.hasTransportQuit:
 			l.hasImplQuit <- true
 			return
