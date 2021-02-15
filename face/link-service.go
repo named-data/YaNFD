@@ -21,6 +21,7 @@ import (
 // LinkService is an interface for link service implementations
 type LinkService interface {
 	String() string
+	Transport() transport
 	SetFaceID(faceID uint64)
 
 	FaceID() uint64
@@ -29,6 +30,7 @@ type LinkService interface {
 	Scope() ndn.Scope
 	LinkType() ndn.LinkType
 	MTU() int
+	SetMTU(mtu int)
 
 	State() ndn.State
 
@@ -93,6 +95,11 @@ func (l *linkServiceBase) makeLinkServiceBase() {
 // Getters
 //
 
+// Transport returns the transport for the face.
+func (l *linkServiceBase) Transport() transport {
+	return l.transport
+}
+
 // FaceID returns the ID of the face
 func (l *linkServiceBase) FaceID() uint64 {
 	return l.faceID
@@ -121,6 +128,11 @@ func (l *linkServiceBase) LinkType() ndn.LinkType {
 // MTU returns the MTU of the underlying transport
 func (l *linkServiceBase) MTU() int {
 	return l.transport.MTU()
+}
+
+// SetMTU sets the MTU of the underlying transport.
+func (l *linkServiceBase) SetMTU(mtu int) {
+	l.transport.SetMTU(mtu)
 }
 
 // State returns the state of the underlying transport

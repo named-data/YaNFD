@@ -16,6 +16,7 @@ import (
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/mgmt"
+	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 // FaceModule is the module that handles for Face Management.
@@ -93,6 +94,13 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		return
 	}
 
+	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
+		core.LogWarn(f, "Flags and Mask fields either both be present or both be not present")
+		response = mgmt.MakeControlResponse(409, "Incomplete Flags/Mask combination", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
 	// Ensure does not conflict with existing face
 	existingFace := face.FaceTable.GetByURI(params.URI)
 	if existingFace != nil {
@@ -136,7 +144,7 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			// TODO: Check if matches a local interface IP
 		}*/
 
-		// FacePersistency, BaseCongestionMarkingInterval, DefaultCongestionThreshold, Mtu, and Flags are ignored for now
+		// FacePersistency, BaseCongestionMarkingInterval, and DefaultCongestionThreshold
 
 		// Create new UDP face
 		transport, err := face.MakeUnicastUDPTransport(params.URI, nil)
@@ -146,7 +154,47 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
-		linkService = face.MakeNDNLPLinkService(transport, face.NDNLPLinkServiceOptions{})
+
+		if params.MTU != nil {
+			mtu := int(*params.MTU)
+			if *params.MTU > tlv.MaxNDNPacketSize {
+				mtu = tlv.MaxNDNPacketSize
+			}
+			transport.SetMTU(mtu)
+		}
+
+		// NDNLP link service parameters
+		options := face.NDNLPLinkServiceOptions{}
+		if params.Flags != nil {
+			// Mask already guaranteed to be present if Flags is above
+			flags := *params.Flags
+			mask := *params.Mask
+
+			if mask&0x1 == 1 {
+				// LocalFieldsEnabled
+				if flags&0x1 == 1 {
+					options.IsConsumerControlledForwardingEnabled = true
+					options.IsIncomingFaceIndicationEnabled = true
+					options.IsLocalCachePolicyEnabled = true
+				} else {
+					options.IsConsumerControlledForwardingEnabled = false
+					options.IsIncomingFaceIndicationEnabled = false
+					options.IsLocalCachePolicyEnabled = false
+				}
+			}
+
+			if mask>>1&0x1 == 1 {
+				// LpReliabilityEnabled
+				options.IsReliabilityEnabled = flags>>1&0x01 == 1
+			}
+
+			if mask>>2&0x01 == 1 {
+				// CongestionMarkingEnabled
+				options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
+			}
+		}
+
+		linkService = face.MakeNDNLPLinkService(transport, options)
 		face.FaceTable.Add(linkService)
 
 		// Start new face
@@ -181,7 +229,115 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 }
 
 func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	// TODO
+	var response *mgmt.ControlResponse
+
+	if interest.Name().Size() < f.manager.prefixLength()+3 {
+		// Name not long enough to contain ControlParameters
+		core.LogWarn(f, "Missing ControlParameters in "+interest.Name().String())
+		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	params := decodeControlParameters(f, interest)
+	if params == nil {
+		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	faceID := inFace
+	if params.FaceID != nil && *params.FaceID != 0 {
+		faceID = *params.FaceID
+	}
+
+	// Validate parameters
+
+	selectedFace := face.FaceTable.Get(faceID)
+	if selectedFace == nil {
+		core.LogWarn(f, "Cannot update specified (or implicit) FaceID="+strconv.FormatUint(faceID, 10)+" because it does not exist")
+		response = mgmt.MakeControlResponse(404, "Face does not exist", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
+		core.LogWarn(f, "Flags and Mask fields either both be present or both be not present")
+		response = mgmt.MakeControlResponse(409, "Incomplete Flags/Mask combination", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	// TODO: FacePersistency, BaseCongestionMarkingInterval, DefaultCongestionThreshold
+
+	// Actually perform face updates
+	// MTU
+	if params.MTU != nil {
+		oldMTU := selectedFace.MTU()
+		newMTU := int(*params.MTU)
+		if *params.MTU > tlv.MaxNDNPacketSize {
+			newMTU = tlv.MaxNDNPacketSize
+		}
+		selectedFace.SetMTU(newMTU)
+		core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", MTU "+strconv.Itoa(oldMTU)+" -> "+strconv.Itoa(newMTU))
+	}
+
+	if params.Flags != nil {
+		// Presence of mask already validated
+		flags := *params.Flags
+		mask := *params.Mask
+		options := selectedFace.(*face.NDNLPLinkService).Options()
+
+		if mask&0x1 == 1 {
+			// Update LocalFieldsEnabled
+			if flags&0x1 == 1 {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Enabling local fields")
+				options.IsConsumerControlledForwardingEnabled = true
+				options.IsIncomingFaceIndicationEnabled = true
+				options.IsLocalCachePolicyEnabled = true
+			} else {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Disabling local fields")
+				options.IsConsumerControlledForwardingEnabled = false
+				options.IsIncomingFaceIndicationEnabled = false
+				options.IsLocalCachePolicyEnabled = false
+			}
+		}
+
+		if mask>>1&0x01 == 1 {
+			// Update LpReliabilityEnabled
+			options.IsReliabilityEnabled = flags>>1&0x01 == 1
+			if flags>>1&0x01 == 1 {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Enabling LpReliability")
+			} else {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Disabling LpReliability")
+			}
+		}
+
+		if mask>>2&0x01 == 1 {
+			// Update CongestionMarkingEnabled
+			options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
+			if flags>>2&0x01 == 1 {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Enabling congestion marking")
+			} else {
+				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Disabling congestion marking")
+			}
+		}
+
+		selectedFace.(*face.NDNLPLinkService).SetOptions(options)
+	}
+
+	responseParams := mgmt.MakeControlParameters()
+	f.fillFaceProperties(responseParams, selectedFace)
+	responseParams.URI = nil
+	responseParams.LocalURI = nil
+	responseParamsWire, err := responseParams.Encode()
+	if err != nil {
+		core.LogError(f, "Unable to encode response parameters: "+err.Error())
+		response = mgmt.MakeControlResponse(500, "Internal error", nil)
+	} else {
+		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	}
+	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
 func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace uint64) {
@@ -445,17 +601,32 @@ func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace ui
 	f.nextChannelDatasetVersion++
 }
 
-func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, face face.LinkService) {
+func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selectedFace face.LinkService) {
 	params.FaceID = new(uint64)
-	*params.FaceID = uint64(face.FaceID())
-	params.URI = face.RemoteURI()
-	params.LocalURI = face.LocalURI()
+	*params.FaceID = uint64(selectedFace.FaceID())
+	params.URI = selectedFace.RemoteURI()
+	params.LocalURI = selectedFace.LocalURI()
 	// TODO: Face Persistency
 	params.FacePersistency = new(uint64)
 	*params.FacePersistency = 0
+	// TODO: BaseCongestionMarkingInterval, DefaultCongestionThreshold
 	params.MTU = new(uint64)
-	*params.MTU = uint64(face.MTU())
-	// TODO: Flags
+	*params.MTU = uint64(selectedFace.MTU())
+
 	params.Flags = new(uint64)
 	*params.Flags = 0
+	linkService, ok := selectedFace.(*face.NDNLPLinkService)
+	if ok {
+		options := linkService.Options()
+		if options.IsConsumerControlledForwardingEnabled {
+			// This one will only be enabled if the other two local fields are enabled (and vice versa)
+			*params.Flags += 1 << 1
+		}
+		if options.IsReliabilityEnabled {
+			*params.Flags += 1 << 1
+		}
+		if options.IsCongestionMarkingEnabled {
+			*params.Flags += 1 << 2
+		}
+	}
 }
