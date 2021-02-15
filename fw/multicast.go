@@ -23,34 +23,26 @@ type Multicast struct {
 
 func init() {
 	strategyTypes = append(strategyTypes, reflect.TypeOf(new(Multicast)))
+	StrategyVersions["multicast"] = []uint64{1}
 }
 
 // Instantiate creates a new instance of the Multicast strategy.
 func (s *Multicast) Instantiate(fwThread *Thread) {
-	name, _ := ndn.NameFromString(StrategyPrefix + "/multicast/%FD%01")
-	s.NewStrategyBase(fwThread, name)
-}
-
-func (s *Multicast) String() string {
-	return "Strategy-Multicast"
-}
-
-// GetName ...
-func (s *Multicast) GetName() *ndn.Name {
-	return s.name
+	s.NewStrategyBase(fwThread, ndn.NewGenericNameComponent([]byte("multicast")), 1, "Multicast")
 }
 
 // AfterContentStoreHit ...
 func (s *Multicast) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
-	core.LogTrace(s, "Forwarding content store hit Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
 func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
+	core.LogTrace(s, "AfterReceiveData: Data="+data.Name().String()+", "+strconv.Itoa(len(pitEntry.InRecords))+" In-Records")
 	for faceID := range pitEntry.InRecords {
-		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
@@ -59,12 +51,12 @@ func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, da
 func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest) {
 	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "No nexthop for Interest "+interest.Name().String()+" - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest="+interest.Name().String()+" - DROP")
 		return
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "Forwarding Interest "+interest.Name().String()+" to FaceID="+strconv.FormatUint(nexthop.Nexthop, 10))
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest="+interest.Name().String()+" to FaceID="+strconv.FormatUint(nexthop.Nexthop, 10))
 		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
@@ -72,5 +64,5 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 // BeforeSatisfyInterest ...
 func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Does nothing in Multicast
-	core.LogTrace(s, "BeforeSatisfyInterest: "+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
+	core.LogTrace(s, "BeforeSatisfyInterest: Interest="+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
 }

@@ -43,10 +43,11 @@ func init() {
 	var err error
 	FibStrategyTable = new(FibStrategyEntry)
 	FibStrategyTable.component = nil // Root component will be nil since it represents zero components
-	FibStrategyTable.strategy, err = ndn.NameFromString("/localhost/yanfd/strategy/best-route/%FD%01")
+	FibStrategyTable.strategy, err = ndn.NameFromString("/localhost/nfd/strategy/best-route/v=1")
 	if err != nil {
 		core.LogFatal("FibStrategy", "Unable to create strategy name for best-route for \"/\": "+err.Error())
 	}
+	FibStrategyTable.Name = ndn.NewName()
 	fibPrefixes = make(map[string]*FibStrategyEntry)
 }
 
@@ -223,6 +224,9 @@ func (f *FibStrategyEntry) GetAllFIBEntries() []*FibStrategyEntry {
 func (f *FibStrategyEntry) SetStrategy(name *ndn.Name, strategy *ndn.Name) {
 	fibStrategyRWMutex.Lock()
 	entry := f.fillTreeToPrefix(name)
+	if entry.Name == nil {
+		entry.Name = name
+	}
 	entry.strategy = strategy
 	fibStrategyRWMutex.Unlock()
 }
@@ -236,4 +240,33 @@ func (f *FibStrategyEntry) UnsetStrategy(name *ndn.Name) {
 		entry.pruneIfEmpty()
 	}
 	fibStrategyRWMutex.Unlock()
+}
+
+// GetStrategy gets the strategy set at the current node.
+func (f *FibStrategyEntry) GetStrategy() *ndn.Name {
+	return f.strategy
+}
+
+// GetAllStrategyChoices returns all strategy choice entries in the Strategy Table.
+func (f *FibStrategyEntry) GetAllStrategyChoices() []*FibStrategyEntry {
+	fibStrategyRWMutex.Lock()
+	entries := make([]*FibStrategyEntry, 0)
+	// Walk tree in-order
+	queue := list.New()
+	queue.PushBack(f)
+	for queue.Len() > 0 {
+		fsEntry := queue.Front().Value.(*FibStrategyEntry)
+		queue.Remove(queue.Front())
+		// Add all children to stack
+		for _, child := range fsEntry.children {
+			queue.PushFront(child)
+		}
+
+		// If has any nexthop entries, add to list
+		if fsEntry.strategy != nil {
+			entries = append(entries, fsEntry)
+		}
+	}
+	fibStrategyRWMutex.Unlock()
+	return entries
 }

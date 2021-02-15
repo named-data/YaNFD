@@ -60,8 +60,8 @@ func TestNexthops(t *testing.T) {
 func TestStrategies(t *testing.T) {
 	assert.NotNil(t, table.FibStrategyTable)
 
-	bestRoute, _ := ndn.NameFromString("/localhost/yanfd/strategy/best-route/%FD%01")
-	multicast, _ := ndn.NameFromString("/localhost/yanfd/strategy/multicast/%FD%01")
+	bestRoute, _ := ndn.NameFromString("/localhost/nfd/strategy/best-route/v=1")
+	multicast, _ := ndn.NameFromString("/localhost/nfd/strategy/multicast/v=1")
 
 	name1, _ := ndn.NameFromString("/")
 	assert.True(t, bestRoute.Equals(table.FibStrategyTable.LongestPrefixStrategy(name1)))

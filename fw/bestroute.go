@@ -23,35 +23,26 @@ type BestRoute struct {
 
 func init() {
 	strategyTypes = append(strategyTypes, reflect.TypeOf(new(BestRoute)))
+	StrategyVersions["best-route"] = []uint64{1}
 }
 
 // Instantiate creates a new instance of the BestRoute strategy.
 func (s *BestRoute) Instantiate(fwThread *Thread) {
-	name, _ := ndn.NameFromString(StrategyPrefix + "/best-route/%FD%01")
-	s.NewStrategyBase(fwThread, name)
-}
-
-func (s *BestRoute) String() string {
-	return "Strategy-BestRoute"
-}
-
-// GetName ...
-func (s *BestRoute) GetName() *ndn.Name {
-	return s.name
+	s.NewStrategyBase(fwThread, ndn.NewGenericNameComponent([]byte("best-route")), 1, "BestRoute")
 }
 
 // AfterContentStoreHit ...
 func (s *BestRoute) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
 func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
-	core.LogTrace(s, "AfterReceiveData: "+data.Name().String()+", "+strconv.Itoa(len(pitEntry.InRecords))+" In-Records")
+	core.LogTrace(s, "AfterReceiveData: Data="+data.Name().String()+", "+strconv.Itoa(len(pitEntry.InRecords))+" In-Records")
 	for faceID := range pitEntry.InRecords {
-		core.LogTrace(s, "Forwarding Data "+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
@@ -60,7 +51,7 @@ func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, da
 func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest) {
 	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "No nexthop for Interest "+interest.Name().String()+" - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest="+interest.Name().String()+" - DROP")
 		return
 	}
 
@@ -71,12 +62,12 @@ func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 		}
 	}
 
-	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest "+interest.Name().String()+" to FaceID="+strconv.FormatUint(lowestCost.Nexthop, 10))
+	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest="+interest.Name().String()+" to FaceID="+strconv.FormatUint(lowestCost.Nexthop, 10))
 	s.SendInterest(interest, pitEntry, lowestCost.Nexthop, inFace)
 }
 
 // BeforeSatisfyInterest ...
 func (s *BestRoute) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Does nothing in BestRoute
-	core.LogTrace(s, "BeforeSatisfyInterest: "+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
+	core.LogTrace(s, "BeforeSatisfyInterest: Data="+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
 }

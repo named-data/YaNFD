@@ -29,10 +29,16 @@ type Thread struct {
 // MakeMgmtThread creates a new management thread.
 func MakeMgmtThread() *Thread {
 	m := new(Thread)
+	var err error
+	m.prefix, err = ndn.NameFromString("/localhost/nfd")
+	if err != nil {
+		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
+	}
 	m.modules = make(map[string]Module)
 	m.registerModule("faces", new(FaceModule))
 	m.registerModule("fib", new(FIBModule))
 	m.registerModule("rib", new(RIBModule))
+	m.registerModule("strategy-choice", new(StrategyChoiceModule))
 	return m
 }
 
@@ -78,11 +84,6 @@ func (m *Thread) Run() {
 
 	// Create and register Internal transport
 	m.face, m.transport = face.RegisterInternalTransport()
-	var err error
-	m.prefix, err = ndn.NameFromString("/localhost/nfd")
-	if err != nil {
-		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
-	}
 	table.FibStrategyTable.AddNexthop(m.prefix, m.face.FaceID(), 0)
 
 	for {

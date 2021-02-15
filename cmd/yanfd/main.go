@@ -54,8 +54,8 @@ func main() {
 	core.LogInfo("Main", "Starting YaNFD")
 
 	// Load strategies
-	core.LogInfo("Main", "Loading strategies")
-	fw.LoadStrategies()
+	//core.LogInfo("Main", "Loading strategies")
+	//fw.LoadStrategies()
 
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())

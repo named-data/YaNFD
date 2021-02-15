@@ -9,6 +9,7 @@ package mgmt
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
@@ -174,7 +175,11 @@ func DecodeControlParameters(wire *tlv.Block) (*ControlParameters, error) {
 			if c.Strategy != nil {
 				return nil, errors.New("Duplicate Strategy")
 			}
-			c.Strategy, err = ndn.DecodeName(elem)
+			elem.Parse()
+			if len(elem.Subelements()) != 1 {
+				return nil, errors.New("Unable to decode Strategy: Expecting one subelement, found " + strconv.Itoa(len(elem.Subelements())))
+			}
+			c.Strategy, err = ndn.DecodeName(elem.Subelements()[0])
 			if err != nil {
 				return nil, errors.New("Unable to decode Strategy: " + err.Error())
 			}
@@ -250,7 +255,9 @@ func (c *ControlParameters) Encode() (*tlv.Block, error) {
 		wire.Append(tlv.EncodeNNIBlock(tlv.Mask, *c.Mask))
 	}
 	if c.Strategy != nil {
-		wire.Append(c.Strategy.Encode())
+		strategyBlock := tlv.NewEmptyBlock(tlv.Strategy)
+		strategyBlock.Append(c.Strategy.Encode())
+		wire.Append(strategyBlock)
 	}
 	if c.ExpirationPeriod != nil {
 		wire.Append(tlv.EncodeNNIBlock(tlv.ExpirationPeriod, *c.ExpirationPeriod))
