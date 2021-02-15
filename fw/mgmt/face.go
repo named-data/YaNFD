@@ -19,7 +19,7 @@ import (
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
-// FaceModule is the module that handles for Face Management.
+// FaceModule is the module that handles Face Management.
 type FaceModule struct {
 	manager                   *Thread
 	nextFaceDatasetVersion    uint64
@@ -253,22 +253,45 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 
 	// Validate parameters
 
+	responseParams := mgmt.MakeControlParameters()
+	areParamsValid := true
+
 	selectedFace := face.FaceTable.Get(faceID)
 	if selectedFace == nil {
 		core.LogWarn(f, "Cannot update specified (or implicit) FaceID="+strconv.FormatUint(faceID, 10)+" because it does not exist")
-		response = mgmt.MakeControlResponse(404, "Face does not exist", nil)
+		responseParams.FaceID = new(uint64)
+		*responseParams.FaceID = faceID
+		responseParamsWire, err := responseParams.Encode()
+		if err != nil {
+			core.LogError(f, "Unable to encode response parameters: "+err.Error())
+			response = mgmt.MakeControlResponse(500, "Internal error", nil)
+		} else {
+			response = mgmt.MakeControlResponse(404, "Face does not exist", responseParamsWire)
+		}
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
 		core.LogWarn(f, "Flags and Mask fields either both be present or both be not present")
-		response = mgmt.MakeControlResponse(409, "Incomplete Flags/Mask combination", nil)
-		f.manager.sendResponse(response, interest, pitToken, inFace)
-		return
+		if params.Flags != nil {
+			responseParams.Flags = new(uint64)
+			*responseParams.Flags = *params.Flags
+		}
+		if params.Mask != nil {
+			responseParams.Mask = new(uint64)
+			*responseParams.Mask = *params.Mask
+		}
+		areParamsValid = false
 	}
 
 	// TODO: FacePersistency, BaseCongestionMarkingInterval, DefaultCongestionThreshold
+
+	if !areParamsValid {
+		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
 
 	// Actually perform face updates
 	// MTU
@@ -326,7 +349,6 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		selectedFace.(*face.NDNLPLinkService).SetOptions(options)
 	}
 
-	responseParams := mgmt.MakeControlParameters()
 	f.fillFaceProperties(responseParams, selectedFace)
 	responseParams.URI = nil
 	responseParams.LocalURI = nil

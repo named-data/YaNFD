@@ -8,6 +8,7 @@
 package table
 
 import (
+	"container/list"
 	"sync"
 
 	"github.com/eric135/YaNFD/core"
@@ -17,6 +18,7 @@ import (
 // FibStrategyEntry represents an entry in the FIB-Strategy table.
 type FibStrategyEntry struct {
 	component ndn.NameComponent
+	Name      *ndn.Name
 	depth     int
 
 	parent   *FibStrategyEntry
@@ -35,6 +37,7 @@ type FibNextHopEntry struct {
 // FibStrategyTable is a table containing FIB and Strategy entries for given prefixes.
 var FibStrategyTable *FibStrategyEntry
 var fibStrategyRWMutex sync.RWMutex
+var fibPrefixes map[string]*FibStrategyEntry
 
 func init() {
 	var err error
@@ -44,6 +47,7 @@ func init() {
 	if err != nil {
 		core.LogFatal("FibStrategy", "Unable to create strategy name for best-route for \"/\": "+err.Error())
 	}
+	fibPrefixes = make(map[string]*FibStrategyEntry)
 }
 
 func (f *FibStrategyEntry) findExactMatchEntry(name *ndn.Name) *FibStrategyEntry {
@@ -145,6 +149,9 @@ func (f *FibStrategyEntry) LongestPrefixStrategy(name *ndn.Name) *ndn.Name {
 func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint) {
 	fibStrategyRWMutex.Lock()
 	entry := f.fillTreeToPrefix(name)
+	if entry.Name == nil {
+		entry.Name = name
+	}
 	for _, existingNexthop := range entry.nexthops {
 		if existingNexthop.Nexthop == nexthop {
 			existingNexthop.Cost = cost
@@ -157,7 +164,13 @@ func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint)
 	newEntry.Nexthop = nexthop
 	newEntry.Cost = cost
 	entry.nexthops = append(entry.nexthops, newEntry)
+	fibPrefixes[name.String()] = entry
 	fibStrategyRWMutex.Unlock()
+}
+
+// GetNexthops gets nexthops in the specified entry.
+func (f *FibStrategyEntry) GetNexthops() []*FibNextHopEntry {
+	return f.nexthops
 }
 
 // RemoveNexthop removes the specified nexthop entry from the specified prefix.
@@ -174,9 +187,36 @@ func (f *FibStrategyEntry) RemoveNexthop(name *ndn.Name, nexthop uint64) {
 				break
 			}
 		}
+		if len(entry.nexthops) == 0 {
+			delete(fibPrefixes, name.String())
+		}
 		entry.pruneIfEmpty()
 	}
 	fibStrategyRWMutex.Unlock()
+}
+
+// GetAllFIBEntries returns all nexthop entries in the FIB (with paired names).
+func (f *FibStrategyEntry) GetAllFIBEntries() []*FibStrategyEntry {
+	fibStrategyRWMutex.Lock()
+	entries := make([]*FibStrategyEntry, 0)
+	// Walk tree in-order
+	queue := list.New()
+	queue.PushBack(f)
+	for queue.Len() > 0 {
+		fsEntry := queue.Front().Value.(*FibStrategyEntry)
+		queue.Remove(queue.Front())
+		// Add all children to stack
+		for _, child := range fsEntry.children {
+			queue.PushFront(child)
+		}
+
+		// If has any nexthop entries, add to list
+		if len(fsEntry.nexthops) > 0 {
+			entries = append(entries, fsEntry)
+		}
+	}
+	fibStrategyRWMutex.Unlock()
+	return entries
 }
 
 // SetStrategy sets the strategy for the specified prefix.
