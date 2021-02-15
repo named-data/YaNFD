@@ -85,7 +85,7 @@ func (t *Thread) String() string {
 
 // GetID returns the ID of the forwarding thread
 func (t *Thread) GetID() int {
-	return t.GetID()
+	return t.threadID
 }
 
 // TellToQuit tells the forwarding thread to quit
@@ -167,6 +167,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	// Get strategy for name
 	strategyName := table.FibStrategyTable.LongestPrefixStrategy(interest.Name())
 	strategy := t.strategies[strategyName.String()]
+	core.LogDebug(t, "Using Strategy="+strategyName.String()+" for Interest="+interest.Name().String())
 
 	// Add in-record and determine if already pending
 	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID())

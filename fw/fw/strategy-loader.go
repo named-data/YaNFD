@@ -9,18 +9,22 @@ package fw
 
 import (
 	"reflect"
+	"strconv"
 
 	"github.com/eric135/YaNFD/core"
 )
 
-const strategyDir = "strategy"
+//const strategyDir = "strategy"
 
 //var strategyPlugins []*plugin.Plugin
 var strategyTypes []reflect.Type
 
+// StrategyVersions contains a list of strategies mapping to a list of their versions
+var StrategyVersions = make(map[string][]uint64)
+
 // LoadStrategies loads the strategy modules.
-func LoadStrategies() {
-	/*strategyPlugins = make([]*plugin.Plugin, 0)
+/*func LoadStrategies() {
+	strategyPlugins = make([]*plugin.Plugin, 0)
 
 	// TODO: Make path configurable
 	filepath.Walk("strategies", func(path string, info os.FileInfo, err error) error {
@@ -63,8 +67,8 @@ func LoadStrategies() {
 		core.LogDebug("StrategyLoader", "Loaded "+strategyName.(string))
 		strategyPlugins = append(strategyPlugins, strategyPlugin)
 		return nil
-	})*/
-}
+	})
+}*/
 
 // InstantiateStrategies instantiates all strategies for a forwarding thread.
 func InstantiateStrategies(fwThread *Thread) map[string]Strategy {
@@ -74,7 +78,7 @@ func InstantiateStrategies(fwThread *Thread) map[string]Strategy {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
 		strategy.Instantiate(fwThread)
 		strategies[strategy.GetName().String()] = strategy
-		core.LogDebug("StrategyLoader", "Instantiated strategy "+strategy.GetName().String())
+		core.LogDebug("StrategyLoader", "Instantiated Strategy="+strategy.GetName().String()+" for Thread="+strconv.Itoa(fwThread.GetID()))
 	}
 
 	/*for _, plugin := range strategyPlugins {

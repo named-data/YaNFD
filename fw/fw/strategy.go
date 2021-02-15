@@ -15,11 +15,12 @@ import (
 )
 
 // StrategyPrefix is the prefix of all strategy names for YaNFD
-const StrategyPrefix = "/localhost/yanfd/strategy"
+const StrategyPrefix = "/localhost/nfd/strategy"
 
 // Strategy represents a forwarding strategy.
 type Strategy interface {
 	Instantiate(fwThread *Thread)
+	String() string
 	GetName() *ndn.Name
 
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
@@ -30,20 +31,31 @@ type Strategy interface {
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
 type StrategyBase struct {
-	thread   *Thread
-	threadID int
-	name     *ndn.Name
+	thread          *Thread
+	threadID        int
+	name            *ndn.Name
+	strategyName    *ndn.GenericNameComponent
+	version         uint64
+	strategyLogName string
 }
 
 // NewStrategyBase is a helper that allows specific strategies to initialize the base.
-func (s *StrategyBase) NewStrategyBase(fwThread *Thread, name *ndn.Name) {
+func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName *ndn.GenericNameComponent, version uint64, strategyLogName string) {
 	s.thread = fwThread
 	s.threadID = s.thread.threadID
-	s.name = name
+	s.name, _ = ndn.NameFromString(StrategyPrefix)
+	s.strategyName = strategyName
+	s.name.Append(strategyName).Append(ndn.NewVersionNameComponent(version))
+	s.strategyLogName = strategyLogName
 }
 
 func (s *StrategyBase) String() string {
-	return "StrategyBase-" + strconv.Itoa(s.threadID)
+	return s.strategyLogName + "-v" + strconv.FormatUint(s.version, 10) + strconv.Itoa(s.threadID)
+}
+
+// GetName returns the name of strategy, including version information.
+func (s *StrategyBase) GetName() *ndn.Name {
+	return s.name
 }
 
 // SendInterest sends an Interest on the specified face.

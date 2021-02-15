@@ -445,6 +445,11 @@ func (n *VersionNameComponent) SetValue(value uint64) {
 	n.wire = nil
 }
 
+// Version returns the version contained in the name component.
+func (n *VersionNameComponent) Version() uint64 {
+	return n.rawValue
+}
+
 /////////////////////////
 // TimestampNameComponent
 /////////////////////////
@@ -618,7 +623,7 @@ func NameFromString(str string) (*Name, error) {
 				if err != nil {
 					return nil, errors.New("VersionNameComponent is not a decimal string")
 				}
-				c = NewByteOffsetNameComponent(v)
+				c = NewVersionNameComponent(v)
 			case "t":
 				t, err := strconv.ParseUint(unescapedValue, 10, 64)
 				if err != nil {
