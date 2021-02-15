@@ -785,6 +785,17 @@ func (n *Name) Compare(other *Name) int {
 	return 0
 }
 
+// DeepCopy returns a deep copy of the name.
+func (n *Name) DeepCopy() *Name {
+	name := new(Name)
+	name.components = make([]NameComponent, 0)
+	for _, component := range n.components {
+		name.components = append(name.components, component.DeepCopy())
+	}
+	name.wire = nil
+	return name
+}
+
 // Equals returns whether the specified name is equal to this name.
 func (n *Name) Equals(other *Name) bool {
 	if n.Size() != other.Size() {
