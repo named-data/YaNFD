@@ -114,29 +114,54 @@ func (r *RibEntry) pruneIfEmpty() {
 	}
 }
 
+func (r *RibEntry) updateNexthops(node *RibEntry) {
+	FibStrategyTable.ClearNexthops(node.Name)
+
+	// Find minimum cost route per nexthop
+	minCostRoutes := make(map[uint64]uint64) // FaceID -> Cost
+	for _, route := range node.routes {
+		if _, ok := minCostRoutes[route.FaceID]; !ok {
+			minCostRoutes[route.FaceID] = route.Cost
+		} else if route.Cost < minCostRoutes[route.FaceID] {
+			minCostRoutes[route.FaceID] = route.Cost
+		}
+	}
+
+	// Add "flattened" set of nexthops
+	for nexthop, cost := range minCostRoutes {
+		FibStrategyTable.AddNexthop(node.Name, nexthop, cost)
+	}
+}
+
 // AddRoute adds or updates a RIB entry for the specified prefix.
 func (r *RibEntry) AddRoute(name *ndn.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration) {
-	entry := r.fillTreeToPrefix(name)
-	if entry.Name == nil {
-		entry.Name = name
+	node := r.fillTreeToPrefix(name)
+	if node.Name == nil {
+		node.Name = name
 	}
-	for _, existingRoute := range entry.routes {
+	var route *Route
+	for _, existingRoute := range node.routes {
 		if existingRoute.FaceID == faceID && existingRoute.Origin == origin {
 			existingRoute.Cost = cost
 			existingRoute.Flags = flags
 			existingRoute.ExpirationPeriod = expirationPeriod
-			return
+			route = existingRoute
+			break
 		}
 	}
 
-	newEntry := new(Route)
-	newEntry.FaceID = faceID
-	newEntry.Origin = origin
-	newEntry.Cost = cost
-	newEntry.Flags = flags
-	newEntry.ExpirationPeriod = expirationPeriod
-	entry.routes = append(entry.routes, newEntry)
-	ribPrefixes[name.String()] = entry
+	if route == nil {
+		newEntry := new(Route)
+		newEntry.FaceID = faceID
+		newEntry.Origin = origin
+		newEntry.Cost = cost
+		newEntry.Flags = flags
+		newEntry.ExpirationPeriod = expirationPeriod
+		node.routes = append(node.routes, newEntry)
+		ribPrefixes[name.String()] = node
+	}
+
+	r.updateNexthops(node)
 }
 
 // GetAllEntries returns all routes in the FIB.
@@ -182,6 +207,7 @@ func (r *RibEntry) RemoveRoute(name *ndn.Name, faceID uint64, origin uint64) {
 		if len(entry.routes) == 0 {
 			delete(ribPrefixes, name.String())
 		}
+		r.updateNexthops(entry)
 		entry.pruneIfEmpty()
 	}
 }

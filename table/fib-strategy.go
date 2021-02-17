@@ -169,6 +169,16 @@ func (f *FibStrategyEntry) AddNexthop(name *ndn.Name, nexthop uint64, cost uint6
 	fibStrategyRWMutex.Unlock()
 }
 
+// ClearNexthops clears all nexthops for the specified prefix.
+func (f *FibStrategyEntry) ClearNexthops(name *ndn.Name) {
+	fibStrategyRWMutex.Lock()
+	node := f.findExactMatchEntry(name)
+	if node != nil {
+		node.nexthops = make([]*FibNextHopEntry, 0)
+	}
+	fibStrategyRWMutex.Unlock()
+}
+
 // GetNexthops gets nexthops in the specified entry.
 func (f *FibStrategyEntry) GetNexthops() []*FibNextHopEntry {
 	return f.nexthops
@@ -198,7 +208,7 @@ func (f *FibStrategyEntry) RemoveNexthop(name *ndn.Name, nexthop uint64) {
 
 // GetAllFIBEntries returns all nexthop entries in the FIB.
 func (f *FibStrategyEntry) GetAllFIBEntries() []*FibStrategyEntry {
-	fibStrategyRWMutex.Lock()
+	fibStrategyRWMutex.RLock()
 	entries := make([]*FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
@@ -216,7 +226,7 @@ func (f *FibStrategyEntry) GetAllFIBEntries() []*FibStrategyEntry {
 			entries = append(entries, fsEntry)
 		}
 	}
-	fibStrategyRWMutex.Unlock()
+	fibStrategyRWMutex.RUnlock()
 	return entries
 }
 
@@ -249,7 +259,7 @@ func (f *FibStrategyEntry) GetStrategy() *ndn.Name {
 
 // GetAllStrategyChoices returns all strategy choice entries in the Strategy Table.
 func (f *FibStrategyEntry) GetAllStrategyChoices() []*FibStrategyEntry {
-	fibStrategyRWMutex.Lock()
+	fibStrategyRWMutex.RLock()
 	entries := make([]*FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
@@ -267,6 +277,6 @@ func (f *FibStrategyEntry) GetAllStrategyChoices() []*FibStrategyEntry {
 			entries = append(entries, fsEntry)
 		}
 	}
-	fibStrategyRWMutex.Unlock()
+	fibStrategyRWMutex.RUnlock()
 	return entries
 }
