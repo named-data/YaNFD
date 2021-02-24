@@ -44,6 +44,14 @@ type LinkService interface {
 	Close()
 	tellTransportQuit()
 	GetHasQuit() chan bool
+
+	// Counters
+	NInInterests() uint64
+	NInData() uint64
+	NInBytes() uint64
+	NOutInterests() uint64
+	NOutData() uint64
+	NOutBytes() uint64
 }
 
 // linkServiceBase is the type upon which all link service implementations should be built
@@ -54,6 +62,12 @@ type linkServiceBase struct {
 	hasImplQuit      chan bool
 	hasTransportQuit chan bool
 	sendQueue        chan *ndn.PendingPacket
+
+	// Counters
+	nInInterests  uint64
+	nInData       uint64
+	nOutInterests uint64
+	nOutData      uint64
 }
 
 func (l *linkServiceBase) String() string {
@@ -138,6 +152,40 @@ func (l *linkServiceBase) SetMTU(mtu int) {
 // State returns the state of the underlying transport
 func (l *linkServiceBase) State() ndn.State {
 	return l.transport.State()
+}
+
+//
+// Counters
+//
+
+// NInInterests returns the number of Interests received on this face.
+func (l *linkServiceBase) NInInterests() uint64 {
+	return l.nInInterests
+}
+
+// NInData returns the number of Data packets received on this face.
+func (l *linkServiceBase) NInData() uint64 {
+	return l.nInData
+}
+
+// NInBytes returns the number of link-layer bytes received on this face.
+func (l *linkServiceBase) NInBytes() uint64 {
+	return l.transport.NInBytes()
+}
+
+// NOutInterests returns the number of Interests sent on this face.
+func (l *linkServiceBase) NOutInterests() uint64 {
+	return l.nOutInterests
+}
+
+// NInData returns the number of Data packets sent on this face.
+func (l *linkServiceBase) NOutData() uint64 {
+	return l.nOutData
+}
+
+// NOutBytes returns the number of link-layer bytes sent on this face.
+func (l *linkServiceBase) NOutBytes() uint64 {
+	return l.transport.NOutBytes()
 }
 
 //

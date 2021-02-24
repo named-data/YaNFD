@@ -185,6 +185,13 @@ func (l *NDNLPLinkService) runSend() {
 				return
 			}
 
+			// Counters
+			if netPacket.Wire.Type() == tlv.Interest {
+				l.nOutInterests++
+			} else if netPacket.Wire.Type() == tlv.Data {
+				l.nOutData++
+			}
+
 			effectiveMtu := l.transport.MTU() - l.headerOverhead
 			if netPacket.PitToken != nil {
 				effectiveMtu -= pitTokenOverhead
@@ -428,6 +435,13 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	if len(frame.PitToken()) > 0 {
 		netPacket.PitToken = make([]byte, len(frame.PitToken()))
 		copy(netPacket.PitToken, frame.PitToken())
+	}
+
+	// Counters
+	if netPacket.Wire.Type() == tlv.Interest {
+		l.nInInterests++
+	} else if netPacket.Wire.Type() == tlv.Data {
+		l.nInData++
 	}
 
 	l.dispatchIncomingPacket(netPacket)

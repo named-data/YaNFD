@@ -106,6 +106,7 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 		core.LogWarn(t, "Unable to write frame - DROP and FACE DOWN")
 		t.changeState(ndn.Down)
 	}
+	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *MulticastEthernetTransport) runReceive() {
@@ -120,7 +121,9 @@ func (t *MulticastEthernetTransport) runReceive() {
 
 			if len(ndnLayer) > tlv.MaxNDNPacketSize {
 				core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+				continue
 			}
+			t.nInBytes += uint64(len(ndnLayer))
 
 			// Determine whether valid packet received
 			_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)

@@ -95,6 +95,7 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 		core.LogWarn("Unable to send on socket - DROP and Face DOWN")
 		t.changeState(ndn.Down)
 	}
+	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *MulticastUDPTransport) runReceive() {
@@ -112,6 +113,7 @@ func (t *MulticastUDPTransport) runReceive() {
 		}
 
 		core.LogTrace(t, "Receive of size", readSize, "from", remoteAddr.String())
+		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")

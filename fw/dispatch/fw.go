@@ -15,4 +15,7 @@ type FWThread interface {
 
 	QueueData(packet *ndn.PendingPacket)
 	QueueInterest(packet *ndn.PendingPacket)
+
+	GetNumPitEntries() int
+	GetNumCsEntries() int
 }

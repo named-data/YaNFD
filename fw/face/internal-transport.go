@@ -118,6 +118,8 @@ func (t *InternalTransport) sendFrame(frame []byte) {
 		return
 	}
 
+	t.nOutBytes += uint64(len(frame))
+
 	core.LogDebug(t, "Sending frame of size", len(frame))
 	t.recvQueue <- frame
 }
@@ -136,6 +138,8 @@ func (t *InternalTransport) runReceive() {
 				core.LogWarn(t, "Component trying to send too much data - DROP")
 				continue
 			}
+
+			t.nInBytes += uint64(len(frame))
 
 			t.linkService.handleIncomingFrame(frame)
 		}

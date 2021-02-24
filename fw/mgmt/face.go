@@ -522,15 +522,14 @@ func (f *FaceModule) createDataset(face face.LinkService) []byte {
 	// TODO: DefaultCongestionThreshold
 	faceDataset.MTU = new(uint64)
 	*faceDataset.MTU = uint64(face.MTU())
-	// TODO: Put real values here
-	faceDataset.NInInterests = 0
-	faceDataset.NInData = 0
+	faceDataset.NInInterests = face.NInInterests()
+	faceDataset.NInData = face.NInData()
 	faceDataset.NInNacks = 0
-	faceDataset.NOutInterests = 0
-	faceDataset.NOutData = 0
+	faceDataset.NOutInterests = face.NOutInterests()
+	faceDataset.NOutData = face.NOutData()
 	faceDataset.NOutNacks = 0
-	faceDataset.NInBytes = 0
-	faceDataset.NOutBytes = 0
+	faceDataset.NInBytes = face.NInBytes()
+	faceDataset.NOutBytes = face.NOutBytes()
 	// TODO: Put a real value here
 	faceDataset.Flags = 0
 

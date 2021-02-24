@@ -9,6 +9,7 @@ package table
 
 import (
 	"bytes"
+	"sync"
 	"time"
 
 	"github.com/eric135/YaNFD/ndn"
@@ -16,8 +17,11 @@ import (
 
 // PitCsNode represents an entry in a PIT-CS tree.
 type PitCsNode struct {
-	component ndn.NameComponent
-	depth     int
+	component    ndn.NameComponent
+	depth        int
+	nPitEntries  int        // Number of CS entries in tree (only set in root node)
+	nCsEntries   int        // Number of CS entries in tree (only set in root node)
+	cleanupMutex sync.Mutex // Blocks the cleanup goroutine from interfering with forwarding and vice versa
 
 	parent   *PitCsNode
 	children []*PitCsNode
@@ -111,6 +115,16 @@ func (p *PitCsNode) fillTreeToPrefix(name *ndn.Name) *PitCsNode {
 	return curNode
 }
 
+// PitSize returns the number of entries in the PIT.
+func (p *PitCsNode) PitSize() int {
+	return p.nPitEntries
+}
+
+// CsSize returns the number of entries in the CS.
+func (p *PitCsNode) CsSize() int {
+	return p.nCsEntries
+}
+
 // FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
 func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*PitEntry, bool) {
 	node := p.fillTreeToPrefix(interest.Name())
@@ -125,6 +139,7 @@ func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*Pit
 	}
 
 	if entry == nil {
+		p.nPitEntries++
 		entry = new(PitEntry)
 		entry.node = node
 		entry.name = interest.Name()
@@ -185,7 +200,11 @@ func (p *PitCsNode) InsertDataCS(data *ndn.Data) {
 	node := p.fillTreeToPrefix(data.Name())
 	if node.csEntry != nil {
 		// Replace
+		p.nPitEntries++
 		node.csEntry.Data = data
+
+		// TODO: Remove some entries from PIT if needed
+
 		if data.MetaInfo() == nil || data.MetaInfo().FinalBlockID() == nil {
 			node.csEntry.StaleTime = time.Now()
 		} else {
