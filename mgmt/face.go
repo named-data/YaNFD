@@ -508,39 +508,51 @@ func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint6
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) createDataset(face face.LinkService) []byte {
+func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 	faceDataset := mgmt.MakeFaceStatus()
-	faceDataset.FaceID = uint64(face.FaceID())
-	faceDataset.URI = face.RemoteURI()
-	faceDataset.LocalURI = face.LocalURI()
+	faceDataset.FaceID = uint64(selectedFace.FaceID())
+	faceDataset.URI = selectedFace.RemoteURI()
+	faceDataset.LocalURI = selectedFace.LocalURI()
 	// TODO: ExpirationPeriod
-	faceDataset.FaceScope = uint64(face.Scope())
+	faceDataset.FaceScope = uint64(selectedFace.Scope())
 	// TODO: Put a real value here
 	faceDataset.FacePersistency = 0
-	faceDataset.LinkType = uint64(face.LinkType())
+	faceDataset.LinkType = uint64(selectedFace.LinkType())
 	// TODO: BaseCongestionMarkingInterval
 	// TODO: DefaultCongestionThreshold
 	faceDataset.MTU = new(uint64)
-	*faceDataset.MTU = uint64(face.MTU())
-	faceDataset.NInInterests = face.NInInterests()
-	faceDataset.NInData = face.NInData()
+	*faceDataset.MTU = uint64(selectedFace.MTU())
+	faceDataset.NInInterests = selectedFace.NInInterests()
+	faceDataset.NInData = selectedFace.NInData()
 	faceDataset.NInNacks = 0
-	faceDataset.NOutInterests = face.NOutInterests()
-	faceDataset.NOutData = face.NOutData()
+	faceDataset.NOutInterests = selectedFace.NOutInterests()
+	faceDataset.NOutData = selectedFace.NOutData()
 	faceDataset.NOutNacks = 0
-	faceDataset.NInBytes = face.NInBytes()
-	faceDataset.NOutBytes = face.NOutBytes()
-	// TODO: Put a real value here
-	faceDataset.Flags = 0
+	faceDataset.NInBytes = selectedFace.NInBytes()
+	faceDataset.NOutBytes = selectedFace.NOutBytes()
+	linkService, ok := selectedFace.(*face.NDNLPLinkService)
+	if ok {
+		options := linkService.Options()
+		if options.IsConsumerControlledForwardingEnabled {
+			// This one will only be enabled if the other two local fields are enabled (and vice versa)
+			faceDataset.Flags += 1 << 0
+		}
+		if options.IsReliabilityEnabled {
+			faceDataset.Flags += 1 << 1
+		}
+		if options.IsCongestionMarkingEnabled {
+			faceDataset.Flags += 1 << 2
+		}
+	}
 
 	faceDatasetEncoded, err := faceDataset.Encode()
 	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(face.FaceID(), 10)+": "+err.Error())
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(selectedFace.FaceID(), 10)+": "+err.Error())
 		return []byte{}
 	}
 	faceDatasetWire, err := faceDatasetEncoded.Wire()
 	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(face.FaceID(), 10)+": "+err.Error())
+		core.LogError(f, "Cannot encode FaceStatus for FaceID="+strconv.FormatUint(selectedFace.FaceID(), 10)+": "+err.Error())
 		return []byte{}
 	}
 	return faceDatasetWire
@@ -641,7 +653,7 @@ func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selected
 		options := linkService.Options()
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
-			*params.Flags += 1 << 1
+			*params.Flags += 1 << 0
 		}
 		if options.IsReliabilityEnabled {
 			*params.Flags += 1 << 1
