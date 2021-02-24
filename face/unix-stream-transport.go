@@ -57,6 +57,8 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
 		t.changeState(ndn.Down)
 	}
+
+	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *UnixStreamTransport) runReceive() {
@@ -76,6 +78,7 @@ func (t *UnixStreamTransport) runReceive() {
 		}
 
 		core.LogTrace(t, "Receive of size", readSize)
+		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")

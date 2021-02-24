@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/dispatch"
@@ -22,14 +23,24 @@ import (
 	"github.com/eric135/YaNFD/ndn"
 )
 
+// Version of YaNFD.
+var Version string
+
+// BuildTime contains the timestamp of when the version of YaNFD was built.
+var BuildTime string
+
 func main() {
+	// Provide metadata to other threads.
+	core.Version = Version
+	core.BuildTime = BuildTime
+	core.StartTimestamp = time.Now()
+
 	// Parse command line options
 	var shouldPrintVersion bool
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&shouldPrintVersion, "V", false, "Print version and exit (short)")
-	var numForwardingThreads int
-	flag.IntVar(&numForwardingThreads, "threads", 8, "Number of forwarding threads")
-	flag.IntVar(&numForwardingThreads, "t", 8, "Number of forwarding threads")
+	flag.IntVar(&core.NumForwardingThreads, "threads", 8, "Number of forwarding threads")
+	flag.IntVar(&core.NumForwardingThreads, "t", 8, "Number of forwarding threads")
 	var disableEthernet bool
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
@@ -38,13 +49,13 @@ func main() {
 
 	if shouldPrintVersion {
 		fmt.Println("YaNFD: Yet another NDN Forwarding Daemon")
-		fmt.Println("Version " + Version + " (Built " + BuildTime + ")")
+		fmt.Println("Version " + core.Version + " (Built " + core.BuildTime + ")")
 		fmt.Println("Copyright (C) 2020-2021 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
 	}
 
-	if numForwardingThreads < 1 || numForwardingThreads > fw.MaxFwThreads {
+	if core.NumForwardingThreads < 1 || core.NumForwardingThreads > fw.MaxFwThreads {
 		fmt.Println("Number of forwarding threads must be in range [1,", fw.MaxFwThreads, "]")
 		fmt.Println()
 		flag.PrintDefaults()
@@ -68,7 +79,7 @@ func main() {
 
 	// Create forwarding threads
 	fw.Threads = make(map[int]*fw.Thread)
-	for i := 0; i < numForwardingThreads; i++ {
+	for i := 0; i < core.NumForwardingThreads; i++ {
 		newThread := fw.NewThread(i)
 		fw.Threads[i] = newThread
 		dispatch.AddFWThread(i, newThread)

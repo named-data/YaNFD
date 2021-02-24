@@ -38,6 +38,7 @@ func MakeMgmtThread() *Thread {
 	m.registerModule("faces", new(FaceModule))
 	m.registerModule("fib", new(FIBModule))
 	m.registerModule("rib", new(RIBModule))
+	m.registerModule("status", new(ForwarderStatusModule))
 	m.registerModule("strategy-choice", new(StrategyChoiceModule))
 	return m
 }

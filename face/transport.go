@@ -31,6 +31,10 @@ type transport interface {
 	sendFrame([]byte)
 
 	changeState(newState ndn.State)
+
+	// Counters
+	NInBytes() uint64
+	NOutBytes() uint64
 }
 
 // transportBase provides logic common types between transport types
@@ -48,6 +52,10 @@ type transportBase struct {
 	recvQueue chan *tlv.Block
 
 	hasQuit chan bool
+
+	// Counters
+	nInBytes  uint64
+	nOutBytes uint64
 }
 
 func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, mtu int) {
@@ -105,6 +113,20 @@ func (t *transportBase) State() ndn.State {
 }
 
 //
+// Counters
+//
+
+// NInBytes returns the number of link-layer bytes received on this transport.
+func (t *transportBase) NInBytes() uint64 {
+	return t.nInBytes
+}
+
+// NOutBytes returns the number of link-layer bytes sent on this transport.
+func (t *transportBase) NOutBytes() uint64 {
+	return t.nOutBytes
+}
+
+//
 // Stubs
 //
 
@@ -114,6 +136,8 @@ func (t *transportBase) runReceive() {
 
 func (t *transportBase) sendFrame(frame []byte) {
 	// Overridden in specific transport implementation
+
+	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *transportBase) receiveInitialFrameFromListener(frame []byte) {

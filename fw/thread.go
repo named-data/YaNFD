@@ -64,6 +64,14 @@ type Thread struct {
 	strategies       map[string]Strategy
 	shouldQuit       chan interface{}
 	HasQuit          chan interface{}
+
+	// Counters
+	NInInterests          uint64
+	NInData               uint64
+	NOutInterests         uint64
+	NOutData              uint64
+	NSatisfiedInterests   uint64
+	NUnsatisfiedInterests uint64
 }
 
 // NewThread creates a new forwarding thread
@@ -86,6 +94,18 @@ func (t *Thread) String() string {
 // GetID returns the ID of the forwarding thread
 func (t *Thread) GetID() int {
 	return t.threadID
+}
+
+// GetNumPitEntries returns the number of entries in this thread's PIT.
+func (t *Thread) GetNumPitEntries() int {
+	// TODO: Lock PitCS
+	return t.pitCS.PitSize()
+}
+
+// GetNumCsEntries returns the number of entries in this thread's ContentStore.
+func (t *Thread) GetNumCsEntries() int {
+	// TODO: Lock PitCS
+	return t.pitCS.CsSize()
 }
 
 // TellToQuit tells the forwarding thread to quit
@@ -143,6 +163,8 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
+
+	t.NInInterests++
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && interest.Name().Size() > 0 && interest.Name().At(0).String() == "localhost" {
@@ -219,6 +241,8 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10))
 	}
 
+	t.NOutInterests++
+
 	// Send on outgoing face
 	pendingPacket := new(ndn.PendingPacket)
 	pendingPacket.IncomingFaceID = new(uint64)
@@ -256,6 +280,8 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 
 	core.LogTrace(t, "OnIncomingData: "+data.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
+
+	t.NInData++
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && data.Name().Size() > 0 && data.Name().At(0).String() == "localhost" {
@@ -345,6 +371,8 @@ func (t *Thread) processOutgoingData(data *ndn.Data, nexthop uint64, pitToken []
 		core.LogWarn(t, "Data "+data.Name().String()+" cannot be sent to non-local FaceID="+strconv.FormatUint(nexthop, 10)+" since violates /localhost scope - DROP")
 		return
 	}
+
+	t.NOutData++
 
 	// Send on outgoing face
 	pendingPacket := new(ndn.PendingPacket)
