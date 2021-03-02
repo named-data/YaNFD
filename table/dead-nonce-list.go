@@ -12,7 +12,6 @@ import (
 	"container/list"
 	"time"
 
-	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
 
@@ -47,7 +46,7 @@ func NewDeadNonceList() *DeadNonceList {
 	d.root.component = nil // Root component will be nil since it represents zero components
 	d.root.children = make([]*DeadNonceListNode, 0)
 	d.root.nonces = make([][]byte, 0)
-	d.ExpirationTimer = make(chan interface{}, core.FwQueueSize)
+	d.ExpirationTimer = make(chan interface{}, tableQueueSize)
 	return d
 }
 
@@ -129,9 +128,9 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) (*DeadNonceListNode
 	}
 
 	node.nonces = append(node.nonces, nonce)
-	d.expiringEntries.PushBack(&deadNonceListExpirationEntry{node: node, nonce: nonce, expirationTime: time.Now().Add(core.DeadNonceListLifetime)})
+	d.expiringEntries.PushBack(&deadNonceListExpirationEntry{node: node, nonce: nonce, expirationTime: time.Now().Add(deadNonceListLifetime)})
 	go func() {
-		time.Sleep(core.DeadNonceListLifetime)
+		time.Sleep(deadNonceListLifetime)
 		d.ExpirationTimer <- []interface{}{}
 	}()
 	return node, false

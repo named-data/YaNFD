@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
 
@@ -78,7 +77,7 @@ func NewPitCS() *PitCsNode {
 	pit := new(PitCsNode)
 	pit.component = nil // Root component will be nil since it represents zero components
 	pit.pitEntries = make([]*PitEntry, 0)
-	pit.ExpiringPitEntries = make(chan *PitEntry, core.FwQueueSize)
+	pit.ExpiringPitEntries = make(chan *PitEntry, tableQueueSize)
 	return pit
 }
 

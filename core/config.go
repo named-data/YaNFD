@@ -7,13 +7,35 @@
 
 package core
 
-import "time"
+import (
+	"github.com/pelletier/go-toml"
+)
 
-// FaceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.
-const FaceQueueSize = 1024
+var config *toml.Tree
 
-// FwQueueSize is the maxmimum number of packets that can be buffered to be processed by a forwarding thread.
-const FwQueueSize = 1024
+// LoadConfig loads the YaNFD configuration from the specified configuration file.
+func LoadConfig(file string) {
+	var err error
+	config, err = toml.LoadFile(file)
+	if err != nil {
+		LogFatal("Config", "Unable to load configuration file: "+err.Error())
+	}
+}
 
-// DeadNonceListLifetime is the minimum lifetime of entries in the Dead Nonce List.
-const DeadNonceListLifetime = 6 * time.Second // Value used by NFD.
+// GetConfigIntDefault returns the integer configuration value at the specified key or the specified default value if it does not exist.
+func GetConfigIntDefault(key string, def int) int {
+	val, ok := config.Get(key).(int64)
+	if ok {
+		return int(val)
+	}
+	return def
+}
+
+// GetConfigArrayString returns the configuration array value at the specified key or nil if it does not exist.
+func GetConfigArrayString(key string) []string {
+	array := config.GetArray(key)
+	if val, ok := array.([]string); ok {
+		return val
+	}
+	return nil
+}
