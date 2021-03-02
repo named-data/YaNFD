@@ -9,38 +9,41 @@ package table
 
 import (
 	"bytes"
-	"sync"
 	"time"
 
+	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
 
 // PitCsNode represents an entry in a PIT-CS tree.
 type PitCsNode struct {
-	component    ndn.NameComponent
-	depth        int
-	nPitEntries  int        // Number of CS entries in tree (only set in root node)
-	nCsEntries   int        // Number of CS entries in tree (only set in root node)
-	cleanupMutex sync.Mutex // Blocks the cleanup goroutine from interfering with forwarding and vice versa
+	component   ndn.NameComponent
+	depth       int
+	nPitEntries int // Number of CS entries in tree (only set in root node)
+	nCsEntries  int // Number of CS entries in tree (only set in root node)
 
 	parent   *PitCsNode
 	children []*PitCsNode
 
 	pitEntries []*PitEntry
 	csEntry    *CsEntry
+
+	ExpiringPitEntries chan *PitEntry // Only initialized in root node
 }
 
 // PitEntry is an entry in a thread's PIT.
 type PitEntry struct {
 	node *PitCsNode
+	root *PitCsNode
 
-	name        *ndn.Name
+	Name        *ndn.Name
 	CanBePrefix bool
 	MustBeFresh bool
 	//forwardingHint *ndn.ForwardingHint // TODO: Interests must match in terms of Forwarding Hint to be aggregated in PIT.
 	InRecords      map[uint64]*PitInRecord  // Key is face ID
 	OutRecords     map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime time.Time
+	Satisfied      bool
 }
 
 // PitInRecord records an incoming Interest on a given face.
@@ -75,6 +78,7 @@ func NewPitCS() *PitCsNode {
 	pit := new(PitCsNode)
 	pit.component = nil // Root component will be nil since it represents zero components
 	pit.pitEntries = make([]*PitEntry, 0)
+	pit.ExpiringPitEntries = make(chan *PitEntry, core.FwQueueSize)
 	return pit
 }
 
@@ -115,6 +119,21 @@ func (p *PitCsNode) fillTreeToPrefix(name *ndn.Name) *PitCsNode {
 	return curNode
 }
 
+func (p *PitCsNode) pruneIfEmpty() {
+	for curNode := p; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
+		// Remove from parent's children
+		for i, child := range curNode.parent.children {
+			if child == p {
+				if i < len(curNode.parent.children)-1 {
+					copy(curNode.parent.children[i:], curNode.parent.children[i+1:])
+				}
+				curNode.parent.children = curNode.parent.children[:len(curNode.parent.children)-1]
+				break
+			}
+		}
+	}
+}
+
 // PitSize returns the number of entries in the PIT.
 func (p *PitCsNode) PitSize() int {
 	return p.nPitEntries
@@ -142,17 +161,16 @@ func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*Pit
 		p.nPitEntries++
 		entry = new(PitEntry)
 		entry.node = node
-		entry.name = interest.Name()
+		entry.root = p
+		entry.Name = interest.Name()
 		entry.CanBePrefix = interest.CanBePrefix()
 		entry.MustBeFresh = interest.MustBeFresh()
 		// TODO: ForwardingHint
 		entry.InRecords = make(map[uint64]*PitInRecord, 0)
 		entry.OutRecords = make(map[uint64]*PitOutRecord, 0)
+		entry.Satisfied = false
 		node.pitEntries = append(node.pitEntries, entry)
 	}
-
-	// Lazily erase expired records.
-	entry.lazilyEraseExpiredPITRecords()
 
 	for face, inRecord := range entry.InRecords {
 		// Only considered a duplicate (loop) if from different face since is just retransmission and not loop if same face
@@ -179,6 +197,26 @@ func (p *PitCsNode) FindPITFromData(data *ndn.Data) []*PitEntry {
 		}
 	}
 	return matching
+}
+
+// RemovePITEntry removes the specified PIT entry.
+func (p *PitCsNode) RemovePITEntry(pitEntry *PitEntry) bool {
+	node := p.findExactMatchEntry(pitEntry.Name)
+	if node != nil {
+		for i, entry := range node.pitEntries {
+			if entry == pitEntry {
+				if i < len(node.pitEntries)-1 {
+					copy(node.pitEntries[i:], node.pitEntries[i+1:])
+				}
+				node.pitEntries = node.pitEntries[:len(node.pitEntries)-1]
+				if len(node.pitEntries) == 0 {
+					entry.node.pruneIfEmpty()
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // FindMatchingDataCS finds the best matching entry in the CS (if any). If MustBeFresh is set to true in the Interest, only non-stale CS entries will be returned.
@@ -230,27 +268,18 @@ func (p *PitCsNode) findMatchingDataCSPrefix(interest *ndn.Interest) *CsEntry {
 	return nil
 }
 
-func (e *PitEntry) lazilyEraseExpiredPITRecords() {
-	now := time.Now()
-
-	for _, inRecord := range e.InRecords {
-		if inRecord.LatestTimestamp.Add(inRecord.LatestInterest.Lifetime()).Before(now) {
-			delete(e.InRecords, inRecord.Face)
-		}
-	}
-
-	for _, outRecord := range e.OutRecords {
-		if outRecord.LatestTimestamp.Add(outRecord.LatestInterest.Lifetime()).Before(now) {
-			delete(e.InRecords, outRecord.Face)
+func (e *PitEntry) waitForPitExpiry() {
+	if !e.ExpirationTime.IsZero() {
+		time.Sleep(e.ExpirationTime.Sub(time.Now().Add(time.Millisecond * 1))) // Add 1 millisecond to ensure *after* expiration
+		if e.ExpirationTime.Before(time.Now()) {
+			// Otherwise, has been updated by another PIT entry
+			e.root.ExpiringPitEntries <- e
 		}
 	}
 }
 
 // FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
 func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64) (*PitInRecord, bool) {
-	// Lazily erase expired records
-	e.lazilyEraseExpiredPITRecords()
-
 	var record *PitInRecord
 	var ok bool
 	if record, ok = e.InRecords[face]; !ok {
@@ -274,9 +303,6 @@ func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64) (*P
 
 // FindOrInsertOutRecord finds or inserts an OutRecord for the face, updating the metadata.
 func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face uint64) *PitOutRecord {
-	// Lazily erase expired records
-	e.lazilyEraseExpiredPITRecords()
-
 	var record *PitOutRecord
 	var ok bool
 	if record, ok = e.OutRecords[face]; !ok {
@@ -300,7 +326,8 @@ func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face uint64) *P
 
 // UpdateExpirationTimer updates the expiration timer to the latest expiration time of any in or out record in the entry.
 func (e *PitEntry) UpdateExpirationTimer() {
-	// Assumption: expiration time already reset to 0 Unix seconds.
+	e.ExpirationTime = time.Unix(0, 0)
+
 	for _, record := range e.InRecords {
 		if record.ExpirationTime.After(e.ExpirationTime) {
 			e.ExpirationTime = record.ExpirationTime
@@ -312,11 +339,14 @@ func (e *PitEntry) UpdateExpirationTimer() {
 			e.ExpirationTime = record.ExpirationTime
 		}
 	}
+
+	go e.waitForPitExpiry()
 }
 
 // SetExpirationTimerToNow updates the expiration timer to the current time.
 func (e *PitEntry) SetExpirationTimerToNow() {
 	e.ExpirationTime = time.Now()
+	e.root.ExpiringPitEntries <- e
 }
 
 // ClearInRecords removes all in-records from the PIT entry.

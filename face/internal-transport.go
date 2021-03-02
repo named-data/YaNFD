@@ -28,8 +28,8 @@ func MakeInternalTransport() *InternalTransport {
 	t := new(InternalTransport)
 	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), tlv.MaxNDNPacketSize)
 	t.scope = ndn.Local
-	t.recvQueue = make(chan []byte)
-	t.sendQueue = make(chan []byte)
+	t.recvQueue = make(chan []byte, core.FaceQueueSize)
+	t.sendQueue = make(chan []byte, core.FaceQueueSize)
 	t.changeState(ndn.Up)
 	return t
 }

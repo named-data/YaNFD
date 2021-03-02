@@ -88,10 +88,10 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 
 	l.partialMessageStore = make(map[uint64][][]byte)
 	l.pendingAcksToSend = list.New()
-	l.idleAckTimer = make(chan interface{})
+	l.idleAckTimer = make(chan interface{}, core.FaceQueueSize)
 
 	l.nextSequence = 0
-	l.retransmitQueue = make(chan uint64)
+	l.retransmitQueue = make(chan uint64, core.FaceQueueSize)
 	l.rto = 0
 	l.nextTxSequence = 0
 	return l
