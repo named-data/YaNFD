@@ -62,6 +62,7 @@ type Thread struct {
 	pendingDatas     chan *ndn.PendingPacket
 	pitCS            *table.PitCsNode
 	strategies       map[string]Strategy
+	deadNonceList    *table.DeadNonceList
 	shouldQuit       chan interface{}
 	HasQuit          chan interface{}
 
@@ -78,11 +79,12 @@ type Thread struct {
 func NewThread(id int) *Thread {
 	t := new(Thread)
 	t.threadID = id
-	t.pendingInterests = make(chan *ndn.PendingPacket)
-	t.pendingDatas = make(chan *ndn.PendingPacket)
+	t.pendingInterests = make(chan *ndn.PendingPacket, core.FwQueueSize)
+	t.pendingDatas = make(chan *ndn.PendingPacket, core.FwQueueSize)
 	t.pitCS = table.NewPitCS()
 	t.strategies = InstantiateStrategies(t)
-	t.shouldQuit = make(chan interface{})
+	t.deadNonceList = table.NewDeadNonceList()
+	t.shouldQuit = make(chan interface{}, 1)
 	t.HasQuit = make(chan interface{})
 	return t
 }
@@ -122,6 +124,10 @@ func (t *Thread) Run() {
 			t.processIncomingInterest(pendingPacket)
 		case pendingPacket := <-t.pendingDatas:
 			t.processIncomingData(pendingPacket)
+		case expiringPitEntry := <-t.pitCS.ExpiringPitEntries:
+			t.finalizeInterest(expiringPitEntry)
+		case <-t.deadNonceList.ExpirationTimer:
+			t.deadNonceList.RemoveExpiredEntry()
 		case <-t.shouldQuit:
 			continue
 		}
@@ -173,7 +179,10 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Detect duplicate nonce by comparing against Dead Nonce List
-	// TODO
+	if t.deadNonceList.Find(interest.Name(), interest.Nonce()) {
+		core.LogTrace(t, "Interest "+interest.Name().String()+" matches Dead Nonce List - DROP")
+		return
+	}
 
 	// Check for forwarding hint and, if present, determine if reaching producer region (and then strip forwarding hint)
 	// TODO
@@ -258,6 +267,23 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 	outgoingFace.SendPacket(pendingPacket)
 }
 
+func (t *Thread) finalizeInterest(pitEntry *table.PitEntry) {
+	core.LogTrace(t, "OnFinalizeInterest: "+pitEntry.Name.String())
+
+	// Check for nonces to insert into dead nonce list
+	for _, outRecord := range pitEntry.OutRecords {
+		t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
+	}
+
+	// Counters
+	if !pitEntry.Satisfied {
+		t.NUnsatisfiedInterests += uint64(len(pitEntry.InRecords))
+	}
+
+	// Remove from PIT
+	t.pitCS.RemovePITEntry(pitEntry)
+}
+
 func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	// Ensure incoming face is indicated
 	if pendingPacket.IncomingFaceID == nil {
@@ -313,10 +339,12 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		strategy.AfterReceiveData(pitEntries[0], *pendingPacket.IncomingFaceID, data)
 
 		// Mark PIT entry as satisfied
-		// TODO - how do we do this?
+		pitEntries[0].Satisfied = true
 
-		// Insert into dead nonce list (if needed)
-		// TODO
+		// Insert into dead nonce list
+		for _, outRecord := range pitEntries[0].OutRecords {
+			t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
+		}
 
 		// Clear out records from PIT entry
 		pitEntries[0].ClearOutRecords()
@@ -339,10 +367,12 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 			strategy.BeforeSatisfyInterest(pitEntry, *pendingPacket.IncomingFaceID, data)
 
 			// Mark PIT entry as satisfied
-			// TODO - how do we do this?
+			pitEntry.Satisfied = true
 
-			// Insert into dead nonce list (if needed)
-			// TODO
+			// Insert into dead nonce list
+			for _, outRecord := range pitEntries[0].OutRecords {
+				t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
+			}
 
 			// Clear PIT entry's in- and out-records
 			pitEntry.ClearInRecords()
@@ -373,6 +403,7 @@ func (t *Thread) processOutgoingData(data *ndn.Data, nexthop uint64, pitToken []
 	}
 
 	t.NOutData++
+	t.NSatisfiedInterests++
 
 	// Send on outgoing face
 	pendingPacket := new(ndn.PendingPacket)

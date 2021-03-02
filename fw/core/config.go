@@ -7,5 +7,13 @@
 
 package core
 
-// FaceQueueSize contains the maximum number of packets that can be buffered to be sent or received on a face
-const FaceQueueSize = 128
+import "time"
+
+// FaceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.
+const FaceQueueSize = 1024
+
+// FwQueueSize is the maxmimum number of packets that can be buffered to be processed by a forwarding thread.
+const FwQueueSize = 1024
+
+// DeadNonceListLifetime is the minimum lifetime of entries in the Dead Nonce List.
+const DeadNonceListLifetime = 6 * time.Second // Value used by NFD.
