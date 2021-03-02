@@ -79,8 +79,8 @@ type Thread struct {
 func NewThread(id int) *Thread {
 	t := new(Thread)
 	t.threadID = id
-	t.pendingInterests = make(chan *ndn.PendingPacket, core.FwQueueSize)
-	t.pendingDatas = make(chan *ndn.PendingPacket, core.FwQueueSize)
+	t.pendingInterests = make(chan *ndn.PendingPacket, fwQueueSize)
+	t.pendingDatas = make(chan *ndn.PendingPacket, fwQueueSize)
 	t.pitCS = table.NewPitCS()
 	t.strategies = InstantiateStrategies(t)
 	t.deadNonceList = table.NewDeadNonceList()
@@ -100,13 +100,11 @@ func (t *Thread) GetID() int {
 
 // GetNumPitEntries returns the number of entries in this thread's PIT.
 func (t *Thread) GetNumPitEntries() int {
-	// TODO: Lock PitCS
 	return t.pitCS.PitSize()
 }
 
 // GetNumCsEntries returns the number of entries in this thread's ContentStore.
 func (t *Thread) GetNumCsEntries() int {
-	// TODO: Lock PitCS
 	return t.pitCS.CsSize()
 }
 

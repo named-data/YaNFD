@@ -21,6 +21,7 @@ import (
 	"github.com/eric135/YaNFD/fw"
 	"github.com/eric135/YaNFD/mgmt"
 	"github.com/eric135/YaNFD/ndn"
+	"github.com/eric135/YaNFD/table"
 )
 
 // Version of YaNFD.
@@ -38,7 +39,10 @@ func main() {
 	// Parse command line options
 	var shouldPrintVersion bool
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
-	flag.BoolVar(&shouldPrintVersion, "V", false, "Print version and exit (short)")
+	flag.BoolVar(&shouldPrintVersion, "V", false, "Print version and exit")
+	var configFileName string
+	flag.StringVar(&configFileName, "config", "yanfd.toml", "Configuration file location")
+	flag.StringVar(&configFileName, "C", "yanfd.toml", "Configuration file location")
 	flag.IntVar(&core.NumForwardingThreads, "threads", 8, "Number of forwarding threads")
 	flag.IntVar(&core.NumForwardingThreads, "t", 8, "Number of forwarding threads")
 	var disableEthernet bool
@@ -63,6 +67,12 @@ func main() {
 	}
 
 	core.LogInfo("Main", "Starting YaNFD")
+
+	// Initialize config file
+	core.LoadConfig(configFileName)
+	face.Configure()
+	fw.Configure()
+	table.Configure()
 
 	// Load strategies
 	//core.LogInfo("Main", "Loading strategies")

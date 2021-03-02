@@ -102,7 +102,7 @@ func (l *linkServiceBase) makeLinkServiceBase() {
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)
 	l.hasTransportQuit = make(chan bool)
-	l.sendQueue = make(chan *ndn.PendingPacket, core.FaceQueueSize)
+	l.sendQueue = make(chan *ndn.PendingPacket, faceQueueSize)
 }
 
 //

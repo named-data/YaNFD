@@ -1,0 +1,24 @@
+[faces]
+
+# This controls the size of queues in the face system.
+queue_size = 1024
+
+[fw]
+
+# This controls the size of queues in the forwarding system.
+queue_size = 1024
+
+[tables]
+
+# This controls the size of queues in the table system.
+queue_size = 1024
+
+  [tables.dead_nonce_list]
+
+  # The lifetime of entries in the Dead Nonce List (milliseconds).
+  lifetime = 6000
+
+  [tables.network_region]
+
+  # This is a list of prefixes that the forwarder is in the producer region for.
+  regions = []
