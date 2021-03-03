@@ -588,7 +588,7 @@ func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace ui
 			}
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
-				uri := ndn.MakeUDPFaceURI(ipVersion, path, face.NDNUnicastUDPPort)
+				uri := ndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort)
 				channel := mgmt.MakeChannelStatus(uri)
 				channelEncoded, err := channel.Encode()
 				if err != nil {
@@ -606,7 +606,7 @@ func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace ui
 	}
 
 	// Unix channel
-	uri := ndn.MakeUnixFaceURI(face.NDNUnixSocketFile)
+	uri := ndn.MakeUnixFaceURI(face.UnixSocketPath)
 	channel := mgmt.MakeChannelStatus(uri)
 	channelEncoded, err := channel.Encode()
 	if err != nil {
