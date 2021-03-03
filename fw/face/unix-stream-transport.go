@@ -51,7 +51,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size", len(frame))
+	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
@@ -77,7 +77,7 @@ func (t *UnixStreamTransport) runReceive() {
 			break
 		}
 
-		core.LogTrace(t, "Receive of size", readSize)
+		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
 		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {
@@ -88,12 +88,12 @@ func (t *UnixStreamTransport) runReceive() {
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
 		if err != nil {
-			core.LogInfo("Unable to process received packet: " + err.Error())
+			core.LogInfo(t, "Unable to process received packet: "+err.Error())
 		} else if readSize >= tlvSize {
 			// Packet was successfully received, send up to link service
 			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
 		} else {
-			core.LogInfo("Received packet is incomplete")
+			core.LogInfo(t, "Received packet is incomplete")
 		}
 	}
 }
@@ -103,7 +103,7 @@ func (t *UnixStreamTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "- state:", t.state, "->", new)
+	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
 	t.state = new
 
 	if t.state != ndn.Up {

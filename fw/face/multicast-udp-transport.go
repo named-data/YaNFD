@@ -40,7 +40,7 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	// Get local interface
 	localIf, err := InterfaceByIP(net.ParseIP(localURI.PathHost()))
 	if err != nil || localIf == nil {
-		core.LogError(t, "Unable to get interface for local URI", localURI.String(), ":", err)
+		core.LogError(t, "Unable to get interface for local URI "+localURI.String()+": "+err.Error())
 	}
 
 	if localURI.Scheme() == "udp4" {
@@ -89,10 +89,10 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size", len(frame))
+	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
 	_, err := t.sendConn.Write(frame)
 	if err != nil {
-		core.LogWarn("Unable to send on socket - DROP and Face DOWN")
+		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
 		t.changeState(ndn.Down)
 	}
 	t.nOutBytes += uint64(len(frame))
@@ -112,7 +112,7 @@ func (t *MulticastUDPTransport) runReceive() {
 			break
 		}
 
-		core.LogTrace(t, "Receive of size", readSize, "from", remoteAddr.String())
+		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize)+" from "+remoteAddr.String())
 		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {
@@ -122,12 +122,12 @@ func (t *MulticastUDPTransport) runReceive() {
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
 		if err != nil {
-			core.LogInfo("Unable to process received packet: " + err.Error())
+			core.LogInfo(t, "Unable to process received packet: "+err.Error())
 		} else if readSize >= tlvSize {
 			// Packet was successfully received, send up to link service
 			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
 		} else {
-			core.LogInfo("Received packet is incomplete")
+			core.LogInfo(t, "Received packet is incomplete")
 		}
 	}
 }
@@ -137,7 +137,7 @@ func (t *MulticastUDPTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "- state:", t.state, "->", new)
+	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
 	t.state = new
 
 	if t.state != ndn.Up {

@@ -57,7 +57,7 @@ func (l *UDPListener) Run() {
 	}
 	l.conn, err = listenConfig.ListenPacket(context.Background(), l.localURI.Scheme(), remote)
 	if err != nil {
-		core.LogError(l, "Unable to start UDP listener:", err)
+		core.LogError(l, "Unable to start UDP listener: "+err.Error())
 		l.HasQuit <- true
 		return
 	}
@@ -90,7 +90,7 @@ func (l *UDPListener) Run() {
 			continue
 		}
 
-		core.LogTrace(l, "Receive of size", readSize, "from", remoteURI.String())
+		core.LogTrace(l, "Receive of size "+strconv.Itoa(readSize)+" from "+remoteURI.String())
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(l, "Received too much data without valid TLV block - DROP")
@@ -99,17 +99,17 @@ func (l *UDPListener) Run() {
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
 		if err != nil {
-			core.LogInfo("Unable to process received packet: " + err.Error())
+			core.LogInfo(l, "Unable to process received packet: "+err.Error())
 		} else if readSize >= tlvSize {
 			// If frame received here, must be for new remote endpoint
 			newTransport, err := MakeUnicastUDPTransport(remoteURI, l.localURI)
 			if err != nil {
-				core.LogError(l, "Failed to create new unicast UDP transport:", err)
+				core.LogError(l, "Failed to create new unicast UDP transport: "+err.Error())
 				continue
 			}
 			newLinkService := MakeNDNLPLinkService(newTransport, NDNLPLinkServiceOptions{})
 			if err != nil {
-				core.LogError(l, "Failed to create new NDNLPv2 transport:", err)
+				core.LogError(l, "Failed to create new NDNLPv2 transport: "+err.Error())
 				continue
 			}
 			// Pass this frame to the link service for processing
@@ -119,7 +119,7 @@ func (l *UDPListener) Run() {
 			FaceTable.Add(newLinkService)
 			go newLinkService.Run()
 		} else {
-			core.LogDebug(l, "Received non-TLV from", remoteAddr)
+			core.LogDebug(l, "Received non-TLV from "+remoteAddr.String())
 		}
 	}
 

@@ -393,7 +393,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		}
 		baseSequence := *frame.Sequence() - fragIndex
 
-		core.LogDebug(l, "Received fragment", fragIndex, "of", fragCount, "for", baseSequence)
+		core.LogDebug(l, "Received fragment "+strconv.FormatUint(fragIndex, 10)+" of "+strconv.FormatUint(fragCount, 10)+" for "+strconv.FormatUint(baseSequence, 10))
 
 		if fragIndex == 0 && fragCount == 1 {
 			// Bypass reassembly since only one fragment

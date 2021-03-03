@@ -9,39 +9,60 @@ package core
 
 import (
 	"fmt"
-	"log"
 	"os"
+
+	"github.com/apex/log"
+	"github.com/apex/log/handlers/text"
 )
 
-// Logger is the central logger for YaNFD
-var logger *log.Logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+var shouldPrintTraceLogs = false
 
-// LogFatal logs a message at the FATAL level
-func LogFatal(module interface{}, v ...interface{}) {
-	logger.Fatalln(append([]interface{}{fmt.Sprintf("FATAL: [%v]", module)}, v...)...)
+// InitializeLogger initializes the logger.
+func InitializeLogger() {
+	log.SetHandler(text.New(os.Stdout))
+
+	logLevelString := GetConfigStringDefault("core.log_level", "INFO")
+
+	logLevel, err := log.ParseLevel(logLevelString)
+	if err == nil {
+		log.SetLevel(logLevel)
+	} else if logLevelString == "TRACE" {
+		// Apex doesn't support the TRACE level, so we have to work around that by calling them DEBUG, but not printing them if not TRACE
+		log.SetLevel(log.DebugLevel)
+		shouldPrintTraceLogs = true
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 }
 
-// LogError logs a message at the ERROR level
-func LogError(module interface{}, v ...interface{}) {
-	logger.Println(append([]interface{}{fmt.Sprintf("ERROR: [%v]", module)}, v...)...)
+// LogFatal logs a message at the FATAL level.
+func LogFatal(module interface{}, message string) {
+	log.Fatal(fmt.Sprintf("[%v] ", module) + ": " + message)
 }
 
-// LogWarn logs a message at the WARN level
-func LogWarn(module interface{}, v ...interface{}) {
-	logger.Println(append([]interface{}{fmt.Sprintf("WARN: [%v]", module)}, v...)...)
+// LogError logs a message at the ERROR level.
+func LogError(module interface{}, message string) {
+	log.Error(fmt.Sprintf("[%v] ", module) + ": " + message)
 }
 
-// LogInfo logs a message at the INFO level
-func LogInfo(module interface{}, v ...interface{}) {
-	logger.Println(append([]interface{}{fmt.Sprintf("INFO: [%v]", module)}, v...)...)
+// LogWarn logs a message at the WARN level.
+func LogWarn(module interface{}, message string) {
+	log.Warn(fmt.Sprintf("[%v] ", module) + ": " + message)
 }
 
-// LogDebug logs a message at the DEBUG level
-func LogDebug(module interface{}, v ...interface{}) {
-	logger.Println(append([]interface{}{fmt.Sprintf("DEBUG: [%v]", module)}, v...)...)
+// LogInfo logs a message at the INFO level.
+func LogInfo(module interface{}, message string) {
+	log.Info(fmt.Sprintf("[%v] ", module) + ": " + message)
 }
 
-// LogTrace logs a message at the TRACE level
-func LogTrace(module interface{}, v ...interface{}) {
-	logger.Println(append([]interface{}{fmt.Sprintf("TRACE: [%v]", module)}, v...)...)
+// LogDebug logs a message at the DEBUG level.
+func LogDebug(module interface{}, message string) {
+	log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+}
+
+// LogTrace logs a message at the TRACE level (really just additional DEBUG messages).
+func LogTrace(module interface{}, message string) {
+	if shouldPrintTraceLogs {
+		log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }

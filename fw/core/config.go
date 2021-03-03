@@ -24,9 +24,26 @@ func LoadConfig(file string) {
 
 // GetConfigIntDefault returns the integer configuration value at the specified key or the specified default value if it does not exist.
 func GetConfigIntDefault(key string, def int) int {
-	val, ok := config.Get(key).(int64)
+	valRaw := config.Get(key)
+	if valRaw == nil {
+		return def
+	}
+	val, ok := valRaw.(int64)
 	if ok {
 		return int(val)
+	}
+	return def
+}
+
+// GetConfigStringDefault returns the string configuration value at the specified key or the specified default value if it does not exist.
+func GetConfigStringDefault(key string, def string) string {
+	valRaw := config.Get(key)
+	if valRaw == nil {
+		return def
+	}
+	val, ok := valRaw.(string)
+	if ok {
+		return val
 	}
 	return def
 }
@@ -34,6 +51,9 @@ func GetConfigIntDefault(key string, def int) int {
 // GetConfigArrayString returns the configuration array value at the specified key or nil if it does not exist.
 func GetConfigArrayString(key string) []string {
 	array := config.GetArray(key)
+	if array == nil {
+		return nil
+	}
 	if val, ok := array.([]string); ok {
 		return val
 	}
