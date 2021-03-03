@@ -74,7 +74,7 @@ func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*Mul
 	t.pcap, err = inactive.Activate()
 
 	// Set PCAP filter
-	err = t.pcap.SetBPFFilter("ether proto " + strconv.Itoa(NDNEtherType) + " and ether dst " + remoteURI.Path())
+	err = t.pcap.SetBPFFilter("ether proto " + strconv.Itoa(ndnEtherType) + " and ether dst " + remoteURI.Path())
 	if err != nil {
 		core.LogError(t, "Unable to set PCAP filter: "+err.Error())
 	}
@@ -95,7 +95,7 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 	}
 
 	// Wrap in Ethernet frame
-	ethHeader := layers.Ethernet{SrcMAC: t.localAddr, DstMAC: t.remoteAddr, EthernetType: NDNEtherType}
+	ethHeader := layers.Ethernet{SrcMAC: t.localAddr, DstMAC: t.remoteAddr, EthernetType: layers.EthernetType(ndnEtherType)}
 	ethFrame := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(ethFrame, gopacket.SerializeOptions{}, &ethHeader, gopacket.Payload(frame))
 

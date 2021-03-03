@@ -8,6 +8,8 @@
 package core
 
 import (
+	"math"
+
 	"github.com/pelletier/go-toml"
 )
 
@@ -29,7 +31,7 @@ func GetConfigIntDefault(key string, def int) int {
 		return def
 	}
 	val, ok := valRaw.(int64)
-	if ok {
+	if ok && val >= math.MinInt32 && val <= math.MaxInt32 {
 		return int(val)
 	}
 	return def
@@ -44,6 +46,19 @@ func GetConfigStringDefault(key string, def string) string {
 	val, ok := valRaw.(string)
 	if ok {
 		return val
+	}
+	return def
+}
+
+// GetConfigUint16Default returns the integer configuration value at the specified key or the specified default value if it does not exist.
+func GetConfigUint16Default(key string, def uint16) uint16 {
+	valRaw := config.Get(key)
+	if valRaw == nil {
+		return def
+	}
+	val, ok := valRaw.(int64)
+	if ok && val > 0 && val <= math.MaxUint16 {
+		return uint16(val)
 	}
 	return def
 }

@@ -49,7 +49,7 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDP
 		t.localAddr.IP = net.ParseIP(localURI.Path())
 		t.localAddr.Port = int(localURI.Port())
 	} else {
-		t.localAddr.Port = NDNUnicastUDPPort
+		t.localAddr.Port = int(UDPUnicastPort)
 	}
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())

@@ -99,7 +99,7 @@ func main() {
 
 	// Perform setup operations for each network interface
 	ifaces, err := net.Interfaces()
-	multicastEthURI := ndn.DecodeURIString(face.NDNMulticastEtherURI)
+	multicastEthURI := ndn.DecodeURIString("ether://[" + face.EthernetMulticastAddress + "]")
 	if err != nil {
 		core.LogFatal("Main", "Unable to access network interfaces: "+err.Error())
 		os.Exit(2)
@@ -142,7 +142,7 @@ func main() {
 			}
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
-				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.NDNMulticastUDPPort))
+				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
 					core.LogFatal("Main", "Unable to create MulticastUDPTransport for "+path+" on "+iface.Name+": "+err.Error())
 					os.Exit(2)
@@ -166,13 +166,13 @@ func main() {
 	var unixListener *face.UnixStreamListener
 	if !disableUnix {
 		// Set up Unix stream listener
-		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.NDNUnixSocketFile))
+		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
-			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.NDNUnixSocketFile+": "+err.Error())
+			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.UnixSocketPath+": "+err.Error())
 			os.Exit(2)
 		}
 		go unixListener.Run()
-		core.LogInfo("Main", "Created Unix stream listener for "+face.NDNUnixSocketFile)
+		core.LogInfo("Main", "Created Unix stream listener for "+face.UnixSocketPath)
 	}
 
 	// Set up signal handler channel and wait for interrupt
