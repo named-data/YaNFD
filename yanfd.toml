@@ -1,56 +1,56 @@
 [core]
 
-# Logging level
-log_level = "TRACE"
+  # Logging level
+  log_level = "TRACE"
 
 [faces]
 
-# Size of queues in the face system
-queue_size = 1024
+  # Size of queues in the face system
+  queue_size = 1024
 
   [faces.ethernet]
 
-  # EtherType to use for NDN
-  ethertype = 0x8624
+    # EtherType to use for NDN
+    ethertype = 0x8624
 
-  # MAC address used for multicast Ethernet faces
-  multicast_address = "01:00:5e:00:17:aa"
+    # MAC address used for multicast Ethernet faces
+    multicast_address = "01:00:5e:00:17:aa"
 
   [faces.udp]
 
-  # Port used for unicast UDP faces
-  port_unicast = 6363
+    # Port used for unicast UDP faces
+    port_unicast = 6363
 
-  # Port used for multicast UDP faces
-  port_multicast = 56363
+    # Port used for multicast UDP faces
+    port_multicast = 56363
 
-  # IPv4 address used for multicast UDP faces
-  multicast_address_ipv4 = "224.0.23.170"
+    # IPv4 address used for multicast UDP faces
+    multicast_address_ipv4 = "224.0.23.170"
 
-  # IPv6 address used for multicast UDP faces
-  multicast_address_ipv6 = "ff02::114"
+    # IPv6 address used for multicast UDP faces
+    multicast_address_ipv6 = "ff02::114"
 
   [faces.unix]
 
-  # Location of the socket file
-  socket_path = "/run/nfd.sock"
+    # Location of the socket file
+    socket_path = "/run/nfd.sock"
 
 [fw]
 
-# Size of queues in the forwarding system
-queue_size = 1024
+  # Size of queues in the forwarding system
+  queue_size = 1024
 
 [tables]
 
-# Size of queues in the table system
-queue_size = 1024
+  # Size of queues in the table system
+  queue_size = 1024
 
   [tables.dead_nonce_list]
 
-  # Lifetime of entries in the Dead Nonce List (milliseconds)
-  lifetime = 6000
+    # Lifetime of entries in the Dead Nonce List (milliseconds)
+    lifetime = 6000
 
   [tables.network_region]
 
-  # List of prefixes that the forwarder is in the producer region for
-  regions = []
+    # List of prefixes that the forwarder is in the producer region for
+    regions = []
