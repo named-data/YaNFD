@@ -39,12 +39,9 @@ func main() {
 	// Parse command line options
 	var shouldPrintVersion bool
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
-	flag.BoolVar(&shouldPrintVersion, "V", false, "Print version and exit")
 	var configFileName string
-	flag.StringVar(&configFileName, "config", "yanfd.toml", "Configuration file location")
-	flag.StringVar(&configFileName, "C", "yanfd.toml", "Configuration file location")
+	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
 	flag.IntVar(&core.NumForwardingThreads, "threads", 8, "Number of forwarding threads")
-	flag.IntVar(&core.NumForwardingThreads, "t", 8, "Number of forwarding threads")
 	var disableEthernet bool
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
