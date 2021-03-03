@@ -120,7 +120,7 @@ func (t *InternalTransport) sendFrame(frame []byte) {
 
 	t.nOutBytes += uint64(len(frame))
 
-	core.LogDebug(t, "Sending frame of size", len(frame))
+	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
 	t.recvQueue <- frame
 }
 
@@ -151,7 +151,7 @@ func (t *InternalTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "- state:", t.state, "->", new)
+	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
 	t.state = new
 
 	if t.state != ndn.Up {

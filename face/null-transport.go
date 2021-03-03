@@ -37,7 +37,7 @@ func (t *NullTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "- state:", t.state, "->", new)
+	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
 	t.state = new
 
 	if t.state != ndn.Up {

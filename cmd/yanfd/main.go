@@ -70,6 +70,7 @@ func main() {
 
 	// Initialize config file
 	core.LoadConfig(configFileName)
+	core.InitializeLogger()
 	face.Configure()
 	fw.Configure()
 	table.Configure()
