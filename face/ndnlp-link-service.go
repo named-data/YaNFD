@@ -21,7 +21,7 @@ import (
 )
 
 const lpPacketOverhead = 1 + 3
-const pitTokenOverhead = 1 + 1 + 2
+const pitTokenOverhead = 1 + 1 + 6
 const congestionMarkOverhead = 3 + 1 + 8
 const ackOverhead = 3 + 1 + 8
 

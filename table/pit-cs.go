@@ -9,40 +9,50 @@ package table
 
 import (
 	"bytes"
+	"math/rand"
 	"time"
 
 	"github.com/eric135/YaNFD/ndn"
 )
 
+// PitCs represents the PIT-CS tree for a thread.
+type PitCs struct {
+	root               *PitCsNode
+	ExpiringPitEntries chan *PitEntry
+
+	pitTokenMap map[uint32]*PitEntry
+
+	nPitEntries int // Number of PIT entries in tree
+	nCsEntries  int // Number of CS entries in tree
+}
+
 // PitCsNode represents an entry in a PIT-CS tree.
 type PitCsNode struct {
-	component   ndn.NameComponent
-	depth       int
-	nPitEntries int // Number of CS entries in tree (only set in root node)
-	nCsEntries  int // Number of CS entries in tree (only set in root node)
+	component ndn.NameComponent
+	depth     int
 
 	parent   *PitCsNode
 	children []*PitCsNode
 
 	pitEntries []*PitEntry
 	csEntry    *CsEntry
-
-	ExpiringPitEntries chan *PitEntry // Only initialized in root node
 }
 
 // PitEntry is an entry in a thread's PIT.
 type PitEntry struct {
-	node *PitCsNode
-	root *PitCsNode
+	node  *PitCsNode
+	pitCs *PitCs
 
-	Name        *ndn.Name
-	CanBePrefix bool
-	MustBeFresh bool
-	//forwardingHint *ndn.ForwardingHint // TODO: Interests must match in terms of Forwarding Hint to be aggregated in PIT.
+	Name           *ndn.Name
+	CanBePrefix    bool
+	MustBeFresh    bool
+	ForwardingHint *ndn.Delegation          // Interests must match in terms of Forwarding Hint to be aggregated in PIT.
 	InRecords      map[uint64]*PitInRecord  // Key is face ID
 	OutRecords     map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime time.Time
 	Satisfied      bool
+
+	Token uint32
 }
 
 // PitInRecord records an incoming Interest on a given face.
@@ -73,11 +83,13 @@ type CsEntry struct {
 }
 
 // NewPitCS creates a new combined PIT-CS for a forwarding thread.
-func NewPitCS() *PitCsNode {
-	pit := new(PitCsNode)
-	pit.component = nil // Root component will be nil since it represents zero components
-	pit.pitEntries = make([]*PitEntry, 0)
+func NewPitCS() *PitCs {
+	pit := new(PitCs)
+	pit.root = new(PitCsNode)
+	pit.root.component = nil // Root component will be nil since it represents zero components
+	pit.root.pitEntries = make([]*PitEntry, 0)
 	pit.ExpiringPitEntries = make(chan *PitEntry, tableQueueSize)
+	pit.pitTokenMap = make(map[uint32]*PitEntry)
 	return pit
 }
 
@@ -133,24 +145,32 @@ func (p *PitCsNode) pruneIfEmpty() {
 	}
 }
 
+func (p *PitCs) generateNewPitToken() uint32 {
+	for {
+		token := rand.Uint32()
+		if _, ok := p.pitTokenMap[token]; !ok {
+			return token
+		}
+	}
+}
+
 // PitSize returns the number of entries in the PIT.
-func (p *PitCsNode) PitSize() int {
+func (p *PitCs) PitSize() int {
 	return p.nPitEntries
 }
 
 // CsSize returns the number of entries in the CS.
-func (p *PitCsNode) CsSize() int {
+func (p *PitCs) CsSize() int {
 	return p.nCsEntries
 }
 
 // FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
-func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*PitEntry, bool) {
-	node := p.fillTreeToPrefix(interest.Name())
+func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Delegation, inFace uint64) (*PitEntry, bool) {
+	node := p.root.fillTreeToPrefix(interest.Name())
 
 	var entry *PitEntry
 	for _, curEntry := range node.pitEntries {
-		// TODO: ForwardingHint
-		if curEntry.CanBePrefix == interest.CanBePrefix() && curEntry.MustBeFresh == interest.MustBeFresh() {
+		if curEntry.CanBePrefix == interest.CanBePrefix() && curEntry.MustBeFresh == interest.MustBeFresh() && ((hint == nil && curEntry.ForwardingHint == nil) || hint.Name().Equals(curEntry.ForwardingHint.Name())) {
 			entry = curEntry
 			break
 		}
@@ -160,15 +180,17 @@ func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*Pit
 		p.nPitEntries++
 		entry = new(PitEntry)
 		entry.node = node
-		entry.root = p
+		entry.pitCs = p
 		entry.Name = interest.Name()
 		entry.CanBePrefix = interest.CanBePrefix()
 		entry.MustBeFresh = interest.MustBeFresh()
-		// TODO: ForwardingHint
+		entry.ForwardingHint = hint
 		entry.InRecords = make(map[uint64]*PitInRecord, 0)
 		entry.OutRecords = make(map[uint64]*PitOutRecord, 0)
 		entry.Satisfied = false
 		node.pitEntries = append(node.pitEntries, entry)
+		entry.Token = p.generateNewPitToken()
+		p.pitTokenMap[entry.Token] = entry
 	}
 
 	for face, inRecord := range entry.InRecords {
@@ -185,22 +207,24 @@ func (p *PitCsNode) FindOrInsertPIT(interest *ndn.Interest, inFace uint64) (*Pit
 }
 
 // FindPITFromData finds the PIT entries matching a Data packet. Note that this does not consider the effect of MustBeFresh.
-func (p *PitCsNode) FindPITFromData(data *ndn.Data) []*PitEntry {
-	matching := make([]*PitEntry, 0)
-	dataNameLen := data.Name().Size()
-	for curNode := p.findLongestPrefixEntry(data.Name()); curNode != nil; curNode = curNode.parent {
-		for _, entry := range curNode.pitEntries {
-			if entry.CanBePrefix || curNode.depth == dataNameLen {
-				matching = append(matching, entry)
-			}
-		}
+func (p *PitCs) FindPITFromData(data *ndn.Data, token uint32) *PitEntry {
+	if entry, ok := p.pitTokenMap[token]; ok && entry.Token == token {
+		return entry
 	}
-	return matching
+	return nil
+}
+
+// FindPITFromToken finds the PIT entry indexed by a given token or nil if none were found.
+func (p *PitCs) FindPITFromToken(token uint32) *PitEntry {
+	if entry, ok := p.pitTokenMap[token]; ok {
+		return entry
+	}
+	return nil
 }
 
 // RemovePITEntry removes the specified PIT entry.
-func (p *PitCsNode) RemovePITEntry(pitEntry *PitEntry) bool {
-	node := p.findExactMatchEntry(pitEntry.Name)
+func (p *PitCs) RemovePITEntry(pitEntry *PitEntry) bool {
+	node := p.root.findExactMatchEntry(pitEntry.Name)
 	if node != nil {
 		for i, entry := range node.pitEntries {
 			if entry == pitEntry {
@@ -219,8 +243,8 @@ func (p *PitCsNode) RemovePITEntry(pitEntry *PitEntry) bool {
 }
 
 // FindMatchingDataCS finds the best matching entry in the CS (if any). If MustBeFresh is set to true in the Interest, only non-stale CS entries will be returned.
-func (p *PitCsNode) FindMatchingDataCS(interest *ndn.Interest) *CsEntry {
-	node := p.findExactMatchEntry(interest.Name())
+func (p *PitCs) FindMatchingDataCS(interest *ndn.Interest) *CsEntry {
+	node := p.root.findExactMatchEntry(interest.Name())
 	if node != nil {
 		if !interest.CanBePrefix() {
 			return node.csEntry
@@ -231,10 +255,10 @@ func (p *PitCsNode) FindMatchingDataCS(interest *ndn.Interest) *CsEntry {
 }
 
 // InsertDataCS inserts a Data packet into the Content Store.
-func (p *PitCsNode) InsertDataCS(data *ndn.Data) {
+func (p *PitCs) InsertDataCS(data *ndn.Data) {
 	// TODO: Eviction if needed
 
-	node := p.fillTreeToPrefix(data.Name())
+	node := p.root.fillTreeToPrefix(data.Name())
 	if node.csEntry != nil {
 		// Replace
 		p.nPitEntries++
@@ -272,7 +296,7 @@ func (e *PitEntry) waitForPitExpiry() {
 		time.Sleep(e.ExpirationTime.Sub(time.Now().Add(time.Millisecond * 1))) // Add 1 millisecond to ensure *after* expiration
 		if e.ExpirationTime.Before(time.Now()) {
 			// Otherwise, has been updated by another PIT entry
-			e.root.ExpiringPitEntries <- e
+			e.pitCs.ExpiringPitEntries <- e
 		}
 	}
 }
@@ -345,7 +369,7 @@ func (e *PitEntry) UpdateExpirationTimer() {
 // SetExpirationTimerToNow updates the expiration timer to the current time.
 func (e *PitEntry) SetExpirationTimerToNow() {
 	e.ExpirationTime = time.Now()
-	e.root.ExpiringPitEntries <- e
+	e.pitCs.ExpiringPitEntries <- e
 }
 
 // ClearInRecords removes all in-records from the PIT entry.

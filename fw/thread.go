@@ -35,32 +35,12 @@ func HashNameToFwThread(name *ndn.Name) int {
 	return int(binary.BigEndian.Uint64(sum[56:]) % uint64(len(Threads)))
 }
 
-// HashNameToAllPrefixFwThreads hahes an NDN name to all forwarding threads for all prefixes of the name.
-func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
-	// Dispatch all management requests to thread 0
-	if name.Size() > 0 && name.At(0).String() == "localhost" {
-		return []int{0}
-	}
-
-	threadMap := make(map[int]interface{})
-
-	for i := name.Size(); i > 0; i-- {
-		threadMap[HashNameToFwThread(name.Prefix(i))] = true
-	}
-
-	threadList := make([]int, 0, len(threadMap))
-	for i := range threadMap {
-		threadList = append(threadList, i)
-	}
-	return threadList
-}
-
 // Thread Represents a forwarding thread
 type Thread struct {
 	threadID         int
 	pendingInterests chan *ndn.PendingPacket
 	pendingDatas     chan *ndn.PendingPacket
-	pitCS            *table.PitCsNode
+	pitCS            *table.PitCs
 	strategies       map[string]Strategy
 	deadNonceList    *table.DeadNonceList
 	shouldQuit       chan interface{}
@@ -183,15 +163,33 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Check for forwarding hint and, if present, determine if reaching producer region (and then strip forwarding hint)
-	// TODO
+	isReachingProducerRegion := true
+	var forwardingHint *ndn.Delegation
+	if len(interest.ForwardingHint()) > 0 {
+		isReachingProducerRegion = false
+		for _, fh := range interest.ForwardingHint() {
+			if table.NetworkRegion.IsProducer(fh.Name()) {
+				isReachingProducerRegion = true
+				break
+			} else if forwardingHint == nil || fh.Preference() < forwardingHint.Preference() {
+				forwardingHint = &fh
+			}
+		}
+
+		if isReachingProducerRegion {
+			interest.ClearForwardingHints()
+			forwardingHint = nil
+		}
+	}
 
 	// Check if any matching PIT entries (and if duplicate)
-	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, incomingFace.FaceID())
+	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, forwardingHint, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
 		core.LogInfo(t, "Interest "+interest.Name().String()+" is looping - DROP")
 		return
 	}
+	core.LogDebug(t, "Found or updated PIT entry for Interest="+interest.Name().String()+", PitToken="+strconv.FormatUint(uint64(pitEntry.Token), 10))
 
 	// Get strategy for name
 	strategyName := table.FibStrategyTable.LongestPrefixStrategy(interest.Name())
@@ -233,7 +231,13 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Pass to strategy AfterReceiveInterest pipeline
-	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest)
+	var nexthops []*table.FibNextHopEntry
+	if forwardingHint == nil {
+		nexthops = table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
+	} else {
+		nexthops = table.FibStrategyTable.LongestPrefixNexthops(forwardingHint.Name())
+	}
+	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest, nexthops)
 }
 
 func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
@@ -254,8 +258,9 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 	pendingPacket := new(ndn.PendingPacket)
 	pendingPacket.IncomingFaceID = new(uint64)
 	*pendingPacket.IncomingFaceID = uint64(inFace)
-	pendingPacket.PitToken = make([]byte, 2)
+	pendingPacket.PitToken = make([]byte, 6)
 	binary.BigEndian.PutUint16(pendingPacket.PitToken, uint16(t.threadID))
+	binary.BigEndian.PutUint32(pendingPacket.PitToken[2:], pitEntry.Token)
 	var err error
 	pendingPacket.Wire, err = interest.Encode()
 	if err != nil {
@@ -289,6 +294,13 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
+	// Ensure PIT token is present
+	if pendingPacket.PitToken == nil {
+		core.LogError(t, "Data missing PitToken - DROP")
+		return
+	}
+	pitToken := binary.BigEndian.Uint32(pendingPacket.PitToken[2:6])
+
 	// Extract Data from PendingPacket
 	data, err := ndn.DecodeData(pendingPacket.Wire, false)
 	if err != nil {
@@ -317,8 +329,8 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	t.pitCS.InsertDataCS(data)
 
 	// Check for matching PIT entries
-	pitEntries := t.pitCS.FindPITFromData(data)
-	if len(pitEntries) == 0 {
+	pitEntry := t.pitCS.FindPITFromData(data, pitToken)
+	if pitEntry == nil {
 		// Unsolicated Data - nothing more to do
 		core.LogDebug(t, "Unsolicited data "+data.Name().String()+" - DROP")
 		return
@@ -328,61 +340,23 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	strategyName := table.FibStrategyTable.LongestPrefixStrategy(data.Name())
 	strategy := t.strategies[strategyName.String()]
 
-	if len(pitEntries) == 1 {
-		// Set PIT entry expiration to now
-		pitEntries[0].SetExpirationTimerToNow()
+	// Set PIT entry expiration to now
+	pitEntry.SetExpirationTimerToNow()
 
-		// Invoke strategy's AfterReceiveData
-		core.LogTrace(t, "Only one PIT entry for "+data.Name().String()+": sending to strategy "+strategyName.String())
-		strategy.AfterReceiveData(pitEntries[0], *pendingPacket.IncomingFaceID, data)
+	// Invoke strategy's AfterReceiveData
+	core.LogTrace(t, "Only one PIT entry for "+data.Name().String()+": sending to strategy "+strategyName.String())
+	strategy.AfterReceiveData(pitEntry, *pendingPacket.IncomingFaceID, data)
 
-		// Mark PIT entry as satisfied
-		pitEntries[0].Satisfied = true
+	// Mark PIT entry as satisfied
+	pitEntry.Satisfied = true
 
-		// Insert into dead nonce list
-		for _, outRecord := range pitEntries[0].OutRecords {
-			t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
-		}
-
-		// Clear out records from PIT entry
-		pitEntries[0].ClearOutRecords()
-	} else {
-		for _, pitEntry := range pitEntries {
-			// Store all pending downstreams (except face Data packet arrived on) and PIT tokens
-			downstreams := make(map[uint64][]byte)
-			for downstreamFaceID, downstreamFaceRecord := range pitEntry.InRecords {
-				if downstreamFaceID != *pendingPacket.IncomingFaceID {
-					// TODO: Ad-hoc faces
-					downstreams[downstreamFaceID] = make([]byte, len(downstreamFaceRecord.PitToken))
-					copy(downstreams[downstreamFaceID], downstreamFaceRecord.PitToken)
-				}
-			}
-
-			// Set PIT entry expiration to now
-			pitEntry.SetExpirationTimerToNow()
-
-			// Invoke strategy's BeforeSatisfyInterest
-			strategy.BeforeSatisfyInterest(pitEntry, *pendingPacket.IncomingFaceID, data)
-
-			// Mark PIT entry as satisfied
-			pitEntry.Satisfied = true
-
-			// Insert into dead nonce list
-			for _, outRecord := range pitEntries[0].OutRecords {
-				t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
-			}
-
-			// Clear PIT entry's in- and out-records
-			pitEntry.ClearInRecords()
-			pitEntry.ClearOutRecords()
-
-			// Call outoing Data pipeline for each pending downstream
-			for downstreamFaceID, downstreamPITToken := range downstreams {
-				core.LogTrace(t, "Multiple matching PIT entries for "+data.Name().String()+": sending to do OnOutgoingData pipeline")
-				t.processOutgoingData(data, downstreamFaceID, downstreamPITToken, *pendingPacket.IncomingFaceID)
-			}
-		}
+	// Insert into dead nonce list
+	for _, outRecord := range pitEntry.OutRecords {
+		t.deadNonceList.Insert(outRecord.LatestInterest.Name(), outRecord.LatestNonce)
 	}
+
+	// Clear out records from PIT entry
+	pitEntry.ClearOutRecords()
 }
 
 func (t *Thread) processOutgoingData(data *ndn.Data, nexthop uint64, pitToken []byte, inFace uint64) {

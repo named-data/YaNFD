@@ -104,19 +104,19 @@ func (f *FibStrategyEntry) pruneIfEmpty() {
 }
 
 // LongestPrefixNexthops returns the longest-prefix matching nexthop(s) matching the specified name.
-func (f *FibStrategyEntry) LongestPrefixNexthops(name *ndn.Name) []FibNextHopEntry {
+func (f *FibStrategyEntry) LongestPrefixNexthops(name *ndn.Name) []*FibNextHopEntry {
 	fibStrategyRWMutex.RLock()
 
 	// Find longest prefix matching entry
 	curNode := f.findLongestPrefixEntry(name)
 
 	// Now step back up until we find a nexthop entry
-	var nexthops []FibNextHopEntry
+	var nexthops []*FibNextHopEntry
 	for ; curNode != nil; curNode = curNode.parent {
 		if len(curNode.nexthops) > 0 {
-			nexthops = make([]FibNextHopEntry, len(curNode.nexthops))
+			nexthops = make([]*FibNextHopEntry, len(curNode.nexthops))
 			for i, nexthop := range curNode.nexthops {
-				nexthops[i] = *nexthop
+				nexthops[i] = nexthop
 			}
 			break
 		}
