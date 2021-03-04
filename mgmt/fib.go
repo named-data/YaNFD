@@ -199,7 +199,7 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 			core.LogError(f, "Unable to encode FIB dataset: "+err.Error())
 			return
 		}
-		f.manager.transport.Send(encoded, []byte{}, nil)
+		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(f, "Published FIB dataset version="+strconv.FormatUint(f.nextFIBDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")

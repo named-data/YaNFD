@@ -91,7 +91,7 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 			core.LogError(f, "Unable to encode forwarder status dataset: "+err.Error())
 			return
 		}
-		f.manager.transport.Send(encoded, []byte{}, nil)
+		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(f, "Published forwarder status dataset version="+strconv.FormatUint(f.nextGeneralDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")

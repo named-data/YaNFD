@@ -59,9 +59,3 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
-
-// BeforeSatisfyInterest ...
-func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
-	// Does nothing in Multicast
-	core.LogTrace(s, "BeforeSatisfyInterest: Interest="+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
-}
