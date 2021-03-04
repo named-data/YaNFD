@@ -223,32 +223,21 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 		core.LogTrace(l, "Dispatched Interest to thread "+strconv.Itoa(thread))
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case tlv.Data:
-		if len(netPacket.PitToken) == 2 {
-			// Decode PitToken. If it's for us, it's a uint16.
-			pitToken := binary.BigEndian.Uint16(netPacket.PitToken)
-			fwThread := dispatch.GetFWThread(int(pitToken))
+		if len(netPacket.PitToken) == 6 {
+			// Decode PitToken. If it's for us, it's a uint16 + uint32.
+			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
+			fwThread := dispatch.GetFWThread(int(pitTokenThread))
 			if fwThread == nil {
 				// If invalid PIT token present, drop.
 				core.LogError(l, "Invalid PIT token attached to Data packet - DROP")
 				break
 			}
 			// If valid PIT token present, dispatch to that thread.
-			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(pitToken), 10))
+			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
 			fwThread.QueueData(netPacket)
 		} else {
 			// Otherwise, dispatch to threads matching every prefix.
-
-			data, err := ndn.DecodeData(netPacket.Wire, false)
-			if err != nil {
-				core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
-				break
-			}
-
-			core.LogDebug(l, "Missing PIT token from Data packet - performing prefix dispatching")
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
-				core.LogTrace(l, "Prefix dispatched Data packet to thread "+strconv.Itoa(thread))
-				dispatch.GetFWThread(thread).QueueData(netPacket)
-			}
+			core.LogDebug(l, "Missing or invalid PIT token in Data packet - DROP")
 		}
 	default:
 		core.LogError(l, "Cannot dispatch packet of unknown type "+strconv.FormatUint(uint64(netPacket.Wire.Type()), 10))

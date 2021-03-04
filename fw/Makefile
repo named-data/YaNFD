@@ -11,8 +11,8 @@ yanfd: clean
 	go build -ldflags "-X 'main.Version=${VERSION}-${COMMIT}' -X 'main.BuildTime=${DATE}'" ${PACKAGE}/cmd/yanfd
 
 install:
-	install -o root -g root -m 755 yanfd /usr/local/bin
-	install -o root -g root -m 644 yanfd.toml /usr/local/etc/ndn
+	install -m 755 yanfd /usr/local/bin
+	install -m 644 yanfd.toml /usr/local/etc/ndn
 
 clean:
 	rm -f yanfd coverage.out

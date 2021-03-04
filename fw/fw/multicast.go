@@ -48,8 +48,7 @@ func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, da
 }
 
 // AfterReceiveInterest ...
-func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest) {
-	nexthops := table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
+func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest="+interest.Name().String()+" - DROP")
 		return

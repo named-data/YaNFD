@@ -432,7 +432,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 			core.LogError(f, "Unable to encode face status dataset: "+err.Error())
 			return
 		}
-		f.manager.transport.Send(encoded, []byte{}, nil)
+		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(f, "Published face dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
@@ -501,7 +501,7 @@ func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint6
 			core.LogError(f, "Unable to encode face query dataset: "+err.Error())
 			return
 		}
-		f.manager.transport.Send(encoded, []byte{}, nil)
+		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(f, "Published face query dataset version="+strconv.FormatUint(f.nextFaceDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
@@ -627,7 +627,7 @@ func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace ui
 			core.LogError(f, "Unable to encode channel dataset: "+err.Error())
 			return
 		}
-		f.manager.transport.Send(encoded, []byte{}, nil)
+		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(f, "Published channel dataset version="+strconv.FormatUint(f.nextChannelDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
