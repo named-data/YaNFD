@@ -344,7 +344,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	pitEntry.SetExpirationTimerToNow()
 
 	// Invoke strategy's AfterReceiveData
-	core.LogTrace(t, "Only one PIT entry for "+data.Name().String()+": sending to strategy "+strategyName.String())
+	core.LogTrace(t, "Sending Data="+data.Name().String()+" to strategy="+strategyName.String())
 	strategy.AfterReceiveData(pitEntry, *pendingPacket.IncomingFaceID, data)
 
 	// Mark PIT entry as satisfied

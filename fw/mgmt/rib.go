@@ -239,7 +239,7 @@ func (r *RIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 			core.LogError(r, "Unable to encode RIB dataset: "+err.Error())
 			return
 		}
-		r.manager.transport.Send(encoded, []byte{}, nil)
+		r.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(r, "Published RIB dataset version="+strconv.FormatUint(r.nextRIBDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")

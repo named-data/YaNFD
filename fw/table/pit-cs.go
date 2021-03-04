@@ -9,9 +9,12 @@ package table
 
 import (
 	"bytes"
+	"crypto/sha512"
+	"encoding/binary"
 	"math/rand"
 	"time"
 
+	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
 
@@ -20,10 +23,12 @@ type PitCs struct {
 	root               *PitCsNode
 	ExpiringPitEntries chan *PitEntry
 
+	nPitEntries int // Number of PIT entries in tree
 	pitTokenMap map[uint32]*PitEntry
 
-	nPitEntries int // Number of PIT entries in tree
-	nCsEntries  int // Number of CS entries in tree
+	nCsEntries    int // Number of CS entries in tree
+	csReplacement CsReplacementPolicy
+	csMap         map[uint64]*CsEntry
 }
 
 // PitCsNode represents an entry in a PIT-CS tree.
@@ -35,7 +40,8 @@ type PitCsNode struct {
 	children []*PitCsNode
 
 	pitEntries []*PitEntry
-	csEntry    *CsEntry
+
+	csEntry *CsEntry
 }
 
 // PitEntry is an entry in a thread's PIT.
@@ -76,7 +82,8 @@ type PitOutRecord struct {
 
 // CsEntry is an entry in a thread's CS.
 type CsEntry struct {
-	node *PitCsNode
+	node  *PitCsNode
+	index uint64
 
 	Data      *ndn.Data
 	StaleTime time.Time
@@ -84,13 +91,23 @@ type CsEntry struct {
 
 // NewPitCS creates a new combined PIT-CS for a forwarding thread.
 func NewPitCS() *PitCs {
-	pit := new(PitCs)
-	pit.root = new(PitCsNode)
-	pit.root.component = nil // Root component will be nil since it represents zero components
-	pit.root.pitEntries = make([]*PitEntry, 0)
-	pit.ExpiringPitEntries = make(chan *PitEntry, tableQueueSize)
-	pit.pitTokenMap = make(map[uint32]*PitEntry)
-	return pit
+	pitCs := new(PitCs)
+	pitCs.root = new(PitCsNode)
+	pitCs.root.component = nil // Root component will be nil since it represents zero components
+	pitCs.root.pitEntries = make([]*PitEntry, 0)
+	pitCs.ExpiringPitEntries = make(chan *PitEntry, tableQueueSize)
+	pitCs.pitTokenMap = make(map[uint32]*PitEntry)
+
+	// This value has already been validated from loading the configuration, so we know it will be one of the following (or else fatal)
+	switch csReplacementPolicy {
+	case "lru":
+		pitCs.csReplacement = NewCsLRU(pitCs)
+	default:
+		core.LogFatal(pitCs, "Unknown CS replacement policy "+csReplacementPolicy)
+	}
+	pitCs.csMap = make(map[uint64]*CsEntry)
+
+	return pitCs
 }
 
 func (p *PitCsNode) findExactMatchEntry(name *ndn.Name) *PitCsNode {
@@ -152,6 +169,11 @@ func (p *PitCs) generateNewPitToken() uint32 {
 			return token
 		}
 	}
+}
+
+func (p *PitCs) hashCsName(name *ndn.Name) uint64 {
+	sum := sha512.Sum512([]byte(name.String()))
+	return binary.BigEndian.Uint64(sum[56:])
 }
 
 // PitSize returns the number of entries in the PIT.
@@ -224,19 +246,17 @@ func (p *PitCs) FindPITFromToken(token uint32) *PitEntry {
 
 // RemovePITEntry removes the specified PIT entry.
 func (p *PitCs) RemovePITEntry(pitEntry *PitEntry) bool {
-	node := p.root.findExactMatchEntry(pitEntry.Name)
-	if node != nil {
-		for i, entry := range node.pitEntries {
-			if entry == pitEntry {
-				if i < len(node.pitEntries)-1 {
-					copy(node.pitEntries[i:], node.pitEntries[i+1:])
-				}
-				node.pitEntries = node.pitEntries[:len(node.pitEntries)-1]
-				if len(node.pitEntries) == 0 {
-					entry.node.pruneIfEmpty()
-				}
-				return true
+	for i, entry := range pitEntry.node.pitEntries {
+		if entry == pitEntry {
+			if i < len(pitEntry.node.pitEntries)-1 {
+				copy(pitEntry.node.pitEntries[i:], pitEntry.node.pitEntries[i+1:])
 			}
+			pitEntry.node.pitEntries = pitEntry.node.pitEntries[:len(pitEntry.node.pitEntries)-1]
+			if len(pitEntry.node.pitEntries) == 0 {
+				entry.node.pruneIfEmpty()
+			}
+			p.nPitEntries--
+			return true
 		}
 	}
 	return false
@@ -247,6 +267,9 @@ func (p *PitCs) FindMatchingDataCS(interest *ndn.Interest) *CsEntry {
 	node := p.root.findExactMatchEntry(interest.Name())
 	if node != nil {
 		if !interest.CanBePrefix() {
+			if node.csEntry != nil {
+				p.csReplacement.BeforeUse(node.csEntry.index, node.csEntry.Data)
+			}
 			return node.csEntry
 		}
 		return node.findMatchingDataCSPrefix(interest)
@@ -256,21 +279,41 @@ func (p *PitCs) FindMatchingDataCS(interest *ndn.Interest) *CsEntry {
 
 // InsertDataCS inserts a Data packet into the Content Store.
 func (p *PitCs) InsertDataCS(data *ndn.Data) {
-	// TODO: Eviction if needed
+	index := p.hashCsName(data.Name())
 
-	node := p.root.fillTreeToPrefix(data.Name())
-	if node.csEntry != nil {
-		// Replace
-		p.nPitEntries++
-		node.csEntry.Data = data
-
-		// TODO: Remove some entries from PIT if needed
+	if entry, ok := p.csMap[index]; ok {
+		// Replace existing entry
+		entry.Data = data
 
 		if data.MetaInfo() == nil || data.MetaInfo().FinalBlockID() == nil {
-			node.csEntry.StaleTime = time.Now()
+			entry.StaleTime = time.Now()
 		} else {
-			node.csEntry.StaleTime = time.Now().Add(*data.MetaInfo().FreshnessPeriod())
+			entry.StaleTime = time.Now().Add(*data.MetaInfo().FreshnessPeriod())
 		}
+
+		p.csReplacement.AfterRefresh(index, data)
+	} else {
+		// New entry
+		p.nCsEntries++
+		node := p.root.fillTreeToPrefix(data.Name())
+		node.csEntry = new(CsEntry)
+		node.csEntry.node = node
+		node.csEntry.index = index
+		node.csEntry.Data = data
+		p.csMap[index] = node.csEntry
+		p.csReplacement.AfterInsert(index, data)
+
+		// Tell replacement strategy to evict entries if needed
+		p.csReplacement.EvictEntries()
+	}
+}
+
+// eraseCsDataFromReplacementStrategy allows the replacement strategy to erase the data with the specified name from the Content Store.
+func (p *PitCs) eraseCsDataFromReplacementStrategy(index uint64) {
+	if entry, ok := p.csMap[index]; ok {
+		entry.node.csEntry = nil
+		delete(p.csMap, index)
+		p.nCsEntries--
 	}
 }
 

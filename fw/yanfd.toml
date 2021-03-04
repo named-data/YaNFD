@@ -45,6 +45,17 @@
   # Size of queues in the table system
   queue_size = 1024
 
+  [tables.content_store]
+
+    # Capacity of each forwarding thread's content store (in number of Data packets). Note that the
+    # total capacity of all content stores in the forwarder will be the number of threads
+    # multiplied by this value. This is the startup configuration value and can be changed at
+    # runtime via management.
+    capacity = 1024
+
+    # Cache replacement policy to use in each thread's content store.
+    replacement_policy = "lru"
+
   [tables.dead_nonce_list]
 
     # Lifetime of entries in the Dead Nonce List (milliseconds)

@@ -64,9 +64,3 @@ func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest="+interest.Name().String()+" to FaceID="+strconv.FormatUint(lowestCost.Nexthop, 10))
 	s.SendInterest(interest, pitEntry, lowestCost.Nexthop, inFace)
 }
-
-// BeforeSatisfyInterest ...
-func (s *BestRoute) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
-	// Does nothing in BestRoute
-	core.LogTrace(s, "BeforeSatisfyInterest: Data="+data.Name().String()+", FaceID="+strconv.FormatUint(inFace, 10))
-}

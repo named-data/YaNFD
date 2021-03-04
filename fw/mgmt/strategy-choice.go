@@ -235,7 +235,7 @@ func (s *StrategyChoiceModule) list(interest *ndn.Interest, pitToken []byte, inF
 			core.LogError(s, "Unable to encode strategy choice dataset: "+err.Error())
 			return
 		}
-		s.manager.transport.Send(encoded, []byte{}, nil)
+		s.manager.transport.Send(encoded, pitToken, nil)
 	}
 
 	core.LogTrace(s, "Published strategy choice dataset version="+strconv.FormatUint(s.nextStrategyDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
