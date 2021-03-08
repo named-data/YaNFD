@@ -48,7 +48,6 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	} else if localURI.Scheme() == "udp6" {
 		t.makeTransportBase(ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, tlv.MaxNDNPacketSize)
 	}
-	// TODO: Get group address from config
 	t.scope = ndn.NonLocal
 
 	// Format group and local addresses

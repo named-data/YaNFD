@@ -12,6 +12,7 @@ yanfd: clean
 
 install:
 	install -m 755 yanfd /usr/local/bin
+	mkdir -p /usr/local/etc/ndn
 	install -m 644 yanfd.toml /usr/local/etc/ndn
 
 clean:
