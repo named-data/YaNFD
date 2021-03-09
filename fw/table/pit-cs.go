@@ -229,19 +229,24 @@ func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Delegation, in
 }
 
 // FindPITFromData finds the PIT entries matching a Data packet. Note that this does not consider the effect of MustBeFresh.
-func (p *PitCs) FindPITFromData(data *ndn.Data, token uint32) *PitEntry {
-	if entry, ok := p.pitTokenMap[token]; ok && entry.Token == token {
-		return entry
+func (p *PitCs) FindPITFromData(data *ndn.Data, token *uint32) []*PitEntry {
+	if token != nil {
+		if entry, ok := p.pitTokenMap[*token]; ok && entry.Token == *token {
+			return []*PitEntry{entry}
+		}
+		return nil
 	}
-	return nil
-}
 
-// FindPITFromToken finds the PIT entry indexed by a given token or nil if none were found.
-func (p *PitCs) FindPITFromToken(token uint32) *PitEntry {
-	if entry, ok := p.pitTokenMap[token]; ok {
-		return entry
+	matching := make([]*PitEntry, 0)
+	dataNameLen := data.Name().Size()
+	for curNode := p.root.findLongestPrefixEntry(data.Name()); curNode != nil; curNode = curNode.parent {
+		for _, entry := range curNode.pitEntries {
+			if entry.CanBePrefix || curNode.depth == dataNameLen {
+				matching = append(matching, entry)
+			}
+		}
 	}
-	return nil
+	return matching
 }
 
 // RemovePITEntry removes the specified PIT entry.

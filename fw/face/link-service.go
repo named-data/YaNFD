@@ -235,9 +235,20 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			// If valid PIT token present, dispatch to that thread.
 			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
 			fwThread.QueueData(netPacket)
-		} else {
-			// Otherwise, dispatch to threads matching every prefix.
-			core.LogDebug(l, "Missing or invalid PIT token in Data packet - DROP")
+		} else if l.Scope() == ndn.Local {
+			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
+			// We need to do this because producers do not attach PIT tokens to their data packets.
+			data, err := ndn.DecodeData(netPacket.Wire, false)
+			if err != nil {
+				core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
+				break
+			}
+
+			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
+			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
+				core.LogTrace(l, "Prefix dispatched local origin Data packet to thread "+strconv.Itoa(thread))
+				dispatch.GetFWThread(thread).QueueData(netPacket)
+			}
 		}
 	default:
 		core.LogError(l, "Cannot dispatch packet of unknown type "+strconv.FormatUint(uint64(netPacket.Wire.Type()), 10))
