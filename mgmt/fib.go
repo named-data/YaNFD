@@ -102,7 +102,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 	*responseParams.FaceID = faceID
 	responseParams.Cost = new(uint64)
 	*responseParams.Cost = cost
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(f, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
@@ -149,7 +149,7 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
 	*responseParams.FaceID = faceID
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(f, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
