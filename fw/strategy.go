@@ -26,6 +26,7 @@ type Strategy interface {
 	AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
 	AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
 	AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry)
+	BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
 }
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
@@ -45,11 +46,12 @@ func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName *ndn.Gener
 	s.name, _ = ndn.NameFromString(StrategyPrefix)
 	s.strategyName = strategyName
 	s.name.Append(strategyName).Append(ndn.NewVersionNameComponent(version))
+	s.version = version
 	s.strategyLogName = strategyLogName
 }
 
 func (s *StrategyBase) String() string {
-	return s.strategyLogName + "-v" + strconv.FormatUint(s.version, 10) + strconv.Itoa(s.threadID)
+	return s.strategyLogName + "-v" + strconv.FormatUint(s.version, 10) + "-Thread" + strconv.Itoa(s.threadID)
 }
 
 // GetName returns the name of strategy, including version information.

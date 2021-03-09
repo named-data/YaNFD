@@ -59,3 +59,8 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
+
+// BeforeSatisfyInterest ...
+func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
+	// This does nothing in Multicast
+}
