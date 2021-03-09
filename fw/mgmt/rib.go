@@ -131,7 +131,7 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 		responseParams.ExpirationPeriod = new(uint64)
 		*responseParams.ExpirationPeriod = uint64(expirationPeriod.Milliseconds())
 	}
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(r, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
@@ -185,7 +185,7 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 	*responseParams.FaceID = faceID
 	responseParams.Origin = new(uint64)
 	*responseParams.Origin = origin
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(r, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)

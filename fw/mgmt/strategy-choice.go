@@ -141,7 +141,7 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.Strategy = params.Strategy
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(s, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
@@ -188,7 +188,7 @@ func (s *StrategyChoiceModule) unset(interest *ndn.Interest, pitToken []byte, in
 	core.LogInfo(s, "Unset Strategy for Name="+params.Name.String())
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
-	responseParamsWire, err := params.Encode()
+	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(s, "Unable to encode response parameters: "+err.Error())
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
