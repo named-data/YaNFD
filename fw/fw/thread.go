@@ -166,7 +166,15 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
-	core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
+	// Get PIT token (if any)
+	incomingPitToken := make([]byte, 0)
+	if len(pendingPacket.PitToken) > 0 {
+		incomingPitToken = make([]byte, len(pendingPacket.PitToken))
+		copy(incomingPitToken, pendingPacket.PitToken)
+		core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10)+", Has PitToken")
+	} else {
+		core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
+	}
 
 	t.NInInterests++
 
@@ -217,7 +225,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	core.LogDebug(t, "Using Strategy="+strategyName.String()+" for Interest="+interest.Name().String())
 
 	// Add in-record and determine if already pending
-	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID())
+	_, isAlreadyPending := pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID(), incomingPitToken)
 	if !isAlreadyPending {
 		core.LogTrace(t, "Interest "+interest.Name().String()+" is not pending")
 
@@ -231,10 +239,6 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	} else {
 		core.LogTrace(t, "Interest "+interest.Name().String()+" is already pending")
 	}
-
-	// Otherwise, prepare to forward further
-	// Create in-record
-	pitEntry.FindOrInsertInRecord(interest, incomingFace.FaceID())
 
 	// Update PIT entry expiration timer
 	pitEntry.UpdateExpirationTimer()

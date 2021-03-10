@@ -350,7 +350,7 @@ func (e *PitEntry) waitForPitExpiry() {
 }
 
 // FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
-func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64) (*PitInRecord, bool) {
+func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool) {
 	var record *PitInRecord
 	var ok bool
 	if record, ok = e.InRecords[face]; !ok {
@@ -360,6 +360,7 @@ func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64) (*P
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest
 		record.ExpirationTime = time.Now().Add(interest.Lifetime())
+		record.PitToken = incomingPitToken
 		e.InRecords[face] = record
 		return record, len(e.InRecords) > 1
 	}
