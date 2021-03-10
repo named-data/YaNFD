@@ -162,7 +162,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
 	if incomingFace == nil {
-		core.LogError(t, "Non-existent incoming face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" - DROP")
+		core.LogError(t, "Non-existent incoming FaceID="+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" for Interest="+interest.Name().String()+" - DROP")
 		return
 	}
 
@@ -273,7 +273,8 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10))
+		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10)+" for Interest="+interest.Name().String()+" - DROP")
+		return
 	}
 
 	t.NOutInterests++
@@ -335,7 +336,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
 	if incomingFace == nil {
-		core.LogError(t, "Non-existent nexthop face "+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" DROP")
+		core.LogError(t, "Non-existent nexthop FaceID="+strconv.Itoa(int(*pendingPacket.IncomingFaceID))+" for Data="+data.Name().String()+" DROP")
 		return
 	}
 
@@ -427,7 +428,8 @@ func (t *Thread) processOutgoingData(data *ndn.Data, nexthop uint64, pitToken []
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID"+strconv.FormatUint(nexthop, 10))
+		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10)+" for Data="+data.Name().String()+" - DROP")
+		return
 	}
 
 	// Check if violates /localhost
