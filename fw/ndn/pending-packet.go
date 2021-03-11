@@ -18,3 +18,30 @@ type PendingPacket struct {
 	NextHopFaceID  *uint64
 	CachePolicy    *uint64
 }
+
+// DeepCopy creates a deep copy of a pending packet.
+func (p *PendingPacket) DeepCopy() *PendingPacket {
+	newP := new(PendingPacket)
+	if p.Wire != nil {
+		newP.Wire = p.Wire.DeepCopy()
+	}
+	newP.PitToken = make([]byte, len(p.PitToken))
+	copy(newP.PitToken, p.PitToken)
+	if p.CongestionMark != nil {
+		newP.CongestionMark = new(uint64)
+		*newP.CongestionMark = *p.CongestionMark
+	}
+	if p.IncomingFaceID != nil {
+		newP.IncomingFaceID = new(uint64)
+		*newP.IncomingFaceID = *p.IncomingFaceID
+	}
+	if p.NextHopFaceID != nil {
+		newP.NextHopFaceID = new(uint64)
+		*newP.NextHopFaceID = *p.NextHopFaceID
+	}
+	if p.CachePolicy != nil {
+		newP.CachePolicy = new(uint64)
+		*newP.CachePolicy = *p.CachePolicy
+	}
+	return newP
+}
