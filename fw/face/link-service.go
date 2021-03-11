@@ -247,6 +247,8 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
 			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
 				core.LogTrace(l, "Prefix dispatched local origin Data packet to thread "+strconv.Itoa(thread))
+				netPacketCopy := netPacket
+				netPacketCopy.Wire = netPacket.Wire.DeepCopy()
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
 		}
