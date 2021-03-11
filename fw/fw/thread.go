@@ -319,10 +319,11 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
-	// Ensure PIT token is present
+	// Get PIT if present
 	var pitToken *uint32
-	if pendingPacket.PitToken != nil {
+	if len(pendingPacket.PitToken) > 0 {
 		pitToken = new(uint32)
+		// We have already guaranteed that, if a PIT token is present, it is 6 bytes long
 		*pitToken = binary.BigEndian.Uint32(pendingPacket.PitToken[2:6])
 	}
 
