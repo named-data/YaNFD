@@ -236,6 +236,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
 			fwThread.QueueData(netPacket)
 		} else if l.Scope() == ndn.Local {
+			netPacket.PitToken = make([]byte, 0) // Erase any PIT token just in case one is somehow present
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
 			data, err := ndn.DecodeData(netPacket.Wire, false)
