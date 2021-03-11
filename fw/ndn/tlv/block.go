@@ -108,17 +108,17 @@ func (b *Block) Clear() {
 
 // DeepCopy creates a deep copy of the block.
 func (b *Block) DeepCopy() *Block {
-	copyB := *b
+	copyB := new(Block)
+	copyB.tlvType = b.tlvType
 	copyB.value = make([]byte, len(b.value))
 	copy(copyB.value, b.value)
 	copyB.subelements = make([]*Block, 0, len(b.subelements))
 	for _, subelem := range b.subelements {
 		copyB.subelements = append(copyB.subelements, subelem.DeepCopy())
 	}
-	// Reset wire
 	copyB.wire = make([]byte, len(b.wire))
 	copy(copyB.wire, b.wire)
-	return &copyB
+	return copyB
 }
 
 // Encode encodes all subelements into the block's value.
