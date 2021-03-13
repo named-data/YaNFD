@@ -61,3 +61,8 @@ func Configure() {
 		core.LogDebug("NetworkRegionTable", "Added name="+region+" to table")
 	}
 }
+
+// SetCsCapacity sets the CS capacity from management.
+func SetCsCapacity(capacity int) {
+	csCapacity = capacity
+}
