@@ -23,7 +23,7 @@ type NullTransport struct {
 // MakeNullTransport makes a NullTransport.
 func MakeNullTransport() *NullTransport {
 	t := new(NullTransport)
-	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), PersistencyPermanent, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), PersistencyPermanent, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 	t.changeState(ndn.Up)
 	return t
 }

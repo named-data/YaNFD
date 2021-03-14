@@ -30,7 +30,7 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 	}
 
 	t := new(UnixStreamTransport)
-	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 
 	// Set scope and connection
 	t.scope = ndn.Local
