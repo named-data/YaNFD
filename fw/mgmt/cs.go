@@ -78,7 +78,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 	}
 
 	if (params.Flags == nil && params.Mask != nil) || (params.Flags != nil && params.Mask == nil) {
-		core.LogWarn(c, "Flags and Mask fields either both be present or both be not present")
+		core.LogWarn(c, "Flags and Mask fields must either both be present or both be not present")
 		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return

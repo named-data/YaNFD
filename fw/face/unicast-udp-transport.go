@@ -20,6 +20,7 @@ import (
 
 // UnicastUDPTransport is a unicast UDP transport.
 type UnicastUDPTransport struct {
+	dialer     *net.Dialer
 	conn       net.Conn
 	localAddr  net.UDPAddr
 	remoteAddr net.UDPAddr
@@ -27,14 +28,15 @@ type UnicastUDPTransport struct {
 }
 
 // MakeUnicastUDPTransport creates a new unicast UDP transport.
-func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDPTransport, error) {
+func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency) (*UnicastUDPTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") || (localURI != nil && !localURI.IsCanonical()) || (localURI != nil && remoteURI.Scheme() != localURI.Scheme()) {
 		return nil, core.ErrNotCanonical
 	}
 
 	t := new(UnicastUDPTransport)
-	t.makeTransportBase(remoteURI, localURI, tlv.MaxNDNPacketSize)
+	// All persistencies are accepted
+	t.makeTransportBase(remoteURI, localURI, persistency, tlv.MaxNDNPacketSize)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -57,8 +59,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*UnicastUDP
 	// Attempt to "dial" remote URI
 	var err error
 	// Configure dialer so we can allow address reuse
-	dialer := &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	t.conn, err = dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
+	t.conn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
@@ -77,6 +79,38 @@ func (t *UnicastUDPTransport) String() string {
 	return "UnicastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
+// SetPersistency changes the persistency of the face.
+func (t *UnicastUDPTransport) SetPersistency(persistency Persistency) bool {
+	if persistency == t.persistency {
+		return true
+	}
+
+	t.persistency = persistency
+	return true
+}
+
+func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
+	switch t.persistency {
+	case PersistencyPermanent:
+		// Restart socket
+		t.conn.Close()
+		var err error
+		t.conn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+		if err != nil {
+			core.LogError(t, "Unable to connect to remote endpoint: "+err.Error())
+		}
+
+		if fromReceive {
+			t.runReceive()
+		} else {
+			// Old receive thread will error out, so we need to replace it
+			go t.runReceive()
+		}
+	default:
+		t.changeState(ndn.Down)
+	}
+}
+
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
@@ -86,8 +120,9 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
 	_, err := t.conn.Write(frame)
 	if err != nil {
-		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(ndn.Down)
+		core.LogWarn(t, "Unable to send on socket - DROP")
+		t.onTransportFailure(false)
+		return
 	}
 	t.nOutBytes += uint64(len(frame))
 }
@@ -98,11 +133,11 @@ func (t *UnicastUDPTransport) runReceive() {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
 			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
+				core.LogDebug(t, "EOF")
 			} else {
-				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
+				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP")
+				t.onTransportFailure(true)
 			}
-			t.changeState(ndn.Down)
 			break
 		}
 

@@ -30,7 +30,7 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 	}
 
 	t := new(UnixStreamTransport)
-	t.makeTransportBase(remoteURI, localURI, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, tlv.MaxNDNPacketSize)
 
 	// Set scope and connection
 	t.scope = ndn.Local
@@ -43,6 +43,20 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 
 func (t *UnixStreamTransport) String() string {
 	return "UnixStreamTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+}
+
+// SetPersistency changes the persistency of the face.
+func (t *UnixStreamTransport) SetPersistency(persistency Persistency) bool {
+	if persistency == t.persistency {
+		return true
+	}
+
+	if persistency == PersistencyOnDemand {
+		t.persistency = persistency
+		return true
+	}
+
+	return false
 }
 
 func (t *UnixStreamTransport) sendFrame(frame []byte) {
