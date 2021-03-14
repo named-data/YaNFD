@@ -102,7 +102,7 @@ func (l *UDPListener) Run() {
 			core.LogInfo(l, "Unable to process received packet: "+err.Error())
 		} else if readSize >= tlvSize {
 			// If frame received here, must be for new remote endpoint
-			newTransport, err := MakeUnicastUDPTransport(remoteURI, l.localURI)
+			newTransport, err := MakeUnicastUDPTransport(remoteURI, l.localURI, PersistencyOnDemand)
 			if err != nil {
 				core.LogError(l, "Failed to create new unicast UDP transport: "+err.Error())
 				continue

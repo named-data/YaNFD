@@ -26,7 +26,7 @@ type InternalTransport struct {
 // MakeInternalTransport makes an InternalTransport.
 func MakeInternalTransport() *InternalTransport {
 	t := new(InternalTransport)
-	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), tlv.MaxNDNPacketSize)
+	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), PersistencyPersistent, tlv.MaxNDNPacketSize)
 	t.scope = ndn.Local
 	t.recvQueue = make(chan []byte, faceQueueSize)
 	t.sendQueue = make(chan []byte, faceQueueSize)
@@ -48,6 +48,20 @@ func RegisterInternalTransport() (LinkService, *InternalTransport) {
 
 func (t *InternalTransport) String() string {
 	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+}
+
+// SetPersistency changes the persistency of the face.
+func (t *InternalTransport) SetPersistency(persistency Persistency) bool {
+	if persistency == t.persistency {
+		return true
+	}
+
+	if persistency == PersistencyPersistent {
+		t.persistency = persistency
+		return true
+	}
+
+	return false
 }
 
 // Send sends a packet from the perspective of the internal component.

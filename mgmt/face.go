@@ -144,10 +144,20 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			// TODO: Check if matches a local interface IP
 		}*/
 
-		// FacePersistency, BaseCongestionMarkingInterval, and DefaultCongestionThreshold
+		persistency := face.PersistencyPersistent
+		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) || *params.FacePersistency == uint64(face.PersistencyPermanent)) {
+			persistency = face.Persistency(*params.FacePersistency)
+		} else if params.FacePersistency != nil {
+			core.LogWarn(f, "Unacceptable persistency "+face.Persistency(*params.FacePersistency).String()+" for UDP face specified in ControlParameters for "+interest.Name().String())
+			response = mgmt.MakeControlResponse(406, "Unacceptable persistency", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		// TODO: BaseCongestionMarkingInterval, and DefaultCongestionThreshold
 
 		// Create new UDP face
-		transport, err := face.MakeUnicastUDPTransport(params.URI, nil)
+		transport, err := face.MakeUnicastUDPTransport(params.URI, nil, persistency)
 		if err != nil {
 			core.LogWarn(f, "Unable to create unicast UDP face with URI "+params.URI.String()+": Unsupported scheme "+params.URI.Scheme())
 			response = mgmt.MakeControlResponse(406, "Unsupported scheme "+params.URI.Scheme(), nil)
@@ -272,8 +282,39 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		return
 	}
 
+	// Can't update null (or internal) faces via management
+	if selectedFace.RemoteURI().Scheme() == "null" {
+		responseParams.FaceID = new(uint64)
+		*responseParams.FaceID = faceID
+		responseParamsWire, err := responseParams.Encode()
+		if err != nil {
+			core.LogError(f, "Unable to encode response parameters: "+err.Error())
+			response = mgmt.MakeControlResponse(500, "Internal error", nil)
+		} else {
+			response = mgmt.MakeControlResponse(401, "Face cannot be updated via management", responseParamsWire)
+		}
+		f.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	if params.FacePersistency != nil {
+		if selectedFace.RemoteURI().Scheme() == "ether" && *params.FacePersistency != uint64(face.PersistencyPermanent) {
+			responseParams.FacePersistency = new(uint64)
+			*responseParams.FacePersistency = *params.FacePersistency
+			areParamsValid = false
+		} else if (selectedFace.RemoteURI().Scheme() == "udp4" || selectedFace.RemoteURI().Scheme() == "udp6") && *params.FacePersistency != uint64(face.PersistencyPersistent) && *params.FacePersistency != uint64(face.PersistencyPermanent) {
+			responseParams.FacePersistency = new(uint64)
+			*responseParams.FacePersistency = *params.FacePersistency
+			areParamsValid = false
+		} else if selectedFace.LocalURI().Scheme() == "unix" && *params.FacePersistency != uint64(face.PersistencyOnDemand) {
+			responseParams.FacePersistency = new(uint64)
+			*responseParams.FacePersistency = *params.FacePersistency
+			areParamsValid = false
+		}
+	}
+
 	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
-		core.LogWarn(f, "Flags and Mask fields either both be present or both be not present")
+		core.LogWarn(f, "Flags and Mask fields must either both be present or both be not present")
 		if params.Flags != nil {
 			responseParams.Flags = new(uint64)
 			*responseParams.Flags = *params.Flags
@@ -285,7 +326,7 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		areParamsValid = false
 	}
 
-	// TODO: FacePersistency, BaseCongestionMarkingInterval, DefaultCongestionThreshold
+	// TODO: BaseCongestionMarkingInterval, DefaultCongestionThreshold
 
 	if !areParamsValid {
 		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
@@ -294,6 +335,12 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	}
 
 	// Actually perform face updates
+	// Persistency
+	if params.FacePersistency != nil {
+		// Correctness of FacePersistency already validated
+		selectedFace.SetPersistency(face.Persistency(*params.FacePersistency))
+	}
+
 	// MTU
 	if params.MTU != nil {
 		oldMTU := selectedFace.MTU()
@@ -305,6 +352,7 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", MTU "+strconv.Itoa(oldMTU)+" -> "+strconv.Itoa(newMTU))
 	}
 
+	// Flags
 	if params.Flags != nil {
 		// Presence of mask already validated
 		flags := *params.Flags
@@ -474,10 +522,9 @@ func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint6
 			continue
 		}
 
-		// TODO: Add FacePersistency to Face
-		/*if filter.FacePersistency != nil && *filter.FacePersistency != uint64(face.Persistency) {
+		if filter.FacePersistency != nil && *filter.FacePersistency != uint64(face.Persistency()) {
 			continue
-		}*/
+		}
 
 		if filter.LinkType != nil && *filter.LinkType != uint64(face.LinkType()) {
 			continue
@@ -515,8 +562,7 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 	faceDataset.LocalURI = selectedFace.LocalURI()
 	// TODO: ExpirationPeriod
 	faceDataset.FaceScope = uint64(selectedFace.Scope())
-	// TODO: Put a real value here
-	faceDataset.FacePersistency = 0
+	faceDataset.FacePersistency = uint64(selectedFace.Persistency())
 	faceDataset.LinkType = uint64(selectedFace.LinkType())
 	// TODO: BaseCongestionMarkingInterval
 	// TODO: DefaultCongestionThreshold
@@ -639,9 +685,8 @@ func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selected
 	*params.FaceID = uint64(selectedFace.FaceID())
 	params.URI = selectedFace.RemoteURI()
 	params.LocalURI = selectedFace.LocalURI()
-	// TODO: Face Persistency
 	params.FacePersistency = new(uint64)
-	*params.FacePersistency = 0
+	*params.FacePersistency = uint64(selectedFace.Persistency())
 	// TODO: BaseCongestionMarkingInterval, DefaultCongestionThreshold
 	params.MTU = new(uint64)
 	*params.MTU = uint64(selectedFace.MTU())

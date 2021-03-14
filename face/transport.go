@@ -20,6 +20,8 @@ type transport interface {
 
 	RemoteURI() *ndn.URI
 	LocalURI() *ndn.URI
+	Persistency() Persistency
+	SetPersistency(persistency Persistency) bool
 	Scope() ndn.Scope
 	LinkType() ndn.LinkType
 	MTU() int
@@ -41,12 +43,13 @@ type transport interface {
 type transportBase struct {
 	linkService LinkService
 
-	faceID    uint64
-	remoteURI *ndn.URI
-	localURI  *ndn.URI
-	scope     ndn.Scope
-	linkType  ndn.LinkType
-	mtu       int
+	faceID      uint64
+	remoteURI   *ndn.URI
+	localURI    *ndn.URI
+	scope       ndn.Scope
+	persistency Persistency
+	linkType    ndn.LinkType
+	mtu         int
 
 	state     ndn.State
 	recvQueue chan *tlv.Block
@@ -58,9 +61,10 @@ type transportBase struct {
 	nOutBytes uint64
 }
 
-func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, mtu int) {
+func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency, mtu int) {
 	t.remoteURI = remoteURI
 	t.localURI = localURI
+	t.persistency = persistency
 	t.state = ndn.Down
 	t.mtu = mtu
 	t.hasQuit = make(chan bool, 2)
@@ -78,36 +82,42 @@ func (t *transportBase) setLinkService(linkService LinkService) {
 // Getters
 //
 
-// LocalURI returns the local URI of the transport
+// LocalURI returns the local URI of the transport.
 func (t *transportBase) LocalURI() *ndn.URI {
 	return t.localURI
 }
 
-// RemoteURI returns the remote URI of the transport
+// RemoteURI returns the remote URI of the transport.
 func (t *transportBase) RemoteURI() *ndn.URI {
 	return t.remoteURI
 }
 
-// Scope returns the scope of the transport
+// Persistency returns the persistency of the transport.
+func (t *transportBase) Persistency() Persistency {
+	return t.persistency
+}
+
+// Scope returns the scope of the transport.
 func (t *transportBase) Scope() ndn.Scope {
 	return t.scope
 }
 
-// LinkType returns the type of the transport
+// LinkType returns the type of the transport.
 func (t *transportBase) LinkType() ndn.LinkType {
 	return t.linkType
 }
 
-// MTU returns the maximum transmission unit (MTU) of the Transport
+// MTU returns the maximum transmission unit (MTU) of the Transport.
 func (t *transportBase) MTU() int {
 	return t.mtu
 }
 
+// SetMTU sets the MTU of the transport.
 func (t *transportBase) SetMTU(mtu int) {
 	t.mtu = mtu
 }
 
-// State returns the state of the transport
+// State returns the state of the transport.
 func (t *transportBase) State() ndn.State {
 	return t.state
 }

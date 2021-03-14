@@ -27,6 +27,8 @@ type LinkService interface {
 	FaceID() uint64
 	LocalURI() *ndn.URI
 	RemoteURI() *ndn.URI
+	Persistency() Persistency
+	SetPersistency(persistency Persistency)
 	Scope() ndn.Scope
 	LinkType() ndn.LinkType
 	MTU() int
@@ -129,7 +131,17 @@ func (l *linkServiceBase) RemoteURI() *ndn.URI {
 	return l.transport.RemoteURI()
 }
 
-// Scope returns the scope of the underlying transport
+// Persistency returns the MTU of the underlying transport.
+func (l *linkServiceBase) Persistency() Persistency {
+	return l.transport.Persistency()
+}
+
+// SetPersistency sets the MTU of the underlying transport.
+func (l *linkServiceBase) SetPersistency(persistency Persistency) {
+	l.transport.SetPersistency(persistency)
+}
+
+// Scope returns the scope of the underlying transport.
 func (l *linkServiceBase) Scope() ndn.Scope {
 	return l.transport.Scope()
 }
@@ -139,7 +151,7 @@ func (l *linkServiceBase) LinkType() ndn.LinkType {
 	return l.transport.LinkType()
 }
 
-// MTU returns the MTU of the underlying transport
+// MTU returns the MTU of the underlying transport.
 func (l *linkServiceBase) MTU() int {
 	return l.transport.MTU()
 }
@@ -149,7 +161,7 @@ func (l *linkServiceBase) SetMTU(mtu int) {
 	l.transport.SetMTU(mtu)
 }
 
-// State returns the state of the underlying transport
+// State returns the state of the underlying transport.
 func (l *linkServiceBase) State() ndn.State {
 	return l.transport.State()
 }

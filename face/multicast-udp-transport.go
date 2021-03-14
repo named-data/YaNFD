@@ -20,6 +20,7 @@ import (
 
 // MulticastUDPTransport is a multicast UDP transport.
 type MulticastUDPTransport struct {
+	dialer    *net.Dialer
 	sendConn  net.Conn
 	recvConn  *net.UDPConn
 	groupAddr net.UDPAddr
@@ -44,9 +45,9 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	}
 
 	if localURI.Scheme() == "udp4" {
-		t.makeTransportBase(ndn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(ndn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, PersistencyPermanent, tlv.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
-		t.makeTransportBase(ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, PersistencyPermanent, tlv.MaxNDNPacketSize)
 	}
 	t.scope = ndn.NonLocal
 
@@ -59,10 +60,10 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	t.localAddr.Zone = t.localURI.PathZone()
 
 	// Configure dialer so we can allow address reuse
-	dialer := &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
+	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
 
 	// Create send connection
-	t.sendConn, err = dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
+	t.sendConn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 	if err != nil {
 		return nil, errors.New("Unable to create send connection to group address: " + err.Error())
 	}
@@ -82,6 +83,20 @@ func (t *MulticastUDPTransport) String() string {
 	return "MulticastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
+// SetPersistency changes the persistency of the face.
+func (t *MulticastUDPTransport) SetPersistency(persistency Persistency) bool {
+	if persistency == t.persistency {
+		return true
+	}
+
+	if persistency == PersistencyPermanent {
+		t.persistency = persistency
+		return true
+	}
+
+	return false
+}
+
 func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
@@ -91,8 +106,12 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
 	_, err := t.sendConn.Write(frame)
 	if err != nil {
-		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(ndn.Down)
+		core.LogWarn(t, "Unable to send on socket - DROP")
+		t.sendConn.Close()
+		t.sendConn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
+		if err != nil {
+			core.LogError(t, "Unable to create send connection to group address: "+err.Error())
+		}
 	}
 	t.nOutBytes += uint64(len(frame))
 }
@@ -104,11 +123,17 @@ func (t *MulticastUDPTransport) runReceive() {
 		if err != nil {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
+				t.changeState(ndn.Down)
+				break
 			} else {
-				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
+				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP")
+				t.recvConn.Close()
+				localIf, err := InterfaceByIP(net.ParseIP(t.localURI.PathHost()))
+				if err != nil || localIf == nil {
+					core.LogError(t, "Unable to get interface for local URI "+t.localURI.String()+": "+err.Error())
+				}
+				t.recvConn, _ = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
 			}
-			t.changeState(ndn.Down)
-			break
 		}
 
 		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize)+" from "+remoteAddr.String())
