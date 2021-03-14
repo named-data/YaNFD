@@ -36,7 +36,7 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 
 	t := new(UnicastUDPTransport)
 	// All persistencies are accepted
-	t.makeTransportBase(remoteURI, localURI, persistency, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())

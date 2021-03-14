@@ -61,10 +61,12 @@ type transportBase struct {
 	nOutBytes uint64
 }
 
-func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency, mtu int) {
+func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency, scope ndn.Scope, linkType ndn.LinkType, mtu int) {
 	t.remoteURI = remoteURI
 	t.localURI = localURI
 	t.persistency = persistency
+	t.scope = scope
+	t.linkType = linkType
 	t.state = ndn.Down
 	t.mtu = mtu
 	t.hasQuit = make(chan bool, 2)

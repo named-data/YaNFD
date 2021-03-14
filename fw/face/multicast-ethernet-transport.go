@@ -39,7 +39,7 @@ func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*Mul
 	}
 
 	t := new(MulticastEthernetTransport)
-	t.makeTransportBase(remoteURI, localURI, PersistencyPermanent, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
 	t.shouldQuit = make(chan bool, 1)
 	var err error
 	t.remoteAddr, err = net.ParseMAC(remoteURI.Path())
