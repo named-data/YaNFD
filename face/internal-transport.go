@@ -26,7 +26,7 @@ type InternalTransport struct {
 // MakeInternalTransport makes an InternalTransport.
 func MakeInternalTransport() *InternalTransport {
 	t := new(InternalTransport)
-	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), PersistencyPersistent, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(ndn.MakeInternalFaceURI(), ndn.MakeInternalFaceURI(), PersistencyPersistent, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 	t.recvQueue = make(chan []byte, faceQueueSize)
 	t.sendQueue = make(chan []byte, faceQueueSize)
 	t.changeState(ndn.Up)

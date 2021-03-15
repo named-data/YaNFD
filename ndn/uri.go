@@ -24,6 +24,7 @@ type uriType int
 const devPattern = "^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\\-]+)$"
 const ethernetPattern = "^(?P<scheme>ether)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
 const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
+const internalPattern = "^(internal)://$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
 const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
 const nullPattern = "^(null)://$"
@@ -35,6 +36,7 @@ const (
 	devURI      uriType = iota
 	ethernetURI uriType = iota
 	fdURI       uriType = iota
+	internalURI uriType = iota
 	nullURI     uriType = iota
 	udpURI      uriType = iota
 	unixURI     uriType = iota
@@ -78,6 +80,16 @@ func MakeFDFaceURI(fd int) *URI {
 	uri.path = strconv.Itoa(fd)
 	uri.port = 0
 	uri.Canonize()
+	return uri
+}
+
+// MakeInternalFaceURI constructs an internal face URI.
+func MakeInternalFaceURI() *URI {
+	uri := new(URI)
+	uri.uriType = internalURI
+	uri.scheme = "internal"
+	uri.path = ""
+	uri.port = 0
 	return uri
 }
 
@@ -177,6 +189,9 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("path")]
+	} else if strings.EqualFold("internal", schemeSplit[0]) {
+		u.uriType = internalURI
+		u.scheme = "internal"
 	} else if strings.EqualFold("null", schemeSplit[0]) {
 		u.uriType = nullURI
 		u.scheme = "null"
@@ -274,6 +289,8 @@ func (u *URI) IsCanonical() bool {
 	case fdURI:
 		fd, err := strconv.Atoi(u.path)
 		return u.scheme == "fd" && err == nil && fd >= 0 && u.port == 0
+	case internalURI:
+		return u.scheme == "internal" && u.path == "" && u.port == 0
 	case nullURI:
 		return u.scheme == "null" && u.path == "" && u.port == 0
 	case udpURI:
@@ -367,6 +384,8 @@ func (u *URI) Scope() Scope {
 		return NonLocal
 	} else if u.uriType == fdURI {
 		return Local
+	} else if u.uriType == nullURI {
+		return NonLocal
 	} else if u.uriType == udpURI {
 		if net.ParseIP(u.path).IsLoopback() {
 			return Local
@@ -376,7 +395,7 @@ func (u *URI) Scope() Scope {
 		return Local
 	}
 
-	// Only valid type left is null, which is by definition local
+	// Only valid types left is internal, which is by definition local
 	return Local
 }
 
@@ -387,6 +406,8 @@ func (u *URI) String() string {
 		return u.scheme + "://[" + u.path + "]"
 	} else if u.uriType == fdURI {
 		return "fd://" + u.path
+	} else if u.uriType == internalURI {
+		return "internal://"
 	} else if u.uriType == nullURI {
 		return "null://"
 	} else if u.uriType == udpURI {
