@@ -305,14 +305,19 @@ func (i *Interest) HopLimit() *uint8 {
 	return i.hopLimit
 }
 
-// SetHopLimit sets the hop limit of the Interest (or unsets it if nil is specified).
-func (i *Interest) SetHopLimit(hopLimit *uint8) {
-	if hopLimit == nil {
-		i.hopLimit = nil
-	} else {
-		i.hopLimit = new(uint8)
-		*i.hopLimit = *hopLimit
+// SetHopLimit sets the hop limit of the Interest.
+func (i *Interest) SetHopLimit(hopLimit uint8) {
+	i.hopLimit = new(uint8)
+	*i.hopLimit = hopLimit
+	i.wire = nil
+}
+
+// UnsetHopLimit unsets the hop limit of the Interest.
+func (i *Interest) UnsetHopLimit() {
+	if i.hopLimit == nil {
+		return
 	}
+	i.hopLimit = nil
 	i.wire = nil
 }
 
