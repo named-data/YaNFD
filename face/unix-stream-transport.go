@@ -10,6 +10,7 @@ package face
 import (
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
@@ -31,12 +32,15 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 
 	t := new(UnixStreamTransport)
 	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.expirationTime = new(time.Time)
+	*t.expirationTime = time.Now().Add(udpLifetime)
 
-	// Set scope and connection
-	t.scope = ndn.Local
+	// Set connection
 	t.conn = conn
 
 	t.changeState(ndn.Up)
+
+	go t.expirationHandler()
 
 	return t, nil
 }
@@ -59,6 +63,21 @@ func (t *UnixStreamTransport) SetPersistency(persistency Persistency) bool {
 	return false
 }
 
+// expirationHandler checks if the face should expire (if on demand)
+func (t *UnixStreamTransport) expirationHandler() {
+	for {
+		time.Sleep(time.Duration(10) * time.Second)
+		if t.state == ndn.Down {
+			break
+		}
+		if t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now()) {
+			core.LogInfo(t, "Face expired")
+			t.changeState(ndn.Down)
+			break
+		}
+	}
+}
+
 func (t *UnixStreamTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
@@ -72,6 +91,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 		t.changeState(ndn.Down)
 	}
 
+	*t.expirationTime = time.Now().Add(udpLifetime)
 	t.nOutBytes += uint64(len(frame))
 }
 
@@ -92,6 +112,7 @@ func (t *UnixStreamTransport) runReceive() {
 		}
 
 		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
+		*t.expirationTime = time.Now().Add(udpLifetime)
 		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {

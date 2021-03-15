@@ -7,7 +7,11 @@
 
 package face
 
-import "github.com/eric135/YaNFD/core"
+import (
+	"time"
+
+	"github.com/eric135/YaNFD/core"
+)
 
 // faceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.
 var faceQueueSize int
@@ -30,8 +34,14 @@ var udp4MulticastAddress string
 // udp6MulticastAddress is the standard multicast UDP6 address for NDN.
 var udp6MulticastAddress string
 
+// udpLifetime is the lifetime of on-demand UDP faces after they become idle.
+var udpLifetime time.Duration
+
 // UnixSocketPath is the standard Unix socket file path for NDN.
 var UnixSocketPath string
+
+// unixLifetime is the lifetime of on-demand Unix faces after they become idle.
+var unixLifetime time.Duration
 
 // Configure configures the face system.
 func Configure() {
@@ -42,5 +52,7 @@ func Configure() {
 	UDPMulticastPort = core.GetConfigUint16Default("faces.udp.port_multicast", 56363)
 	udp4MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv4", "224.0.23.170")
 	udp6MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv6", "ff02::114")
+	udpLifetime = time.Duration(core.GetConfigUint16Default("faces.udp.lifetime", 600)) * time.Second
 	UnixSocketPath = core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd.sock")
+	unixLifetime = time.Duration(core.GetConfigUint16Default("faces.unix.lifetime", 600)) * time.Second
 }

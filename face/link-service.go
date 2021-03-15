@@ -10,6 +10,7 @@ package face
 import (
 	"encoding/binary"
 	"strconv"
+	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/dispatch"
@@ -34,6 +35,7 @@ type LinkService interface {
 	MTU() int
 	SetMTU(mtu int)
 
+	ExpirationPeriod() time.Duration
 	State() ndn.State
 
 	// Main entry point for running face thread
@@ -159,6 +161,11 @@ func (l *linkServiceBase) MTU() int {
 // SetMTU sets the MTU of the underlying transport.
 func (l *linkServiceBase) SetMTU(mtu int) {
 	l.transport.SetMTU(mtu)
+}
+
+// ExpirationPeriod returns the time until the underlying transport expires. If transport not on-demand, returns 0.
+func (l *linkServiceBase) ExpirationPeriod() time.Duration {
+	return l.transport.ExpirationPeriod()
 }
 
 // State returns the state of the underlying transport.
