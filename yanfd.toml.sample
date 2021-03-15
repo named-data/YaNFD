@@ -38,9 +38,6 @@
     # Location of the socket file
     socket_path = "/run/nfd.sock"
 
-    # Lifetime of on-demand faces (in seconds)
-    lifetime = 600
-
 [fw]
 
   # Size of queues in the forwarding system

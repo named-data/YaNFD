@@ -178,6 +178,13 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	t.NInInterests++
 
+	// Drop if HopLimit present and is 0. Else, decrement by 1
+	if interest.HopLimit() != nil && *interest.HopLimit() == 0 {
+		core.LogDebug(t, "Received Interest="+interest.Name().String()+" with HopLimit=0 - DROP")
+	} else if interest.HopLimit() != nil {
+		interest.SetHopLimit(*interest.HopLimit() - 1)
+	}
+
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && interest.Name().Size() > 0 && interest.Name().At(0).String() == "localhost" {
 		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.FormatUint(incomingFace.FaceID(), 10)+" violates /localhost scope - DROP")
@@ -267,15 +274,21 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
 	core.LogTrace(t, "OnOutgoingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(nexthop, 10))
 
-	// Create or update out-record
-	pitEntry.FindOrInsertOutRecord(interest, nexthop)
-
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
 		core.LogError(t, "Non-existent nexthop FaceID="+strconv.FormatUint(nexthop, 10)+" for Interest="+interest.Name().String()+" - DROP")
 		return
 	}
+
+	// Drop if HopLimit (if present) on Interest going to non-local face is 0. If so, drop
+	if interest.HopLimit() != nil && *interest.HopLimit() == 0 && outgoingFace.Scope() == ndn.NonLocal {
+		core.LogDebug(t, "Attempting to send Interest="+interest.Name().String()+" with HopLimit=0 to non-local face - DROP")
+		return
+	}
+
+	// Create or update out-record
+	pitEntry.FindOrInsertOutRecord(interest, nexthop)
 
 	t.NOutInterests++
 
