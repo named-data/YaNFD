@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face/impl"
@@ -37,6 +38,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	t := new(UnicastUDPTransport)
 	// All persistencies are accepted
 	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.expirationTime = new(time.Time)
+	*t.expirationTime = time.Now().Add(udpLifetime)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -71,6 +74,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	}
 
 	t.changeState(ndn.Up)
+
+	go t.expirationHandler()
 
 	return t, nil
 }
@@ -111,6 +116,21 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 	}
 }
 
+// expirationHandler checks if the face should expire (if on demand)
+func (t *UnicastUDPTransport) expirationHandler() {
+	for {
+		time.Sleep(time.Duration(10) * time.Second)
+		if t.state == ndn.Down {
+			break
+		}
+		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now())) {
+			core.LogInfo(t, "Face expired")
+			t.changeState(ndn.Down)
+			break
+		}
+	}
+}
+
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
@@ -125,6 +145,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 		return
 	}
 	t.nOutBytes += uint64(len(frame))
+	*t.expirationTime = time.Now().Add(udpLifetime)
 }
 
 func (t *UnicastUDPTransport) runReceive() {
@@ -143,6 +164,7 @@ func (t *UnicastUDPTransport) runReceive() {
 
 		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
 		t.nInBytes += uint64(readSize)
+		*t.expirationTime = time.Now().Add(udpLifetime)
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")

@@ -8,6 +8,8 @@
 package face
 
 import (
+	"time"
+
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
@@ -27,6 +29,7 @@ type transport interface {
 	MTU() int
 	SetMTU(mtu int)
 	State() ndn.State
+	ExpirationPeriod() time.Duration
 
 	runReceive()
 
@@ -43,13 +46,14 @@ type transport interface {
 type transportBase struct {
 	linkService LinkService
 
-	faceID      uint64
-	remoteURI   *ndn.URI
-	localURI    *ndn.URI
-	scope       ndn.Scope
-	persistency Persistency
-	linkType    ndn.LinkType
-	mtu         int
+	faceID         uint64
+	remoteURI      *ndn.URI
+	localURI       *ndn.URI
+	scope          ndn.Scope
+	persistency    Persistency
+	linkType       ndn.LinkType
+	mtu            int
+	expirationTime *time.Time
 
 	state     ndn.State
 	recvQueue chan *tlv.Block
@@ -117,6 +121,14 @@ func (t *transportBase) MTU() int {
 // SetMTU sets the MTU of the transport.
 func (t *transportBase) SetMTU(mtu int) {
 	t.mtu = mtu
+}
+
+// ExpirationPeriod returns the time until this face expires. If transport not on-demand, returns 0.
+func (t *transportBase) ExpirationPeriod() time.Duration {
+	if t.expirationTime == nil || t.persistency != PersistencyOnDemand {
+		return 0
+	}
+	return t.expirationTime.Sub(time.Now())
 }
 
 // State returns the state of the transport.

@@ -30,10 +30,16 @@
     # IPv6 address used for multicast UDP faces
     multicast_address_ipv6 = "ff02::114"
 
+    # Lifetime of on-demand faces (in seconds)
+    lifetime = 600
+
   [faces.unix]
 
     # Location of the socket file
     socket_path = "/run/nfd.sock"
+
+    # Lifetime of on-demand faces (in seconds)
+    lifetime = 600
 
 [fw]
 

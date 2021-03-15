@@ -560,7 +560,10 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 	faceDataset.FaceID = uint64(selectedFace.FaceID())
 	faceDataset.URI = selectedFace.RemoteURI()
 	faceDataset.LocalURI = selectedFace.LocalURI()
-	// TODO: ExpirationPeriod
+	if selectedFace.ExpirationPeriod() != 0 {
+		faceDataset.ExpirationPeriod = new(uint64)
+		*faceDataset.ExpirationPeriod = uint64(selectedFace.ExpirationPeriod().Milliseconds())
+	}
 	faceDataset.FaceScope = uint64(selectedFace.Scope())
 	faceDataset.FacePersistency = uint64(selectedFace.Persistency())
 	faceDataset.LinkType = uint64(selectedFace.LinkType())
