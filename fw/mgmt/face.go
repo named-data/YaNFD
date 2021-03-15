@@ -283,7 +283,7 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	}
 
 	// Can't update null (or internal) faces via management
-	if selectedFace.RemoteURI().Scheme() == "null" {
+	if selectedFace.RemoteURI().Scheme() == "null" || selectedFace.RemoteURI().Scheme() == "internal" {
 		responseParams.FaceID = new(uint64)
 		*responseParams.FaceID = faceID
 		responseParamsWire, err := responseParams.Encode()
@@ -306,7 +306,7 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 			responseParams.FacePersistency = new(uint64)
 			*responseParams.FacePersistency = *params.FacePersistency
 			areParamsValid = false
-		} else if selectedFace.LocalURI().Scheme() == "unix" && *params.FacePersistency != uint64(face.PersistencyOnDemand) {
+		} else if selectedFace.LocalURI().Scheme() == "unix" && *params.FacePersistency != uint64(face.PersistencyPersistent) {
 			responseParams.FacePersistency = new(uint64)
 			*responseParams.FacePersistency = *params.FacePersistency
 			areParamsValid = false
