@@ -24,6 +24,19 @@ func LoadConfig(file string) {
 	}
 }
 
+// GetConfigBoolDefault returns the boolean configuration value at the specified key or the specified default value if it does not exist.
+func GetConfigBoolDefault(key string, def bool) bool {
+	valRaw := config.Get(key)
+	if valRaw == nil {
+		return def
+	}
+	val, ok := valRaw.(bool)
+	if ok {
+		return val
+	}
+	return def
+}
+
 // GetConfigIntDefault returns the integer configuration value at the specified key or the specified default value if it does not exist.
 func GetConfigIntDefault(key string, def int) int {
 	valRaw := config.Get(key)

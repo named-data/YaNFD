@@ -166,6 +166,14 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
+	// Drop if HopLimit present and is 0. Else, decrement by 1
+	if interest.HopLimit() != nil && *interest.HopLimit() == 0 {
+		core.LogDebug(t, "Received Interest="+interest.Name().String()+" with HopLimit=0 - DROP")
+		return
+	} else if interest.HopLimit() != nil {
+		interest.SetHopLimit(*interest.HopLimit() - 1)
+	}
+
 	// Get PIT token (if any)
 	incomingPitToken := make([]byte, 0)
 	if len(pendingPacket.PitToken) > 0 {
@@ -176,20 +184,13 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		core.LogTrace(t, "OnIncomingInterest: "+interest.Name().String()+", FaceID="+strconv.FormatUint(incomingFace.FaceID(), 10))
 	}
 
-	t.NInInterests++
-
-	// Drop if HopLimit present and is 0. Else, decrement by 1
-	if interest.HopLimit() != nil && *interest.HopLimit() == 0 {
-		core.LogDebug(t, "Received Interest="+interest.Name().String()+" with HopLimit=0 - DROP")
-	} else if interest.HopLimit() != nil {
-		interest.SetHopLimit(*interest.HopLimit() - 1)
-	}
-
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn.NonLocal && interest.Name().Size() > 0 && interest.Name().At(0).String() == "localhost" {
 		core.LogWarn(t, "Interest "+interest.Name().String()+" from non-local face="+strconv.FormatUint(incomingFace.FaceID(), 10)+" violates /localhost scope - DROP")
 		return
 	}
+
+	t.NInInterests++
 
 	// Detect duplicate nonce by comparing against Dead Nonce List
 	if t.deadNonceList.Find(interest.Name(), interest.Nonce()) {
