@@ -38,6 +38,12 @@ func (f *ForwarderStatusModule) getManager() *Thread {
 }
 
 func (f *ForwarderStatusModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	// Only allow from /localhost
+	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+		core.LogWarn(f, "Received forwarder status management Interest from non-local source - DROP")
+		return
+	}
+
 	// Dispatch by verb
 	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
 	switch verb {
@@ -83,7 +89,7 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 	}
 	dataset := wire.Value()
 
-	name, _ := ndn.NameFromString(f.manager.prefix.String() + "/status/general")
+	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/status/general")
 	segments := mgmt.MakeStatusDataset(name, f.nextGeneralDatasetVersion, dataset)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()

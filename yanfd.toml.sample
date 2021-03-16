@@ -43,6 +43,11 @@
   # Size of queues in the forwarding system
   queue_size = 1024
 
+[mgmt]
+
+  # Controls whether management over /localhop is enabled or disabled
+  allow_localhop = false
+
 [tables]
 
   # Size of queues in the table system

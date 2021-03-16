@@ -39,6 +39,12 @@ func (f *FaceModule) getManager() *Thread {
 }
 
 func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	// Only allow from /localhost
+	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+		core.LogWarn(f, "Received face management Interest from non-local source - DROP")
+		return
+	}
+
 	// Dispatch by verb
 	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
 	switch verb {
@@ -472,7 +478,7 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 		dataset = append(dataset, f.createDataset(faces[faceID])...)
 	}
 
-	name, _ := ndn.NameFromString(f.manager.prefix.String() + "/faces/list")
+	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/faces/list")
 	segments := mgmt.MakeStatusDataset(name, f.nextFaceDatasetVersion, dataset)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()

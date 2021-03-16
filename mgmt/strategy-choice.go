@@ -31,7 +31,7 @@ func (s *StrategyChoiceModule) String() string {
 
 func (s *StrategyChoiceModule) registerManager(manager *Thread) {
 	s.manager = manager
-	s.strategyPrefix = s.manager.prefix.DeepCopy().Append(ndn.NewGenericNameComponent([]byte("strategy")))
+	s.strategyPrefix = s.manager.localPrefix.DeepCopy().Append(ndn.NewGenericNameComponent([]byte("strategy")))
 }
 
 func (s *StrategyChoiceModule) getManager() *Thread {
@@ -39,6 +39,12 @@ func (s *StrategyChoiceModule) getManager() *Thread {
 }
 
 func (s *StrategyChoiceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	// Only allow from /localhost
+	if !s.manager.localPrefix.PrefixOf(interest.Name()) {
+		core.LogWarn(s, "Received strategy management Interest from non-local source - DROP")
+		return
+	}
+
 	// Dispatch by verb
 	verb := interest.Name().At(s.manager.prefixLength() + 1).String()
 	switch verb {
@@ -227,7 +233,7 @@ func (s *StrategyChoiceModule) list(interest *ndn.Interest, pitToken []byte, inF
 		dataset = append(dataset, encoded...)
 	}
 
-	name, _ := ndn.NameFromString(s.manager.prefix.String() + "/strategy-choice/list")
+	name, _ := ndn.NameFromString(s.manager.localPrefix.String() + "/strategy-choice/list")
 	segments := mgmt.MakeStatusDataset(name, s.nextStrategyDatasetVersion, dataset)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()

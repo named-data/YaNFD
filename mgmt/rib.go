@@ -231,7 +231,7 @@ func (r *RIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 		dataset = append(dataset, encoded...)
 	}
 
-	name, _ := ndn.NameFromString(r.manager.prefix.String() + "/rib/list")
+	name, _ := ndn.NameFromString(interest.Name().Prefix(r.manager.prefixLength()).String() + "/rib/list")
 	segments := mgmt.MakeStatusDataset(name, r.nextRIBDatasetVersion, dataset)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()

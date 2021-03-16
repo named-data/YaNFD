@@ -29,7 +29,7 @@ func (c *ContentStoreModule) String() string {
 
 func (c *ContentStoreModule) registerManager(manager *Thread) {
 	c.manager = manager
-	c.csPrefix = c.manager.prefix.DeepCopy().Append(ndn.NewGenericNameComponent([]byte("cs")))
+	c.csPrefix = c.manager.localPrefix.DeepCopy().Append(ndn.NewGenericNameComponent([]byte("cs")))
 }
 
 func (c *ContentStoreModule) getManager() *Thread {
@@ -37,6 +37,12 @@ func (c *ContentStoreModule) getManager() *Thread {
 }
 
 func (c *ContentStoreModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	// Only allow from /localhost
+	if !c.manager.localPrefix.PrefixOf(interest.Name()) {
+		core.LogWarn(c, "Received CS management Interest from non-local source - DROP")
+		return
+	}
+
 	// Dispatch by verb
 	verb := interest.Name().At(c.manager.prefixLength() + 1).String()
 	switch verb {

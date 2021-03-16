@@ -36,6 +36,12 @@ func (f *FIBModule) getManager() *Thread {
 }
 
 func (f *FIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	// Only allow from /localhost
+	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+		core.LogWarn(f, "Received FIB management Interest from non-local source - DROP")
+		return
+	}
+
 	// Dispatch by verb
 	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
 	switch verb {
@@ -191,7 +197,7 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 		dataset = append(dataset, encoded...)
 	}
 
-	name, _ := ndn.NameFromString(f.manager.prefix.String() + "/fib/list")
+	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/fib/list")
 	segments := mgmt.MakeStatusDataset(name, f.nextFIBDatasetVersion, dataset)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()

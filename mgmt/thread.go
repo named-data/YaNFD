@@ -20,17 +20,19 @@ import (
 
 // Thread Represents the management thread
 type Thread struct {
-	face      face.LinkService
-	transport *face.InternalTransport
-	prefix    *ndn.Name
-	modules   map[string]Module
+	face           face.LinkService
+	transport      *face.InternalTransport
+	localPrefix    *ndn.Name
+	nonLocalPrefix *ndn.Name
+	modules        map[string]Module
 }
 
 // MakeMgmtThread creates a new management thread.
 func MakeMgmtThread() *Thread {
 	m := new(Thread)
 	var err error
-	m.prefix, err = ndn.NameFromString("/localhost/nfd")
+	m.localPrefix, err = ndn.NameFromString("/localhost/nfd")
+	m.nonLocalPrefix, err = ndn.NameFromString("/localhop/nfd")
 	if err != nil {
 		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
 	}
@@ -53,7 +55,7 @@ func (m *Thread) registerModule(name string, module Module) {
 }
 
 func (m *Thread) prefixLength() int {
-	return m.prefix.Size()
+	return m.localPrefix.Size()
 }
 
 func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *ndn.Interest, pitToken []byte, inFace uint64) {
@@ -85,7 +87,10 @@ func (m *Thread) Run() {
 
 	// Create and register Internal transport
 	m.face, m.transport = face.RegisterInternalTransport()
-	table.FibStrategyTable.AddNexthop(m.prefix, m.face.FaceID(), 0)
+	table.FibStrategyTable.AddNexthop(m.localPrefix, m.face.FaceID(), 0)
+	if enableLocalhopManagement {
+		table.FibStrategyTable.AddNexthop(m.nonLocalPrefix, m.face.FaceID(), 0)
+	}
 
 	for {
 		block, pitToken, inFace := m.transport.Receive()
@@ -108,11 +113,11 @@ func (m *Thread) Run() {
 		}
 
 		// Ensure Interest name matches expectations
-		if interest.Name().Size() < m.prefix.Size()+2 { // Module + Verb
+		if interest.Name().Size() < m.localPrefix.Size()+2 { // Module + Verb
 			core.LogInfo(m, "Control command name "+interest.Name().String()+" has unexpected number of components - DROP")
 			continue
 		}
-		if !m.prefix.PrefixOf(interest.Name()) {
+		if !m.localPrefix.PrefixOf(interest.Name()) && !m.nonLocalPrefix.PrefixOf(interest.Name()) {
 			core.LogInfo(m, "Control command name "+interest.Name().String()+" has unexpected prefix - DROP")
 			continue
 		}
@@ -120,7 +125,7 @@ func (m *Thread) Run() {
 		core.LogTrace(m, "Received management Interest "+interest.Name().String())
 
 		// Dispatch interest based on name
-		moduleName := interest.Name().At(m.prefix.Size()).String()
+		moduleName := interest.Name().At(m.localPrefix.Size()).String()
 		if module, ok := m.modules[moduleName]; ok {
 			module.handleIncomingInterest(interest, pitToken, inFace)
 		} else {
