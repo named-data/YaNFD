@@ -15,6 +15,7 @@ import (
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/mgmt"
+	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/eric135/YaNFD/table"
 )
 
@@ -44,6 +45,8 @@ func (r *RIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []by
 		r.register(interest, pitToken, inFace)
 	case "unregister":
 		r.unregister(interest, pitToken, inFace)
+	case "announce":
+		r.announce(interest, pitToken, inFace)
 	case "list":
 		r.list(interest, pitToken, inFace)
 	default:
@@ -113,9 +116,9 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 	table.Rib.AddRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
 
 	if expirationPeriod != nil {
-		core.LogInfo(r, "Created route for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16)+", ExpirationPeriod="+expirationPeriod.String())
+		core.LogInfo(r, "Created route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16)+", ExpirationPeriod="+expirationPeriod.String())
 	} else {
-		core.LogInfo(r, "Created route for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16))
+		core.LogInfo(r, "Created route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16))
 	}
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
@@ -178,13 +181,84 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 
 	table.Rib.RemoveRoute(params.Name, faceID, origin)
 
-	core.LogInfo(r, "Removed route for "+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10))
+	core.LogInfo(r, "Removed route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10))
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
 	*responseParams.FaceID = faceID
 	responseParams.Origin = new(uint64)
 	*responseParams.Origin = origin
+	responseParamsWire, err := responseParams.Encode()
+	if err != nil {
+		core.LogError(r, "Unable to encode response parameters: "+err.Error())
+		response = mgmt.MakeControlResponse(500, "Internal error", nil)
+	} else {
+		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	}
+	r.manager.sendResponse(response, interest, pitToken, inFace)
+}
+
+func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	var response *mgmt.ControlResponse
+
+	if interest.Name().Size() != r.manager.prefixLength()+3 || interest.Name().At(r.manager.prefixLength()+2).Type() != tlv.ParametersSha256DigestComponent {
+		// Name not long enough to contain ControlParameters
+		core.LogWarn(r, "Name of Interest="+interest.Name().String()+" is either too short or incorrectly formatted to be rib/announce")
+		response = mgmt.MakeControlResponse(400, "Name is incorrect", nil)
+		r.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	// Get PrefixAnnouncement
+	if len(interest.ApplicationParameters()) == 0 || interest.ApplicationParameters()[0].Type() != tlv.Data {
+		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" missing PrefixAnnouncement")
+		response = mgmt.MakeControlResponse(400, "PrefixAnnouncement is missing", nil)
+		r.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	prefixAnnouncement, err := ndn.DecodePrefixAnnouncement(interest.ApplicationParameters()[0].DeepCopy())
+	if err != nil {
+		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" has invalid PrefixAnnouncement")
+		response = mgmt.MakeControlResponse(400, "PrefixAnnouncement is invalid", nil)
+		r.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	}
+
+	prefix := prefixAnnouncement.Prefix()
+	faceID := inFace
+	origin := table.RouteOriginPrefixAnn
+	cost := uint64(0)
+	expirationPeriod := time.Duration(prefixAnnouncement.ExpirationPeriod()) * time.Millisecond
+
+	// Use more restrictive of ExpirationPeriod and ValidityPeriod
+	notBefore, notAfter := prefixAnnouncement.ValidityPeriod()
+	if notBefore.Unix() == 0 && notAfter.Unix() == 0 {
+	} else if notBefore.After(time.Now()) && notAfter.Before(time.Now()) {
+		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" is in the future")
+		response = mgmt.MakeControlResponse(416, "Time out of range", nil)
+		r.manager.sendResponse(response, interest, pitToken, inFace)
+		return
+	} else if notAfter.Before(time.Now().Add(expirationPeriod)) {
+		expirationPeriod = notAfter.Sub(time.Now())
+	}
+
+	table.Rib.AddRoute(prefix, faceID, origin, cost, 0, &expirationPeriod)
+
+	core.LogInfo(r, "Created route via PrefixAnnouncement for Prefix="+prefix.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x0, ExpirationPeriod="+expirationPeriod.String())
+
+	responseParams := mgmt.MakeControlParameters()
+	responseParams.Name = prefix
+	responseParams.FaceID = new(uint64)
+	*responseParams.FaceID = faceID
+	responseParams.Origin = new(uint64)
+	*responseParams.Origin = origin
+	responseParams.Cost = new(uint64)
+	*responseParams.Cost = cost
+	responseParams.Flags = new(uint64)
+	*responseParams.Flags = 0
+	responseParams.ExpirationPeriod = new(uint64)
+	*responseParams.ExpirationPeriod = uint64(expirationPeriod.Milliseconds())
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
 		core.LogError(r, "Unable to encode response parameters: "+err.Error())
