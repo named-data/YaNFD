@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -58,6 +58,15 @@ const (
 	// Link Object
 	Delegation = 0x1f
 	Preference = 0x1e
+
+	// Certificates
+	ValidityPeriod        = 0xfd
+	NotBefore             = 0xfe
+	NotAfter              = 0xff
+	AdditionalDescription = 0x0102
+	DescriptionEntry      = 0x0200
+	DescriptionKey        = 0x0201
+	DescriptionValue      = 0x0202
 )
 
 // IsCritical returns whether a TLV type is critical.

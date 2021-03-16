@@ -739,8 +739,12 @@ func (n *Name) Append(component NameComponent) *Name {
 
 // At returns the name component at the specified index. If out of range, nil is returned.
 func (n *Name) At(index int) NameComponent {
-	if index < 0 || index >= len(n.components) {
+	if index < -len(n.components) || index >= len(n.components) {
 		return nil
+	}
+
+	if index < 0 {
+		return n.components[len(n.components)+index]
 	}
 	return n.components[index]
 }
