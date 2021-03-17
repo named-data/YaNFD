@@ -88,7 +88,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			for _, delegationBlock := range elem.Subelements() {
 				delegation, err := DecodeDelegation(delegationBlock)
 				if err != nil {
-					return nil, errors.New("Error decoding Delegation")
+					return nil, errors.New("error decoding Delegation")
 				}
 				i.forwardingHint = append(i.forwardingHint, *delegation)
 			}
@@ -98,7 +98,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			}
 			mostRecentElem = 5
 			if len(elem.Value()) != 4 {
-				return nil, errors.New("Error decoding Nonce")
+				return nil, errors.New("error decoding Nonce")
 			}
 			i.nonce = make([]byte, 4)
 			copy(i.nonce, elem.Value())
@@ -109,7 +109,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			mostRecentElem = 6
 			lifetime, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding InterestLifetime")
+				return nil, errors.New("error decoding InterestLifetime")
 			}
 			i.lifetime = time.Duration(lifetime) * time.Millisecond
 		case tlv.HopLimit:
@@ -118,7 +118,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			}
 			mostRecentElem = 7
 			if len(elem.Value()) != 1 {
-				return nil, errors.New("Error decoding HopLimit")
+				return nil, errors.New("error decoding HopLimit")
 			}
 			i.hopLimit = new(uint8)
 			*i.hopLimit = elem.Value()[0]
@@ -143,14 +143,14 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 	if hasApplicationParameters {
 		_, paramsDigest := i.name.Find(tlv.ParametersSha256DigestComponent)
 		if paramsDigest == nil {
-			return nil, errors.New("Has ApplicationParameters but missing ParametersSha256DigestComponent")
+			return nil, errors.New("has ApplicationParameters but missing ParametersSha256DigestComponent")
 		}
 		// Hash parameters
 		h := sha256.New()
 		for _, param := range i.parameters {
 			paramWire, err := param.Wire()
 			if err != nil {
-				return nil, errors.New("Error wire encoding application parameter of type 0x" + strconv.FormatUint(uint64(param.Type()), 16))
+				return nil, errors.New("error wire encoding application parameter of type 0x" + strconv.FormatUint(uint64(param.Type()), 16))
 			}
 			h.Write(paramWire)
 		}

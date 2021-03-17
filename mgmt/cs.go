@@ -18,9 +18,9 @@ import (
 
 // ContentStoreModule is the module that handles Content Store Management.
 type ContentStoreModule struct {
-	manager              *Thread
-	nextCsDatasetVersion uint64
-	csPrefix             *ndn.Name
+	manager *Thread
+	//nextCsDatasetVersion uint64
+	csPrefix *ndn.Name
 }
 
 func (c *ContentStoreModule) String() string {
@@ -95,7 +95,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 		table.SetCsCapacity(int(*params.Capacity))
 	}
 
-	if params.Flags != nil {
+	/*if params.Flags != nil {
 		if *params.Mask&0x01 > 0 {
 			// CS_ENABLE_ADMIT
 			// TODO
@@ -105,7 +105,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 			// CS_ENABLE_SERVE
 			// TODO
 		}
-	}
+	}*/
 
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Capacity = params.Capacity

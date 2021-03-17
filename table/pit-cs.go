@@ -207,8 +207,8 @@ func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Delegation, in
 		entry.CanBePrefix = interest.CanBePrefix()
 		entry.MustBeFresh = interest.MustBeFresh()
 		entry.ForwardingHint = hint
-		entry.InRecords = make(map[uint64]*PitInRecord, 0)
-		entry.OutRecords = make(map[uint64]*PitOutRecord, 0)
+		entry.InRecords = make(map[uint64]*PitInRecord)
+		entry.OutRecords = make(map[uint64]*PitOutRecord)
 		entry.Satisfied = false
 		node.pitEntries = append(node.pitEntries, entry)
 		entry.Token = p.generateNewPitToken()

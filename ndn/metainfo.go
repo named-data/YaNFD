@@ -49,7 +49,7 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 			mostRecentElem = 1
 			contentType, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding ContentType")
+				return nil, errors.New("error decoding ContentType")
 			}
 			m.contentType = new(uint64)
 			*m.contentType = contentType
@@ -60,7 +60,7 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 			mostRecentElem = 2
 			freshnessPeriod, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding FreshnessPeriod")
+				return nil, errors.New("error decoding FreshnessPeriod")
 			}
 			m.freshnessPeriod = new(time.Duration)
 			*m.freshnessPeriod = time.Duration(freshnessPeriod) * time.Millisecond
@@ -75,7 +75,7 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 			}
 			finalBlockID, err := DecodeNameComponent(elem.Subelements()[0])
 			if err != nil {
-				return nil, errors.New("Error decoding FinalBlockId")
+				return nil, errors.New("error decoding FinalBlockId")
 			}
 			m.finalBlockID = finalBlockID
 		default:
@@ -192,7 +192,7 @@ func (m *MetaInfo) Encode() (*tlv.Block, error) {
 	if m.finalBlockID != nil {
 		encodedComponent, err := m.finalBlockID.Encode().Wire()
 		if err != nil {
-			return nil, errors.New("Unable to encode FinalBlockId")
+			return nil, errors.New("unable to encode FinalBlockId")
 		}
 		m.wire.Append(tlv.NewBlock(tlv.FinalBlockID, encodedComponent))
 	}

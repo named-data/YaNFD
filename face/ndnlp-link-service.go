@@ -269,9 +269,9 @@ func (l *NDNLPLinkService) runSend() {
 			}
 
 			// Fill up remaining space with Acks if Reliability enabled
-			if l.options.IsReliabilityEnabled {
+			/*if l.options.IsReliabilityEnabled {
 				// TODO
-			}
+			}*/
 
 			// Send fragment(s)
 			for _, fragment := range fragments {
@@ -330,11 +330,16 @@ func (l *NDNLPLinkService) runSend() {
 func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	// Attempt to decode buffer into TLV block
 	block, _, err := tlv.DecodeBlock(rawFrame)
+	if err != nil {
+		core.LogDebug(l, "Received invalid frame - DROP")
+		return
+	}
 
 	// Now attempt to decode LpPacket from block
 	frame, err := lpv2.DecodePacket(block)
 	if err != nil {
 		core.LogDebug(l, "Received invalid frame - DROP")
+		return
 	}
 
 	core.LogDebug(l, "Received NDNLPv2 frame of size "+strconv.Itoa(len(rawFrame)))

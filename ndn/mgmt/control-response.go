@@ -38,35 +38,40 @@ func DecodeControlResponse(wire *tlv.Block) (*ControlResponse, error) {
 	hasStatusCode := false
 	hasStatusText := false
 	for _, elem := range wire.Subelements() {
+		shouldBreak := false
 		switch elem.Type() {
 		case tlv.StatusCode:
 			if hasStatusCode {
-				return nil, errors.New("Duplicate StatusCode")
+				return nil, errors.New("duplicate StatusCode")
 			}
 			c.StatusCode, err = tlv.DecodeNNIBlock(elem)
 			hasStatusCode = true
 			if err != nil {
-				return nil, errors.New("Unable to decode StatusCode: " + err.Error())
+				return nil, errors.New("unable to decode StatusCode: " + err.Error())
 			}
 		case tlv.StatusText:
 			if hasStatusText {
-				return nil, errors.New("Duplicate StatusText")
+				return nil, errors.New("duplicate StatusText")
 			}
 			c.StatusText = string(elem.Value())
 			hasStatusText = true
 		default:
 			// Make as body
 			c.Body = elem
+			shouldBreak = true
+		}
+
+		if shouldBreak {
 			break
 		}
 	}
 
 	if !hasStatusCode {
-		return nil, errors.New("Missing StatusCode")
+		return nil, errors.New("missing StatusCode")
 	}
 
 	if !hasStatusText {
-		return nil, errors.New("Missing StatusText")
+		return nil, errors.New("missing StatusText")
 	}
 
 	return c, nil

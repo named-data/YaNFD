@@ -240,7 +240,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	} else if notAfter.Before(time.Now().Add(expirationPeriod)) {
-		expirationPeriod = notAfter.Sub(time.Now())
+		expirationPeriod = time.Until(notAfter)
 	}
 
 	table.Rib.AddRoute(prefix, faceID, origin, cost, 0, &expirationPeriod)

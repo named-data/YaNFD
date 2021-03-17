@@ -588,7 +588,7 @@ func NameFromString(str string) (*Name, error) {
 
 			unescapedValue, err := unescapeComponent(componentSplit[1])
 			if err != nil {
-				return nil, errors.New("Error unescaping component value")
+				return nil, errors.New("error unescaping component value")
 			}
 
 			switch componentSplit[0] {
@@ -639,16 +639,16 @@ func NameFromString(str string) (*Name, error) {
 			default:
 				t, err := strconv.ParseUint(componentSplit[0], 10, 16)
 				if err != nil {
-					return nil, errors.New("Unable to decode component type \"" + componentSplit[0] + "\"")
+					return nil, errors.New("unable to decode component type \"" + componentSplit[0] + "\"")
 				}
 				c = NewBaseNameComponent(uint16(t), []byte(unescapedValue))
-				//return nil, errors.New("Unknown name component " + unescapedValue)
+				//return nil, errors.New("unknown name component " + unescapedValue)
 			}
 		} else {
 			// Treat as GenericNameComponent
 			unescaped, err := unescapeComponent(component)
 			if err != nil {
-				return nil, errors.New("Error unescaping component value")
+				return nil, errors.New("error unescaping component value")
 			}
 			c = NewGenericNameComponent([]byte(unescaped))
 		}
@@ -676,11 +676,11 @@ func unescapeComponent(in string) (string, error) {
 		if in[i] == '%' {
 			// Unescape
 			if len(in) <= i+2 {
-				return "", errors.New("Incomplete escape sequence")
+				return "", errors.New("incomplete escape sequence")
 			}
 			unescaped, err := hex.DecodeString(in[i+1 : i+3])
 			if err != nil {
-				return "nil", errors.New("Could not decode escape sequence")
+				return "nil", errors.New("could not decode escape sequence")
 			}
 			out = append(out, unescaped...)
 			i += 2

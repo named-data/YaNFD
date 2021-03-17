@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -39,13 +39,13 @@ func Sign(signatureType SignatureType, buffer []byte) ([]byte, error) {
 		}
 		return signature, nil
 	case SignatureSha256WithRsaType:
-		return nil, errors.New("Cannot sign SignatureSha256WithRsa")
+		return nil, errors.New("cannot sign SignatureSha256WithRsa")
 	case SignatureSha256WithEcdsaType:
-		return nil, errors.New("Cannot sign SignatureSha256WithEcdsaType")
+		return nil, errors.New("cannot sign SignatureSha256WithEcdsaType")
 	case SignatureHmacWithSha256Type:
-		return nil, errors.New("Cannot sign SignatureHmacWithSha256Type")
+		return nil, errors.New("cannot sign SignatureHmacWithSha256Type")
 	default:
-		return nil, errors.New("Unknown SignatureType")
+		return nil, errors.New("unknown SignatureType")
 	}
 }
 
@@ -56,13 +56,13 @@ func Verify(signatureType SignatureType, buffer []byte, signature []byte) (bool,
 		var signer DigestSha256
 		return signer.Validate(buffer, signature), nil
 	case SignatureSha256WithRsaType:
-		return false, errors.New("Cannot validate SignatureSha256WithRsa")
+		return false, errors.New("cannot validate SignatureSha256WithRsa")
 	case SignatureSha256WithEcdsaType:
-		return false, errors.New("Cannot validate SignatureSha256WithEcdsaType")
+		return false, errors.New("cannot validate SignatureSha256WithEcdsaType")
 	case SignatureHmacWithSha256Type:
-		return false, errors.New("Cannot validate SignatureHmacWithSha256Type")
+		return false, errors.New("cannot validate SignatureHmacWithSha256Type")
 	default:
 		// Unknown SignatureType
-		return false, errors.New("Unknown SignatureType")
+		return false, errors.New("unknown SignatureType")
 	}
 }

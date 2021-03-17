@@ -52,7 +52,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 	}
 
 	if wire.Type() != tlv.SignatureInfo && wire.Type() != tlv.InterestSignatureInfo {
-		return nil, errors.New("Block must be SignatureInfo or InterestSignatureInfo")
+		return nil, errors.New("block must be SignatureInfo or InterestSignatureInfo")
 	}
 
 	s := new(SignatureInfo)
@@ -70,7 +70,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			mostRecentElem = 1
 			signatureType, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding SignatureType")
+				return nil, errors.New("error decoding SignatureType")
 			}
 			s.signatureType = security.SignatureType(signatureType)
 		case tlv.KeyLocator:
@@ -101,7 +101,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			}
 			timeMS, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding SignatureTime")
+				return nil, errors.New("error decoding SignatureTime")
 			}
 			s.time = new(time.Time)
 			*s.time = time.Unix(int64(timeMS/1000), int64(timeMS*1000000))
@@ -116,7 +116,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			}
 			seqNum, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding SignatureSeqNum")
+				return nil, errors.New("error decoding SignatureSeqNum")
 			}
 			s.seqNum = new(uint64)
 			*s.seqNum = seqNum
@@ -267,7 +267,7 @@ func (s *SignatureInfo) Encode() (*tlv.Block, error) {
 		if s.keyLocator != nil {
 			keyLocatorWire, err := s.keyLocator.Wire()
 			if err != nil {
-				return nil, errors.New("Unable to encode KeyLocator")
+				return nil, errors.New("unable to encode KeyLocator")
 			}
 			s.wire.Append(tlv.NewBlock(tlv.KeyLocator, keyLocatorWire))
 		}

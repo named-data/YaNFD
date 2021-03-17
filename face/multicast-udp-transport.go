@@ -25,7 +25,6 @@ type MulticastUDPTransport struct {
 	recvConn  *net.UDPConn
 	groupAddr net.UDPAddr
 	localAddr net.UDPAddr
-	isIPv4    bool
 	transportBase
 }
 

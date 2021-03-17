@@ -65,7 +65,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 			mostRecentElem = 1
 			d.name, err = DecodeName(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding Name")
+				return nil, errors.New("error decoding Name")
 			}
 		case tlv.MetaInfo:
 			if mostRecentElem >= 2 {
@@ -90,7 +90,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 			mostRecentElem = 4
 			d.sigInfo, err = DecodeSignatureInfo(elem)
 			if err != nil {
-				return nil, errors.New("Error decoding SignatureInfo")
+				return nil, errors.New("error decoding SignatureInfo")
 			}
 		case tlv.SignatureValue:
 			if mostRecentElem >= 5 {
@@ -117,7 +117,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 			return nil, err
 		}
 		if !isSignatureValid {
-			return nil, errors.New("Unable to validate signature in decoded Data")
+			return nil, errors.New("unable to validate signature in decoded Data")
 		}
 	}
 
@@ -200,7 +200,7 @@ func (d *Data) validateSignature() (bool, error) {
 		_, err := d.Encode()
 		if err != nil {
 			// Can't validate signature if can't encode packet
-			return false, errors.New("Cannot encode packet")
+			return false, errors.New("cannot encode packet")
 		}
 	}
 
@@ -273,7 +273,7 @@ func (d *Data) Encode() (*tlv.Block, error) {
 			encodedMetaInfo, err := d.metaInfo.Encode()
 			if err != nil {
 				d.wire = nil
-				return nil, errors.New("Unable to encode MetaInfo")
+				return nil, errors.New("unable to encode MetaInfo")
 			}
 			d.wire.Append(encodedMetaInfo)
 		}
@@ -282,13 +282,13 @@ func (d *Data) Encode() (*tlv.Block, error) {
 		sigInfo, err := d.sigInfo.Encode()
 		if err != nil {
 			d.wire = nil
-			return nil, errors.New("Unable to encode SignatureInfo")
+			return nil, errors.New("unable to encode SignatureInfo")
 		}
 		d.wire.Append(sigInfo)
 
 		if d.computeSignatureValue() != nil {
 			d.wire = nil
-			return nil, errors.New("Unable to encode SignatureValue")
+			return nil, errors.New("unable to encode SignatureValue")
 		}
 		d.wire.Append(tlv.NewBlock(tlv.SignatureValue, d.sigValue))
 	}

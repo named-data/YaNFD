@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/eric135/YaNFD/core"
@@ -173,8 +174,8 @@ func main() {
 	}
 
 	// Set up signal handler channel and wait for interrupt
-	sigChannel := make(chan os.Signal)
-	signal.Notify(sigChannel, os.Interrupt, os.Kill)
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	receivedSig := <-sigChannel
 	core.LogInfo("Main", "Received signal "+receivedSig.String()+" - exiting")
 	core.ShouldQuit = true
