@@ -124,13 +124,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		return
 	}
 
-	var linkService face.LinkService
+	var linkService *face.NDNLPLinkService
 
 	if params.URI.Scheme() == "udp4" || params.URI.Scheme() == "udp6" {
 		// Check that remote endpoint is not a unicast address
 		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
 			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address "+params.URI.String())
 			response = mgmt.MakeControlResponse(406, "URI must be unicast", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
 		}
 
 		// Validate and populate missing optional params

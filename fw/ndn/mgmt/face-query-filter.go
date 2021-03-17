@@ -43,7 +43,7 @@ func DecodeFaceQueryFilterFromEncoded(wire []byte) (*FaceQueryFilter, error) {
 // DecodeFaceQueryFilter decodes a FaceQueryFilter from the wire.
 func DecodeFaceQueryFilter(wire *tlv.Block) (*FaceQueryFilter, error) {
 	if wire == nil {
-		return nil, errors.New("Wire is unset")
+		return nil, errors.New("wire is unset")
 	}
 
 	if wire.Type() != tlv.FaceQueryFilter {
@@ -58,61 +58,61 @@ func DecodeFaceQueryFilter(wire *tlv.Block) (*FaceQueryFilter, error) {
 		switch elem.Type() {
 		case tlv.FaceID:
 			if c.FaceID != nil {
-				return nil, errors.New("Duplicate FaceId")
+				return nil, errors.New("duplicate FaceId")
 			}
 			c.FaceID = new(uint64)
 			*c.FaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FaceId: " + err.Error())
+				return nil, errors.New("unable to decode FaceId: " + err.Error())
 			}
 		case tlv.URIScheme:
 			if c.URIScheme != nil {
-				return nil, errors.New("Duplicate UriScheme")
+				return nil, errors.New("duplicate UriScheme")
 			}
 			c.URIScheme = new(string)
 			*c.URIScheme = string(elem.Value())
 		case tlv.URI:
 			if c.URI != nil {
-				return nil, errors.New("Duplicate Uri")
+				return nil, errors.New("duplicate Uri")
 			}
 			c.URI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode Uri: " + err.Error())
+				return nil, errors.New("unable to decode Uri: " + err.Error())
 			}
 		case tlv.LocalURI:
 			if c.LocalURI != nil {
-				return nil, errors.New("Duplicate LocalUri")
+				return nil, errors.New("duplicate LocalUri")
 			}
 			c.LocalURI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode LocalUri: " + err.Error())
+				return nil, errors.New("unable to decode LocalUri: " + err.Error())
 			}
 		case tlv.FaceScope:
 			if c.FaceScope != nil {
-				return nil, errors.New("Duplicate FaceScope")
+				return nil, errors.New("duplicate FaceScope")
 			}
 			c.FaceScope = new(uint64)
 			*c.FaceScope, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FaceScope: " + err.Error())
+				return nil, errors.New("unable to decode FaceScope: " + err.Error())
 			}
 		case tlv.FacePersistency:
 			if c.FacePersistency != nil {
-				return nil, errors.New("Duplicate FacePersistency")
+				return nil, errors.New("duplicate FacePersistency")
 			}
 			c.FacePersistency = new(uint64)
 			*c.FacePersistency, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FacePersistency: " + err.Error())
+				return nil, errors.New("unable to decode FacePersistency: " + err.Error())
 			}
 		case tlv.LinkType:
 			if c.LinkType != nil {
-				return nil, errors.New("Duplicate LinkType")
+				return nil, errors.New("duplicate LinkType")
 			}
 			c.LinkType = new(uint64)
 			*c.LinkType, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode LinkType: " + err.Error())
+				return nil, errors.New("unable to decode LinkType: " + err.Error())
 			}
 		default:
 			if tlv.IsCritical(elem.Type()) {

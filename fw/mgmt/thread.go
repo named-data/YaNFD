@@ -32,6 +32,9 @@ func MakeMgmtThread() *Thread {
 	m := new(Thread)
 	var err error
 	m.localPrefix, err = ndn.NameFromString("/localhost/nfd")
+	if err != nil {
+		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
+	}
 	m.nonLocalPrefix, err = ndn.NameFromString("/localhop/nfd")
 	if err != nil {
 		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())

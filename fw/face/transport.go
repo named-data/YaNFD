@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 // transport provides an interface for transports for specific face types
@@ -55,8 +54,7 @@ type transportBase struct {
 	mtu            int
 	expirationTime *time.Time
 
-	state     ndn.State
-	recvQueue chan *tlv.Block
+	state ndn.State
 
 	hasQuit chan bool
 
@@ -128,7 +126,7 @@ func (t *transportBase) ExpirationPeriod() time.Duration {
 	if t.expirationTime == nil || t.persistency != PersistencyOnDemand {
 		return 0
 	}
-	return t.expirationTime.Sub(time.Now())
+	return time.Until(*t.expirationTime)
 }
 
 // State returns the state of the transport.
@@ -162,8 +160,4 @@ func (t *transportBase) sendFrame(frame []byte) {
 	// Overridden in specific transport implementation
 
 	t.nOutBytes += uint64(len(frame))
-}
-
-func (t *transportBase) receiveInitialFrameFromListener(frame []byte) {
-	// Overridden in specific transport implementation
 }

@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -43,7 +43,7 @@ func InterfaceByIP(ip net.IP) (*net.Interface, error) {
 		}
 		for _, addr := range addrs {
 			hostAddr := addr.(*net.IPNet)
-			if bytes.Equal(hostAddr.IP, ip) {
+			if hostAddr.IP.Equal(ip) {
 				return &iface, nil
 			}
 		}

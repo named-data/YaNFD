@@ -44,7 +44,7 @@ func MakeControlParameters() *ControlParameters {
 // DecodeControlParameters decodes a ControlParameters from the wire.
 func DecodeControlParameters(wire *tlv.Block) (*ControlParameters, error) {
 	if wire == nil {
-		return nil, errors.New("Wire is unset")
+		return nil, errors.New("wire is unset")
 	}
 
 	if wire.Type() != tlv.ControlParameters {
@@ -59,94 +59,94 @@ func DecodeControlParameters(wire *tlv.Block) (*ControlParameters, error) {
 		switch elem.Type() {
 		case tlv.Name:
 			if c.Name != nil {
-				return nil, errors.New("Duplicate Name")
+				return nil, errors.New("duplicate Name")
 			}
 			c.Name, err = ndn.DecodeName(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Name: " + err.Error())
+				return nil, errors.New("unable to decode Name: " + err.Error())
 			}
 		case tlv.FaceID:
 			if c.FaceID != nil {
-				return nil, errors.New("Duplicate FaceId")
+				return nil, errors.New("duplicate FaceId")
 			}
 			c.FaceID = new(uint64)
 			*c.FaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FaceId: " + err.Error())
+				return nil, errors.New("unable to decode FaceId: " + err.Error())
 			}
 		case tlv.URI:
 			if c.URI != nil {
-				return nil, errors.New("Duplicate Uri")
+				return nil, errors.New("duplicate Uri")
 			}
 			c.URI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode Uri: " + err.Error())
+				return nil, errors.New("unable to decode Uri: " + err.Error())
 			}
 		case tlv.LocalURI:
 			if c.LocalURI != nil {
-				return nil, errors.New("Duplicate LocalUri")
+				return nil, errors.New("duplicate LocalUri")
 			}
 			c.LocalURI = ndn.DecodeURIString(string(elem.Value()))
 			if err != nil {
-				return nil, errors.New("Unable to decode LocalUri: " + err.Error())
+				return nil, errors.New("unable to decode LocalUri: " + err.Error())
 			}
 		case tlv.Origin:
 			if c.Origin != nil {
-				return nil, errors.New("Duplicate Origin")
+				return nil, errors.New("duplicate Origin")
 			}
 			c.Origin = new(uint64)
 			*c.Origin, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Origin: " + err.Error())
+				return nil, errors.New("unable to decode Origin: " + err.Error())
 			}
 		case tlv.Cost:
 			if c.Cost != nil {
-				return nil, errors.New("Duplicate Cost")
+				return nil, errors.New("duplicate Cost")
 			}
 			c.Cost = new(uint64)
 			*c.Cost, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Cost: " + err.Error())
+				return nil, errors.New("unable to decode Cost: " + err.Error())
 			}
 		case tlv.Capacity:
 			if c.Capacity != nil {
-				return nil, errors.New("Duplicate FaceId")
+				return nil, errors.New("duplicate FaceId")
 			}
 			c.Capacity = new(uint64)
 			*c.Capacity, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Capacity: " + err.Error())
+				return nil, errors.New("unable to decode Capacity: " + err.Error())
 			}
 		case tlv.Count:
 			if c.Count != nil {
-				return nil, errors.New("Duplicate Count")
+				return nil, errors.New("duplicate Count")
 			}
 			c.Count = new(uint64)
 			*c.Count, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Count: " + err.Error())
+				return nil, errors.New("unable to decode Count: " + err.Error())
 			}
 		case tlv.BaseCongestionMarkingInterval:
 			if c.BaseCongestionMarkingInterval != nil {
-				return nil, errors.New("Duplicate BaseCongestionMarkingInterval")
+				return nil, errors.New("duplicate BaseCongestionMarkingInterval")
 			}
 			c.BaseCongestionMarkingInterval = new(uint64)
 			*c.BaseCongestionMarkingInterval, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode BaseCongestionMarkingInterval: " + err.Error())
+				return nil, errors.New("unable to decode BaseCongestionMarkingInterval: " + err.Error())
 			}
 		case tlv.DefaultCongestionThreshold:
 			if c.FaceID != nil {
-				return nil, errors.New("Duplicate DefaultCongestionThreshold")
+				return nil, errors.New("duplicate DefaultCongestionThreshold")
 			}
 			c.DefaultCongestionThreshold = new(uint64)
 			*c.DefaultCongestionThreshold, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode DefaultCongestionThreshold: " + err.Error())
+				return nil, errors.New("unable to decode DefaultCongestionThreshold: " + err.Error())
 			}
 		case tlv.MTU:
 			if c.MTU != nil {
-				return nil, errors.New("Duplicate Mtu")
+				return nil, errors.New("duplicate Mtu")
 			}
 			c.MTU = new(uint64)
 			*c.MTU, err = tlv.DecodeNNIBlock(elem)
@@ -155,51 +155,51 @@ func DecodeControlParameters(wire *tlv.Block) (*ControlParameters, error) {
 			}
 		case tlv.Flags:
 			if c.Flags != nil {
-				return nil, errors.New("Duplicate Flags")
+				return nil, errors.New("duplicate Flags")
 			}
 			c.Flags = new(uint64)
 			*c.Flags, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Flags: " + err.Error())
+				return nil, errors.New("unable to decode Flags: " + err.Error())
 			}
 		case tlv.Mask:
 			if c.Mask != nil {
-				return nil, errors.New("Duplicate Mask")
+				return nil, errors.New("duplicate Mask")
 			}
 			c.Mask = new(uint64)
 			*c.Mask, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Mask: " + err.Error())
+				return nil, errors.New("unable to decode Mask: " + err.Error())
 			}
 		case tlv.Strategy:
 			if c.Strategy != nil {
-				return nil, errors.New("Duplicate Strategy")
+				return nil, errors.New("duplicate Strategy")
 			}
 			elem.Parse()
 			if len(elem.Subelements()) != 1 {
-				return nil, errors.New("Unable to decode Strategy: Expecting one subelement, found " + strconv.Itoa(len(elem.Subelements())))
+				return nil, errors.New("unable to decode Strategy: Expecting one subelement, found " + strconv.Itoa(len(elem.Subelements())))
 			}
 			c.Strategy, err = ndn.DecodeName(elem.Subelements()[0])
 			if err != nil {
-				return nil, errors.New("Unable to decode Strategy: " + err.Error())
+				return nil, errors.New("unable to decode Strategy: " + err.Error())
 			}
 		case tlv.ExpirationPeriod:
 			if c.ExpirationPeriod != nil {
-				return nil, errors.New("Duplicate ExpirationPeriod")
+				return nil, errors.New("duplicate ExpirationPeriod")
 			}
 			c.ExpirationPeriod = new(uint64)
 			*c.ExpirationPeriod, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode ExpirationPeriod: " + err.Error())
+				return nil, errors.New("unable to decode ExpirationPeriod: " + err.Error())
 			}
 		case tlv.FacePersistency:
 			if c.FacePersistency != nil {
-				return nil, errors.New("Duplicate FacePersistency")
+				return nil, errors.New("duplicate FacePersistency")
 			}
 			c.FacePersistency = new(uint64)
 			*c.FacePersistency, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FacePersistency: " + err.Error())
+				return nil, errors.New("unable to decode FacePersistency: " + err.Error())
 			}
 		default:
 			if tlv.IsCritical(elem.Type()) {

@@ -83,11 +83,7 @@ func (p *PrefixAnnouncement) Valid() bool {
 	}
 
 	expirationPeriod := content.Find(tlv.ExpirationPeriod)
-	if expirationPeriod == nil {
-		return false
-	}
-
-	return true
+	return expirationPeriod != nil
 }
 
 // Prefix returns the prefix announced by the the prefix announcement.
@@ -114,7 +110,7 @@ func (p *PrefixAnnouncement) ExpirationPeriod() uint64 {
 	return value
 }
 
-// ValidityPeriod returns the validility period contained in the prefix announcement. If unset, returns 0 time for both values.
+// ValidityPeriod returns the validity period contained in the prefix announcement. If unset, returns 0 time for both values.
 func (p *PrefixAnnouncement) ValidityPeriod() (time.Time, time.Time) {
 	if !p.Valid() {
 		return time.Unix(0, 0), time.Unix(0, 0)

@@ -49,7 +49,7 @@ func (f *FaceStatus) Encode() (*tlv.Block, error) {
 
 	wire.Append(tlv.EncodeNNIBlock(tlv.FaceID, f.FaceID))
 	if f.URI == nil {
-		return nil, errors.New("Uri is required, but unset")
+		return nil, errors.New("URI is required, but unset")
 	}
 	wire.Append(tlv.NewBlock(tlv.URI, []byte(f.URI.String())))
 	if f.LocalURI == nil {

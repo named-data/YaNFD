@@ -13,13 +13,3 @@ type Listener interface {
 	Run()
 	Close()
 }
-
-type listenerBase struct {
-	HasQuit chan bool
-}
-
-func makeListenerBase() listenerBase {
-	var l listenerBase
-	l.HasQuit = make(chan bool)
-	return l
-}

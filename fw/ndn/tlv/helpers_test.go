@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -60,16 +60,16 @@ func TestVarNumTooShort(t *testing.T) {
 	octet9 := []byte{0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
 
 	_, _, err := tlv.DecodeVarNum(octet1)
-	assert.EqualError(t, err, "Value too short")
+	assert.EqualError(t, err, "value too short")
 
 	_, _, err = tlv.DecodeVarNum(octet3)
-	assert.EqualError(t, err, "Value too short")
+	assert.EqualError(t, err, "value too short")
 
 	_, _, err = tlv.DecodeVarNum(octet5)
-	assert.EqualError(t, err, "Value too short")
+	assert.EqualError(t, err, "value too short")
 
 	_, _, err = tlv.DecodeVarNum(octet9)
-	assert.EqualError(t, err, "Value too short")
+	assert.EqualError(t, err, "value too short")
 }
 
 func TestNNIBlock(t *testing.T) {

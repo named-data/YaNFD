@@ -49,7 +49,7 @@ func NewIDLEPacket() *Packet {
 // DecodePacket returns an NDNLPv2 frame decoded from the wire.
 func DecodePacket(wire *tlv.Block) (*Packet, error) {
 	if wire == nil {
-		return nil, errors.New("Wire is unset")
+		return nil, errors.New("wire is unset")
 	}
 
 	p := new(Packet)
@@ -58,7 +58,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 	if wire.Type() != LpPacket {
 		encodedFragment, err := wire.Wire()
 		if err != nil {
-			return nil, errors.New("Unable to encode bare fragment: " + err.Error())
+			return nil, errors.New("unable to encode bare fragment: " + err.Error())
 		}
 		p.fragment = make([]byte, len(encodedFragment))
 		copy(p.fragment, encodedFragment)
@@ -77,19 +77,19 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			p.sequence = new(uint64)
 			*p.sequence, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Sequence")
+				return nil, errors.New("unable to decode Sequence")
 			}
 		case FragIndex:
 			p.fragIndex = new(uint64)
 			*p.fragIndex, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FragIndex")
+				return nil, errors.New("unable to decode FragIndex")
 			}
 		case FragCount:
 			p.fragCount = new(uint64)
 			*p.fragCount, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode FragCount")
+				return nil, errors.New("unable to decode FragCount")
 			}
 		case PitToken:
 			p.pitToken = make([]byte, len(elem.Value()))
@@ -98,13 +98,13 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			p.nextHopFaceID = new(uint64)
 			*p.nextHopFaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode NextHopFaceId")
+				return nil, errors.New("unable to decode NextHopFaceId")
 			}
 		case IncomingFaceID:
 			p.incomingFaceID = new(uint64)
 			*p.incomingFaceID, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode IncomingFaceId")
+				return nil, errors.New("unable to decode IncomingFaceId")
 			}
 		case CachePolicy:
 			elem.Parse()
@@ -112,7 +112,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 				p.cachePolicyType = new(uint64)
 				*p.cachePolicyType, err = tlv.DecodeNNIBlock(cachePolicyTypeBlock)
 				if err != nil {
-					return nil, errors.New("Unable to decode CachePolicyType")
+					return nil, errors.New("unable to decode CachePolicyType")
 				}
 			} else {
 				return nil, errors.New("CachePolicy element does not contain CachePolicyType")
@@ -121,32 +121,32 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			p.congestionMark = new(uint64)
 			*p.congestionMark, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode CongestionMark")
+				return nil, errors.New("unable to decode CongestionMark")
 			}
 		case Ack:
 			ack, err := tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode Ack")
+				return nil, errors.New("unable to decode Ack")
 			}
 			p.acks = append(p.acks, ack)
 		case TxSequence:
 			p.txSequence = new(uint64)
 			*p.txSequence, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
-				return nil, errors.New("Unable to decode TxSequence")
+				return nil, errors.New("unable to decode TxSequence")
 			}
 		case NonDiscovery:
 			p.nonDiscovery = true
 		case PrefixAnnouncement:
 			if err := elem.Parse(); err != nil {
-				return nil, errors.New("Unable to parse PrefixAnnouncement: " + err.Error())
+				return nil, errors.New("unable to parse PrefixAnnouncement: " + err.Error())
 			}
 			if elem.Find(tlv.Data) == nil {
 				return nil, errors.New("PrefixAnnouncement does not contain Data")
 			}
 			p.prefixAnnouncement, err = ndn.DecodeData(elem.Find(tlv.Data), false)
 			if err != nil {
-				return nil, errors.New("Unable to decode PrefixAnnouncement: " + err.Error())
+				return nil, errors.New("unable to decode PrefixAnnouncement: " + err.Error())
 			}
 		case Nack:
 			// Gracefully ignore Nacks
@@ -162,7 +162,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 
 // IsBare returns whether the LpPacket only contains a fragment and has no headers fields.
 func (p *Packet) IsBare() bool {
-	return p.sequence == nil && p.fragIndex == nil && p.fragCount == nil && len(p.pitToken) == 0 && p.nextHopFaceID == nil && p.incomingFaceID == nil && p.cachePolicyType == nil && p.congestionMark == nil && p.txSequence == nil && len(p.acks) == 0 && p.nonDiscovery == false && p.prefixAnnouncement == nil && p.prefixAnnouncement != nil
+	return p.sequence == nil && p.fragIndex == nil && p.fragCount == nil && len(p.pitToken) == 0 && p.nextHopFaceID == nil && p.incomingFaceID == nil && p.cachePolicyType == nil && p.congestionMark == nil && p.txSequence == nil && len(p.acks) == 0 && !p.nonDiscovery && p.prefixAnnouncement == nil && p.prefixAnnouncement != nil
 }
 
 // IsIdle returns whether the LpPacket is an "IDLE" frame and does not contain a fragment.
@@ -430,7 +430,7 @@ func (p *Packet) Encode() (*tlv.Block, error) {
 			cachePolicyTypeBlock := tlv.EncodeNNIBlock(CachePolicyType, *p.cachePolicyType)
 			cachePolicyTypeBlockWire, err := cachePolicyTypeBlock.Wire()
 			if err != nil {
-				return nil, errors.New("Unable to encode CachePolicyType")
+				return nil, errors.New("unable to encode CachePolicyType")
 			}
 			p.wire.Append(tlv.NewBlock(CachePolicy, cachePolicyTypeBlockWire))
 		}
@@ -459,11 +459,11 @@ func (p *Packet) Encode() (*tlv.Block, error) {
 		if p.prefixAnnouncement != nil {
 			prefixAnnouncementBlock, err := p.prefixAnnouncement.Encode()
 			if err != nil {
-				return nil, errors.New("Unable to encode PrefixAnnouncement: " + err.Error())
+				return nil, errors.New("unable to encode PrefixAnnouncement: " + err.Error())
 			}
 			prefixAnnouncementWire, err := prefixAnnouncementBlock.Wire()
 			if err != nil {
-				return nil, errors.New("Unable to encode PrefixAnnouncement: " + err.Error())
+				return nil, errors.New("unable to encode PrefixAnnouncement: " + err.Error())
 			}
 			p.wire.Append(tlv.NewBlock(PrefixAnnouncement, prefixAnnouncementWire))
 		}

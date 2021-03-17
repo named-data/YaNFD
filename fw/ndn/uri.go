@@ -8,6 +8,7 @@
 package ndn
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"regexp"
@@ -23,11 +24,9 @@ type uriType int
 //const uriPattern = "^([0-9A-Za-z]+)://([0-9A-Za-z:-\\[\\]%\\.]+)(:([0-9]+))?$"
 const devPattern = "^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\\-]+)$"
 const ethernetPattern = "^(?P<scheme>ether)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
-const fdPattern = "^(?P<scheme>fd)://(<?P<fd>[0-9]+)$"
-const internalPattern = "^(internal)://$"
+const fdPattern = "^(?P<scheme>fd)://(?P<fd>[0-9]+)$"
 const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
 const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
-const nullPattern = "^(null)://$"
 const udpPattern = "^(?P<scheme>udp[46]?)://\\[?(?P<host>[0-9A-Za-z\\:\\.\\-]+)(%(?P<zone>[A-Za-z0-9\\-]+))?\\]?:(?P<port>[0-9]+)$"
 const unixPattern = "^(?P<scheme>unix)://(?P<path>[/\\\\A-Za-z0-9\\.\\-_]+)$"
 
@@ -151,7 +150,7 @@ func DecodeURIString(str string) *URI {
 		}
 
 		matches := regex.FindStringSubmatch(str)
-		if len(matches) <= regex.SubexpIndex("ifname") {
+		if regex.SubexpIndex("ifname") < 0 || len(matches) <= regex.SubexpIndex("ifname") {
 			return u
 		}
 
@@ -171,7 +170,7 @@ func DecodeURIString(str string) *URI {
 		}
 
 		matches := regex.FindStringSubmatch(str)
-		if len(matches) <= regex.SubexpIndex("mac") {
+		if regex.SubexpIndex("mac") < 0 || len(matches) <= regex.SubexpIndex("mac") {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("mac")]
@@ -185,10 +184,11 @@ func DecodeURIString(str string) *URI {
 		}
 
 		matches := regex.FindStringSubmatch(str)
-		if len(matches) <= regex.SubexpIndex("path") {
+		fmt.Println(matches, len(matches), regex.SubexpIndex("fd"))
+		if regex.SubexpIndex("fd") < 0 || len(matches) <= regex.SubexpIndex("fd") {
 			return u
 		}
-		u.path = matches[regex.SubexpIndex("path")]
+		u.path = matches[regex.SubexpIndex("fd")]
 	} else if strings.EqualFold("internal", schemeSplit[0]) {
 		u.uriType = internalURI
 		u.scheme = "internal"
@@ -205,11 +205,11 @@ func DecodeURIString(str string) *URI {
 		}
 
 		matches := regex.FindStringSubmatch(str)
-		if len(matches) <= regex.SubexpIndex("host") || len(matches) <= regex.SubexpIndex("port") {
+		if regex.SubexpIndex("host") < 0 || len(matches) <= regex.SubexpIndex("host") || regex.SubexpIndex("port") < 0 || len(matches) <= regex.SubexpIndex("port") {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("host")]
-		if len(matches) >= regex.SubexpIndex("zone") && matches[regex.SubexpIndex("zone")] != "" {
+		if regex.SubexpIndex("zone") < 0 || len(matches) >= regex.SubexpIndex("zone") && matches[regex.SubexpIndex("zone")] != "" {
 			u.path += "%" + matches[regex.SubexpIndex("zone")]
 		}
 		port, err := strconv.Atoi(matches[regex.SubexpIndex("port")])
@@ -239,7 +239,7 @@ func DecodeURIString(str string) *URI {
 }
 
 // GetURIType returns the type of the face URI.
-func (u *URI) getType() uriType {
+func (u *URI) GetURIType() uriType {
 	return u.uriType
 }
 
