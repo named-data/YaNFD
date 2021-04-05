@@ -63,5 +63,6 @@ func (l *CsLRU) EvictEntries() {
 	for l.queue.Len() > csCapacity {
 		indexToErase := l.queue.Front().Value.(uint64)
 		l.cs.eraseCsDataFromReplacementStrategy(indexToErase)
+		l.queue.Remove(l.queue.Front())
 	}
 }
