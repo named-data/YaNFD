@@ -30,6 +30,8 @@ type transport interface {
 	State() ndn.State
 	ExpirationPeriod() time.Duration
 
+	GetSendQueueSize() uint64
+
 	runReceive()
 
 	sendFrame([]byte)

@@ -120,6 +120,12 @@ func (t *MulticastEthernetTransport) SetPersistency(persistency Persistency) boo
 	return false
 }
 
+// GetSendQueueSize returns the current size of the send queue.
+func (t *MulticastEthernetTransport) GetSendQueueSize() uint64 {
+	// TODO: Unsupported for now
+	return 0
+}
+
 func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")

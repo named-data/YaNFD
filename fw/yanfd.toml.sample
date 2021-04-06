@@ -8,6 +8,9 @@
   # Size of queues in the face system
   queue_size = 1024
 
+  # Enables or disables congestion marking
+  congestion_marking = true
+
   [faces.ethernet]
 
     # EtherType to use for NDN
