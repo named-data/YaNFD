@@ -8,9 +8,11 @@
 package mgmt
 
 import (
+	"math"
 	"net"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
@@ -162,7 +164,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			return
 		}
 
-		// TODO: BaseCongestionMarkingInterval, and DefaultCongestionThreshold
+		baseCongestionMarkingInterval := 100 * time.Millisecond
+		if params.BaseCongestionMarkingInterval != nil {
+			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+		}
+
+		defaultCongestionThresholdBytes := uint64(math.Pow(2, 16))
+		if params.DefaultCongestionThreshold != nil {
+			defaultCongestionThresholdBytes = *params.DefaultCongestionThreshold
+		}
 
 		// Create new UDP face
 		transport, err := face.MakeUnicastUDPTransport(params.URI, nil, persistency)
@@ -182,7 +192,7 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		}
 
 		// NDNLP link service parameters
-		options := face.NDNLPLinkServiceOptions{}
+		options := face.MakeNDNLPLinkServiceOptions()
 		if params.Flags != nil {
 			// Mask already guaranteed to be present if Flags is above
 			flags := *params.Flags
@@ -206,10 +216,13 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 				options.IsReliabilityEnabled = flags>>1&0x01 == 1
 			}
 
+			// Congestion control
 			if mask>>2&0x01 == 1 {
 				// CongestionMarkingEnabled
 				options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
 			}
+			options.BaseCongestionMarkingInterval = baseCongestionMarkingInterval
+			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
 		}
 
 		linkService = face.MakeNDNLPLinkService(transport, options)
@@ -334,8 +347,6 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		areParamsValid = false
 	}
 
-	// TODO: BaseCongestionMarkingInterval, DefaultCongestionThreshold
-
 	if !areParamsValid {
 		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
@@ -347,6 +358,19 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	if params.FacePersistency != nil {
 		// Correctness of FacePersistency already validated
 		selectedFace.SetPersistency(face.Persistency(*params.FacePersistency))
+	}
+
+	options := selectedFace.(*face.NDNLPLinkService).Options()
+
+	// Congestion
+	if params.BaseCongestionMarkingInterval != nil && time.Duration(*params.BaseCongestionMarkingInterval)*time.Nanosecond != options.BaseCongestionMarkingInterval {
+		options.BaseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+		core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", BaseCongestionMarkingInterval="+options.BaseCongestionMarkingInterval.String())
+	}
+
+	if params.DefaultCongestionThreshold != nil && *params.DefaultCongestionThreshold != options.DefaultCongestionThresholdBytes {
+		options.DefaultCongestionThresholdBytes = *params.DefaultCongestionThreshold
+		core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", DefaultCongestionThreshold="+strconv.FormatUint(options.DefaultCongestionThresholdBytes, 10)+"B")
 	}
 
 	// MTU
@@ -365,7 +389,6 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		// Presence of mask already validated
 		flags := *params.Flags
 		mask := *params.Mask
-		options := selectedFace.(*face.NDNLPLinkService).Options()
 
 		if mask&0x1 == 1 {
 			// Update LocalFieldsEnabled
@@ -401,9 +424,9 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 				core.LogInfo(f, "FaceID="+strconv.FormatUint(faceID, 10)+", Disabling congestion marking")
 			}
 		}
-
-		selectedFace.(*face.NDNLPLinkService).SetOptions(options)
 	}
+
+	selectedFace.(*face.NDNLPLinkService).SetOptions(options)
 
 	f.fillFaceProperties(responseParams, selectedFace)
 	responseParams.URI = nil
@@ -575,8 +598,6 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 	faceDataset.FaceScope = uint64(selectedFace.Scope())
 	faceDataset.FacePersistency = uint64(selectedFace.Persistency())
 	faceDataset.LinkType = uint64(selectedFace.LinkType())
-	// TODO: BaseCongestionMarkingInterval
-	// TODO: DefaultCongestionThreshold
 	faceDataset.MTU = new(uint64)
 	*faceDataset.MTU = uint64(selectedFace.MTU())
 	faceDataset.NInInterests = selectedFace.NInInterests()
@@ -590,6 +611,12 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 	linkService, ok := selectedFace.(*face.NDNLPLinkService)
 	if ok {
 		options := linkService.Options()
+
+		faceDataset.BaseCongestionMarkingInterval = new(uint64)
+		*faceDataset.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
+		faceDataset.DefaultCongestionThreshold = new(uint64)
+		*faceDataset.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
+
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
 			faceDataset.Flags += 1 << 0
@@ -698,7 +725,6 @@ func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selected
 	params.LocalURI = selectedFace.LocalURI()
 	params.FacePersistency = new(uint64)
 	*params.FacePersistency = uint64(selectedFace.Persistency())
-	// TODO: BaseCongestionMarkingInterval, DefaultCongestionThreshold
 	params.MTU = new(uint64)
 	*params.MTU = uint64(selectedFace.MTU())
 
@@ -707,6 +733,12 @@ func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selected
 	linkService, ok := selectedFace.(*face.NDNLPLinkService)
 	if ok {
 		options := linkService.Options()
+
+		params.BaseCongestionMarkingInterval = new(uint64)
+		*params.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
+		params.DefaultCongestionThreshold = new(uint64)
+		*params.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
+
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
 			*params.Flags += 1 << 0

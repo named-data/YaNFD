@@ -43,6 +43,16 @@ type NDNLPLinkServiceOptions struct {
 	IsLocalCachePolicyEnabled bool
 
 	IsCongestionMarkingEnabled bool
+
+	BaseCongestionMarkingInterval   time.Duration
+	DefaultCongestionThresholdBytes uint64
+}
+
+func MakeNDNLPLinkServiceOptions() NDNLPLinkServiceOptions {
+	var o NDNLPLinkServiceOptions
+	o.BaseCongestionMarkingInterval = time.Duration(100) * time.Millisecond
+	o.DefaultCongestionThresholdBytes = uint64(math.Pow(2, 16))
+	return o
 }
 
 type ndnlpUnacknowledgedFrame struct {
