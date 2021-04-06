@@ -12,13 +12,14 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/face/impl"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	conn net.Conn
+	conn *net.UnixConn
 	transportBase
 }
 
@@ -33,7 +34,7 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 	t.makeTransportBase(remoteURI, localURI, PersistencyPersistent, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 
 	// Set connection
-	t.conn = conn
+	t.conn = conn.(*net.UnixConn)
 
 	t.changeState(ndn.Up)
 
@@ -56,6 +57,15 @@ func (t *UnixStreamTransport) SetPersistency(persistency Persistency) bool {
 	}
 
 	return false
+}
+
+// GetSendQueueSize returns the current size of the send queue.
+func (t *UnixStreamTransport) GetSendQueueSize() uint64 {
+	rawConn, err := t.conn.SyscallConn()
+	if err != nil {
+		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+	}
+	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
 
 func (t *UnixStreamTransport) sendFrame(frame []byte) {

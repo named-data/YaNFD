@@ -16,6 +16,9 @@ import (
 // faceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.
 var faceQueueSize int
 
+// congestionMarking indicates whether congestion marking is enabled or disabled.
+var congestionMarking bool
+
 // NDNEtherType is the standard EtherType for NDN.
 var ndnEtherType int
 
@@ -43,6 +46,7 @@ var UnixSocketPath string
 // Configure configures the face system.
 func Configure() {
 	faceQueueSize = core.GetConfigIntDefault("faces.queue_size", 1024)
+	congestionMarking = core.GetConfigBoolDefault("faces.congestion_marking", true)
 	ndnEtherType = core.GetConfigIntDefault("faces.ethernet.ethertype", 0x8624)
 	EthernetMulticastAddress = core.GetConfigStringDefault("faces.ethernet.multicast_address", "01:00:5e:00:17:aa")
 	UDPUnicastPort = core.GetConfigUint16Default("faces.udp.port_unicast", 6363)

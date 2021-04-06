@@ -79,12 +79,13 @@ type NDNLPLinkService struct {
 	idleAckTimer        chan interface{}
 
 	// Send
-	nextSequence          uint64
-	unacknowledgedFrames  sync.Map    // TxSequence -> Frame
-	unacknowledgedPackets sync.Map    // Sequence -> Network-layer packet
-	retransmitQueue       chan uint64 // TxSequence
-	rto                   time.Duration
-	nextTxSequence        uint64
+	nextSequence             uint64
+	unacknowledgedFrames     sync.Map    // TxSequence -> Frame
+	unacknowledgedPackets    sync.Map    // Sequence -> Network-layer packet
+	retransmitQueue          chan uint64 // TxSequence
+	rto                      time.Duration
+	nextTxSequence           uint64
+	lastTimeCongestionMarked time.Time
 }
 
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
@@ -202,6 +203,8 @@ func (l *NDNLPLinkService) runSend() {
 				l.nOutData++
 			}
 
+			now := time.Now()
+
 			effectiveMtu := l.transport.MTU() - l.headerOverhead
 			if netPacket.PitToken != nil {
 				effectiveMtu -= pitTokenOverhead
@@ -241,6 +244,14 @@ func (l *NDNLPLinkService) runSend() {
 				}
 			}
 
+			// Congestion marking
+			if congestionMarking && l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes && now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) {
+				// Mark congestion
+				core.LogWarn(l, "Marking congestion")
+				fragments[0].SetCongestionMark(1)
+				l.lastTimeCongestionMarked = now
+			}
+
 			// Reliability
 			if l.options.IsReliabilityEnabled {
 				firstSequence := *fragments[0].Sequence()
@@ -252,7 +263,7 @@ func (l *NDNLPLinkService) runSend() {
 					unacknowledgedFrame := new(ndnlpUnacknowledgedFrame)
 					unacknowledgedFrame.frame = fragment
 					unacknowledgedFrame.netPacket = firstSequence
-					unacknowledgedFrame.sentTime = time.Now()
+					unacknowledgedFrame.sentTime = now
 					l.unacknowledgedFrames.Store(l.nextTxSequence, unacknowledgedFrame)
 
 					unacknowledgedPacket.unacknowledgedFragments[l.nextTxSequence] = new(interface{})

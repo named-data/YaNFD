@@ -22,7 +22,7 @@ import (
 // UnicastUDPTransport is a unicast UDP transport.
 type UnicastUDPTransport struct {
 	dialer     *net.Dialer
-	conn       net.Conn
+	conn       *net.UDPConn
 	localAddr  net.UDPAddr
 	remoteAddr net.UDPAddr
 	transportBase
@@ -63,10 +63,11 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	var err error
 	// Configure dialer so we can allow address reuse
 	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	t.conn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
+	t.conn = conn.(*net.UDPConn)
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.UDPAddr)
@@ -94,16 +95,26 @@ func (t *UnicastUDPTransport) SetPersistency(persistency Persistency) bool {
 	return true
 }
 
+// GetSendQueueSize returns the current size of the send queue.
+func (t *UnicastUDPTransport) GetSendQueueSize() uint64 {
+	rawConn, err := t.conn.SyscallConn()
+	if err != nil {
+		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+	}
+	return impl.SyscallGetSocketSendQueueSize(rawConn)
+}
+
 func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 	switch t.persistency {
 	case PersistencyPermanent:
 		// Restart socket
 		t.conn.Close()
 		var err error
-		t.conn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 		if err != nil {
 			core.LogError(t, "Unable to connect to remote endpoint: "+err.Error())
 		}
+		t.conn = conn.(*net.UDPConn)
 
 		if fromReceive {
 			t.runReceive()

@@ -46,6 +46,11 @@ func (t *NullTransport) SetPersistency(persistency Persistency) bool {
 	return false
 }
 
+// GetSendQueueSize returns the current size of the send queue.
+func (t *NullTransport) GetSendQueueSize() uint64 {
+	return 0
+}
+
 func (t *NullTransport) changeState(new ndn.State) {
 	if t.state == new {
 		return

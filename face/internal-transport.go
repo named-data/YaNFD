@@ -63,6 +63,11 @@ func (t *InternalTransport) SetPersistency(persistency Persistency) bool {
 	return false
 }
 
+// GetSendQueueSize returns the current size of the send queue.
+func (t *InternalTransport) GetSendQueueSize() uint64 {
+	return 0
+}
+
 // Send sends a packet from the perspective of the internal component.
 func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *uint64) {
 	netWire, err := block.Wire()

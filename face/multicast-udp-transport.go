@@ -21,7 +21,7 @@ import (
 // MulticastUDPTransport is a multicast UDP transport.
 type MulticastUDPTransport struct {
 	dialer    *net.Dialer
-	sendConn  net.Conn
+	sendConn  *net.UDPConn
 	recvConn  *net.UDPConn
 	groupAddr net.UDPAddr
 	localAddr net.UDPAddr
@@ -62,10 +62,11 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
 
 	// Create send connection
-	t.sendConn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
+	sendConn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 	if err != nil {
 		return nil, errors.New("Unable to create send connection to group address: " + err.Error())
 	}
+	t.sendConn = sendConn.(*net.UDPConn)
 
 	// Create receive connection
 	t.recvConn, err = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
@@ -96,6 +97,15 @@ func (t *MulticastUDPTransport) SetPersistency(persistency Persistency) bool {
 	return false
 }
 
+// GetSendQueueSize returns the current size of the send queue.
+func (t *MulticastUDPTransport) GetSendQueueSize() uint64 {
+	rawConn, err := t.recvConn.SyscallConn()
+	if err != nil {
+		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+	}
+	return impl.SyscallGetSocketSendQueueSize(rawConn)
+}
+
 func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
@@ -107,10 +117,11 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP")
 		t.sendConn.Close()
-		t.sendConn, err = t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
+		sendConn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 		if err != nil {
 			core.LogError(t, "Unable to create send connection to group address: "+err.Error())
 		}
+		t.sendConn = sendConn.(*net.UDPConn)
 	}
 	t.nOutBytes += uint64(len(frame))
 }
