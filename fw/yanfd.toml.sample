@@ -64,6 +64,12 @@
     # runtime via management.
     capacity = 1024
 
+    # Whether contents will be admitted to the Content Store.
+    admit = true
+
+    # Whether contents will be served from the Content Store.
+    serve = true
+
     # Cache replacement policy to use in each thread's content store.
     replacement_policy = "lru"
 

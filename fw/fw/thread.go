@@ -238,11 +238,13 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		core.LogTrace(t, "Interest "+interest.Name().String()+" is not pending")
 
 		// Check CS for matching entry
-		csEntry := t.pitCS.FindMatchingDataCS(interest)
-		if csEntry != nil {
-			// Pass to strategy AfterContentStoreHit pipeline
-			strategy.AfterContentStoreHit(pitEntry, incomingFace.FaceID(), csEntry.Data)
-			return
+		if t.pitCS.IsCsServing() {
+			csEntry := t.pitCS.FindMatchingDataCS(interest)
+			if csEntry != nil {
+				// Pass to strategy AfterContentStoreHit pipeline
+				strategy.AfterContentStoreHit(pitEntry, incomingFace.FaceID(), csEntry.Data)
+				return
+			}
 		}
 	} else {
 		core.LogTrace(t, "Interest "+interest.Name().String()+" is already pending")
@@ -366,7 +368,9 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Add to Content Store
-	t.pitCS.InsertDataCS(data)
+	if t.pitCS.IsCsAdmitting() {
+		t.pitCS.InsertDataCS(data)
+	}
 
 	// Check for matching PIT entries
 	pitEntries := t.pitCS.FindPITFromData(data, pitToken)
