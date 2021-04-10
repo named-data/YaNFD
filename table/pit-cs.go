@@ -186,6 +186,16 @@ func (p *PitCs) CsSize() int {
 	return p.nCsEntries
 }
 
+// IsCsAdmitting returns whether the CS is admitting contents.
+func (p *PitCs) IsCsAdmitting() bool {
+	return csAdmit
+}
+
+// IsCsServing returns whether the CS is serving contents.
+func (p *PitCs) IsCsServing() bool {
+	return csServe
+}
+
 // FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
 func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Delegation, inFace uint64) (*PitEntry, bool) {
 	node := p.root.fillTreeToPrefix(interest.Name())

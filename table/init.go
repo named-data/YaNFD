@@ -23,6 +23,12 @@ var deadNonceListLifetime time.Duration
 // csCapacity contains the default capacity of each forwarding thread's Content Store.
 var csCapacity int
 
+// csAdmit determines whether contents will be admitted to the Content Store.
+var csAdmit bool
+
+// csServe determines whether contents will be served from the Content Store.
+var csServe bool
+
 // csReplacementPolicy contains the replacement policy used by Content Stores in the forwarder.
 var csReplacementPolicy string
 
@@ -35,6 +41,8 @@ func Configure() {
 
 	// Content Store
 	csCapacity = int(core.GetConfigUint16Default("tables.content_store.capacity", 1024))
+	csAdmit = core.GetConfigBoolDefault("tables.content_store.admit", true)
+	csServe = core.GetConfigBoolDefault("tables.content_store.serve", true)
 	csReplacementPolicyName := core.GetConfigStringDefault("tables.content_store.replacement_policy", "lru")
 	switch csReplacementPolicyName {
 	case "lru":

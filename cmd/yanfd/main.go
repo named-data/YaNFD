@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -47,6 +48,8 @@ func main() {
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
 	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
+	var cpuProfile string
+	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -64,14 +67,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	core.LogInfo("Main", "Starting YaNFD")
-
 	// Initialize config file
 	core.LoadConfig(configFileName)
 	core.InitializeLogger()
 	face.Configure()
 	fw.Configure()
 	table.Configure()
+
+	if cpuProfile != "" {
+		cpuProfileFile, err := os.Create(cpuProfile)
+		if err != nil {
+			fmt.Println("Unable to open output file for CPU profile: " + err.Error())
+			os.Exit(1)
+		}
+
+		core.LogInfo("Main", "Profiling CPU - outputting to "+cpuProfile)
+		pprof.StartCPUProfile(cpuProfileFile)
+		defer pprof.StopCPUProfile()
+	}
+
+	core.LogInfo("Main", "Starting YaNFD")
 
 	// Load strategies
 	//core.LogInfo("Main", "Loading strategies")

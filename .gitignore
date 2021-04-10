@@ -3,5 +3,6 @@
 
 *.test
 *.out
+*.prof
 
 .vscode
