@@ -70,7 +70,7 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 	status.CurrentTimestamp = uint64(time.Now().UnixNano() / 1000 / 1000)
 	// Don't set NNameTreeEntries because we don't use a NameTree
 	status.NFibEntries = uint64(len(table.FibStrategyTable.GetAllFIBEntries()))
-	for threadID := 0; threadID < core.NumForwardingThreads; threadID++ {
+	for threadID := 0; threadID < fw.NumFwThreads; threadID++ {
 		thread := dispatch.GetFWThread(threadID)
 		status.NPitEntries += uint64(thread.GetNumPitEntries())
 		status.NCsEntries += uint64(thread.GetNumCsEntries())
