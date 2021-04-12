@@ -43,6 +43,9 @@
 
 [fw]
 
+  # Number of forwarding threads
+  threads = 8
+
   # Size of queues in the forwarding system
   queue_size = 1024
 

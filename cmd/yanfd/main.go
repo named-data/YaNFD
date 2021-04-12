@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -43,7 +44,6 @@ func main() {
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
-	flag.IntVar(&core.NumForwardingThreads, "threads", 8, "Number of forwarding threads")
 	var disableEthernet bool
 	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
 	var disableUnix bool
@@ -58,13 +58,6 @@ func main() {
 		fmt.Println("Copyright (C) 2020-2021 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
-	}
-
-	if core.NumForwardingThreads < 1 || core.NumForwardingThreads > fw.MaxFwThreads {
-		fmt.Println("Number of forwarding threads must be in range [1,", fw.MaxFwThreads, "]")
-		fmt.Println()
-		flag.PrintDefaults()
-		os.Exit(1)
 	}
 
 	// Initialize config file
@@ -102,8 +95,11 @@ func main() {
 	go management.Run()
 
 	// Create forwarding threads
+	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
+		core.LogFatal("Main", "Number of forwarding threads must be in range [1, "+strconv.Itoa(fw.MaxFwThreads)+"]")
+	}
 	fw.Threads = make(map[int]*fw.Thread)
-	for i := 0; i < core.NumForwardingThreads; i++ {
+	for i := 0; i < fw.NumFwThreads; i++ {
 		newThread := fw.NewThread(i)
 		fw.Threads[i] = newThread
 		dispatch.AddFWThread(i, newThread)

@@ -17,6 +17,3 @@ var BuildTime string
 
 // StartTimestamp is the time the forwarder was started.
 var StartTimestamp time.Time
-
-// NumForwardingThreads is the number of forwarding threads.
-var NumForwardingThreads int
