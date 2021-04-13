@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/pprof"
 	"strconv"
 	"syscall"
@@ -50,6 +51,10 @@ func main() {
 	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
 	var cpuProfile string
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
+	var memProfile string
+	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
+	var memBalastSize uint
+	flag.UintVar(&memBalastSize, "mem-balast", 4, "Size of memory balast in GB to avoid frequent GC (default 4GB)")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -59,6 +64,10 @@ func main() {
 		fmt.Println("Released under the terms of the MIT License")
 		return
 	}
+
+	// Allocate memory "balast" to prevent frequent GC (https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap-26c2462549a2/)
+	// This won't actually use up this many GB of RAM, since it'll all be in virtual memory as long as we don't reference it
+	_ = make([]byte, memBalastSize<<30)
 
 	// Initialize config file
 	core.LoadConfig(configFileName)
@@ -70,13 +79,27 @@ func main() {
 	if cpuProfile != "" {
 		cpuProfileFile, err := os.Create(cpuProfile)
 		if err != nil {
-			fmt.Println("Unable to open output file for CPU profile: " + err.Error())
-			os.Exit(1)
+			core.LogFatal("Main", "Unable to open output file for CPU profile: "+err.Error())
 		}
 
 		core.LogInfo("Main", "Profiling CPU - outputting to "+cpuProfile)
 		pprof.StartCPUProfile(cpuProfileFile)
+		defer cpuProfileFile.Close()
 		defer pprof.StopCPUProfile()
+	}
+
+	if memProfile != "" {
+		memProfileFile, err := os.Create(memProfile)
+		if err != nil {
+			core.LogFatal("Main", "Unable to open output file for memory profile: "+err.Error())
+		}
+
+		core.LogInfo("Main", "Profiling memory - outputting to "+memProfile)
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
+			core.LogFatal("Main", "Unable to write memory profile: "+err.Error())
+		}
+		defer memProfileFile.Close()
 	}
 
 	core.LogInfo("Main", "Starting YaNFD")
