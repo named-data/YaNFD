@@ -12,6 +12,7 @@ import "github.com/eric135/YaNFD/ndn/tlv"
 // PendingPacket represents a pending network-layer packet to be sent or recently received on the link, plus any associated metadata.
 type PendingPacket struct {
 	Wire           *tlv.Block
+	NetPacket      interface{}
 	PitToken       []byte
 	CongestionMark *uint64
 	IncomingFaceID *uint64
@@ -22,26 +23,14 @@ type PendingPacket struct {
 // DeepCopy creates a deep copy of a pending packet.
 func (p *PendingPacket) DeepCopy() *PendingPacket {
 	newP := new(PendingPacket)
-	if p.Wire != nil {
-		newP.Wire = p.Wire.DeepCopy()
-	}
-	newP.PitToken = make([]byte, len(p.PitToken))
-	copy(newP.PitToken, p.PitToken)
-	if p.CongestionMark != nil {
-		newP.CongestionMark = new(uint64)
-		*newP.CongestionMark = *p.CongestionMark
-	}
-	if p.IncomingFaceID != nil {
-		newP.IncomingFaceID = new(uint64)
-		*newP.IncomingFaceID = *p.IncomingFaceID
-	}
-	if p.NextHopFaceID != nil {
-		newP.NextHopFaceID = new(uint64)
-		*newP.NextHopFaceID = *p.NextHopFaceID
-	}
-	if p.CachePolicy != nil {
-		newP.CachePolicy = new(uint64)
-		*newP.CachePolicy = *p.CachePolicy
-	}
+	// Deep copy not needed because wire it not used in incoming Data pipeline (only place where DeepCopy called)
+	newP.Wire = p.Wire
+	// Don't need to deep copy because only deep copied for Data packets from local producers and Data packets won't change in different threads
+	newP.NetPacket = p.NetPacket
+	newP.PitToken = p.PitToken
+	newP.CongestionMark = p.CongestionMark
+	newP.IncomingFaceID = p.IncomingFaceID
+	newP.NextHopFaceID = p.NextHopFaceID
+	newP.CachePolicy = p.CachePolicy
 	return newP
 }

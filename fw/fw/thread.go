@@ -153,12 +153,8 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		return
 	}
 
-	// Extract Interest from PendingPacket
-	interest, err := ndn.DecodeInterest(pendingPacket.Wire)
-	if err != nil {
-		core.LogInfo(t, "Unable to decode Interest packet - DROP")
-		return
-	}
+	// Already asserted that this is an Interest in link service
+	interest := pendingPacket.NetPacket.(*ndn.Interest)
 
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
@@ -344,12 +340,8 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		*pitToken = binary.BigEndian.Uint32(pendingPacket.PitToken[2:6])
 	}
 
-	// Extract Data from PendingPacket
-	data, err := ndn.DecodeData(pendingPacket.Wire, false)
-	if err != nil {
-		core.LogInfo(t, "Unable to decode Data packet - DROP")
-		return
-	}
+	// Already asserted that this is a Data packet in link service
+	data := pendingPacket.NetPacket.(*ndn.Data)
 
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
