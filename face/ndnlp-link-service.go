@@ -352,14 +352,14 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	// Attempt to decode buffer into TLV block
 	block, _, err := tlv.DecodeBlock(rawFrame)
 	if err != nil {
-		core.LogDebug(l, "Received invalid frame - DROP")
+		core.LogWarn(l, "Received invalid frame - DROP")
 		return
 	}
 
 	// Now attempt to decode LpPacket from block
 	frame, err := lpv2.DecodePacket(block)
 	if err != nil {
-		core.LogDebug(l, "Received invalid frame - DROP")
+		core.LogWarn(l, "Received invalid frame - DROP")
 		return
 	}
 

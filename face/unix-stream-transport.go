@@ -87,9 +87,11 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
+	startPos := 0
 	for {
 		core.LogTrace(t, "Reading from socket")
-		readSize, err := t.conn.Read(recvBuf)
+		readSize, err := t.conn.Read(recvBuf[startPos:])
+		startPos += readSize
 		if err != nil {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
@@ -103,8 +105,29 @@ func (t *UnixStreamTransport) runReceive() {
 		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
 		t.nInBytes += uint64(readSize)
 
-		// Send up to link service
-		t.linkService.handleIncomingFrame(recvBuf)
+		if startPos > tlv.MaxNDNPacketSize {
+			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
+			continue
+		}
+
+		// Determine whether valid packet received
+		for startPos > 0 {
+			_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf)
+			//core.LogInfo(t, strconv.Itoa(startPos)+", "+strconv.FormatUint(uint64(a), 10)+", "+strconv.FormatUint(uint64(b), 10)+", "+strconv.FormatUint(uint64(tlvSize), 10))
+			if err != nil {
+				core.LogInfo(t, "Unable to process received packet: "+err.Error())
+				startPos = 0
+				break
+			} else if startPos >= tlvSize {
+				// Packet was successfully received, send up to link service
+				t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
+				copy(recvBuf, recvBuf[tlvSize:])
+				startPos -= tlvSize
+			} else {
+				core.LogTrace(t, "Received packet is incomplete")
+				break
+			}
+		}
 	}
 }
 
