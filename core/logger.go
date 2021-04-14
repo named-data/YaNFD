@@ -16,6 +16,7 @@ import (
 )
 
 var shouldPrintTraceLogs = false
+var logLevel log.Level
 
 // InitializeLogger initializes the logger.
 func InitializeLogger() {
@@ -23,7 +24,8 @@ func InitializeLogger() {
 
 	logLevelString := GetConfigStringDefault("core.log_level", "INFO")
 
-	logLevel, err := log.ParseLevel(logLevelString)
+	var err error
+	logLevel, err = log.ParseLevel(logLevelString)
 	if err == nil {
 		log.SetLevel(logLevel)
 	} else if logLevelString == "TRACE" {
@@ -37,27 +39,37 @@ func InitializeLogger() {
 
 // LogFatal logs a message at the FATAL level.
 func LogFatal(module interface{}, message string) {
-	log.Fatal(fmt.Sprintf("[%v] ", module) + ": " + message)
+	if logLevel <= log.FatalLevel {
+		log.Fatal(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }
 
 // LogError logs a message at the ERROR level.
 func LogError(module interface{}, message string) {
-	log.Error(fmt.Sprintf("[%v] ", module) + ": " + message)
+	if logLevel <= log.ErrorLevel {
+		log.Error(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }
 
 // LogWarn logs a message at the WARN level.
 func LogWarn(module interface{}, message string) {
-	log.Warn(fmt.Sprintf("[%v] ", module) + ": " + message)
+	if logLevel <= log.WarnLevel {
+		log.Warn(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }
 
 // LogInfo logs a message at the INFO level.
 func LogInfo(module interface{}, message string) {
-	log.Info(fmt.Sprintf("[%v] ", module) + ": " + message)
+	if logLevel <= log.InfoLevel {
+		log.Info(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }
 
 // LogDebug logs a message at the DEBUG level.
 func LogDebug(module interface{}, message string) {
-	log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+	if logLevel <= log.DebugLevel {
+		log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+	}
 }
 
 // LogTrace logs a message at the TRACE level (really just additional DEBUG messages).
