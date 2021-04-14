@@ -9,11 +9,10 @@ package table
 
 import (
 	"bytes"
-	"crypto/sha512"
-	"encoding/binary"
 	"math/rand"
 	"time"
 
+	"github.com/cespare/xxhash"
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 )
@@ -172,8 +171,7 @@ func (p *PitCs) generateNewPitToken() uint32 {
 }
 
 func (p *PitCs) hashCsName(name *ndn.Name) uint64 {
-	sum := sha512.Sum512([]byte(name.String()))
-	return binary.BigEndian.Uint64(sum[56:])
+	return xxhash.Sum64String(name.String())
 }
 
 // PitSize returns the number of entries in the PIT.
