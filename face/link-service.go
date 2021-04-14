@@ -231,17 +231,24 @@ func (l *linkServiceBase) SendPacket(packet *ndn.PendingPacket) {
 
 func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
+	var err error
 	switch netPacket.Wire.Type() {
 	case tlv.Interest:
-		interest, err := ndn.DecodeInterest(netPacket.Wire)
+		netPacket.NetPacket, err = ndn.DecodeInterest(netPacket.Wire)
 		if err != nil {
 			core.LogError(l, "Unable to decode Interest ("+err.Error()+") - DROP")
 			break
 		}
-		thread := fw.HashNameToFwThread(interest.Name())
+		thread := fw.HashNameToFwThread(netPacket.NetPacket.(*ndn.Interest).Name())
 		core.LogTrace(l, "Dispatched Interest to thread "+strconv.Itoa(thread))
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case tlv.Data:
+		netPacket.NetPacket, err = ndn.DecodeData(netPacket.Wire, false)
+		if err != nil {
+			core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
+			break
+		}
+
 		if len(netPacket.PitToken) == 6 {
 			// Decode PitToken. If it's for us, it's a uint16 + uint32.
 			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
@@ -252,21 +259,16 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 				break
 			}
 			// If valid PIT token present, dispatch to that thread.
-			core.LogTrace(l, "Dispatched Interest to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
+			core.LogTrace(l, "Dispatched Data to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
 			fwThread.QueueData(netPacket)
 		} else if l.Scope() == ndn.Local {
 			netPacket.PitToken = make([]byte, 0) // Erase any PIT token just in case one is somehow present
+
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
-			data, err := ndn.DecodeData(netPacket.Wire, false)
-			if err != nil {
-				core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
-				break
-			}
-
 			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(data.Name()) {
-				core.LogTrace(l, "Prefix dispatched local origin Data packet to thread "+strconv.Itoa(thread))
+			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.NetPacket.(*ndn.Data).Name()) {
+				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread "+strconv.Itoa(thread))
 				dispatch.GetFWThread(thread).QueueData(netPacket.DeepCopy())
 			}
 		}
