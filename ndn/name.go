@@ -554,8 +554,9 @@ func (n *SequenceNumNameComponent) SetValue(value uint64) {
 
 // Name represents an NDN name.
 type Name struct {
-	components []NameComponent
-	wire       *tlv.Block
+	components   []NameComponent
+	wire         *tlv.Block
+	cachedString string
 }
 
 // NewName constructs an empty name.
@@ -719,6 +720,10 @@ func DecodeName(b *tlv.Block) (*Name, error) {
 }
 
 func (n *Name) String() string {
+	if len(n.cachedString) > 0 {
+		return n.cachedString
+	}
+
 	if n.Size() == 0 {
 		return "/"
 	}
@@ -727,6 +732,7 @@ func (n *Name) String() string {
 	for _, component := range n.components {
 		out += "/" + component.String()
 	}
+	n.cachedString = out
 	return out
 }
 
@@ -734,6 +740,7 @@ func (n *Name) String() string {
 func (n *Name) Append(component NameComponent) *Name {
 	n.components = append(n.components, component)
 	n.wire = nil
+	n.cachedString = ""
 	return n
 }
 
@@ -754,6 +761,7 @@ func (n *Name) Clear() {
 	if len(n.components) > 0 {
 		n.components = make([]NameComponent, 0)
 		n.wire = nil
+		n.cachedString = ""
 	}
 }
 
@@ -802,6 +810,7 @@ func (n *Name) DeepCopy() *Name {
 		name.components = append(name.components, component.DeepCopy())
 	}
 	name.wire = nil
+	name.cachedString = ""
 	return name
 }
 
@@ -829,6 +838,7 @@ func (n *Name) Erase(index int) error {
 	copy(n.components[index:], n.components[index+1:])
 	n.components = n.components[:len(n.components)-1]
 	n.wire = nil
+	n.cachedString = ""
 	return nil
 }
 
@@ -856,6 +866,7 @@ func (n *Name) Insert(index int, component NameComponent) error {
 
 	n.components = append(n.components[:index], append([]NameComponent{component.DeepCopy()}, n.components[index:]...)...)
 	n.wire = nil
+	n.cachedString = ""
 	return nil
 }
 
@@ -897,6 +908,7 @@ func (n *Name) Set(index int, component NameComponent) error {
 	//n.components[index] = reflect.New(reflect.ValueOf(component).Elem().Type()).Interface().(NameComponent)
 	n.components[index] = component
 	n.wire = nil
+	n.cachedString = ""
 	return nil
 }
 
