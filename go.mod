@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/apex/log v1.9.0
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cornelk/hashmap v1.0.1
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/google/gopacket v1.1.19

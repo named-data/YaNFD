@@ -8,10 +8,11 @@
 package fw
 
 import (
-	"crypto/sha512"
 	"encoding/binary"
 	"strconv"
+	"strings"
 
+	"github.com/cespare/xxhash"
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/dispatch"
 	"github.com/eric135/YaNFD/ndn"
@@ -31,8 +32,7 @@ func HashNameToFwThread(name *ndn.Name) int {
 		return 0
 	}
 
-	sum := sha512.Sum512([]byte(name.String()))
-	return int(binary.BigEndian.Uint64(sum[56:]) % uint64(len(Threads)))
+	return int(xxhash.Sum64String(name.String()) % uint64(len(Threads)))
 }
 
 // HashNameToAllPrefixFwThreads hahes an NDN name to all forwarding threads for all prefixes of the name.
@@ -44,8 +44,9 @@ func HashNameToAllPrefixFwThreads(name *ndn.Name) []int {
 
 	threadMap := make(map[int]interface{})
 
-	for i := name.Size(); i > 0; i-- {
-		threadMap[HashNameToFwThread(name.Prefix(i))] = true
+	// Strings are likely better to work with for performance here than calling Name.prefix
+	for nameString := name.String(); len(nameString) > 1; nameString = nameString[:strings.LastIndex(nameString, "/")] {
+		threadMap[int(xxhash.Sum64String(nameString)%uint64(len(Threads)))] = true
 	}
 
 	threadList := make([]int, 0, len(threadMap))
