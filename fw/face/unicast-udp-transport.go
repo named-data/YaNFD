@@ -182,16 +182,8 @@ func (t *UnicastUDPTransport) runReceive() {
 			continue
 		}
 
-		// Determine whether valid packet received
-		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
-		if err != nil {
-			core.LogInfo(t, "Unable to process received packet: "+err.Error())
-		} else if readSize >= tlvSize {
-			// Packet was successfully received, send up to link service
-			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
-		} else {
-			core.LogInfo(t, "Received packet is incomplete")
-		}
+		// Send up to link service
+		t.linkService.handleIncomingFrame(recvBuf[:readSize])
 	}
 }
 
