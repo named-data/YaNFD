@@ -53,8 +53,8 @@ func main() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
 	var memProfile string
 	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
-	var memBalastSize uint
-	flag.UintVar(&memBalastSize, "mem-balast", 4, "Size of memory balast in GB to avoid frequent GC (default 4GB)")
+	var blockProfile string
+	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -64,10 +64,6 @@ func main() {
 		fmt.Println("Released under the terms of the MIT License")
 		return
 	}
-
-	// Allocate memory "balast" to prevent frequent GC (https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap-26c2462549a2/)
-	// This won't actually use up this many GB of RAM, since it'll all be in virtual memory as long as we don't reference it
-	_ = make([]byte, memBalastSize<<30)
 
 	// Initialize config file
 	core.LoadConfig(configFileName)
@@ -100,6 +96,23 @@ func main() {
 			core.LogFatal("Main", "Unable to write memory profile: "+err.Error())
 		}
 		defer memProfileFile.Close()
+	}
+
+	if blockProfile != "" {
+		core.LogInfo("Main", "Profiling blocking operations - outputting to "+blockProfile)
+		runtime.SetBlockProfileRate(1)
+		blockProfiler := pprof.Lookup("block")
+		// Output at end of runtime
+		defer func() {
+			blockProfileFile, err := os.Create(blockProfile)
+			if err != nil {
+				core.LogFatal("Main", "Unable to open output file for block profile: "+err.Error())
+			}
+			if err := blockProfiler.WriteTo(blockProfileFile, 0); err != nil {
+				core.LogFatal("Main", "Unable to write block profile: "+err.Error())
+			}
+			blockProfileFile.Close()
+		}()
 	}
 
 	core.LogInfo("Main", "Starting YaNFD")
