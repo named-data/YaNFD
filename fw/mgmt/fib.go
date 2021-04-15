@@ -8,8 +8,6 @@
 package mgmt
 
 import (
-	"strconv"
-
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/ndn"
@@ -52,7 +50,7 @@ func (f *FIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []by
 	case "list":
 		f.list(interest, pitToken, inFace)
 	default:
-		core.LogWarn(f, "Received Interest for non-existent verb '"+verb+"'")
+		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -64,7 +62,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 
 	if interest.Name().Size() < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(f, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -78,7 +76,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 	}
 
 	if params.Name == nil {
-		core.LogWarn(f, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(f, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -101,7 +99,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 
 	table.FibStrategyTable.AddNexthop(params.Name, faceID, cost)
 
-	core.LogInfo(f, "Created nexthop for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10)+"with Cost="+strconv.FormatUint(cost, 10))
+	core.LogInfo(f, "Created nexthop for ", params.Name, " to FaceID=", faceID, "with Cost=", cost)
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
@@ -110,7 +108,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 	*responseParams.Cost = cost
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: "+err.Error())
+		core.LogError(f, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -123,7 +121,7 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 
 	if interest.Name().Size() < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(f, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -137,7 +135,7 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 	}
 
 	if params.Name == nil {
-		core.LogWarn(f, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(f, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -150,14 +148,14 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 
 	table.FibStrategyTable.RemoveNexthop(params.Name, faceID)
 
-	core.LogInfo(f, "Removed nexthop for "+params.Name.String()+" to FaceID="+strconv.FormatUint(faceID, 10))
+	core.LogInfo(f, "Removed nexthop for ", params.Name, " to FaceID=", faceID)
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
 	*responseParams.FaceID = faceID
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: "+err.Error())
+		core.LogError(f, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -186,12 +184,12 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 
 		wire, err := fibEntry.Encode()
 		if err != nil {
-			core.LogError(f, "Cannot encode FibEntry for Name="+fsEntry.Name.String()+": "+err.Error())
+			core.LogError(f, "Cannot encode FibEntry for Name=", fsEntry.Name, ": ", err)
 			continue
 		}
 		encoded, err := wire.Wire()
 		if err != nil {
-			core.LogError(f, "Cannot encode FibEntry for Name="+fsEntry.Name.String()+": "+err.Error())
+			core.LogError(f, "Cannot encode FibEntry for Name=", fsEntry.Name, ": ", err)
 			continue
 		}
 		dataset = append(dataset, encoded...)
@@ -202,12 +200,12 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()
 		if err != nil {
-			core.LogError(f, "Unable to encode FIB dataset: "+err.Error())
+			core.LogError(f, "Unable to encode FIB dataset: ", err)
 			return
 		}
 		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
-	core.LogTrace(f, "Published FIB dataset version="+strconv.FormatUint(f.nextFIBDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion, ", containing ", len(segments), " segments")
 	f.nextFIBDatasetVersion++
 }

@@ -9,7 +9,6 @@ package fw
 
 import (
 	"reflect"
-	"strconv"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
@@ -34,15 +33,15 @@ func (s *BestRoute) Instantiate(fwThread *Thread) {
 // AfterContentStoreHit ...
 func (s *BestRoute) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(inFace, 10))
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", data.Name(), " to FaceID=", inFace)
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
 func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
-	core.LogTrace(s, "AfterReceiveData: Data="+data.Name().String()+", "+strconv.Itoa(len(pitEntry.InRecords))+" In-Records")
+	core.LogTrace(s, "AfterReceiveData: Data=", data.Name(), ", ", len(pitEntry.InRecords), " In-Records")
 	for faceID := range pitEntry.InRecords {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data="+data.Name().String()+" to FaceID="+strconv.FormatUint(faceID, 10))
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", data.Name(), " to FaceID=", faceID)
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
@@ -50,7 +49,7 @@ func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, da
 // AfterReceiveInterest ...
 func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest="+interest.Name().String()+" - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", interest.Name(), " - DROP")
 		return
 	}
 
@@ -61,7 +60,7 @@ func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 		}
 	}
 
-	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest="+interest.Name().String()+" to FaceID="+strconv.FormatUint(lowestCost.Nexthop, 10))
+	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", interest.Name(), " to FaceID=", lowestCost.Nexthop)
 	s.SendInterest(interest, pitEntry, lowestCost.Nexthop, inFace)
 }
 

@@ -8,8 +8,6 @@
 package mgmt
 
 import (
-	"strconv"
-
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/mgmt"
@@ -58,7 +56,7 @@ func (c *ContentStoreModule) handleIncomingInterest(interest *ndn.Interest, pitT
 		// TODO
 		//c.query(interest, pitToken, inFace)
 	default:
-		core.LogWarn(c, "Received Interest for non-existent verb '"+verb+"'")
+		core.LogWarn(c, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -70,7 +68,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 
 	if interest.Name().Size() < c.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(c, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(c, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -91,7 +89,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 	}
 
 	if params.Capacity != nil {
-		core.LogInfo(c, "Setting CS capacity to "+strconv.FormatUint(*params.Capacity, 10))
+		core.LogInfo(c, "Setting CS capacity to ", *params.Capacity)
 		table.SetCsCapacity(int(*params.Capacity))
 	}
 
@@ -115,7 +113,7 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 	// TODO: *responseParams.Flags += 2 if CS_ENABLE_SERVE
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(c, "Unable to encode response parameters: "+err.Error())
+		core.LogError(c, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)

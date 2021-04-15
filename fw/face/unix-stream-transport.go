@@ -63,7 +63,7 @@ func (t *UnixStreamTransport) SetPersistency(persistency Persistency) bool {
 func (t *UnixStreamTransport) GetSendQueueSize() uint64 {
 	rawConn, err := t.conn.SyscallConn()
 	if err != nil {
-		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+		core.LogWarn(t, "Unable to get raw connection to get socket length: ", err)
 	}
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
@@ -74,7 +74,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
+	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
@@ -96,13 +96,13 @@ func (t *UnixStreamTransport) runReceive() {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
 			} else {
-				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP and Face DOWN")
+				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
 			}
 			t.changeState(ndn.Down)
 			break
 		}
 
-		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
+		core.LogTrace(t, "Receive of size ", readSize)
 		t.nInBytes += uint64(readSize)
 
 		if startPos > tlv.MaxNDNPacketSize {
@@ -113,9 +113,8 @@ func (t *UnixStreamTransport) runReceive() {
 		// Determine whether valid packet received
 		for startPos > 0 {
 			_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf)
-			//core.LogInfo(t, strconv.Itoa(startPos)+", "+strconv.FormatUint(uint64(a), 10)+", "+strconv.FormatUint(uint64(b), 10)+", "+strconv.FormatUint(uint64(tlvSize), 10))
 			if err != nil {
-				core.LogInfo(t, "Unable to process received packet: "+err.Error())
+				core.LogInfo(t, "Unable to process received packet: ", err)
 				startPos = 0
 				break
 			} else if startPos >= tlvSize {
@@ -136,7 +135,7 @@ func (t *UnixStreamTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
+	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
 	if t.state != ndn.Up {

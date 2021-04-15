@@ -236,16 +236,16 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 	case tlv.Interest:
 		netPacket.NetPacket, err = ndn.DecodeInterest(netPacket.Wire)
 		if err != nil {
-			core.LogError(l, "Unable to decode Interest ("+err.Error()+") - DROP")
+			core.LogError(l, "Unable to decode Interest (", err, ") - DROP")
 			break
 		}
 		thread := fw.HashNameToFwThread(netPacket.NetPacket.(*ndn.Interest).Name())
-		core.LogTrace(l, "Dispatched Interest to thread "+strconv.Itoa(thread))
+		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case tlv.Data:
 		netPacket.NetPacket, err = ndn.DecodeData(netPacket.Wire, false)
 		if err != nil {
-			core.LogError(l, "Unable to decode Data ("+err.Error()+") - DROP")
+			core.LogError(l, "Unable to decode Data (", err, ") - DROP")
 			break
 		}
 
@@ -259,7 +259,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 				break
 			}
 			// If valid PIT token present, dispatch to that thread.
-			core.LogTrace(l, "Dispatched Data to thread "+strconv.FormatUint(uint64(pitTokenThread), 10))
+			core.LogTrace(l, "Dispatched Data to thread ", pitTokenThread)
 			fwThread.QueueData(netPacket)
 		} else if l.Scope() == ndn.Local {
 			netPacket.PitToken = make([]byte, 0) // Erase any PIT token just in case one is somehow present
@@ -268,12 +268,12 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			// We need to do this because producers do not attach PIT tokens to their data packets.
 			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
 			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.NetPacket.(*ndn.Data).Name()) {
-				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread "+strconv.Itoa(thread))
+				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket.DeepCopy())
 			}
 		}
 	default:
-		core.LogError(l, "Cannot dispatch packet of unknown type "+strconv.FormatUint(uint64(netPacket.Wire.Type()), 10))
+		core.LogError(l, "Cannot dispatch packet of unknown type ", netPacket.Wire.Type())
 	}
 }
 

@@ -15,7 +15,6 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -75,10 +74,10 @@ func main() {
 	if cpuProfile != "" {
 		cpuProfileFile, err := os.Create(cpuProfile)
 		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for CPU profile: "+err.Error())
+			core.LogFatal("Main", "Unable to open output file for CPU profile: ", err)
 		}
 
-		core.LogInfo("Main", "Profiling CPU - outputting to "+cpuProfile)
+		core.LogInfo("Main", "Profiling CPU - outputting to ", cpuProfile)
 		pprof.StartCPUProfile(cpuProfileFile)
 		defer cpuProfileFile.Close()
 		defer pprof.StopCPUProfile()
@@ -87,29 +86,29 @@ func main() {
 	if memProfile != "" {
 		memProfileFile, err := os.Create(memProfile)
 		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for memory profile: "+err.Error())
+			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
 		}
 
-		core.LogInfo("Main", "Profiling memory - outputting to "+memProfile)
+		core.LogInfo("Main", "Profiling memory - outputting to ", memProfile)
 		runtime.GC()
 		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
-			core.LogFatal("Main", "Unable to write memory profile: "+err.Error())
+			core.LogFatal("Main", "Unable to write memory profile: ", err)
 		}
 		defer memProfileFile.Close()
 	}
 
 	if blockProfile != "" {
-		core.LogInfo("Main", "Profiling blocking operations - outputting to "+blockProfile)
+		core.LogInfo("Main", "Profiling blocking operations - outputting to ", blockProfile)
 		runtime.SetBlockProfileRate(1)
 		blockProfiler := pprof.Lookup("block")
 		// Output at end of runtime
 		defer func() {
 			blockProfileFile, err := os.Create(blockProfile)
 			if err != nil {
-				core.LogFatal("Main", "Unable to open output file for block profile: "+err.Error())
+				core.LogFatal("Main", "Unable to open output file for block profile: ", err)
 			}
 			if err := blockProfiler.WriteTo(blockProfileFile, 0); err != nil {
-				core.LogFatal("Main", "Unable to write block profile: "+err.Error())
+				core.LogFatal("Main", "Unable to write block profile: ", err)
 			}
 			blockProfileFile.Close()
 		}()
@@ -132,7 +131,7 @@ func main() {
 
 	// Create forwarding threads
 	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
-		core.LogFatal("Main", "Number of forwarding threads must be in range [1, "+strconv.Itoa(fw.MaxFwThreads)+"]")
+		core.LogFatal("Main", "Number of forwarding threads must be in range [1, ", fw.MaxFwThreads, "]")
 	}
 	fw.Threads = make(map[int]*fw.Thread)
 	for i := 0; i < fw.NumFwThreads; i++ {
@@ -146,12 +145,12 @@ func main() {
 	ifaces, err := net.Interfaces()
 	multicastEthURI := ndn.DecodeURIString("ether://[" + face.EthernetMulticastAddress + "]")
 	if err != nil {
-		core.LogFatal("Main", "Unable to access network interfaces: "+err.Error())
+		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 {
-			core.LogInfo("Main", "Skipping interface "+iface.Name+" because not up")
+			core.LogInfo("Main", "Skipping interface ", iface.Name, " because not up")
 			continue
 		}
 
@@ -159,13 +158,13 @@ func main() {
 			// Create multicast Ethernet face for interface
 			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for "+iface.Name+": "+err.Error())
+				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
 				os.Exit(2)
 			}
 			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
 			face.FaceTable.Add(multicastEthFace)
 			go multicastEthFace.Run()
-			core.LogInfo("Main", "Created multicast Ethernet face for "+iface.Name)
+			core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
 
 			// Create Ethernet listener for interface
 			// TODO
@@ -174,7 +173,7 @@ func main() {
 		// Create UDP listener and multicast UDP interface for every address on interface
 		addrs, err := iface.Addrs()
 		if err != nil {
-			core.LogFatal("Main", "Unable to access addresses on network interface "+iface.Name+": "+err.Error())
+			core.LogFatal("Main", "Unable to access addresses on network interface ", iface.Name, ": ", err)
 		}
 		for _, addr := range addrs {
 			ipAddr := addr.(*net.IPNet)
@@ -189,22 +188,22 @@ func main() {
 			if !addr.(*net.IPNet).IP.IsLoopback() {
 				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
-					core.LogFatal("Main", "Unable to create MulticastUDPTransport for "+path+" on "+iface.Name+": "+err.Error())
+					core.LogFatal("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
 					os.Exit(2)
 				}
 				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.MakeNDNLPLinkServiceOptions())
 				face.FaceTable.Add(multicastUDPFace)
 				go multicastUDPFace.Run()
-				core.LogInfo("Main", "Created multicast UDP face for "+path+" on "+iface.Name)
+				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
 			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, 6363))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create UDP listener for "+path+" on "+iface.Name+": "+err.Error())
+				core.LogFatal("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
 				os.Exit(2)
 			}
 			go udpListener.Run()
-			core.LogInfo("Main", "Created UDP listener for "+path+" on "+iface.Name)
+			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
 		}
 	}
 
@@ -213,18 +212,18 @@ func main() {
 		// Set up Unix stream listener
 		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
-			core.LogFatal("Main", "Unable to create Unix stream listener at "+face.UnixSocketPath+": "+err.Error())
+			core.LogFatal("Main", "Unable to create Unix stream listener at ", face.UnixSocketPath, ": ", err)
 			os.Exit(2)
 		}
 		go unixListener.Run()
-		core.LogInfo("Main", "Created Unix stream listener for "+face.UnixSocketPath)
+		core.LogInfo("Main", "Created Unix stream listener for ", face.UnixSocketPath)
 	}
 
 	// Set up signal handler channel and wait for interrupt
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	receivedSig := <-sigChannel
-	core.LogInfo("Main", "Received signal "+receivedSig.String()+" - exiting")
+	core.LogInfo("Main", "Received signal ", receivedSig, " - exiting")
 	core.ShouldQuit = true
 
 	// Wait for unix socket listener to quit
@@ -240,8 +239,7 @@ func main() {
 
 	// Wait for all faces to quit
 	for _, face := range face.FaceTable.Faces {
-		//core.LogTrace("Main", "Waiting for face "+strconv.Itoa(face.FaceID())+" to quit")
-		core.LogTrace("Main", "Waiting for face "+face.String()+" to quit")
+		core.LogTrace("Main", "Waiting for face ", face, " to quit")
 		<-face.GetHasQuit()
 	}
 

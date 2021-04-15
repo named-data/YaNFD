@@ -57,7 +57,7 @@ func (l *UDPListener) Run() {
 	}
 	l.conn, err = listenConfig.ListenPacket(context.Background(), l.localURI.Scheme(), remote)
 	if err != nil {
-		core.LogError(l, "Unable to start UDP listener: "+err.Error())
+		core.LogError(l, "Unable to start UDP listener: ", err)
 		l.HasQuit <- true
 		return
 	}
@@ -67,7 +67,7 @@ func (l *UDPListener) Run() {
 	for !core.ShouldQuit {
 		readSize, remoteAddr, err := l.conn.ReadFrom(recvBuf)
 		if err != nil {
-			core.LogWarn(l, "Unable to read from socket ("+err.Error()+") - DROP ")
+			core.LogWarn(l, "Unable to read from socket (", err, ") - DROP ")
 			break
 		}
 
@@ -75,22 +75,22 @@ func (l *UDPListener) Run() {
 		var remoteURI *ndn.URI
 		host, port, err := net.SplitHostPort(remoteAddr.String())
 		if err != nil {
-			core.LogWarn(l, "Unable to create face from "+remoteAddr.String()+": could not split host from port")
+			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
 			continue
 		}
 		portInt, _ := strconv.ParseUint(port, 10, 16)
 		if err != nil {
-			core.LogWarn(l, "Unable to create face from "+remoteAddr.String()+": could not split host from port")
+			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
 			continue
 		}
 		remoteURI = ndn.MakeUDPFaceURI(4, host, uint16(portInt))
 		remoteURI.Canonize()
 		if !remoteURI.IsCanonical() {
-			core.LogWarn(l, "Unable to create face from "+remoteURI.String()+": remote URI is not canonical")
+			core.LogWarn(l, "Unable to create face from ", remoteURI, ": remote URI is not canonical")
 			continue
 		}
 
-		core.LogTrace(l, "Receive of size "+strconv.Itoa(readSize)+" from "+remoteURI.String())
+		core.LogTrace(l, "Receive of size ", readSize, " from ", remoteURI)
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(l, "Received too much data without valid TLV block - DROP")
@@ -99,17 +99,17 @@ func (l *UDPListener) Run() {
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
 		if err != nil {
-			core.LogInfo(l, "Unable to process received packet: "+err.Error())
+			core.LogInfo(l, "Unable to process received packet: ", err)
 		} else if readSize >= tlvSize {
 			// If frame received here, must be for new remote endpoint
 			newTransport, err := MakeUnicastUDPTransport(remoteURI, l.localURI, PersistencyOnDemand)
 			if err != nil {
-				core.LogError(l, "Failed to create new unicast UDP transport: "+err.Error())
+				core.LogError(l, "Failed to create new unicast UDP transport: ", err)
 				continue
 			}
 			newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
 			if err != nil {
-				core.LogError(l, "Failed to create new NDNLPv2 transport: "+err.Error())
+				core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
 				continue
 			}
 			// Pass this frame to the link service for processing
@@ -119,7 +119,7 @@ func (l *UDPListener) Run() {
 			FaceTable.Add(newLinkService)
 			go newLinkService.Run()
 		} else {
-			core.LogDebug(l, "Received non-TLV from "+remoteAddr.String())
+			core.LogDebug(l, "Received non-TLV from ", remoteAddr)
 		}
 	}
 

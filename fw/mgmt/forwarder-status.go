@@ -8,7 +8,6 @@
 package mgmt
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/eric135/YaNFD/core"
@@ -50,7 +49,7 @@ func (f *ForwarderStatusModule) handleIncomingInterest(interest *ndn.Interest, p
 	case "general":
 		f.general(interest, pitToken, inFace)
 	default:
-		core.LogWarn(f, "Received Interest for non-existent verb '"+verb+"'")
+		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -84,7 +83,7 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 
 	wire, err := status.Encode()
 	if err != nil {
-		core.LogError(f, "Cannot encode forwarder status dataset: "+err.Error())
+		core.LogError(f, "Cannot encode forwarder status dataset: ", err)
 		return
 	}
 	dataset := wire.Value()
@@ -94,12 +93,12 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 	for _, segment := range segments {
 		encoded, err := segment.Encode()
 		if err != nil {
-			core.LogError(f, "Unable to encode forwarder status dataset: "+err.Error())
+			core.LogError(f, "Unable to encode forwarder status dataset: ", err)
 			return
 		}
 		f.manager.transport.Send(encoded, pitToken, nil)
 	}
 
-	core.LogTrace(f, "Published forwarder status dataset version="+strconv.FormatUint(f.nextGeneralDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	core.LogTrace(f, "Published forwarder status dataset version=", f.nextGeneralDatasetVersion, ", containing ", len(segments), " segments")
 	f.nextGeneralDatasetVersion++
 }

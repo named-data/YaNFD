@@ -44,7 +44,7 @@ func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*Mul
 	var err error
 	t.remoteAddr, err = net.ParseMAC(remoteURI.Path())
 	if err != nil {
-		core.LogError(t, "Unable to parse MAC address "+remoteURI.Path()+" - "+err.Error())
+		core.LogError(t, "Unable to parse MAC address ", remoteURI.Path(), ": ", err)
 		return nil, err
 	}
 	t.restartReceive = make(chan interface{}, 1)
@@ -62,7 +62,7 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Get interface
 	iface, err := net.InterfaceByName(t.localURI.Path())
 	if err != nil {
-		core.LogError(t, "Unable to get local interface "+t.localURI.Path()+" - "+err.Error())
+		core.LogError(t, "Unable to get local interface ", t.localURI.Path(), ": ", err)
 		return err
 	}
 	t.localAddr = iface.HardwareAddr
@@ -73,27 +73,27 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Set up inactive PCAP handle
 	inactive, err := pcap.NewInactiveHandle(t.localURI.Path())
 	if err != nil {
-		core.LogError(t, "Unable to create PCAP handle: "+err.Error())
+		core.LogError(t, "Unable to create PCAP handle: ", err)
 		return err
 	}
 
 	err = inactive.SetTimeout(time.Minute)
 	if err != nil {
-		core.LogError(t, "Unable to set PCAP timeout: "+err.Error())
+		core.LogError(t, "Unable to set PCAP timeout: ", err)
 		return err
 	}
 
 	// Activate PCAP handle
 	t.pcap, err = inactive.Activate()
 	if err != nil {
-		core.LogError(t, "Unable to active PCAP handle: "+err.Error())
+		core.LogError(t, "Unable to active PCAP handle: ", err)
 		return err
 	}
 
 	// Set PCAP filter
 	err = t.pcap.SetBPFFilter("ether proto " + strconv.Itoa(ndnEtherType) + " and ether dst " + t.remoteURI.Path())
 	if err != nil {
-		core.LogError(t, "Unable to set PCAP filter: "+err.Error())
+		core.LogError(t, "Unable to set PCAP filter: ", err)
 	}
 
 	t.packetSource = gopacket.NewPacketSource(t.pcap, t.pcap.LinkType())
@@ -138,7 +138,7 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 	gopacket.SerializeLayers(ethFrame, gopacket.SerializeOptions{}, &ethHeader, gopacket.Payload(frame))
 
 	// Write to PCAP handle
-	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(ethFrame.Bytes())))
+	core.LogDebug(t, "Sending frame of size ", len(ethFrame.Bytes()))
 	err := t.pcap.WritePacketData(ethFrame.Bytes())
 	if err != nil {
 		core.LogWarn(t, "Unable to write frame - DROP")
@@ -152,7 +152,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 	for {
 		select {
 		case packet := <-t.packetSource.Packets():
-			core.LogDebug(t, "Received "+strconv.Itoa(len(packet.Data()))+" bytes from "+packet.LinkLayer().LinkFlow().Src().String())
+			core.LogDebug(t, "Received ", len(packet.Data()), " bytes from ", packet.LinkLayer().LinkFlow().Src().String())
 
 			// Extract network layer (NDN)
 			ndnLayer := packet.NetworkLayer().LayerContents()
@@ -166,7 +166,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 			// Determine whether valid packet received
 			_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)
 			if err != nil {
-				core.LogInfo(t, "Unable to process received frame: "+err.Error()+" - DROP")
+				core.LogInfo(t, "Unable to process received frame: ", err, " - DROP")
 			} else if len(ndnLayer) >= tlvSize {
 				// Packet was successfully received, send up to link service
 				t.linkService.handleIncomingFrame(ndnLayer[:tlvSize])
@@ -187,7 +187,7 @@ func (t *MulticastEthernetTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
+	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
 	if t.state != ndn.Up {

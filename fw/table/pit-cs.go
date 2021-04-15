@@ -102,7 +102,7 @@ func NewPitCS() *PitCs {
 	case "lru":
 		pitCs.csReplacement = NewCsLRU(pitCs)
 	default:
-		core.LogFatal(pitCs, "Unknown CS replacement policy "+csReplacementPolicy)
+		core.LogFatal(pitCs, "Unknown CS replacement policy ", csReplacementPolicy)
 	}
 	pitCs.csMap = make(map[uint64]*CsEntry)
 

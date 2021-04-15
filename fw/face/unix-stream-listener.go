@@ -49,12 +49,12 @@ func (l *UnixStreamListener) Run() {
 	// Create listener
 	var err error
 	if l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path()); err != nil {
-		core.LogFatal(l, "Unable to start Unix stream listener: "+err.Error())
+		core.LogFatal(l, "Unable to start Unix stream listener: ", err)
 	}
 
 	// Set permissions to allow all local apps to communicate with us
 	if err := os.Chmod(l.localURI.Path(), 0777); err != nil {
-		core.LogFatal(l, "Unable to change permissions on Unix stream listener: "+err.Error())
+		core.LogFatal(l, "Unable to change permissions on Unix stream listener: ", err)
 	}
 
 	core.LogInfo(l, "Listening")
@@ -66,7 +66,7 @@ func (l *UnixStreamListener) Run() {
 			if err.Error() == "EOF" {
 				// Must have failed due to being closed, so quit quietly
 			} else {
-				core.LogWarn(l, "Unable to accept connection: "+err.Error())
+				core.LogWarn(l, "Unable to accept connection: ", err)
 			}
 			break
 		}
@@ -75,22 +75,22 @@ func (l *UnixStreamListener) Run() {
 		remoteURI := ndn.MakeFDFaceURI(l.nextFD)
 		l.nextFD++
 		if !remoteURI.IsCanonical() {
-			core.LogWarn(l, "Unable to create face from "+remoteURI.String()+" as remote URI is not canonical")
+			core.LogWarn(l, "Unable to create face from ", remoteURI, " as remote URI is not canonical")
 			continue
 		}
 
 		newTransport, err := MakeUnixStreamTransport(remoteURI, l.localURI, newConn)
 		if err != nil {
-			core.LogError(l, "Failed to create new Unix stream transport: "+err.Error())
+			core.LogError(l, "Failed to create new Unix stream transport: ", err)
 			continue
 		}
 		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
 		if err != nil {
-			core.LogError(l, "Failed to create new NDNLPv2 transport: "+err.Error())
+			core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
 			continue
 		}
 
-		core.LogInfo(l, "Accepting new Unix stream face "+remoteURI.String())
+		core.LogInfo(l, "Accepting new Unix stream face ", remoteURI)
 
 		// Add face to table and start its thread
 		FaceTable.Add(newLinkService)

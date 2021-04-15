@@ -99,7 +99,7 @@ func (t *UnicastUDPTransport) SetPersistency(persistency Persistency) bool {
 func (t *UnicastUDPTransport) GetSendQueueSize() uint64 {
 	rawConn, err := t.conn.SyscallConn()
 	if err != nil {
-		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+		core.LogWarn(t, "Unable to get raw connection to get socket length: ", err)
 	}
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
@@ -112,7 +112,7 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 		var err error
 		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
 		if err != nil {
-			core.LogError(t, "Unable to connect to remote endpoint: "+err.Error())
+			core.LogError(t, "Unable to connect to remote endpoint: ", err)
 		}
 		t.conn = conn.(*net.UDPConn)
 
@@ -148,7 +148,7 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
+	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP")
@@ -167,13 +167,13 @@ func (t *UnicastUDPTransport) runReceive() {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF")
 			} else {
-				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP")
+				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
 				t.onTransportFailure(true)
 			}
 			break
 		}
 
-		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize))
+		core.LogTrace(t, "Receive of size ", readSize)
 		t.nInBytes += uint64(readSize)
 		*t.expirationTime = time.Now().Add(udpLifetime)
 
@@ -192,7 +192,7 @@ func (t *UnicastUDPTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
+	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
 	if t.state != ndn.Up {
