@@ -10,7 +10,6 @@
 package impl
 
 import (
-	"strconv"
 	"syscall"
 
 	"github.com/eric135/YaNFD/core"
@@ -24,7 +23,7 @@ func SyscallGetSocketSendQueueSize(c syscall.RawConn) uint64 {
 		var err error
 		val, err = unix.IoctlGetInt(int(fd), unix.SIOCOUTQ)
 		if err != nil {
-			core.LogWarn("Face-Syscall", "Unable to get size of socket send queue for fd="+strconv.Itoa(int(fd))+": "+err.Error())
+			core.LogWarn("Face-Syscall", "Unable to get size of socket send queue for fd=", fd, ": ", err)
 			val = 0
 		}
 	})

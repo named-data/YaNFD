@@ -9,7 +9,6 @@ package fw
 
 import (
 	"reflect"
-	"strconv"
 
 	"github.com/eric135/YaNFD/core"
 )
@@ -34,37 +33,37 @@ var StrategyVersions = make(map[string][]uint64)
 		}
 
 		if err != nil {
-			core.LogError("StrategyLoader", "Unable to load strategy "+path+": "+err.Error())
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": ", err)
 			return nil
 		}
 		strategyPlugin, err := plugin.Open(path)
 		if err != nil {
-			core.LogError("StrategyLoader", "Unable to load strategy "+path+": "+err.Error())
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": ", err)
 			return nil
 		}
 
 		// Get strategy name
 		strategyName, err := strategyPlugin.Lookup("StrategyName")
 		if err != nil {
-			core.LogError("StrategyLoader", "Unable to load strategy "+path+": StrategyName missing")
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": StrategyName missing")
 			return nil
 		}
 
 		// Make sure strategy class exists
 		strategy, err := strategyPlugin.Lookup(strategyName.(string))
 		if err != nil {
-			core.LogError("StrategyLoader", "Unable to load strategy "+path+": Type "+strategyName.(string)+" missing")
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": Type ", strategyName.(string), " missing")
 			return nil
 		}
 
 		// Make sure strategy class can be cast to Strategy
 		_, ok := strategy.(Strategy)
 		if !ok {
-			core.LogError("StrategyLoader", "Unable to load strategy "+path+": "+strategyName.(string)+" does not satisfy the requirements of Strategy")
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": ", strategyName.(string), " does not satisfy the requirements of Strategy")
 			return nil
 		}
 
-		core.LogDebug("StrategyLoader", "Loaded "+strategyName.(string))
+		core.LogDebug("StrategyLoader", "Loaded ", strategyName.(string))
 		strategyPlugins = append(strategyPlugins, strategyPlugin)
 		return nil
 	})
@@ -78,7 +77,7 @@ func InstantiateStrategies(fwThread *Thread) map[string]Strategy {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
 		strategy.Instantiate(fwThread)
 		strategies[strategy.GetName().String()] = strategy
-		core.LogDebug("StrategyLoader", "Instantiated Strategy="+strategy.GetName().String()+" for Thread="+strconv.Itoa(fwThread.GetID()))
+		core.LogDebug("StrategyLoader", "Instantiated Strategy=", strategy.GetName(), " for Thread=", fwThread.GetID())
 	}
 
 	/*for _, plugin := range strategyPlugins {

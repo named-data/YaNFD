@@ -8,7 +8,6 @@
 package face
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/eric135/YaNFD/core"
@@ -48,7 +47,7 @@ func (t *Table) Add(face LinkService) {
 	// Add to dispatch
 	dispatch.AddFace(faceID, face)
 
-	core.LogDebug("FaceTable", "Registered FaceID="+strconv.FormatUint(faceID, 10))
+	core.LogDebug("FaceTable", "Registered FaceID=", faceID)
 }
 
 // Get gets the face with the specified ID (if any) from the face table.
@@ -96,5 +95,5 @@ func (t *Table) Remove(id uint64) {
 	// Remove from dispatch
 	dispatch.RemoveFace(id)
 
-	core.LogDebug("FaceTable", "Unregistered FaceID="+strconv.FormatUint(id, 10))
+	core.LogDebug("FaceTable", "Unregistered FaceID=", id)
 }

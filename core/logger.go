@@ -10,6 +10,8 @@ package core
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
@@ -37,44 +39,84 @@ func InitializeLogger() {
 	}
 }
 
+func generateLogMessage(module interface{}, components ...interface{}) string {
+	var message strings.Builder
+	message.WriteString(fmt.Sprintf("[%v] ", module))
+	for _, component := range components {
+		switch v := component.(type) {
+		case string:
+			message.WriteString(v)
+		case int:
+			message.WriteString(strconv.Itoa(v))
+		case int8:
+			message.WriteString(strconv.FormatInt(int64(v), 10))
+		case int16:
+			message.WriteString(strconv.FormatInt(int64(v), 10))
+		case int32:
+			message.WriteString(strconv.FormatInt(int64(v), 10))
+		case int64:
+			message.WriteString(strconv.FormatInt(v, 10))
+		case uint:
+			message.WriteString(strconv.FormatUint(uint64(v), 10))
+		case uint8:
+			message.WriteString(strconv.FormatUint(uint64(v), 10))
+		case uint16:
+			message.WriteString(strconv.FormatUint(uint64(v), 10))
+		case uint32:
+			message.WriteString(strconv.FormatUint(uint64(v), 10))
+		case uint64:
+			message.WriteString(strconv.FormatUint(v, 10))
+		case uintptr:
+			message.WriteString(strconv.FormatUint(uint64(v), 10))
+		case bool:
+			message.WriteString(strconv.FormatBool(v))
+		case error:
+			message.WriteString(v.Error())
+		default:
+			message.WriteString(fmt.Sprintf("%v", component))
+		}
+	}
+	return message.String()
+}
+
 // LogFatal logs a message at the FATAL level.
-func LogFatal(module interface{}, message string) {
+func LogFatal(module interface{}, components ...interface{}) {
 	if logLevel <= log.FatalLevel {
-		log.Fatal(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Fatal(generateLogMessage(module, components...))
 	}
 }
 
 // LogError logs a message at the ERROR level.
-func LogError(module interface{}, message string) {
+func LogError(module interface{}, components ...interface{}) {
 	if logLevel <= log.ErrorLevel {
-		log.Error(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Error(generateLogMessage(module, components...))
 	}
 }
 
 // LogWarn logs a message at the WARN level.
-func LogWarn(module interface{}, message string) {
+func LogWarn(module interface{}, components ...interface{}) {
 	if logLevel <= log.WarnLevel {
-		log.Warn(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Warn(generateLogMessage(module, components...))
 	}
 }
 
 // LogInfo logs a message at the INFO level.
-func LogInfo(module interface{}, message string) {
+func LogInfo(module interface{}, components ...interface{}) {
 	if logLevel <= log.InfoLevel {
-		log.Info(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Info(generateLogMessage(module, components...))
 	}
 }
 
 // LogDebug logs a message at the DEBUG level.
-func LogDebug(module interface{}, message string) {
+func LogDebug(module interface{}, components ...interface{}) {
 	if logLevel <= log.DebugLevel {
-		log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Debug(generateLogMessage(module, components...))
 	}
 }
 
 // LogTrace logs a message at the TRACE level (really just additional DEBUG messages).
-func LogTrace(module interface{}, message string) {
+func LogTrace(module interface{}, components ...interface{}) {
 	if shouldPrintTraceLogs {
-		log.Debug(fmt.Sprintf("[%v] ", module) + ": " + message)
+		log.Debug(generateLogMessage(module, components...))
 	}
 }

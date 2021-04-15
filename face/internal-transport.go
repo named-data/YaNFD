@@ -138,7 +138,7 @@ func (t *InternalTransport) sendFrame(frame []byte) {
 
 	t.nOutBytes += uint64(len(frame))
 
-	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
+	core.LogDebug(t, "Sending frame of size ", len(frame))
 	t.recvQueue <- frame
 }
 
@@ -150,7 +150,7 @@ func (t *InternalTransport) runReceive() {
 		case <-t.hasQuit:
 			return
 		case frame := <-t.sendQueue:
-			core.LogTrace(t, "Component send of size "+strconv.Itoa(len(frame)))
+			core.LogTrace(t, "Component send of size ", len(frame))
 
 			if len(frame) > tlv.MaxNDNPacketSize {
 				core.LogWarn(t, "Component trying to send too much data - DROP")
@@ -169,7 +169,7 @@ func (t *InternalTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
+	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
 	if t.state != ndn.Up {

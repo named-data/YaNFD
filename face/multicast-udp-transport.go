@@ -40,7 +40,7 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	// Get local interface
 	localIf, err := InterfaceByIP(net.ParseIP(localURI.PathHost()))
 	if err != nil || localIf == nil {
-		core.LogError(t, "Unable to get interface for local URI "+localURI.String()+": "+err.Error())
+		core.LogError(t, "Unable to get interface for local URI ", localURI, ": ", err)
 	}
 
 	if localURI.Scheme() == "udp4" {
@@ -101,7 +101,7 @@ func (t *MulticastUDPTransport) SetPersistency(persistency Persistency) bool {
 func (t *MulticastUDPTransport) GetSendQueueSize() uint64 {
 	rawConn, err := t.recvConn.SyscallConn()
 	if err != nil {
-		core.LogWarn(t, "Unable to get raw connection to get socket length: "+err.Error())
+		core.LogWarn(t, "Unable to get raw connection to get socket length: ", err)
 	}
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
@@ -112,14 +112,14 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size "+strconv.Itoa(len(frame)))
+	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.sendConn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP")
 		t.sendConn.Close()
 		sendConn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 		if err != nil {
-			core.LogError(t, "Unable to create send connection to group address: "+err.Error())
+			core.LogError(t, "Unable to create send connection to group address: ", err)
 		}
 		t.sendConn = sendConn.(*net.UDPConn)
 	}
@@ -136,17 +136,17 @@ func (t *MulticastUDPTransport) runReceive() {
 				t.changeState(ndn.Down)
 				break
 			} else {
-				core.LogWarn(t, "Unable to read from socket ("+err.Error()+") - DROP")
+				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
 				t.recvConn.Close()
 				localIf, err := InterfaceByIP(net.ParseIP(t.localURI.PathHost()))
 				if err != nil || localIf == nil {
-					core.LogError(t, "Unable to get interface for local URI "+t.localURI.String()+": "+err.Error())
+					core.LogError(t, "Unable to get interface for local URI ", t.localURI, ": ", err)
 				}
 				t.recvConn, _ = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
 			}
 		}
 
-		core.LogTrace(t, "Receive of size "+strconv.Itoa(readSize)+" from "+remoteAddr.String())
+		core.LogTrace(t, "Receive of size ", readSize, " from ", remoteAddr)
 		t.nInBytes += uint64(readSize)
 
 		if readSize > tlv.MaxNDNPacketSize {
@@ -156,7 +156,7 @@ func (t *MulticastUDPTransport) runReceive() {
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
 		if err != nil {
-			core.LogInfo(t, "Unable to process received packet: "+err.Error())
+			core.LogInfo(t, "Unable to process received packet: ", err)
 		} else if readSize >= tlvSize {
 			// Packet was successfully received, send up to link service
 			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
@@ -171,7 +171,7 @@ func (t *MulticastUDPTransport) changeState(new ndn.State) {
 		return
 	}
 
-	core.LogInfo(t, "state: "+t.state.String()+" -> "+new.String())
+	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
 	if t.state != ndn.Up {

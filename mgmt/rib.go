@@ -50,7 +50,7 @@ func (r *RIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []by
 	case "list":
 		r.list(interest, pitToken, inFace)
 	default:
-		core.LogWarn(r, "Received Interest for non-existent verb '"+verb+"'")
+		core.LogWarn(r, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -62,7 +62,7 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 
 	if interest.Name().Size() < r.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(r, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(r, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -76,7 +76,7 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 	}
 
 	if params.Name == nil {
-		core.LogWarn(r, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(r, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -116,9 +116,9 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 	table.Rib.AddRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
 
 	if expirationPeriod != nil {
-		core.LogInfo(r, "Created route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16)+", ExpirationPeriod="+expirationPeriod.String())
+		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
 	} else {
-		core.LogInfo(r, "Created route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x"+strconv.FormatUint(flags, 16))
+		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16))
 	}
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
@@ -136,7 +136,7 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 	}
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(r, "Unable to encode response parameters: "+err.Error())
+		core.LogError(r, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -149,7 +149,7 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 
 	if interest.Name().Size() < r.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(r, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(r, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -163,7 +163,7 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 	}
 
 	if params.Name == nil {
-		core.LogWarn(r, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(r, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -181,7 +181,7 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 
 	table.Rib.RemoveRoute(params.Name, faceID, origin)
 
-	core.LogInfo(r, "Removed route for Prefix="+params.Name.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10))
+	core.LogInfo(r, "Removed route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin)
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.FaceID = new(uint64)
@@ -190,7 +190,7 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 	*responseParams.Origin = origin
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(r, "Unable to encode response parameters: "+err.Error())
+		core.LogError(r, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -203,7 +203,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 
 	if interest.Name().Size() != r.manager.prefixLength()+3 || interest.Name().At(r.manager.prefixLength()+2).Type() != tlv.ParametersSha256DigestComponent {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(r, "Name of Interest="+interest.Name().String()+" is either too short or incorrectly formatted to be rib/announce")
+		core.LogWarn(r, "Name of Interest=", interest.Name(), " is either too short or incorrectly formatted to be rib/announce")
 		response = mgmt.MakeControlResponse(400, "Name is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -211,7 +211,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 
 	// Get PrefixAnnouncement
 	if len(interest.ApplicationParameters()) == 0 || interest.ApplicationParameters()[0].Type() != tlv.Data {
-		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" missing PrefixAnnouncement")
+		core.LogWarn(r, "PrefixAnnouncement Interest=", interest.Name(), " missing PrefixAnnouncement")
 		response = mgmt.MakeControlResponse(400, "PrefixAnnouncement is missing", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -219,7 +219,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 
 	prefixAnnouncement, err := ndn.DecodePrefixAnnouncement(interest.ApplicationParameters()[0].DeepCopy())
 	if err != nil {
-		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" has invalid PrefixAnnouncement")
+		core.LogWarn(r, "PrefixAnnouncement Interest=", interest.Name(), " has invalid PrefixAnnouncement")
 		response = mgmt.MakeControlResponse(400, "PrefixAnnouncement is invalid", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -235,7 +235,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 	notBefore, notAfter := prefixAnnouncement.ValidityPeriod()
 	if notBefore.Unix() == 0 && notAfter.Unix() == 0 {
 	} else if notBefore.After(time.Now()) && notAfter.Before(time.Now()) {
-		core.LogWarn(r, "PrefixAnnouncement Interest="+interest.Name().String()+" is in the future")
+		core.LogWarn(r, "PrefixAnnouncement Interest=", interest.Name(), " is in the future")
 		response = mgmt.MakeControlResponse(416, "Time out of range", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -245,7 +245,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 
 	table.Rib.AddRoute(prefix, faceID, origin, cost, 0, &expirationPeriod)
 
-	core.LogInfo(r, "Created route via PrefixAnnouncement for Prefix="+prefix.String()+", FaceID="+strconv.FormatUint(faceID, 10)+", Origin="+strconv.FormatUint(origin, 10)+", Cost="+strconv.FormatUint(cost, 10)+", Flags=0x0, ExpirationPeriod="+expirationPeriod.String())
+	core.LogInfo(r, "Created route via PrefixAnnouncement for Prefix=", prefix, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x0, ExpirationPeriod=", expirationPeriod)
 
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = prefix
@@ -261,7 +261,7 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 	*responseParams.ExpirationPeriod = uint64(expirationPeriod.Milliseconds())
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(r, "Unable to encode response parameters: "+err.Error())
+		core.LogError(r, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -294,12 +294,12 @@ func (r *RIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 
 		wire, err := ribEntry.Encode()
 		if err != nil {
-			core.LogError(r, "Cannot encode RibEntry for Name="+entry.Name.String()+": "+err.Error())
+			core.LogError(r, "Cannot encode RibEntry for Name=", entry.Name, ": ", err)
 			continue
 		}
 		encoded, err := wire.Wire()
 		if err != nil {
-			core.LogError(r, "Cannot encode RibEntry for Name="+entry.Name.String()+": "+err.Error())
+			core.LogError(r, "Cannot encode RibEntry for Name=", entry.Name, ": ", err)
 			continue
 		}
 		dataset = append(dataset, encoded...)
@@ -310,12 +310,12 @@ func (r *RIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	for _, segment := range segments {
 		encoded, err := segment.Encode()
 		if err != nil {
-			core.LogError(r, "Unable to encode RIB dataset: "+err.Error())
+			core.LogError(r, "Unable to encode RIB dataset: ", err)
 			return
 		}
 		r.manager.transport.Send(encoded, pitToken, nil)
 	}
 
-	core.LogTrace(r, "Published RIB dataset version="+strconv.FormatUint(r.nextRIBDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	core.LogTrace(r, "Published RIB dataset version=", r.nextRIBDatasetVersion, ", containing ", len(segments), " segments")
 	r.nextRIBDatasetVersion++
 }

@@ -315,7 +315,7 @@ func (l *NDNLPLinkService) runSend() {
 				continue
 			}
 			frame := loadedFrame.(*ndnlpUnacknowledgedFrame)
-			core.LogDebug(l, "Retransmitting TxSequence="+strconv.FormatUint(oldTxSequence, 10)+" of Sequence="+strconv.FormatUint(frame.netPacket, 10))
+			core.LogDebug(l, "Retransmitting TxSequence=", oldTxSequence, " of Sequence=", frame.netPacket)
 			// TODO
 		case <-l.idleAckTimer:
 			//core.LogTrace(l, "Idle Ack timer expired")
@@ -363,14 +363,14 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		return
 	}
 
-	core.LogDebug(l, "Received NDNLPv2 frame of size "+strconv.Itoa(len(rawFrame)))
+	core.LogDebug(l, "Received NDNLPv2 frame of size ", len(rawFrame))
 
 	// Reliability
 	if l.options.IsReliabilityEnabled {
 		// Process Acks
 		for _, ack := range frame.Acks() {
 			if loadedAcknowledgedFrame, ok := l.unacknowledgedFrames.Load(ack); ok {
-				core.LogTrace(l, "Received acknowledgement for TxSequence="+strconv.FormatUint(ack, 10))
+				core.LogTrace(l, "Received acknowledgement for TxSequence=", ack)
 				acknowledgedFrame := loadedAcknowledgedFrame.(*ndnlpUnacknowledgedFrame)
 				sequence := acknowledgedFrame.netPacket
 				loadedAcknowledgedPacket, _ := l.unacknowledgedPackets.Load(sequence)
@@ -381,11 +381,11 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 				remainingFragments := len(acknowledgedPacket.unacknowledgedFragments)
 				acknowledgedPacket.lock.Unlock()
 				if remainingFragments == 0 {
-					core.LogTrace(l, "Completely transmitted reliable packet with Sequence="+strconv.FormatUint(sequence, 10))
+					core.LogTrace(l, "Completely transmitted reliable packet with Sequence=", sequence)
 					l.unacknowledgedPackets.Delete(sequence)
 				}
 			} else {
-				core.LogDebug(l, "Received Ack for unknown TxSequence "+strconv.FormatUint(ack, 10))
+				core.LogDebug(l, "Received Ack for unknown TxSequence ", ack)
 			}
 		}
 
@@ -419,7 +419,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		}
 		baseSequence := *frame.Sequence() - fragIndex
 
-		core.LogDebug(l, "Received fragment "+strconv.FormatUint(fragIndex, 10)+" of "+strconv.FormatUint(fragCount, 10)+" for "+strconv.FormatUint(baseSequence, 10))
+		core.LogDebug(l, "Received fragment ", fragIndex, " of ", fragCount, " for ", baseSequence)
 
 		if fragIndex == 0 && fragCount == 1 {
 			// Bypass reassembly since only one fragment
@@ -440,7 +440,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	*netPacket.IncomingFaceID = l.faceID
 	netPacket.Wire, _, err = tlv.DecodeBlock(netPkt)
 	if err != nil {
-		core.LogWarn(l, "Unable to decode network-layer packet: "+err.Error()+" - DROP")
+		core.LogWarn(l, "Unable to decode network-layer packet: ", err, " - DROP")
 		return
 	}
 
@@ -531,7 +531,7 @@ func (l *NDNLPLinkService) runRetransmit() {
 			if frame.sentTime.Add(l.rto).Before(curTime) {
 				if frame.numRetransmissions >= l.options.MaxRetransmissions {
 					// Drop entire network-layer packet because number of retransmissions exceeded
-					core.LogDebug(l, "Network packet with Sequence number "+strconv.FormatUint(frame.netPacket, 10)+" exceeded allowed number of retransmissions - DROP")
+					core.LogDebug(l, "Network packet with Sequence number ", frame.netPacket, " exceeded allowed number of retransmissions - DROP")
 					l.removeUnacknowledgedPacket(frame.netPacket)
 				} else {
 					// Indicate retransmission needed

@@ -8,8 +8,6 @@
 package mgmt
 
 import (
-	"strconv"
-
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/face"
 	"github.com/eric135/YaNFD/ndn"
@@ -33,11 +31,11 @@ func MakeMgmtThread() *Thread {
 	var err error
 	m.localPrefix, err = ndn.NameFromString("/localhost/nfd")
 	if err != nil {
-		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
+		core.LogFatal(m, "Unable to create name for management prefix: ", err)
 	}
 	m.nonLocalPrefix, err = ndn.NameFromString("/localhop/nfd")
 	if err != nil {
-		core.LogFatal(m, "Unable to create name for management prefix: "+err.Error())
+		core.LogFatal(m, "Unable to create name for management prefix: ", err)
 	}
 	m.modules = make(map[string]Module)
 	m.registerModule("faces", new(FaceModule))
@@ -64,24 +62,24 @@ func (m *Thread) prefixLength() int {
 func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	encodedResponse, err := response.Encode()
 	if err != nil {
-		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		core.LogWarn(m, "Unable to send ControlResponse for ", interest.Name(), ": ", err)
 		return
 	}
 	encodedWire, err := encodedResponse.Wire()
 	if err != nil {
-		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		core.LogWarn(m, "Unable to send ControlResponse for ", interest.Name(), ": ", err)
 		return
 	}
 	data := ndn.NewData(interest.Name(), encodedWire)
 
 	encodedData, err := data.Encode()
 	if err != nil {
-		core.LogWarn(m, "Unable to send ControlResponse for "+interest.Name().String()+": "+err.Error())
+		core.LogWarn(m, "Unable to send ControlResponse for ", interest.Name(), ": ", err)
 		return
 	}
 
 	m.transport.Send(encodedData, pitToken, &inFace)
-	core.LogTrace(m, "Sent ControlResponse for "+interest.Name().String())
+	core.LogTrace(m, "Sent ControlResponse for ", interest.Name())
 }
 
 // Run management thread
@@ -102,37 +100,37 @@ func (m *Thread) Run() {
 			core.LogInfo(m, "Face quit, so management quitting")
 			break
 		}
-		core.LogTrace(m, "Received block on face, IncomingFaceID="+strconv.FormatUint(inFace, 10))
+		core.LogTrace(m, "Received block on face, IncomingFaceID=", inFace)
 
 		// We only expect Interests, so drop Data packets
 		if block.Type() != tlv.Interest {
-			core.LogWarn(m, "Dropping received non-Interest packet of type "+strconv.FormatUint(uint64(block.Type()), 10))
+			core.LogWarn(m, "Dropping received non-Interest packet of type ", block.Type())
 			continue
 		}
 		interest, err := ndn.DecodeInterest(block)
 		if err != nil {
-			core.LogWarn(m, "Unable to decode received Interest: "+err.Error()+" - DROP")
+			core.LogWarn(m, "Unable to decode received Interest: ", err, " - DROP")
 			continue
 		}
 
 		// Ensure Interest name matches expectations
 		if interest.Name().Size() < m.localPrefix.Size()+2 { // Module + Verb
-			core.LogInfo(m, "Control command name "+interest.Name().String()+" has unexpected number of components - DROP")
+			core.LogInfo(m, "Control command name ", interest.Name(), " has unexpected number of components - DROP")
 			continue
 		}
 		if !m.localPrefix.PrefixOf(interest.Name()) && !m.nonLocalPrefix.PrefixOf(interest.Name()) {
-			core.LogInfo(m, "Control command name "+interest.Name().String()+" has unexpected prefix - DROP")
+			core.LogInfo(m, "Control command name ", interest.Name(), " has unexpected prefix - DROP")
 			continue
 		}
 
-		core.LogTrace(m, "Received management Interest "+interest.Name().String())
+		core.LogTrace(m, "Received management Interest ", interest.Name())
 
 		// Dispatch interest based on name
 		moduleName := interest.Name().At(m.localPrefix.Size()).String()
 		if module, ok := m.modules[moduleName]; ok {
 			module.handleIncomingInterest(interest, pitToken, inFace)
 		} else {
-			core.LogWarn(m, "Received management Interest for unknown module "+moduleName)
+			core.LogWarn(m, "Received management Interest for unknown module ", moduleName)
 			response := mgmt.MakeControlResponse(501, "Unknown module", nil)
 			m.sendResponse(response, interest, pitToken, inFace)
 		}

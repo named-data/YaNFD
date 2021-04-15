@@ -45,7 +45,7 @@ func init() {
 	FibStrategyTable.component = nil // Root component will be nil since it represents zero components
 	FibStrategyTable.strategy, err = ndn.NameFromString("/localhost/nfd/strategy/best-route/v=1")
 	if err != nil {
-		core.LogFatal("FibStrategy", "Unable to create strategy name for best-route for \"/\": "+err.Error())
+		core.LogFatal("FibStrategy", "Unable to create strategy name for best-route for \"/\": ", err)
 	}
 	FibStrategyTable.Name = ndn.NewName()
 	fibPrefixes = make(map[string]*FibStrategyEntry)

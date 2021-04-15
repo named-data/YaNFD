@@ -20,7 +20,7 @@ func LoadConfig(file string) {
 	var err error
 	config, err = toml.LoadFile(file)
 	if err != nil {
-		LogFatal("Config", "Unable to load configuration file: "+err.Error())
+		LogFatal("Config", "Unable to load configuration file: ", err)
 	}
 }
 

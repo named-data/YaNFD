@@ -63,10 +63,10 @@ func Configure() {
 	for _, region := range producerRegions {
 		name, err := ndn.NameFromString(region)
 		if err != nil {
-			core.LogFatal("NetworkRegionTable", "Could not add name="+region+" to table: "+err.Error())
+			core.LogFatal("NetworkRegionTable", "Could not add name=", region, " to table: ", err)
 		}
 		NetworkRegion.Add(name)
-		core.LogDebug("NetworkRegionTable", "Added name="+region+" to table")
+		core.LogDebug("NetworkRegionTable", "Added name=", region, " to table")
 	}
 }
 

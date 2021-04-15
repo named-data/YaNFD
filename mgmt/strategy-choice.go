@@ -8,8 +8,6 @@
 package mgmt
 
 import (
-	"strconv"
-
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/fw"
 	"github.com/eric135/YaNFD/ndn"
@@ -55,7 +53,7 @@ func (s *StrategyChoiceModule) handleIncomingInterest(interest *ndn.Interest, pi
 	case "list":
 		s.list(interest, pitToken, inFace)
 	default:
-		core.LogWarn(s, "Received Interest for non-existent verb '"+verb+"'")
+		core.LogWarn(s, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -67,7 +65,7 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 
 	if interest.Name().Size() < s.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(s, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(s, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -81,21 +79,21 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 	}
 
 	if params.Name == nil {
-		core.LogWarn(s, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(s, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if params.Strategy == nil {
-		core.LogWarn(s, "Missing Strategy in ControlParameters for "+interest.Name().String())
+		core.LogWarn(s, "Missing Strategy in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if !s.strategyPrefix.PrefixOf(params.Strategy) {
-		core.LogWarn(s, "Unknown Strategy="+params.Strategy.String()+" in ControlParameters for Interest="+interest.Name().String())
+		core.LogWarn(s, "Unknown Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 		response = mgmt.MakeControlResponse(404, "Unknown strategy", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -104,7 +102,7 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 	strategyName := params.Strategy.At(s.strategyPrefix.Size()).String()
 	availableVersions, ok := fw.StrategyVersions[strategyName]
 	if !ok {
-		core.LogWarn(s, "Unknown Strategy="+params.Strategy.String()+" in ControlParameters for Interest="+interest.Name().String())
+		core.LogWarn(s, "Unknown Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 		response = mgmt.MakeControlResponse(404, "Unknown strategy", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -118,7 +116,7 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 		}
 	}
 	if params.Strategy.Size() > s.strategyPrefix.Size()+1 && params.Strategy.At(s.strategyPrefix.Size()+1).Type() != tlv.VersionNameComponent {
-		core.LogWarn(s, "Unknown Version="+params.Strategy.At(s.strategyPrefix.Size()+1).String()+" for Strategy="+params.Strategy.String()+" in ControlParameters for Interest="+interest.Name().String())
+		core.LogWarn(s, "Unknown Version=", params.Strategy.At(s.strategyPrefix.Size()+1), " for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 		response = mgmt.MakeControlResponse(404, "Unknown strategy version", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -131,7 +129,7 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 			}
 		}
 		if !foundMatchingVersion {
-			core.LogWarn(s, "Unknown Version="+strconv.FormatUint(strategyVersion, 10)+" for Strategy="+params.Strategy.String()+" in ControlParameters for Interest="+interest.Name().String())
+			core.LogWarn(s, "Unknown Version=", strategyVersion, " for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 			response = mgmt.MakeControlResponse(404, "Unknown strategy version", nil)
 			s.manager.sendResponse(response, interest, pitToken, inFace)
 			return
@@ -143,13 +141,13 @@ func (s *StrategyChoiceModule) set(interest *ndn.Interest, pitToken []byte, inFa
 
 	table.FibStrategyTable.SetStrategy(params.Name, params.Strategy)
 
-	core.LogInfo(s, "Set strategy for Name="+params.Name.String()+" to Strategy="+params.Strategy.String())
+	core.LogInfo(s, "Set strategy for Name=", params.Name, " to Strategy=", params.Strategy)
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParams.Strategy = params.Strategy
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(s, "Unable to encode response parameters: "+err.Error())
+		core.LogError(s, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -162,7 +160,7 @@ func (s *StrategyChoiceModule) unset(interest *ndn.Interest, pitToken []byte, in
 
 	if interest.Name().Size() < s.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(s, "Missing ControlParameters in "+interest.Name().String())
+		core.LogWarn(s, "Missing ControlParameters in ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -176,14 +174,14 @@ func (s *StrategyChoiceModule) unset(interest *ndn.Interest, pitToken []byte, in
 	}
 
 	if params.Name == nil {
-		core.LogWarn(s, "Missing Name in ControlParameters for "+interest.Name().String())
+		core.LogWarn(s, "Missing Name in ControlParameters for ", interest.Name())
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if params.Name.Size() == 0 {
-		core.LogWarn(s, "Cannot unset strategy for Name=/"+interest.Name().String())
+		core.LogWarn(s, "Cannot unset strategy for Name=", params.Name)
 		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -191,12 +189,12 @@ func (s *StrategyChoiceModule) unset(interest *ndn.Interest, pitToken []byte, in
 
 	table.FibStrategyTable.UnsetStrategy(params.Name)
 
-	core.LogInfo(s, "Unset Strategy for Name="+params.Name.String())
+	core.LogInfo(s, "Unset Strategy for Name=", params.Name)
 	responseParams := mgmt.MakeControlParameters()
 	responseParams.Name = params.Name
 	responseParamsWire, err := responseParams.Encode()
 	if err != nil {
-		core.LogError(s, "Unable to encode response parameters: "+err.Error())
+		core.LogError(s, "Unable to encode response parameters: ", err)
 		response = mgmt.MakeControlResponse(500, "Internal error", nil)
 	} else {
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
@@ -221,13 +219,13 @@ func (s *StrategyChoiceModule) list(interest *ndn.Interest, pitToken []byte, inF
 
 	wires, err := strategyChoiceList.Encode()
 	if err != nil {
-		core.LogError(s, "Cannot encode list of strategy choices: "+err.Error())
+		core.LogError(s, "Cannot encode list of strategy choices: ", err)
 		return
 	}
 	for _, strategyChoice := range wires {
 		encoded, err := strategyChoice.Wire()
 		if err != nil {
-			core.LogError(s, "Cannot encode strategy choice entry: "+err.Error())
+			core.LogError(s, "Cannot encode strategy choice entry: ", err)
 			continue
 		}
 		dataset = append(dataset, encoded...)
@@ -238,12 +236,12 @@ func (s *StrategyChoiceModule) list(interest *ndn.Interest, pitToken []byte, inF
 	for _, segment := range segments {
 		encoded, err := segment.Encode()
 		if err != nil {
-			core.LogError(s, "Unable to encode strategy choice dataset: "+err.Error())
+			core.LogError(s, "Unable to encode strategy choice dataset: ", err)
 			return
 		}
 		s.manager.transport.Send(encoded, pitToken, nil)
 	}
 
-	core.LogTrace(s, "Published strategy choice dataset version="+strconv.FormatUint(s.nextStrategyDatasetVersion, 10)+", containing "+strconv.Itoa(len(segments))+" segments")
+	core.LogTrace(s, "Published strategy choice dataset version=", s.nextStrategyDatasetVersion, ", containing ", len(segments), " segments")
 	s.nextStrategyDatasetVersion++
 }

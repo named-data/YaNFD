@@ -17,12 +17,12 @@ import (
 func decodeControlParameters(m Module, interest *ndn.Interest) *mgmt.ControlParameters {
 	paramsRaw, _, err := tlv.DecodeBlock(interest.Name().At(m.getManager().prefixLength() + 2).Value())
 	if err != nil {
-		core.LogWarn(m, "Could not decode ControlParameters in "+interest.Name().String()+": "+err.Error())
+		core.LogWarn(m, "Could not decode ControlParameters in ", interest.Name(), ": ", err)
 		return nil
 	}
 	params, err := mgmt.DecodeControlParameters(paramsRaw)
 	if err != nil {
-		core.LogWarn(m, "Could not decode ControlParameters in "+interest.Name().String()+": "+err.Error())
+		core.LogWarn(m, "Could not decode ControlParameters in ", interest.Name(), ": ", err)
 		return nil
 	}
 	return params
