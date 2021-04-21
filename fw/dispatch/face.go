@@ -7,7 +7,11 @@
 
 package dispatch
 
-import "github.com/eric135/YaNFD/ndn"
+import (
+	"sync"
+
+	"github.com/eric135/YaNFD/ndn"
+)
 
 // Face provides an interface that faces can satisfy (to avoid circular dependency between faces and forwarding)
 type Face interface {
@@ -24,4 +28,39 @@ type Face interface {
 	State() ndn.State
 
 	SendPacket(packet *ndn.PendingPacket)
+}
+
+// FaceDispatch is used to allow forwarding to interact with faces without a circular dependency issue.
+var FaceDispatch map[uint64]Face
+
+// FaceDispatchSync controls access to FaceDispatch.
+var FaceDispatchSync sync.RWMutex
+
+func init() {
+	FaceDispatch = make(map[uint64]Face)
+}
+
+// AddFace adds the specified face to the dispatch list.
+func AddFace(id uint64, face Face) {
+	FaceDispatchSync.Lock()
+	FaceDispatch[id] = face
+	FaceDispatchSync.Unlock()
+}
+
+// GetFace returns the specified face or nil if it does not exist.
+func GetFace(id uint64) Face {
+	FaceDispatchSync.RLock()
+	face, ok := FaceDispatch[id]
+	FaceDispatchSync.RUnlock()
+	if !ok {
+		return nil
+	}
+	return face
+}
+
+// RemoveFace removes the specified face from the dispatch map.
+func RemoveFace(id uint64) {
+	FaceDispatchSync.Lock()
+	delete(FaceDispatch, id)
+	FaceDispatchSync.Unlock()
 }

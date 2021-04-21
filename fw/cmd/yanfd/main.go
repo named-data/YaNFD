@@ -54,6 +54,8 @@ func main() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
 	var blockProfile string
 	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file")
+	var memoryBalastSize int
+	flag.IntVar(&memoryBalastSize, "memory-balast", 0, "Enable memory balast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -62,6 +64,11 @@ func main() {
 		fmt.Println("Copyright (C) 2020-2021 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
+	}
+
+	// Allocate memory balast (if enabled)
+	if memoryBalastSize > 0 {
+		_ = make([]byte, memoryBalastSize<<30)
 	}
 
 	// Initialize config file
@@ -134,12 +141,14 @@ func main() {
 		core.LogFatal("Main", "Number of forwarding threads must be in range [1, ", fw.MaxFwThreads, "]")
 	}
 	fw.Threads = make(map[int]*fw.Thread)
+	var fwForDispatch []dispatch.FWThread
 	for i := 0; i < fw.NumFwThreads; i++ {
 		newThread := fw.NewThread(i)
 		fw.Threads[i] = newThread
-		dispatch.AddFWThread(i, newThread)
+		fwForDispatch = append(fwForDispatch, newThread)
 		go fw.Threads[i].Run()
 	}
+	dispatch.InitializeFWThreads(fwForDispatch)
 
 	// Perform setup operations for each network interface
 	ifaces, err := net.Interfaces()
