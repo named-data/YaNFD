@@ -160,23 +160,15 @@ func (t *MulticastEthernetTransport) runReceive() {
 
 			// Extract network layer (NDN)
 			ndnLayer := packet.LinkLayer().LayerPayload()
+			t.nInBytes += uint64(len(ndnLayer))
 
 			if len(ndnLayer) > tlv.MaxNDNPacketSize {
 				core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 				continue
 			}
-			t.nInBytes += uint64(len(ndnLayer))
 
-			// Determine whether valid packet received
-			_, _, tlvSize, err := tlv.DecodeTypeLength(ndnLayer)
-			if err != nil {
-				core.LogInfo(t, "Unable to process received frame: ", err, " - DROP")
-			} else if len(ndnLayer) >= tlvSize {
-				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(ndnLayer[:tlvSize])
-			} else {
-				core.LogInfo(t, "Received frame is incomplete - DROP")
-			}
+			// Send up to link service
+			t.linkService.handleIncomingFrame(ndnLayer)
 		case <-t.shouldQuit:
 			return
 		case <-t.restartReceive:
