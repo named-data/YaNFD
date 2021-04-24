@@ -43,8 +43,8 @@ func NewEmptyBlock(tlvType uint32) *Block {
 func NewBlock(tlvType uint32, value []byte) *Block {
 	var block Block
 	block.tlvType = tlvType
-	block.value = make([]byte, len(value))
-	copy(block.value, value)
+	block.value = value
+	// copy(block.value, value)
 	return &block
 }
 
@@ -82,8 +82,8 @@ func (b *Block) SetType(tlvType uint32) {
 // SetValue sets the value of the block.
 func (b *Block) SetValue(value []byte) {
 	if !bytes.Equal(b.value, value) {
-		b.value = make([]byte, len(value))
-		copy(b.value, value)
+		b.value = value
+		// copy(b.value, value)
 		b.wire = []byte{}
 	}
 }
@@ -230,6 +230,7 @@ func (b *Block) Parse() error {
 // Wire returns the wire-encoded block.
 func (b *Block) Wire() ([]byte, error) {
 	if len(b.wire) == 0 {
+		// TODO!!
 		b.wire = make([]byte, 0, MaxNDNPacketSize)
 
 		// Encode type, length, and value into wire
@@ -304,12 +305,12 @@ func DecodeBlock(wire []byte) (*Block, uint64, error) {
 	if uint64(len(wire)) < uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength {
 		return nil, 0, ErrBufferTooShort
 	}
-	b.value = make([]byte, tlvLength)
-	copy(b.value, wire[tlvTypeLen+tlvLengthLen:uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength])
+	// b.value = make([]byte, tlvLength)
+	b.value = wire[tlvTypeLen+tlvLengthLen : uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength]
 
 	// Add wire
-	b.wire = make([]byte, uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength)
-	copy(b.wire, wire)
+	// b.wire = make([]byte, uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength)
+	b.wire = wire
 
 	return b, uint64(tlvTypeLen) + uint64(tlvLengthLen) + tlvLength, nil
 }
