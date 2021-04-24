@@ -227,33 +227,50 @@ func (b *Block) Parse() error {
 // Encoding/Decoding
 ////////////////////
 
+func varSize(in uint64) uint64 {
+	switch {
+	case in <= 0xFC:
+		return 1
+	case in <= 0xFFFF:
+		return 3
+	case in <= 0xFFFFFFFF:
+		return 5
+	default:
+		return 9
+	}
+}
+
 // Wire returns the wire-encoded block.
 func (b *Block) Wire() ([]byte, error) {
 	if len(b.wire) == 0 {
-		// TODO!!
-		b.wire = make([]byte, 0, MaxNDNPacketSize)
-
-		// Encode type, length, and value into wire
-		encodedType := EncodeVarNum(uint64(b.tlvType))
-		b.wire = append(b.wire, encodedType...)
+		// There is still unnecessary copying, but better than the original one.
+		l := uint64(0)
 		if len(b.subelements) > 0 {
-			// Wire encode subelements
-			encodedValue := make([]byte, 0, MaxNDNPacketSize)
 			for _, elem := range b.subelements {
 				elemWire, err := elem.Wire()
 				if err != nil {
-					b.wire = []byte{}
-					return b.wire, err
+					return []byte{}, err
 				}
-				encodedValue = append(encodedValue, elemWire...)
+				l += uint64(len(elemWire))
 			}
-			encodedLength := EncodeVarNum(uint64(len(encodedValue)))
-
-			b.wire = append(b.wire, encodedLength...)
-			b.wire = append(b.wire, encodedValue...)
 		} else {
-			encodedLength := EncodeVarNum(uint64(len(b.value)))
-			b.wire = append(b.wire, encodedLength...)
+			l = uint64(len(b.value))
+		}
+
+		// Encode type, length, and value into wire
+		wireSz := varSize(uint64(b.tlvType)) + l + varSize(l)
+		b.wire = make([]byte, 0, wireSz)
+		encodedType := EncodeVarNum(uint64(b.tlvType))
+		b.wire = append(b.wire, encodedType...)
+		encodedLength := EncodeVarNum(l)
+		b.wire = append(b.wire, encodedLength...)
+
+		if len(b.subelements) > 0 {
+			// Wire encode subelements
+			for _, elem := range b.subelements {
+				b.wire = append(b.wire, elem.wire...)
+			}
+		} else {
 			b.wire = append(b.wire, b.value...)
 		}
 	}
