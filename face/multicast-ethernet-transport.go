@@ -8,6 +8,7 @@
 package face
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -69,34 +70,52 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Set scope
 	t.scope = ndn.NonLocal
 
-	/*// Set up inactive PCAP handle
+	// Set up inactive PCAP handle
 	inactive, err := pcap.NewInactiveHandle(t.localURI.Path())
 	if err != nil {
 		core.LogError(t, "Unable to create PCAP handle: ", err)
 		return err
 	}
+	defer inactive.CleanUp()
 
-	err = inactive.SetTimeout(time.Minute)
-	if err != nil {
-		core.LogError(t, "Unable to set PCAP timeout: ", err)
+	// Set snap length (max amount of frame to capture)
+	if err := inactive.SetSnapLen(18 + tlv.MaxNDNPacketSize); err != nil {
+		core.LogError(t, "Unable to set PCAP snap length: ", err)
+		return err
+	}
+
+	// Enable immediate mode
+	if err := inactive.SetImmediateMode(true); err != nil {
+		core.LogError(t, "Unable to set immediate mode for PCAP capture: ", err)
+		return err
+	}
+
+	// Set PCAP buffer size to 24 MB
+	if err := inactive.SetBufferSize(24 * 1024 * 1024); err != nil {
+		core.LogError(t, "Unable to set buffer size for PCAP capture: ", err)
 		return err
 	}
 
 	// Activate PCAP handle
-	t.pcap, err = inactive.Activate()
-	if err != nil {
+	if t.pcap, err = inactive.Activate(); err != nil {
 		core.LogError(t, "Unable to activate PCAP handle: ", err)
 		return err
-	}*/
-
-	t.pcap, err = pcap.OpenLive(t.localURI.Path(), 1600, false, pcap.BlockForever)
-	if err != nil {
-		core.LogError(t, "Unable to create PCAP handle: ", err)
 	}
 
-	// Set PCAP filter
-	err = t.pcap.SetBPFFilter("ether proto " + strconv.Itoa(ndnEtherType) + " and ether dst " + t.remoteURI.Path())
-	if err != nil {
+	// Set PCAP direction to in
+	if err := t.pcap.SetDirection(pcap.DirectionIn); err != nil {
+		core.LogError(t, "Unable to set direction for PCAP handle: ", err)
+		return err
+	}
+
+	// Set PCAP data link type to EN10MB
+	if err := t.pcap.SetLinkType(layers.LinkTypeEthernet); err != nil {
+		core.LogError(t, "Unable to set data link type for PCAP handle: ", err)
+		return err
+	}
+
+	// Set PCAP filter (string based on NFD's formatting string)
+	if err := t.pcap.SetBPFFilter(fmt.Sprintf("ether proto %s and ether dst %s and not ether src %s and not vlan", strconv.Itoa(ndnEtherType), t.remoteAddr.String(), t.localAddr.String())); err != nil {
 		core.LogError(t, "Unable to set PCAP filter: ", err)
 	}
 
@@ -170,6 +189,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 			// Send up to link service
 			t.linkService.handleIncomingFrame(ndnLayer)
 		case <-t.shouldQuit:
+			core.LogDebug(t, "Receive thread is quitting")
 			return
 		case <-t.restartReceive:
 			// This causes the recieve thread to use the new packet source from a new PCAP handle
@@ -187,12 +207,17 @@ func (t *MulticastEthernetTransport) changeState(new ndn.State) {
 	t.state = new
 
 	if t.state != ndn.Up {
-		core.LogInfo(t, "Closing unicast Ethernet transport")
+		core.LogInfo(t, "Closing multicast Ethernet transport")
 		t.shouldQuit <- true
+		// Explicit close seems to be broken for now: https://github.com/google/gopacket/issues/862
+		/*if t.pcap != nil {
+			t.pcap.Close()
+		}*/
 
 		// Stop link service
 		t.linkService.tellTransportQuit()
 
 		FaceTable.Remove(t.faceID)
+		t.hasQuit <- true
 	}
 }
