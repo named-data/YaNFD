@@ -10,7 +10,6 @@ package face
 import (
 	"net"
 	"strconv"
-	"time"
 
 	"github.com/eric135/YaNFD/core"
 	"github.com/eric135/YaNFD/ndn"
@@ -70,7 +69,7 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Set scope
 	t.scope = ndn.NonLocal
 
-	// Set up inactive PCAP handle
+	/*// Set up inactive PCAP handle
 	inactive, err := pcap.NewInactiveHandle(t.localURI.Path())
 	if err != nil {
 		core.LogError(t, "Unable to create PCAP handle: ", err)
@@ -86,8 +85,13 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Activate PCAP handle
 	t.pcap, err = inactive.Activate()
 	if err != nil {
-		core.LogError(t, "Unable to active PCAP handle: ", err)
+		core.LogError(t, "Unable to activate PCAP handle: ", err)
 		return err
+	}*/
+
+	t.pcap, err = pcap.OpenLive(t.localURI.Path(), 1600, false, pcap.BlockForever)
+	if err != nil {
+		core.LogError(t, "Unable to create PCAP handle: ", err)
 	}
 
 	// Set PCAP filter
@@ -155,7 +159,7 @@ func (t *MulticastEthernetTransport) runReceive() {
 			core.LogDebug(t, "Received ", len(packet.Data()), " bytes from ", packet.LinkLayer().LinkFlow().Src().String())
 
 			// Extract network layer (NDN)
-			ndnLayer := packet.NetworkLayer().LayerContents()
+			ndnLayer := packet.LinkLayer().LayerPayload()
 
 			if len(ndnLayer) > tlv.MaxNDNPacketSize {
 				core.LogWarn(t, "Received too much data without valid TLV block - DROP")
