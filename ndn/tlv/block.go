@@ -327,7 +327,7 @@ func DecodeBlock(wire []byte) (*Block, uint64, error) {
 
 	// Add wire
 	// b.wire = make([]byte, uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength)
-	b.wire = wire
+	b.wire = wire[:uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength]
 
 	return b, uint64(tlvTypeLen) + uint64(tlvLengthLen) + tlvLength, nil
 }
