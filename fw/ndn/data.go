@@ -40,7 +40,8 @@ func NewData(name *Name, content []byte) *Data {
 	d.metaInfo = NewMetaInfo()
 	d.content = make([]byte, len(content))
 	d.sigInfo = NewSignatureInfo(security.DigestSha256Type)
-	copy(d.content, content)
+	// copy(d.content, content)
+	d.content = content
 	return d
 }
 
@@ -81,8 +82,8 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 				return nil, errors.New("Content is duplicate or out-or-order")
 			}
 			mostRecentElem = 3
-			d.content = make([]byte, len(elem.Value()))
-			copy(d.content, elem.Value())
+			// d.content = make([]byte, len(elem.Value()))
+			d.content = elem.Value()
 		case tlv.SignatureInfo:
 			if mostRecentElem >= 4 {
 				return nil, errors.New("SignatureInfo is duplicate or out-of-order")
@@ -97,8 +98,8 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 				return nil, errors.New("SignatureValue is duplicate or out-of-order")
 			}
 			mostRecentElem = 5
-			d.sigValue = make([]byte, len(elem.Value()))
-			copy(d.sigValue, elem.Value())
+			// d.sigValue = make([]byte, len(elem.Value()))
+			d.sigValue = elem.Value()
 		default:
 			if tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical
@@ -258,8 +259,7 @@ func (d *Data) computeSignatureValue() error {
 
 	signature, err := security.Sign(d.SignatureInfo().Type(), buffer)
 	if err == nil {
-		d.sigValue = make([]byte, len(signature))
-		copy(d.sigValue, signature)
+		d.sigValue = signature
 	}
 	return err
 }

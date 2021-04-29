@@ -93,8 +93,7 @@ func NewBaseNameComponent(tlvType uint16, value []byte) *BaseNameComponent {
 
 	n := new(BaseNameComponent)
 	n.tlvType = tlvType
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	return n
 }
 
@@ -153,8 +152,7 @@ func NewImplicitSha256DigestComponent(value []byte) *ImplicitSha256DigestCompone
 
 	n := new(ImplicitSha256DigestComponent)
 	n.tlvType = tlv.ImplicitSha256DigestComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	return n
 }
 
@@ -172,8 +170,7 @@ func (n *ImplicitSha256DigestComponent) SetValue(value []byte) error {
 	if len(value) != 32 {
 		return util.ErrOutOfRange
 	}
-	n.value = make([]byte, 32)
-	copy(n.value, value)
+	n.value = value
 	n.wire = nil
 	return nil
 }
@@ -195,8 +192,7 @@ func NewParametersSha256DigestComponent(value []byte) *ParametersSha256DigestCom
 
 	n := new(ParametersSha256DigestComponent)
 	n.tlvType = tlv.ParametersSha256DigestComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	return n
 }
 
@@ -214,8 +210,7 @@ func (n *ParametersSha256DigestComponent) SetValue(value []byte) error {
 	if len(value) != 32 {
 		return util.ErrOutOfRange
 	}
-	n.value = make([]byte, 32)
-	copy(n.value, value)
+	n.value = value
 	n.wire = nil
 	return nil
 }
@@ -237,8 +232,7 @@ func NewGenericNameComponent(value []byte) *GenericNameComponent {
 
 	n := new(GenericNameComponent)
 	n.tlvType = tlv.GenericNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	return n
 }
 
@@ -254,8 +248,7 @@ func (n *GenericNameComponent) DeepCopy() NameComponent {
 
 // SetValue sets the value of a GenericNameComponent.
 func (n *GenericNameComponent) SetValue(value []byte) {
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	n.wire = nil
 }
 
@@ -276,8 +269,7 @@ func NewKeywordNameComponent(value []byte) *KeywordNameComponent {
 
 	n := new(KeywordNameComponent)
 	n.tlvType = tlv.KeywordNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	return n
 }
 
@@ -293,8 +285,7 @@ func (n *KeywordNameComponent) DeepCopy() NameComponent {
 
 // SetValue sets the value of a KeywordNameComponent.
 func (n *KeywordNameComponent) SetValue(value []byte) {
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	n.wire = nil
 }
 
@@ -321,8 +312,7 @@ func NewSegmentNameComponent(value uint64) *SegmentNameComponent {
 func DecodeSegmentNameComponent(value []byte) *SegmentNameComponent {
 	n := new(SegmentNameComponent)
 	n.tlvType = tlv.SegmentNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	var err error
 	n.rawValue, err = tlv.DecodeNNI(n.value)
 	if err != nil {
@@ -370,8 +360,7 @@ func NewByteOffsetNameComponent(value uint64) *ByteOffsetNameComponent {
 func DecodeByteOffsetNameComponent(value []byte) *ByteOffsetNameComponent {
 	n := new(ByteOffsetNameComponent)
 	n.tlvType = tlv.ByteOffsetNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	var err error
 	n.rawValue, err = tlv.DecodeNNI(n.value)
 	if err != nil {
@@ -419,8 +408,7 @@ func NewVersionNameComponent(value uint64) *VersionNameComponent {
 func DecodeVersionNameComponent(value []byte) *VersionNameComponent {
 	n := new(VersionNameComponent)
 	n.tlvType = tlv.VersionNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	var err error
 	n.rawValue, err = tlv.DecodeNNI(n.value)
 	if err != nil {
@@ -473,8 +461,7 @@ func NewTimestampNameComponent(value uint64) *TimestampNameComponent {
 func DecodeTimestampNameComponent(value []byte) *TimestampNameComponent {
 	n := new(TimestampNameComponent)
 	n.tlvType = tlv.TimestampNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	var err error
 	n.rawValue, err = tlv.DecodeNNI(n.value)
 	if err != nil {
@@ -522,8 +509,7 @@ func NewSequenceNumNameComponent(value uint64) *SequenceNumNameComponent {
 func DecodeSequenceNumNameComponent(value []byte) *SequenceNumNameComponent {
 	n := new(SequenceNumNameComponent)
 	n.tlvType = tlv.SequenceNumNameComponent
-	n.value = make([]byte, len(value))
-	copy(n.value, value)
+	n.value = value
 	var err error
 	n.rawValue, err = tlv.DecodeNNI(n.value)
 	if err != nil {
@@ -714,7 +700,7 @@ func DecodeName(b *tlv.Block) (*Name, error) {
 		}
 		n.Append(component)
 	}
-	n.wire = b.DeepCopy()
+	n.wire = b
 	n.wire.Wire()
 	return n, nil
 }

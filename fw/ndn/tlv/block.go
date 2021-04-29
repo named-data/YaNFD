@@ -43,8 +43,8 @@ func NewEmptyBlock(tlvType uint32) *Block {
 func NewBlock(tlvType uint32, value []byte) *Block {
 	var block Block
 	block.tlvType = tlvType
-	block.value = make([]byte, len(value))
-	copy(block.value, value)
+	block.value = value
+	// copy(block.value, value)
 	return &block
 }
 
@@ -82,8 +82,8 @@ func (b *Block) SetType(tlvType uint32) {
 // SetValue sets the value of the block.
 func (b *Block) SetValue(value []byte) {
 	if !bytes.Equal(b.value, value) {
-		b.value = make([]byte, len(value))
-		copy(b.value, value)
+		b.value = value
+		// copy(b.value, value)
 		b.wire = []byte{}
 	}
 }
@@ -227,32 +227,50 @@ func (b *Block) Parse() error {
 // Encoding/Decoding
 ////////////////////
 
+func varSize(in uint64) uint64 {
+	switch {
+	case in <= 0xFC:
+		return 1
+	case in <= 0xFFFF:
+		return 3
+	case in <= 0xFFFFFFFF:
+		return 5
+	default:
+		return 9
+	}
+}
+
 // Wire returns the wire-encoded block.
 func (b *Block) Wire() ([]byte, error) {
 	if len(b.wire) == 0 {
-		b.wire = make([]byte, 0, MaxNDNPacketSize)
-
-		// Encode type, length, and value into wire
-		encodedType := EncodeVarNum(uint64(b.tlvType))
-		b.wire = append(b.wire, encodedType...)
+		// There is still unnecessary copying, but better than the original one.
+		l := uint64(0)
 		if len(b.subelements) > 0 {
-			// Wire encode subelements
-			encodedValue := make([]byte, 0, MaxNDNPacketSize)
 			for _, elem := range b.subelements {
 				elemWire, err := elem.Wire()
 				if err != nil {
-					b.wire = []byte{}
-					return b.wire, err
+					return []byte{}, err
 				}
-				encodedValue = append(encodedValue, elemWire...)
+				l += uint64(len(elemWire))
 			}
-			encodedLength := EncodeVarNum(uint64(len(encodedValue)))
-
-			b.wire = append(b.wire, encodedLength...)
-			b.wire = append(b.wire, encodedValue...)
 		} else {
-			encodedLength := EncodeVarNum(uint64(len(b.value)))
-			b.wire = append(b.wire, encodedLength...)
+			l = uint64(len(b.value))
+		}
+
+		// Encode type, length, and value into wire
+		wireSz := varSize(uint64(b.tlvType)) + l + varSize(l)
+		b.wire = make([]byte, 0, wireSz)
+		encodedType := EncodeVarNum(uint64(b.tlvType))
+		b.wire = append(b.wire, encodedType...)
+		encodedLength := EncodeVarNum(l)
+		b.wire = append(b.wire, encodedLength...)
+
+		if len(b.subelements) > 0 {
+			// Wire encode subelements
+			for _, elem := range b.subelements {
+				b.wire = append(b.wire, elem.wire...)
+			}
+		} else {
 			b.wire = append(b.wire, b.value...)
 		}
 	}
@@ -304,12 +322,12 @@ func DecodeBlock(wire []byte) (*Block, uint64, error) {
 	if uint64(len(wire)) < uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength {
 		return nil, 0, ErrBufferTooShort
 	}
-	b.value = make([]byte, tlvLength)
-	copy(b.value, wire[tlvTypeLen+tlvLengthLen:uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength])
+	// b.value = make([]byte, tlvLength)
+	b.value = wire[tlvTypeLen+tlvLengthLen : uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength]
 
 	// Add wire
-	b.wire = make([]byte, uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength)
-	copy(b.wire, wire)
+	// b.wire = make([]byte, uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength)
+	b.wire = wire[:uint64(tlvTypeLen)+uint64(tlvLengthLen)+tlvLength]
 
 	return b, uint64(tlvTypeLen) + uint64(tlvLengthLen) + tlvLength, nil
 }
