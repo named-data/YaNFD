@@ -54,8 +54,8 @@ func main() {
 	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
 	var blockProfile string
 	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file")
-	var memoryBalastSize int
-	flag.IntVar(&memoryBalastSize, "memory-balast", 0, "Enable memory balast of specified size (in GB) to avoid frequent garbage collection")
+	var memoryBallastSize int
+	flag.IntVar(&memoryBallastSize, "memory-ballast", 0, "Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
 
 	if shouldPrintVersion {
@@ -66,9 +66,9 @@ func main() {
 		return
 	}
 
-	// Allocate memory balast (if enabled)
-	if memoryBalastSize > 0 {
-		_ = make([]byte, memoryBalastSize<<30)
+	// Allocate memory ballast (if enabled)
+	if memoryBallastSize > 0 {
+		_ = make([]byte, memoryBallastSize<<30)
 	}
 
 	// Initialize config file
