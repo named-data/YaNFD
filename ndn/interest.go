@@ -52,7 +52,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 	i := new(Interest)
 	i.lifetime = 4000 * time.Millisecond
 	i.ResetNonce()
-	i.wire = wire.DeepCopy()
+	i.wire = wire
 	mostRecentElem := 0
 	hasApplicationParameters := false
 	for _, elem := range wire.Subelements() {
