@@ -702,6 +702,7 @@ func DecodeName(b *tlv.Block) (*Name, error) {
 			return nil, err
 		}
 		n.components[i] = component
+		n.cachedString += "/" + component.String()
 	}
 	n.wire = b
 	return n, nil
@@ -728,7 +729,7 @@ func (n *Name) String() string {
 func (n *Name) Append(component NameComponent) *Name {
 	n.components = append(n.components, component)
 	n.wire = nil
-	n.cachedString = ""
+	n.cachedString += "/" + component.String()
 	return n
 }
 
