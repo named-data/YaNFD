@@ -59,9 +59,12 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 	// We already ensured is SignatureInfo or InterestSignatureInfo
 	s.isInterest = wire.Type() == tlv.InterestSignatureInfo
 	s.wire = wire
-	s.wire.Parse()
+	if len(s.wire.Subelements()) == 0 {
+		s.wire.Parse()
+	}
 	mostRecentElem := 0
-	for _, elem := range wire.Subelements() {
+	var err error
+	for _, elem := range s.wire.Subelements() {
 		switch elem.Type() {
 		case tlv.SignatureType:
 			if mostRecentElem >= 1 {
@@ -88,8 +91,7 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			if !s.isInterest {
 				return nil, errors.New("SignatureNonce cannot be present in SignatureInfo for Data")
 			}
-			s.nonce = make([]byte, len(elem.Value()))
-			copy(s.nonce, elem.Value())
+			s.nonce = elem.Value()
 		case tlv.SignatureTime:
 			if mostRecentElem >= 4 {
 				return nil, errors.New("SignatureTime is duplicate or out-or-order")
@@ -114,12 +116,11 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			if !s.isInterest {
 				return nil, errors.New("SignatureSeqNum cannot be present in SignatureInfo for Data")
 			}
-			seqNum, err := tlv.DecodeNNIBlock(elem)
+			s.seqNum = new(uint64)
+			*s.seqNum, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("error decoding SignatureSeqNum")
 			}
-			s.seqNum = new(uint64)
-			*s.seqNum = seqNum
 		default:
 			if tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical

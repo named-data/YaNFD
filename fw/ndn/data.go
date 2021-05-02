@@ -54,7 +54,9 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 	d := new(Data)
 	d.shouldValidateSignature = shouldValidateSignature
 	d.wire = wire
-	d.wire.Parse()
+	if len(d.wire.Subelements()) == 0 {
+		d.wire.Parse()
+	}
 	mostRecentElem := 0
 	var err error
 	for _, elem := range d.wire.Subelements() {
@@ -82,7 +84,6 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 				return nil, errors.New("Content is duplicate or out-or-order")
 			}
 			mostRecentElem = 3
-			// d.content = make([]byte, len(elem.Value()))
 			d.content = elem.Value()
 		case tlv.SignatureInfo:
 			if mostRecentElem >= 4 {
@@ -98,7 +99,6 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 				return nil, errors.New("SignatureValue is duplicate or out-of-order")
 			}
 			mostRecentElem = 5
-			// d.sigValue = make([]byte, len(elem.Value()))
 			d.sigValue = elem.Value()
 		default:
 			if tlv.IsCritical(elem.Type()) {

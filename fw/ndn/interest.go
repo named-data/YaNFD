@@ -10,6 +10,7 @@ package ndn
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"math/rand"
@@ -47,11 +48,12 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 	if wire == nil {
 		return nil, util.ErrNonExistent
 	}
-	wire.Parse()
+	if len(wire.Subelements()) == 0 {
+		wire.Parse()
+	}
 
 	i := new(Interest)
 	i.lifetime = 4000 * time.Millisecond
-	i.ResetNonce()
 	i.wire = wire
 	mostRecentElem := 0
 	hasApplicationParameters := false
@@ -137,6 +139,11 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			}
 			// If non-critical and not after ApplicationParameters, ignore
 		}
+	}
+
+	if len(i.nonce) == 0 {
+		i.nonce = make([]byte, 4)
+		binary.LittleEndian.PutUint64(i.nonce, rand.Uint64())
 	}
 
 	// If has ApplicationParameters, verify parameters digest component
@@ -272,9 +279,7 @@ func (i *Interest) Nonce() []byte {
 // ResetNonce regenerates the value of the nonce.
 func (i *Interest) ResetNonce() {
 	i.nonce = make([]byte, 4)
-	for pos := 0; pos < 4; pos++ {
-		i.nonce[pos] = byte(rand.Uint32() % 256)
-	}
+	binary.LittleEndian.PutUint64(i.nonce, rand.Uint64())
 	i.wire = nil
 }
 
