@@ -10,6 +10,7 @@ package face
 import (
 	"container/list"
 	"math"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -176,6 +177,11 @@ func (l *NDNLPLinkService) Run() {
 
 func (l *NDNLPLinkService) runSend() {
 	core.LogTrace(l, "Starting send thread")
+
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	if l.options.IsReliabilityEnabled {
 		go l.runRetransmit()
 		go l.runIdleAckTimer()

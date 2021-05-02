@@ -15,8 +15,12 @@ var fwQueueSize int
 // NumFwThreads indicates the number of forwarding threads in the forwarder.
 var NumFwThreads int
 
+// lockThreadsToCores indicates whether forwarding threads will be locked to cores.
+var lockThreadsToCores bool
+
 // Configure configures the forwarding system.
 func Configure() {
 	fwQueueSize = core.GetConfigIntDefault("fw.queue_size", 1024)
 	NumFwThreads = core.GetConfigIntDefault("fw.threads", 8)
+	lockThreadsToCores = core.GetConfigBoolDefault("fw.lock_threads_to_cores", false)
 }

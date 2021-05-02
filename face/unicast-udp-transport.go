@@ -10,6 +10,7 @@ package face
 import (
 	"errors"
 	"net"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -160,6 +161,10 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *UnicastUDPTransport) runReceive() {
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for {
 		readSize, err := t.conn.Read(recvBuf)
