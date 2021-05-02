@@ -10,6 +10,7 @@ package face
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -172,6 +173,10 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 }
 
 func (t *MulticastEthernetTransport) runReceive() {
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	for {
 		select {
 		case packet := <-t.packetSource.Packets():

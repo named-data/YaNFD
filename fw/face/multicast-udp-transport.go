@@ -10,6 +10,7 @@ package face
 import (
 	"errors"
 	"net"
+	"runtime"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -127,6 +128,10 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *MulticastUDPTransport) runReceive() {
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	for {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)

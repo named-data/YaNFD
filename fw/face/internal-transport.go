@@ -8,6 +8,7 @@
 package face
 
 import (
+	"runtime"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -144,6 +145,11 @@ func (t *InternalTransport) sendFrame(frame []byte) {
 
 func (t *InternalTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
+
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	for {
 		core.LogTrace(t, "Waiting for frame from component")
 		select {

@@ -9,6 +9,7 @@ package face
 
 import (
 	"net"
+	"runtime"
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
@@ -86,6 +87,11 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
+
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
 	startPos := 0
 	for {

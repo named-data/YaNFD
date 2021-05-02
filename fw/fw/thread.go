@@ -9,6 +9,7 @@ package fw
 
 import (
 	"encoding/binary"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -117,6 +118,10 @@ func (t *Thread) TellToQuit() {
 
 // Run forwarding thread
 func (t *Thread) Run() {
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
 	for !core.ShouldQuit {
 		select {
 		case pendingPacket := <-t.pendingInterests:

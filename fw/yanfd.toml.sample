@@ -11,6 +11,9 @@
   # Enables or disables congestion marking
   congestion_marking = true
 
+  # If true, face threads will be locked to processor cores
+  lock_threads_to_cores = false
+
   [faces.ethernet]
 
     # EtherType to use for NDN
@@ -48,6 +51,9 @@
 
   # Size of queues in the forwarding system
   queue_size = 1024
+
+  # If true, face threads will be locked to processor cores
+  lock_threads_to_cores = false
 
 [mgmt]
 
