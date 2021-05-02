@@ -355,8 +355,12 @@ func (l *NDNLPLinkService) runSend() {
 }
 
 func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
+	// We have to copy so receive transport buffer can be reused
+	wire := make([]byte, len(rawFrame))
+	copy(wire, rawFrame)
+
 	// Attempt to decode buffer into TLV block
-	block, _, err := tlv.DecodeBlock(rawFrame)
+	block, _, err := tlv.DecodeBlock(wire)
 	if err != nil {
 		core.LogWarn(l, "Received invalid frame - DROP")
 		return
@@ -369,7 +373,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		return
 	}
 
-	core.LogDebug(l, "Received NDNLPv2 frame of size ", len(rawFrame))
+	core.LogDebug(l, "Received NDNLPv2 frame of size ", block.Size())
 
 	// Reliability
 	if l.options.IsReliabilityEnabled {

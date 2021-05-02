@@ -65,7 +65,7 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 		return p, nil
 	}
 
-	p.wire = wire.DeepCopy()
+	p.wire = wire
 	p.wire.Parse()
 	var err error
 	for _, elem := range p.wire.Subelements() {
