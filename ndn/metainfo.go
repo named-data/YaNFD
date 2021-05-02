@@ -35,11 +35,14 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 	if wire == nil {
 		return nil, util.ErrNonExistent
 	}
-	wire.Parse()
+	if len(wire.Subelements()) == 0 {
+		wire.Parse()
+	}
 
 	m := new(MetaInfo)
 	m.wire = wire
 	mostRecentElem := 0
+	var err error
 	for _, elem := range wire.Subelements() {
 		switch elem.Type() {
 		case tlv.ContentType:
@@ -47,12 +50,11 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 				return nil, errors.New("ContentType is duplicate or out-of-order")
 			}
 			mostRecentElem = 1
-			contentType, err := tlv.DecodeNNIBlock(elem)
+			m.contentType = new(uint64)
+			*m.contentType, err = tlv.DecodeNNIBlock(elem)
 			if err != nil {
 				return nil, errors.New("error decoding ContentType")
 			}
-			m.contentType = new(uint64)
-			*m.contentType = contentType
 		case tlv.FreshnessPeriod:
 			if mostRecentElem >= 2 {
 				return nil, errors.New("FreshnessPeriod is duplicate or out-of-order")
@@ -69,15 +71,16 @@ func DecodeMetaInfo(wire *tlv.Block) (*MetaInfo, error) {
 				return nil, errors.New("FinalBlockId is duplicate or out-or-order")
 			}
 			mostRecentElem = 3
-			elem.Parse()
+			if len(elem.Subelements()) == 0 {
+				elem.Parse()
+			}
 			if len(elem.Subelements()) != 1 {
 				return nil, errors.New("FinalBlockId must contain exactly one name component")
 			}
-			finalBlockID, err := DecodeNameComponent(elem.Subelements()[0])
+			m.finalBlockID, err = DecodeNameComponent(elem.Subelements()[0])
 			if err != nil {
 				return nil, errors.New("error decoding FinalBlockId")
 			}
-			m.finalBlockID = finalBlockID
 		default:
 			if tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical
