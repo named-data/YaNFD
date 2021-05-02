@@ -691,17 +691,19 @@ func DecodeName(b *tlv.Block) (*Name, error) {
 		return nil, tlv.ErrUnexpected
 	}
 
+	if len(b.Subelements()) == 0 {
+		b.Parse()
+	}
 	n := new(Name)
-	b.Parse()
-	for _, elem := range b.Subelements() {
+	n.components = make([]NameComponent, len(b.Subelements()))
+	for i, elem := range b.Subelements() {
 		component, err := DecodeNameComponent(elem)
 		if err != nil {
 			return nil, err
 		}
-		n.Append(component)
+		n.components[i] = component
 	}
 	n.wire = b
-	n.wire.Wire()
 	return n, nil
 }
 
