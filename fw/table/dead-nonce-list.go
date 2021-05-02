@@ -9,6 +9,7 @@ package table
 
 import (
 	"container/list"
+	"encoding/binary"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -31,15 +32,24 @@ func NewDeadNonceList() *DeadNonceList {
 }
 
 // Find returns whether the specified name and nonce combination are present in the Dead Nonce List.
-func (d *DeadNonceList) Find(name *ndn.Name, nonce []byte) (uint64, bool) {
-	hash := xxhash.Sum64String(name.String() + string(nonce))
+func (d *DeadNonceList) Find(name *ndn.Name, nonce []byte) bool {
+	wire, err := name.Encode().Wire()
+	if err != nil {
+		return false
+	}
+	hash := xxhash.Sum64(wire) + uint64(binary.BigEndian.Uint32(nonce))
 	_, ok := d.list[hash]
-	return hash, ok
+	return ok
 }
 
-// Insert inserts an entry in the Dead Nonce List with the specified name and nonce. Returns hash and whether nonce already present.
-func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) (uint64, bool) {
-	hash, exists := d.Find(name, nonce)
+// Insert inserts an entry in the Dead Nonce List with the specified name and nonce. Returns whether nonce already present.
+func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) bool {
+	wire, err := name.Encode().Wire()
+	if err != nil {
+		return false
+	}
+	hash := xxhash.Sum64(wire) + uint64(binary.BigEndian.Uint32(nonce))
+	_, exists := d.list[hash]
 
 	if !exists {
 		d.expiringEntries.PushBack(hash)
@@ -48,7 +58,7 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) (uint64, bool) {
 			d.ExpirationTimer <- true
 		}()
 	}
-	return hash, exists
+	return exists
 }
 
 // RemoveExpiredEntry removes the front entry from Dead Nonce List.

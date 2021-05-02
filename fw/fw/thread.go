@@ -195,7 +195,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	t.NInInterests++
 
 	// Detect duplicate nonce by comparing against Dead Nonce List
-	if _, exists := t.deadNonceList.Find(interest.Name(), interest.Nonce()); exists {
+	if exists := t.deadNonceList.Find(interest.Name(), interest.Nonce()); exists {
 		core.LogTrace(t, "Interest ", interest.Name(), " matches Dead Nonce List - DROP")
 		return
 	}
