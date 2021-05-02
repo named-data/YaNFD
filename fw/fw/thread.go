@@ -345,8 +345,18 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		*pitToken = binary.BigEndian.Uint32(pendingPacket.PitToken[2:6])
 	}
 
-	// Already asserted that this is a Data packet in link service
-	data := pendingPacket.NetPacket.(*ndn.Data)
+	var data *ndn.Data
+	if pendingPacket.NetPacket == nil {
+		var err error
+		data, err = ndn.DecodeData(pendingPacket.Wire, false)
+		if err != nil {
+			core.LogError(t, "Unable to decode Data (", err, ") - DROP")
+			return
+		}
+	} else {
+		// Already decoded in face thread and already asserted that this is a Data packet in link service
+		data = pendingPacket.NetPacket.(*ndn.Data)
+	}
 
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*pendingPacket.IncomingFaceID)
