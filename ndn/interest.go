@@ -143,7 +143,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 
 	if len(i.nonce) == 0 {
 		i.nonce = make([]byte, 4)
-		binary.LittleEndian.PutUint64(i.nonce, rand.Uint64())
+		binary.LittleEndian.PutUint32(i.nonce, rand.Uint32())
 	}
 
 	// If has ApplicationParameters, verify parameters digest component
@@ -279,7 +279,7 @@ func (i *Interest) Nonce() []byte {
 // ResetNonce regenerates the value of the nonce.
 func (i *Interest) ResetNonce() {
 	i.nonce = make([]byte, 4)
-	binary.LittleEndian.PutUint64(i.nonce, rand.Uint64())
+	binary.LittleEndian.PutUint32(i.nonce, rand.Uint32())
 	i.wire = nil
 }
 
