@@ -167,16 +167,17 @@ func main() {
 			// Create multicast Ethernet face for interface
 			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
-				os.Exit(2)
-			}
-			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
-			face.FaceTable.Add(multicastEthFace)
-			go multicastEthFace.Run()
-			core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
+				core.LogError("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
+				// os.Exit(2)
+			} else {
+				multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
+				face.FaceTable.Add(multicastEthFace)
+				go multicastEthFace.Run()
+				core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
 
-			// Create Ethernet listener for interface
-			// TODO
+				// Create Ethernet listener for interface
+				// TODO
+			}
 		}
 
 		// Create UDP listener and multicast UDP interface for every address on interface
@@ -197,8 +198,9 @@ func main() {
 			if !addr.(*net.IPNet).IP.IsLoopback() {
 				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
-					core.LogFatal("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
-					os.Exit(2)
+					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
+					// os.Exit(2)
+					continue
 				}
 				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.MakeNDNLPLinkServiceOptions())
 				face.FaceTable.Add(multicastUDPFace)
@@ -208,8 +210,9 @@ func main() {
 
 			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, 6363))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
-				os.Exit(2)
+				core.LogError("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
+				// os.Exit(2)
+				continue
 			}
 			go udpListener.Run()
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)

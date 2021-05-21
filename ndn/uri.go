@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -302,7 +303,11 @@ func (u *URI) IsCanonical() bool {
 		return ip != nil && ((u.scheme == "udp4" && ip.To4() != nil) || (u.scheme == "udp6" && ip.To16() != nil && !isIPv4)) && u.port > 0
 	case unixURI:
 		// Check whether file exists
-		fileInfo, err := os.Stat("/" + u.path)
+		testPath := "/" + u.path
+		if runtime.GOOS == "windows" {
+			testPath = u.path
+		}
+		fileInfo, err := os.Stat(testPath)
 		return u.scheme == "unix" && ((err == nil && !fileInfo.IsDir()) || os.IsNotExist(err)) && u.port == 0
 	default:
 		// Of unknown type
@@ -356,7 +361,11 @@ func (u *URI) Canonize() error {
 		}
 	} else if u.uriType == unixURI {
 		u.scheme = "unix"
-		fileInfo, err := os.Stat("/" + u.path)
+		testPath := "/" + u.path
+		if runtime.GOOS == "windows" {
+			testPath = u.path
+		}
+		fileInfo, err := os.Stat(testPath)
 		if err != nil && !os.IsNotExist(err) {
 			// File couldn't be opened, but not just because it doesn't exist
 			return core.ErrNotCanonical

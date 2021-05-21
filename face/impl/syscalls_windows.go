@@ -25,7 +25,7 @@ func SyscallReuseAddr(network string, address string, c syscall.RawConn) error {
 }
 
 // SyscallGetSocketSendQueueSize returns the current size of the send queue on the specified socket.
-func SyscallGetSocketSendQueueSize(fd int) uint64 {
+func SyscallGetSocketSendQueueSize(c syscall.RawConn) uint64 {
 	// Unsupported at the moment
 	// TODO: See if this is possible on windows
 	return 0
