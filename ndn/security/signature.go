@@ -20,6 +20,7 @@ const (
 	SignatureSha256WithRsaType   SignatureType = 1
 	SignatureSha256WithEcdsaType SignatureType = 3
 	SignatureHmacWithSha256Type  SignatureType = 4
+	SignatureNullType            SignatureType = 200
 )
 
 // Signer represents an implementation of a signature type.
@@ -44,6 +45,8 @@ func Sign(signatureType SignatureType, buffer []byte) ([]byte, error) {
 		return nil, errors.New("cannot sign SignatureSha256WithEcdsaType")
 	case SignatureHmacWithSha256Type:
 		return nil, errors.New("cannot sign SignatureHmacWithSha256Type")
+	case SignatureNullType:
+		return []byte{}, nil
 	default:
 		return nil, errors.New("unknown SignatureType")
 	}
@@ -61,6 +64,8 @@ func Verify(signatureType SignatureType, buffer []byte, signature []byte) (bool,
 		return false, errors.New("cannot validate SignatureSha256WithEcdsaType")
 	case SignatureHmacWithSha256Type:
 		return false, errors.New("cannot validate SignatureHmacWithSha256Type")
+	case SignatureNullType:
+		return true, nil
 	default:
 		// Unknown SignatureType
 		return false, errors.New("unknown SignatureType")
