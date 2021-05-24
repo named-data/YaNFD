@@ -86,6 +86,22 @@ func TestDataDecodeNoSigValidation(t *testing.T) {
 	assert.True(t, d.HasWire())
 }
 
+func TestDataDecodeNullSignature(t *testing.T) {
+	b := tlv.NewBlock(tlv.Data, []byte{
+		tlv.Name, 0x03, tlv.GenericNameComponent, 0x01, 0x41,
+		tlv.SignatureInfo, 0x03, tlv.SignatureType, 0x01, 0xc8,
+		tlv.SignatureValue, 0x00})
+	d, err := ndn.DecodeData(b, true)
+	assert.NotNil(t, d)
+	assert.NoError(t, err)
+	assert.True(t, d.HasWire())
+
+	assert.Equal(t, "/A", d.Name().String())
+	assert.Equal(t, security.SignatureType(200), d.SignatureInfo().Type())
+	assert.NotNil(t, d.SignatureValue())
+	assert.Len(t, d.SignatureValue(), 0)
+}
+
 func TestDataDecodeUnsupportedSigType(t *testing.T) {
 	b := tlv.NewBlock(tlv.Data, []byte{
 		tlv.Name, 0x0f, tlv.GenericNameComponent, 0x02, 0x67, 0x6f, tlv.GenericNameComponent, 0x03, 0x6e, 0x64, 0x6e, tlv.GenericNameComponent, 0x04, 0x32, 0x30, 0x32, 0x30,
@@ -96,6 +112,15 @@ func TestDataDecodeUnsupportedSigType(t *testing.T) {
 		tlv.Content, 0x04, 0x01, 0x02, 0x03, 0x04,
 		tlv.SignatureInfo, 0x03, tlv.SignatureType, 0x01, 0x01,
 		tlv.SignatureValue, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	d, err := ndn.DecodeData(b, true)
+	assert.Nil(t, d)
+	assert.Error(t, err)
+}
+
+func TestDataDecodeMissingSigValue(t *testing.T) {
+	b := tlv.NewBlock(tlv.Data, []byte{
+		tlv.Name, 0x03, tlv.GenericNameComponent, 0x01, 0x41,
+		tlv.SignatureInfo, 0x03, tlv.SignatureType, 0x01, 0xc8})
 	d, err := ndn.DecodeData(b, true)
 	assert.Nil(t, d)
 	assert.Error(t, err)
