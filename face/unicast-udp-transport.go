@@ -64,7 +64,7 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	var err error
 	// Configure dialer so we can allow address reuse
 	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
@@ -111,7 +111,7 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 		// Restart socket
 		t.conn.Close()
 		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.remoteURI.Path()+":"+strconv.Itoa(int(t.remoteURI.Port())))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
 		if err != nil {
 			core.LogError(t, "Unable to connect to remote endpoint: ", err)
 		}
