@@ -12,8 +12,5 @@ import "time"
 // Version of YaNFD.
 var Version string
 
-// BuildTime contains the timestamp of when the version of YaNFD was built.
-var BuildTime string
-
 // StartTimestamp is the time the forwarder was started.
 var StartTimestamp time.Time

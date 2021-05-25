@@ -8,7 +8,7 @@ DATE != date
 all: yanfd
 
 yanfd: clean
-	go build -ldflags "-X 'main.Version=${VERSION}-${COMMIT}' -X 'main.BuildTime=${DATE}'" ${PACKAGE}/cmd/yanfd
+	go build -ldflags "-X 'main.Version=${VERSION}-${COMMIT}'" ${PACKAGE}/cmd/yanfd
 
 install:
 	install -m 755 yanfd /usr/local/bin
