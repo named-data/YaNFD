@@ -10,7 +10,7 @@ This library implements the Named Data Networking packet format for with with th
 
 ### Network Packets
 
-* Congestion marking (**planned**)
+* Congestion marking
 * Data
 * Interest
 * Link Object (**planned**)
