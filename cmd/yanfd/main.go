@@ -30,13 +30,9 @@ import (
 // Version of YaNFD.
 var Version string
 
-// BuildTime contains the timestamp of when the version of YaNFD was built.
-var BuildTime string
-
 func main() {
 	// Provide metadata to other threads.
 	core.Version = Version
-	core.BuildTime = BuildTime
 	core.StartTimestamp = time.Now()
 
 	// Parse command line options
@@ -60,7 +56,7 @@ func main() {
 
 	if shouldPrintVersion {
 		fmt.Println("YaNFD: Yet another NDN Forwarding Daemon")
-		fmt.Println("Version " + core.Version + " (Built " + core.BuildTime + ")")
+		fmt.Println("Version " + core.Version)
 		fmt.Println("Copyright (C) 2020-2021 Eric Newberry")
 		fmt.Println("Released under the terms of the MIT License")
 		return
