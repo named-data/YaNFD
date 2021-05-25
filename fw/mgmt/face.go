@@ -176,8 +176,8 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		// Create new UDP face
 		transport, err := face.MakeUnicastUDPTransport(params.URI, nil, persistency)
 		if err != nil {
-			core.LogWarn(f, "Unable to create unicast UDP face with URI ", params.URI, ": Unsupported scheme ", params.URI)
-			response = mgmt.MakeControlResponse(406, "Unsupported scheme "+params.URI.Scheme(), nil)
+			core.LogWarn(f, "Unable to create unicast UDP face with URI ", params.URI, ":", err.Error())
+			response = mgmt.MakeControlResponse(406, "Transport error", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
