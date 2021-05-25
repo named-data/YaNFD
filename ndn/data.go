@@ -108,7 +108,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 		}
 	}
 
-	if d.name == nil || d.sigInfo == nil || len(d.sigValue) == 0 {
+	if d.name == nil || d.sigInfo == nil || d.sigValue == nil {
 		return nil, errors.New("Data missing required field")
 	}
 
