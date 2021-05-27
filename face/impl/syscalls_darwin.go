@@ -1,4 +1,5 @@
 // +build darwin
+
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
  * Copyright (C) 2020-2021 Eric Newberry.
@@ -9,7 +10,6 @@
 package impl
 
 import (
-	"strconv"
 	"syscall"
 
 	"github.com/eric135/YaNFD/core"
@@ -17,7 +17,7 @@ import (
 )
 
 // SyscallGetSocketSendQueueSize returns the current size of the send queue on the specified socket.
-func SyscallGetSocketSendQueueSizea(c syscall.RawConn) uint64 {
+func SyscallGetSocketSendQueueSize(c syscall.RawConn) uint64 {
 	var val int
 	c.Control(func(fd uintptr) {
 		var err error
