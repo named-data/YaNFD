@@ -14,16 +14,16 @@ import (
 	"strconv"
 
 	"github.com/eric135/YaNFD/core"
+	"github.com/eric135/YaNFD/face/impl"
 	"github.com/eric135/YaNFD/ndn"
 	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 )
 
 // MulticastEthernetTransport is a multicast Ethernet transport.
 type MulticastEthernetTransport struct {
-	pcap           *pcap.Handle
+	pcap           impl.PcapHandle
 	shouldQuit     chan bool
 	remoteAddr     net.HardwareAddr
 	localAddr      net.HardwareAddr
@@ -71,53 +71,11 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	// Set scope
 	t.scope = ndn.NonLocal
 
-	// Set up inactive PCAP handle
-	inactive, err := pcap.NewInactiveHandle(t.localURI.Path())
+	t.pcap, err = impl.OpenPcap(t.localURI.Path(),
+		fmt.Sprintf("ether proto %d and ether dst %s and not ether src %s and not vlan", ndnEtherType, t.remoteAddr, t.localAddr),
+	)
 	if err != nil {
-		core.LogError(t, "Unable to create PCAP handle: ", err)
 		return err
-	}
-	defer inactive.CleanUp()
-
-	// Set snap length (max amount of frame to capture)
-	if err := inactive.SetSnapLen(18 + tlv.MaxNDNPacketSize); err != nil {
-		core.LogError(t, "Unable to set PCAP snap length: ", err)
-		return err
-	}
-
-	// Enable immediate mode
-	if err := inactive.SetImmediateMode(true); err != nil {
-		core.LogError(t, "Unable to set immediate mode for PCAP capture: ", err)
-		return err
-	}
-
-	// Set PCAP buffer size to 24 MB
-	if err := inactive.SetBufferSize(24 * 1024 * 1024); err != nil {
-		core.LogError(t, "Unable to set buffer size for PCAP capture: ", err)
-		return err
-	}
-
-	// Activate PCAP handle
-	if t.pcap, err = inactive.Activate(); err != nil {
-		core.LogError(t, "Unable to activate PCAP handle: ", err)
-		return err
-	}
-
-	// Set PCAP direction to in
-	if err := t.pcap.SetDirection(pcap.DirectionIn); err != nil {
-		core.LogError(t, "Unable to set direction for PCAP handle: ", err)
-		return err
-	}
-
-	// Set PCAP data link type to EN10MB
-	if err := t.pcap.SetLinkType(layers.LinkTypeEthernet); err != nil {
-		core.LogError(t, "Unable to set data link type for PCAP handle: ", err)
-		return err
-	}
-
-	// Set PCAP filter (string based on NFD's formatting string)
-	if err := t.pcap.SetBPFFilter(fmt.Sprintf("ether proto %s and ether dst %s and not ether src %s and not vlan", strconv.Itoa(ndnEtherType), t.remoteAddr.String(), t.localAddr.String())); err != nil {
-		core.LogError(t, "Unable to set PCAP filter: ", err)
 	}
 
 	t.packetSource = gopacket.NewPacketSource(t.pcap, t.pcap.LinkType())
