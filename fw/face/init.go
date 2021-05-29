@@ -8,6 +8,7 @@
 package face
 
 import (
+	"os"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
@@ -58,5 +59,5 @@ func Configure() {
 	udp4MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv4", "224.0.23.170")
 	udp6MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv6", "ff02::114")
 	udpLifetime = time.Duration(core.GetConfigUint16Default("faces.udp.lifetime", 600)) * time.Second
-	UnixSocketPath = core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd.sock")
+	UnixSocketPath = os.ExpandEnv(core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd.sock"))
 }
