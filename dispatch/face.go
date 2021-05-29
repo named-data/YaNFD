@@ -10,7 +10,7 @@ package dispatch
 import (
 	"sync"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // Face provides an interface that faces can satisfy (to avoid circular dependency between faces and forwarding)

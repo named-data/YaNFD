@@ -13,11 +13,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/face"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/mgmt"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/face"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/mgmt"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // FaceModule is the module that handles Face Management.

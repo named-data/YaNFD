@@ -7,7 +7,7 @@
 
 package table
 
-import "github.com/eric135/YaNFD/ndn"
+import "github.com/named-data/YaNFD/ndn"
 
 // CsReplacementPolicy represents a cache replacement policy for the Content Store.
 type CsReplacementPolicy interface {

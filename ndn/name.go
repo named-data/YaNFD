@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/eric135/YaNFD/ndn/tlv"
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // NameComponent represents an NDN name component.

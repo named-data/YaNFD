@@ -10,7 +10,7 @@ package mgmt
 import (
 	"errors"
 
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // ControlResponse represents the response from a management command.

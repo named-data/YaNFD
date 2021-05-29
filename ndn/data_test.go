@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/security"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/security"
+	"github.com/named-data/YaNFD/ndn/tlv"
 	"github.com/stretchr/testify/assert"
 )
 

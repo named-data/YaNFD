@@ -8,7 +8,7 @@
 package dispatch
 
 import (
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // FWThread provides an interface that forwarding threads can satisfy (to avoid circular dependency between faces and forwarding)

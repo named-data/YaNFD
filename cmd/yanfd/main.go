@@ -18,13 +18,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/dispatch"
-	"github.com/eric135/YaNFD/face"
-	"github.com/eric135/YaNFD/fw"
-	"github.com/eric135/YaNFD/mgmt"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/dispatch"
+	"github.com/named-data/YaNFD/face"
+	"github.com/named-data/YaNFD/fw"
+	"github.com/named-data/YaNFD/mgmt"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/table"
 )
 
 // Version of YaNFD.

@@ -7,7 +7,7 @@
 
 package table
 
-import "github.com/eric135/YaNFD/ndn"
+import "github.com/named-data/YaNFD/ndn"
 
 type networkRegionTable struct {
 	table []*ndn.Name

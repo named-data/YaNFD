@@ -10,8 +10,8 @@ package fw
 import (
 	"strconv"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/table"
 )
 
 // StrategyPrefix is the prefix of all strategy names for YaNFD

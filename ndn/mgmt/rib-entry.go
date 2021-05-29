@@ -10,8 +10,8 @@ package mgmt
 import (
 	"time"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // RibEntry contains status information about a RIB entry.

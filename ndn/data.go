@@ -11,9 +11,9 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/eric135/YaNFD/ndn/security"
-	"github.com/eric135/YaNFD/ndn/tlv"
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/security"
+	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // Data represents an NDN Data packet.

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // DeadNonceList represents the Dead Nonce List for a forwarding thread.

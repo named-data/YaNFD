@@ -11,7 +11,7 @@ import (
 	"container/list"
 	"time"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // RibEntry represents an entry in the RIB table.

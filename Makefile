@@ -1,4 +1,4 @@
-PACKAGE = github.com/eric135/YaNFD
+PACKAGE = github.com/named-data/YaNFD
 VERSION = 0.0.1
 COMMIT != git rev-parse --short HEAD
 DATE != date

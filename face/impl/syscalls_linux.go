@@ -12,7 +12,7 @@ package impl
 import (
 	"syscall"
 
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 	"golang.org/x/sys/unix"
 )
 

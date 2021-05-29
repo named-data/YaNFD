@@ -10,9 +10,9 @@ package face
 import (
 	"sync"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/dispatch"
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/dispatch"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // FaceTable is the global face table for this forwarder

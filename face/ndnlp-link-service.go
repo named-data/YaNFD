@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/lpv2"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/lpv2"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 const lpPacketOverhead = 1 + 3

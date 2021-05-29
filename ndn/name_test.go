@@ -10,8 +10,8 @@ package ndn_test
 import (
 	"testing"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 	"github.com/stretchr/testify/assert"
 )
 

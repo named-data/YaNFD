@@ -8,7 +8,7 @@
 package mgmt
 
 import (
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // GeneralStatus contains status information about the forwarder's overall status.

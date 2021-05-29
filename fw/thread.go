@@ -14,10 +14,10 @@ import (
 	"strings"
 
 	"github.com/cespare/xxhash"
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/dispatch"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/dispatch"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/table"
 )
 
 // MaxFwThreads Maximum number of forwarding threads

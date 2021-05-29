@@ -10,8 +10,8 @@ package table
 import (
 	"time"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // tableQueueSize is the maxmimum size of queues in the tables.

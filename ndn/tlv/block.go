@@ -11,7 +11,7 @@ import (
 	"bytes"
 	"math"
 
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // MaxNDNPacketSize is the maximum allowed NDN packet size

@@ -10,8 +10,8 @@ package mgmt
 import (
 	"errors"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // FaceQueryFilter is a filter used to retrieve a subset of faces matching the filter.
