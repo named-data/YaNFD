@@ -10,8 +10,8 @@ package ndn
 import (
 	"strconv"
 
-	"github.com/eric135/YaNFD/ndn/tlv"
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // Delegation contains a Link Object delegation.

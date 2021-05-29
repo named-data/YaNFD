@@ -10,12 +10,12 @@ package mgmt
 import (
 	"time"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/dispatch"
-	"github.com/eric135/YaNFD/fw"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/mgmt"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/dispatch"
+	"github.com/named-data/YaNFD/fw"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/mgmt"
+	"github.com/named-data/YaNFD/table"
 )
 
 // ForwarderStatusModule is the module that provide forwarder status information.

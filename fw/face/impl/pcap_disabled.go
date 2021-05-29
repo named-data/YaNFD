@@ -12,7 +12,7 @@ package impl
 import (
 	"errors"
 
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 )
 
 // OpenPcap returns an error on unsupported platform.

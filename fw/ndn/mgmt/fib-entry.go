@@ -8,8 +8,8 @@
 package mgmt
 
 import (
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // FibEntry contains status information about a FIB entry.

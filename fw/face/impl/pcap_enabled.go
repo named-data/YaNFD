@@ -10,10 +10,10 @@
 package impl
 
 import (
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn/tlv"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // OpenPcap creates and activates a PCAP handle.

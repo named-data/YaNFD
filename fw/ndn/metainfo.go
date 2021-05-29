@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/eric135/YaNFD/ndn/tlv"
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // MetaInfo represents the MetaInfo in a Data packet.

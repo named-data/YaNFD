@@ -11,7 +11,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 	"github.com/stretchr/testify/assert"
 )
 

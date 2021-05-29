@@ -10,7 +10,7 @@ package face
 import (
 	"time"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // transport provides an interface for transports for specific face types

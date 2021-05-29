@@ -7,7 +7,7 @@
 
 package ndn
 
-import "github.com/eric135/YaNFD/ndn/tlv"
+import "github.com/named-data/YaNFD/ndn/tlv"
 
 // PendingPacket represents a pending network-layer packet to be sent or recently received on the link, plus any associated metadata.
 type PendingPacket struct {

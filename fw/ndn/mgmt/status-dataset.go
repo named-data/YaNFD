@@ -11,7 +11,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // MakeStatusDataset creates a set of status dataset packets based upon the specified prefix, version, and dataset information.

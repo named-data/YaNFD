@@ -8,10 +8,10 @@
 package mgmt
 
 import (
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/mgmt"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/mgmt"
+	"github.com/named-data/YaNFD/table"
 )
 
 // ContentStoreModule is the module that handles Content Store Management.

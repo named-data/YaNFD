@@ -10,9 +10,9 @@ package fw
 import (
 	"reflect"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/table"
 )
 
 // Multicast is a forwarding strategy that forwards Interests to all nexthop faces.

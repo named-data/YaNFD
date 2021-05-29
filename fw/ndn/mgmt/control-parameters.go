@@ -11,8 +11,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // ControlParameters represents the parameters of a management command.

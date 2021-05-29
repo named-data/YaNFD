@@ -12,7 +12,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/eric135/YaNFD/ndn/util"
+	"github.com/named-data/YaNFD/ndn/util"
 )
 
 // EncodeVarNum encodes a non-negative integer value for encoding.

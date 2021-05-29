@@ -8,7 +8,7 @@
 package mgmt
 
 import (
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 )
 
 // enableLocalhopManagement determines whether management will listen for command and dataset Interests on non-local faces.

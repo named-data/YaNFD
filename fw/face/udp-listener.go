@@ -12,10 +12,10 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/face/impl"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/face/impl"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // UDPListener listens for incoming UDP unicast connections.

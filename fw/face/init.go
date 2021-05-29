@@ -10,7 +10,7 @@ package face
 import (
 	"time"
 
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 )
 
 // faceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.

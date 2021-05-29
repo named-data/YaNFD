@@ -10,9 +10,9 @@ package face
 import (
 	"strconv"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // NullTransport is a transport that drops all packets.

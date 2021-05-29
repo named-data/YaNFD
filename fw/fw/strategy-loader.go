@@ -10,7 +10,7 @@ package fw
 import (
 	"reflect"
 
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 )
 
 //const strategyDir = "strategy"

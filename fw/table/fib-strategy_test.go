@@ -10,8 +10,8 @@ package table_test
 import (
 	"testing"
 
-	"github.com/eric135/YaNFD/ndn"
-	"github.com/eric135/YaNFD/table"
+	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/table"
 
 	"github.com/stretchr/testify/assert"
 )

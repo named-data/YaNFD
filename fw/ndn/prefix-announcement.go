@@ -12,7 +12,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/eric135/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn/tlv"
 )
 
 // PrefixAnnouncement is a specially-formatted Data packet used by applications to announce prefixes they produce.

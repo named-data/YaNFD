@@ -10,7 +10,7 @@ package face
 import (
 	"strconv"
 
-	"github.com/eric135/YaNFD/core"
+	"github.com/named-data/YaNFD/core"
 )
 
 // NullLinkService is a link service that drops all packets.

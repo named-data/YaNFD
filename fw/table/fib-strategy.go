@@ -11,8 +11,8 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/eric135/YaNFD/core"
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // FibStrategyEntry represents an entry in the FIB-Strategy table.

@@ -10,7 +10,7 @@ package table
 import (
 	"container/list"
 
-	"github.com/eric135/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn"
 )
 
 // CsLRU is a least recently used (LRU) replacement policy for the Content Store.

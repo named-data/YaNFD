@@ -1,6 +1,6 @@
 # Go Forwarder Library for YaNFD
 
-This library implements the Named Data Networking packet format for with with the [YaNFD](https://github.com/eric135/YaNFD) forwarder.
+This library implements the Named Data Networking packet format for with with the [YaNFD](https://github.com/named-data/YaNFD) forwarder.
 
 ## Features Implemented and Planned
 
