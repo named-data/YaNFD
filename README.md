@@ -10,11 +10,41 @@ Go will handle the installation of all other prerequisites.
 
 YaNFD has been developed and tested on Linux (namely, Ubuntu).
 However, we have designed it with support for Windows, macOS, and BSD in mind.
-We have received reports that YaNFD operates properly on Windows (with minor changes -- see below) and macOS, but this has not been evaluated by the developers.
+We have received reports that YaNFD operates properly on Windows 10 (with minor changes -- see below) and macOS, but this has not been evaluated by the developers.
 
-Keep in mind that the build scripts mentioned below will not work for Windows and, currently, one must build and install YaNFD manually on that platform.
+# Installation
 
-# Building and Installing
+## Install the YaNFD binary
+
+```bash
+go install github.com/named-data/YaNFD/cmd/yanfd@latest
+```
+
+## Install the configuration file
+### On MacOS/Linux
+```bash
+curl -o ./yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
+mkdir -p /usr/local/etc/ndn
+install -m 644 ./yanfd.toml /usr/local/etc/ndn
+rm ./yanfd.toml
+```
+
+On MacOS, one also needs to change `socket_path` to `/var/run/nfd.sock` in the copied configuration file.
+
+### On Windows 10
+```text
+curl -o yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
+mkdir %APPDATA%\ndn
+move yanfd.toml %APPDATA%\ndn\
+```
+
+One needs to change `socket_path` to `${TEMP}\\nfd.sock` in the copied configuration file.
+Also, to execute YaNFD on Windows 10, one needs to explicitly specify the configuration path:
+```text
+yanfd.exe --config=%APPDATA%\ndn\yanfd.toml
+```
+
+# Building from source
 
 ## Linux, macOS, BSD
 
@@ -23,9 +53,13 @@ To build and install YaNFD on Unix-like platforms, run:
     make
     sudo make install
 
-## Windows
+## Windows 10
 
-To build and install YaNFD on Windows, please run the `go build` command in the `Makefile` manually.
+To build and install YaNFD on Windows, please run the `go build` command in the `Makefile` manually:
+```text
+go build github.com/named-data/YaNFD/cmd/yanfd
+```
+
 At the moment, you will need to manually install the executable (`yanfd.exe`) and the configuration file (`yanfd.toml.sample`) to a location of your choice.
 
 # Configuration
