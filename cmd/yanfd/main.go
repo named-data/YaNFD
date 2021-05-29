@@ -147,6 +147,7 @@ func main() {
 	dispatch.InitializeFWThreads(fwForDispatch)
 
 	// Perform setup operations for each network interface
+	faceCnt := 0
 	ifaces, err := net.Interfaces()
 	multicastEthURI := ndn.DecodeURIString("ether://[" + face.EthernetMulticastAddress + "]")
 	if err != nil {
@@ -163,16 +164,17 @@ func main() {
 			// Create multicast Ethernet face for interface
 			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
-				os.Exit(2)
-			}
-			multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
-			face.FaceTable.Add(multicastEthFace)
-			go multicastEthFace.Run()
-			core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
+				core.LogError("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
+			} else {
+				multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
+				face.FaceTable.Add(multicastEthFace)
+				faceCnt += 1
+				go multicastEthFace.Run()
+				core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
 
-			// Create Ethernet listener for interface
-			// TODO
+				// Create Ethernet listener for interface
+				// TODO
+			}
 		}
 
 		// Create UDP listener and multicast UDP interface for every address on interface
@@ -193,20 +195,22 @@ func main() {
 			if !addr.(*net.IPNet).IP.IsLoopback() {
 				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
-					core.LogFatal("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
-					os.Exit(2)
+					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
+					continue
 				}
 				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.MakeNDNLPLinkServiceOptions())
 				face.FaceTable.Add(multicastUDPFace)
+				faceCnt += 1
 				go multicastUDPFace.Run()
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
 			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, 6363))
 			if err != nil {
-				core.LogFatal("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
-				os.Exit(2)
+				core.LogError("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
+				continue
 			}
+			faceCnt += 1
 			go udpListener.Run()
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
 		}
@@ -217,11 +221,17 @@ func main() {
 		// Set up Unix stream listener
 		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
-			core.LogFatal("Main", "Unable to create Unix stream listener at ", face.UnixSocketPath, ": ", err)
-			os.Exit(2)
+			core.LogError("Main", "Unable to create Unix stream listener at ", face.UnixSocketPath, ": ", err)
+		} else {
+			faceCnt += 1
+			go unixListener.Run()
+			core.LogInfo("Main", "Created Unix stream listener for ", face.UnixSocketPath)
 		}
-		go unixListener.Run()
-		core.LogInfo("Main", "Created Unix stream listener for ", face.UnixSocketPath)
+	}
+
+	if faceCnt <= 0 {
+		core.LogFatal("Main", "No face or listener is successfully created. Quit.")
+		os.Exit(2)
 	}
 
 	// Set up signal handler channel and wait for interrupt
