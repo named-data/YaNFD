@@ -8,7 +8,6 @@
 package ndn
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"regexp"
@@ -22,14 +21,14 @@ import (
 // URIType represents the type of the URI.
 type uriType int
 
-//const uriPattern = "^([0-9A-Za-z]+)://([0-9A-Za-z:-\\[\\]%\\.]+)(:([0-9]+))?$"
-const devPattern = "^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\\-]+)$"
-const ethernetPattern = "^(?P<scheme>ether)://\\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\\%[A-Za-z0-9])*)\\]$"
-const fdPattern = "^(?P<scheme>fd)://(?P<fd>[0-9]+)$"
-const ipv4Pattern = "^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$"
-const macPattern = "^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$"
-const udpPattern = "^(?P<scheme>udp[46]?)://\\[?(?P<host>[0-9A-Za-z\\:\\.\\-]+)(%(?P<zone>[A-Za-z0-9\\-]+))?\\]?:(?P<port>[0-9]+)$"
-const unixPattern = "^(?P<scheme>unix)://(?P<path>[/\\\\A-Za-z0-9\\.\\-_]+)$"
+//const uriPattern = `^([0-9A-Za-z]+)://([0-9A-Za-z:-\[\]%\.]+)(:([0-9]+))?$``
+const devPattern = `^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\-]+)$`
+const ethernetPattern = `^(?P<scheme>ether)://\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\%[A-Za-z0-9])*)\]$`
+const fdPattern = `^(?P<scheme>fd)://(?P<fd>[0-9]+)$`
+const ipv4Pattern = `^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$`
+const macPattern = `^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$`
+const udpPattern = `^(?P<scheme>udp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P<zone>[A-Za-z0-9\-]+))?\]?:(?P<port>[0-9]+)$`
+const unixPattern = `^(?P<scheme>unix)://(?P<path>[/\\A-Za-z0-9\:\.\-_]+)$`
 
 const (
 	unknownURI  uriType = iota
@@ -156,10 +155,11 @@ func DecodeURIString(str string) *URI {
 		}
 
 		ifname := matches[regex.SubexpIndex("ifname")]
-		_, err = net.InterfaceByName(ifname)
-		if err != nil {
-			return u
-		}
+		// Pure function is not allowed to have side effect
+		// _, err = net.InterfaceByName(ifname)
+		// if err != nil {
+		// 	return u
+		// }
 		u.path = ifname
 	} else if strings.EqualFold("ether", schemeSplit[0]) {
 		u.uriType = ethernetURI
@@ -185,7 +185,7 @@ func DecodeURIString(str string) *URI {
 		}
 
 		matches := regex.FindStringSubmatch(str)
-		fmt.Println(matches, len(matches), regex.SubexpIndex("fd"))
+		// fmt.Println(matches, len(matches), regex.SubexpIndex("fd"))
 		if regex.SubexpIndex("fd") < 0 || len(matches) <= regex.SubexpIndex("fd") {
 			return u
 		}
@@ -282,8 +282,7 @@ func (u *URI) IsCanonical() bool {
 	// Must pass type-specific checks
 	switch u.uriType {
 	case devURI:
-		_, err := net.InterfaceByName(u.path)
-		return u.scheme == "dev" && err == nil && u.port == 0
+		return u.scheme == "dev" && u.path != "" && u.port == 0
 	case ethernetURI:
 		isEthernet, _ := regexp.MatchString(macPattern, u.path)
 		return u.scheme == "ether" && isEthernet && u.port == 0
@@ -302,13 +301,8 @@ func (u *URI) IsCanonical() bool {
 		isIPv4, _ := regexp.MatchString(ipv4Pattern, u.PathHost())
 		return ip != nil && ((u.scheme == "udp4" && ip.To4() != nil) || (u.scheme == "udp6" && ip.To16() != nil && !isIPv4)) && u.port > 0
 	case unixURI:
-		// Check whether file exists
-		testPath := "/" + u.path
-		if runtime.GOOS == "windows" {
-			testPath = u.path
-		}
-		fileInfo, err := os.Stat(testPath)
-		return u.scheme == "unix" && ((err == nil && !fileInfo.IsDir()) || os.IsNotExist(err)) && u.port == 0
+		// Do not check whether file exists, because it may fail due to lack of priviledge in testing environment
+		return u.scheme == "unix" && u.path != "" && u.port == 0
 	default:
 		// Of unknown type
 		return false
