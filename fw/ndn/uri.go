@@ -213,7 +213,7 @@ func DecodeURIString(str string) *URI {
 		if regex.SubexpIndex("zone") < 0 || len(matches) >= regex.SubexpIndex("zone") && matches[regex.SubexpIndex("zone")] != "" {
 			u.path += "%" + matches[regex.SubexpIndex("zone")]
 		}
-		port, err := strconv.Atoi(matches[regex.SubexpIndex("port")])
+		port, err := strconv.ParseUint(matches[regex.SubexpIndex("port")], 10, 16)
 		if err != nil || port <= 0 || port > 65535 {
 			return u
 		}
