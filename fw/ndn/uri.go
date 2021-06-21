@@ -301,6 +301,14 @@ func (u *URI) IsCanonical() bool {
 		// We have to test whether To16() && not IPv4 because the Go net library considers IPv4 addresses to be valid IPv6 addresses
 		isIPv4, _ := regexp.MatchString(ipv4Pattern, u.PathHost())
 		return ip != nil && ((u.scheme == "udp4" && ip.To4() != nil) || (u.scheme == "udp6" && ip.To16() != nil && !isIPv4)) && u.port > 0
+	case tcpURI:
+		// Split off zone, if any
+		ip := net.ParseIP(u.PathHost())
+		// Port number is implicitly limited to <= 65535 by type uint16
+		// We have to test whether To16() && not IPv4 because the Go net library considers IPv4 addresses to be valid IPv6 addresses
+		isIPv4, _ := regexp.MatchString(ipv4Pattern, u.PathHost())
+		return ip != nil && u.port > 0 && ((u.scheme == "tcp4" && ip.To4() != nil) ||
+			(u.scheme == "tcp6" && ip.To16() != nil && !isIPv4))
 	case unixURI:
 		// Do not check whether file exists, because it may fail due to lack of priviledge in testing environment
 		return u.scheme == "unix" && u.path != "" && u.port == 0
