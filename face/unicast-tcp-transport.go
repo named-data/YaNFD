@@ -10,6 +10,7 @@ package face
 import (
 	"errors"
 	"net"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -47,8 +48,8 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	//       (unlike UDP). Is the expiration time field only relevant to the
 	//       UDP interface, then? I see the Ethernet Multicast code doesn't
 	//       seem to use expiration time.
-	// For now, let's add a lifetime to every TCP connection as well. Verify
-	// with Eric.
+	// For now, let's add a lifetime to every TCP connection as well.
+	// Verify with Eric.
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(tcpLifetime)
 
@@ -118,13 +119,16 @@ func (t *UnicastTCPTransport) GetSendQueueSize() uint64 {
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
 
+// onTransportFailure modifies the state of the UnicastTCPTransport to indicate
+// a failure in transmission.
 func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
 	switch t.persistency {
 	case PersistencyPermanent:
 		// Restart socket
 		t.conn.Close()
 		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(),
+			strconv.Itoa(int(t.remoteURI.Port()))))
 		if err != nil {
 			core.LogError(t, "Unable to connect to remote endpoint: ", err)
 		}
@@ -156,11 +160,7 @@ func (t *UnicastTCPTransport) expirationHandler() {
 	}
 }
 
-// TODO: Everything before this point has been vetted by Yash.
-// Still gotta do everything after.
-
-/*
-func (t *UnicastUDPTransport) sendFrame(frame []byte) {
+func (t *UnicastTCPTransport) sendFrame(frame []byte) {
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
 		return
@@ -174,10 +174,10 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 		return
 	}
 	t.nOutBytes += uint64(len(frame))
-	*t.expirationTime = time.Now().Add(udpLifetime)
+	*t.expirationTime = time.Now().Add(tcpLifetime)
 }
 
-func (t *UnicastUDPTransport) runReceive() {
+func (t *UnicastTCPTransport) runReceive() {
 	if lockThreadsToCores {
 		runtime.LockOSThread()
 	}
@@ -197,7 +197,7 @@ func (t *UnicastUDPTransport) runReceive() {
 
 		core.LogTrace(t, "Receive of size ", readSize)
 		t.nInBytes += uint64(readSize)
-		*t.expirationTime = time.Now().Add(udpLifetime)
+		*t.expirationTime = time.Now().Add(tcpLifetime)
 
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
@@ -208,8 +208,6 @@ func (t *UnicastUDPTransport) runReceive() {
 		t.linkService.handleIncomingFrame(recvBuf[:readSize])
 	}
 }
-
-*/
 
 func (t *UnicastTCPTransport) changeState(new ndn.State) {
 	if t.state == new {
