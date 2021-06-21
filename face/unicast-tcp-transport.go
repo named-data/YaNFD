@@ -32,8 +32,6 @@ type UnicastTCPTransport struct {
 // MakeUnicastTCPTransport creates a new unicast TCP transport.
 func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
 	// Validate URIs.
-	// TODO: The integration for this elsewhere is lacking.
-	//       We still need to add tcp4/tcp6 URI schemes.
 	if !remoteURI.IsCanonical() ||
 		(remoteURI.Scheme() != "tcp4" && remoteURI.Scheme() != "tcp6") ||
 		(localURI != nil && !localURI.IsCanonical()) ||
@@ -44,12 +42,6 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	t := new(UnicastTCPTransport)
 	// All persistencies are accepted.
 	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
-	// TODO: TCP connections are persistent, and can be explicitly closed
-	//       (unlike UDP). Is the expiration time field only relevant to the
-	//       UDP interface, then? I see the Ethernet Multicast code doesn't
-	//       seem to use expiration time.
-	// For now, let's add a lifetime to every TCP connection as well.
-	// Verify with Eric.
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(tcpLifetime)
 
@@ -99,9 +91,6 @@ func (t *UnicastTCPTransport) String() string {
 
 // SetPersistency changes the persistency of the face.
 func (t *UnicastTCPTransport) SetPersistency(persistency Persistency) bool {
-	// TODO: Ask Eric why he does this. Is this to avoid some endianness issue,
-	// or maybe there a copy by value problem? Maybe he's planning to change
-	// the persistency val later? are assignments really expensive in go?
 	if persistency == t.persistency {
 		return true
 	}
