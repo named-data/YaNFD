@@ -211,3 +211,30 @@ func (r *RibEntry) RemoveRoute(name *ndn.Name, faceID uint64, origin uint64) {
 		entry.pruneIfEmpty()
 	}
 }
+
+// CleanUpFace removes the specified face from all entries. Used for clean-up after a face is destroyed.
+func (r *RibEntry) CleanUpFace(faceId uint64) {
+	// Recursively clean children
+	for _, child := range r.children {
+		child.CleanUpFace(faceId)
+	}
+
+	// Remove next hop
+	if r.Name == nil {
+		return
+	}
+	for i, existingNexthop := range r.routes {
+		if existingNexthop.FaceID == faceId {
+			if i < len(r.routes)-1 {
+				copy(r.routes[i:], r.routes[i+1:])
+			}
+			r.routes = r.routes[:len(r.routes)-1]
+			break
+		}
+	}
+	if len(r.routes) == 0 && r.Name != nil {
+		delete(ribPrefixes, r.Name.String())
+	}
+	r.updateNexthops(r)
+	r.pruneIfEmpty()
+}

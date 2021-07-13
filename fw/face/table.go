@@ -8,6 +8,7 @@
 package face
 
 import (
+	"github.com/named-data/YaNFD/table"
 	"sync"
 
 	"github.com/named-data/YaNFD/core"
@@ -94,6 +95,11 @@ func (t *Table) Remove(id uint64) {
 
 	// Remove from dispatch
 	dispatch.RemoveFace(id)
+
+	// Remove this face in RIB
+	// Referential:
+	// https://github.com/named-data/NFD/blob/7249fb4d5225cbe99a3901f9485a8ad99a7abceb/daemon/table/cleanup.cpp#L36-L40
+	table.Rib.CleanUpFace(id)
 
 	core.LogDebug("FaceTable", "Unregistered FaceID=", id)
 }
