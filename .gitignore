@@ -6,3 +6,4 @@
 *.prof
 
 .vscode
+.idea
