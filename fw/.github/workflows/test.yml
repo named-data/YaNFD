@@ -15,6 +15,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout repository
         uses: actions/checkout@v2
+      - name: Go Imports Check
+        uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: imports
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Test
         run: go test ./...
         env:
