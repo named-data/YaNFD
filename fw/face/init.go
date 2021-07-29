@@ -47,7 +47,7 @@ var udpLifetime time.Duration
 // TCPUnicastPort is the standard unicast TCP port for NDN.
 var TCPUnicastPort uint16
 
-// tcpLifetime is the lifetime of on-demand UDP faces after they become idle.
+// tcpLifetime is the lifetime of on-demand TCP faces after they become idle.
 var tcpLifetime time.Duration
 
 // UnixSocketPath is the standard Unix socket file path for NDN.
