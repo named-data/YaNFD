@@ -45,7 +45,7 @@ const (
 
 // URI represents a URI for a face.
 type URI struct {
-	URIType URIType
+	uriType URIType
 	scheme  string
 	path    string
 	port    uint16
@@ -54,7 +54,7 @@ type URI struct {
 // MakeDevFaceURI constucts a URI for a network interface.
 func MakeDevFaceURI(ifname string) *URI {
 	uri := new(URI)
-	uri.URIType = devURI
+	uri.uriType = devURI
 	uri.scheme = "dev"
 	uri.path = ifname
 	uri.port = 0
@@ -65,7 +65,7 @@ func MakeDevFaceURI(ifname string) *URI {
 // MakeEthernetFaceURI constructs a URI for an Ethernet face.
 func MakeEthernetFaceURI(mac net.HardwareAddr) *URI {
 	uri := new(URI)
-	uri.URIType = ethernetURI
+	uri.uriType = ethernetURI
 	uri.scheme = "ether"
 	uri.path = mac.String()
 	uri.port = 0
@@ -76,7 +76,7 @@ func MakeEthernetFaceURI(mac net.HardwareAddr) *URI {
 // MakeFDFaceURI constructs a file descriptor URI.
 func MakeFDFaceURI(fd int) *URI {
 	uri := new(URI)
-	uri.URIType = fdURI
+	uri.uriType = fdURI
 	uri.scheme = "fd"
 	uri.path = strconv.Itoa(fd)
 	uri.port = 0
@@ -87,7 +87,7 @@ func MakeFDFaceURI(fd int) *URI {
 // MakeInternalFaceURI constructs an internal face URI.
 func MakeInternalFaceURI() *URI {
 	uri := new(URI)
-	uri.URIType = internalURI
+	uri.uriType = internalURI
 	uri.scheme = "internal"
 	uri.path = ""
 	uri.port = 0
@@ -97,7 +97,7 @@ func MakeInternalFaceURI() *URI {
 // MakeNullFaceURI constructs a null face URI.
 func MakeNullFaceURI() *URI {
 	uri := new(URI)
-	uri.URIType = nullURI
+	uri.uriType = nullURI
 	uri.scheme = "null"
 	uri.path = ""
 	uri.port = 0
@@ -112,7 +112,7 @@ func MakeUDPFaceURI(ipVersion int, host string, port uint16) *URI {
 		path += "%" + zone
 	}*/
 	uri := new(URI)
-	uri.URIType = udpURI
+	uri.uriType = udpURI
 	uri.scheme = "udp" + strconv.Itoa(ipVersion)
 	uri.path = host
 	uri.port = port
@@ -123,7 +123,7 @@ func MakeUDPFaceURI(ipVersion int, host string, port uint16) *URI {
 // MakeTCPFaceURI constructs a URI for a TCP face.
 func MakeTCPFaceURI(ipVersion int, host string, port uint16) *URI {
 	uri := new(URI)
-	uri.URIType = tcpURI
+	uri.uriType = tcpURI
 	uri.scheme = "tcp" + strconv.Itoa(ipVersion)
 	uri.path = host
 	uri.port = port
@@ -134,7 +134,7 @@ func MakeTCPFaceURI(ipVersion int, host string, port uint16) *URI {
 // MakeUnixFaceURI constructs a URI for a Unix face.
 func MakeUnixFaceURI(path string) *URI {
 	uri := new(URI)
-	uri.URIType = unixURI
+	uri.uriType = unixURI
 	uri.scheme = "unix"
 	uri.path = path
 	uri.port = 0
@@ -145,7 +145,7 @@ func MakeUnixFaceURI(path string) *URI {
 // DecodeURIString decodes a URI from a string.
 func DecodeURIString(str string) *URI {
 	u := new(URI)
-	u.URIType = unknownURI
+	u.uriType = unknownURI
 	u.scheme = "unknown"
 	schemeSplit := strings.SplitN(str, ":", 2)
 	if len(schemeSplit) < 2 {
@@ -154,7 +154,7 @@ func DecodeURIString(str string) *URI {
 	}
 
 	if strings.EqualFold("dev", schemeSplit[0]) {
-		u.URIType = devURI
+		u.uriType = devURI
 		u.scheme = "dev"
 
 		regex, err := regexp.Compile(devPattern)
@@ -175,7 +175,7 @@ func DecodeURIString(str string) *URI {
 		// }
 		u.path = ifname
 	} else if strings.EqualFold("ether", schemeSplit[0]) {
-		u.URIType = ethernetURI
+		u.uriType = ethernetURI
 		u.scheme = "ether"
 
 		regex, err := regexp.Compile(ethernetPattern)
@@ -189,7 +189,7 @@ func DecodeURIString(str string) *URI {
 		}
 		u.path = matches[regex.SubexpIndex("mac")]
 	} else if strings.EqualFold("fd", schemeSplit[0]) {
-		u.URIType = fdURI
+		u.uriType = fdURI
 		u.scheme = "fd"
 
 		regex, err := regexp.Compile(fdPattern)
@@ -204,13 +204,13 @@ func DecodeURIString(str string) *URI {
 		}
 		u.path = matches[regex.SubexpIndex("fd")]
 	} else if strings.EqualFold("internal", schemeSplit[0]) {
-		u.URIType = internalURI
+		u.uriType = internalURI
 		u.scheme = "internal"
 	} else if strings.EqualFold("null", schemeSplit[0]) {
-		u.URIType = nullURI
+		u.uriType = nullURI
 		u.scheme = "null"
 	} else if strings.EqualFold("udp", schemeSplit[0]) || strings.EqualFold("udp4", schemeSplit[0]) || strings.EqualFold("udp6", schemeSplit[0]) {
-		u.URIType = udpURI
+		u.uriType = udpURI
 		u.scheme = "udp"
 
 		regex, err := regexp.Compile(udpPattern)
@@ -232,7 +232,7 @@ func DecodeURIString(str string) *URI {
 		}
 		u.port = uint16(port)
 	} else if strings.EqualFold("tcp", schemeSplit[0]) || strings.EqualFold("tcp4", schemeSplit[0]) || strings.EqualFold("tcp6", schemeSplit[0]) {
-		u.URIType = tcpURI
+		u.uriType = tcpURI
 		u.scheme = "tcp"
 
 		regex, err := regexp.Compile(tcpPattern)
@@ -248,13 +248,13 @@ func DecodeURIString(str string) *URI {
 		if regex.SubexpIndex("zone") < 0 || len(matches) >= regex.SubexpIndex("zone") && matches[regex.SubexpIndex("zone")] != "" {
 			u.path += "%" + matches[regex.SubexpIndex("zone")]
 		}
-		port, err := strconv.Atoi(matches[regex.SubexpIndex("port")])
+		port, err := strconv.ParseUint(matches[regex.SubexpIndex("port")], 10, 16)
 		if err != nil || port <= 0 || port > 65535 {
 			return u
 		}
 		u.port = uint16(port)
 	} else if strings.EqualFold("unix", schemeSplit[0]) {
-		u.URIType = unixURI
+		u.uriType = unixURI
 		u.scheme = "unix"
 
 		regex, err := regexp.Compile(unixPattern)
@@ -274,9 +274,9 @@ func DecodeURIString(str string) *URI {
 	return u
 }
 
-// GetURIType returns the type of the face URI.
-func (u *URI) GetURIType() URIType {
-	return u.URIType
+// URIType returns the type of the face URI.
+func (u *URI) URIType() URIType {
+	return u.uriType
 }
 
 // Scheme returns the scheme of the face URI.
@@ -315,7 +315,7 @@ func (u *URI) Port() uint16 {
 // IsCanonical returns whether the face URI is canonical.
 func (u *URI) IsCanonical() bool {
 	// Must pass type-specific checks
-	switch u.URIType {
+	switch u.uriType {
 	case devURI:
 		return u.scheme == "dev" && u.path != "" && u.port == 0
 	case ethernetURI:
@@ -354,9 +354,9 @@ func (u *URI) IsCanonical() bool {
 
 // Canonize attempts to canonize the URI, if not already canonical.
 func (u *URI) Canonize() error {
-	if u.URIType == devURI {
+	if u.uriType == devURI {
 		// Nothing to do to canonize these
-	} else if u.URIType == ethernetURI {
+	} else if u.uriType == ethernetURI {
 		mac, err := net.ParseMAC(strings.Trim(u.path, "[]"))
 		if err != nil {
 			return core.ErrNotCanonical
@@ -364,9 +364,9 @@ func (u *URI) Canonize() error {
 		u.scheme = "ether"
 		u.path = mac.String()
 		u.port = 0
-	} else if u.URIType == fdURI {
+	} else if u.uriType == fdURI {
 		// Nothing to do to canonize these
-	} else if u.URIType == udpURI {
+	} else if u.uriType == udpURI {
 		path := u.path
 		zone := ""
 		if strings.Contains(u.path, "%") {
@@ -396,7 +396,7 @@ func (u *URI) Canonize() error {
 		} else {
 			return core.ErrNotCanonical
 		}
-	} else if u.URIType == unixURI {
+	} else if u.uriType == unixURI {
 		u.scheme = "unix"
 		testPath := "/" + u.path
 		if runtime.GOOS == "windows" {
@@ -424,20 +424,20 @@ func (u *URI) Scope() Scope {
 		return Unknown
 	}
 
-	if u.URIType == devURI {
+	if u.uriType == devURI {
 		return NonLocal
-	} else if u.URIType == ethernetURI {
+	} else if u.uriType == ethernetURI {
 		return NonLocal
-	} else if u.URIType == fdURI {
+	} else if u.uriType == fdURI {
 		return Local
-	} else if u.URIType == nullURI {
+	} else if u.uriType == nullURI {
 		return NonLocal
-	} else if u.URIType == udpURI {
+	} else if u.uriType == udpURI {
 		if net.ParseIP(u.path).IsLoopback() {
 			return Local
 		}
 		return NonLocal
-	} else if u.URIType == unixURI {
+	} else if u.uriType == unixURI {
 		return Local
 	}
 
@@ -446,17 +446,17 @@ func (u *URI) Scope() Scope {
 }
 
 func (u *URI) String() string {
-	if u.URIType == devURI {
+	if u.uriType == devURI {
 		return "dev://" + u.path
-	} else if u.URIType == ethernetURI {
+	} else if u.uriType == ethernetURI {
 		return u.scheme + "://[" + u.path + "]"
-	} else if u.URIType == fdURI {
+	} else if u.uriType == fdURI {
 		return "fd://" + u.path
-	} else if u.URIType == internalURI {
+	} else if u.uriType == internalURI {
 		return "internal://"
-	} else if u.URIType == nullURI {
+	} else if u.uriType == nullURI {
 		return "null://"
-	} else if u.URIType == udpURI {
+	} else if u.uriType == udpURI {
 		if u.scheme == "udp4" {
 			return u.scheme + "://" + u.path + ":" + strconv.FormatUint(uint64(u.port), 10)
 		} else if u.scheme == "udp6" {
@@ -464,7 +464,7 @@ func (u *URI) String() string {
 		} else {
 			return u.scheme + "://" + u.path + ":" + strconv.FormatUint(uint64(u.port), 10)
 		}
-	} else if u.URIType == unixURI {
+	} else if u.uriType == unixURI {
 		return u.scheme + "://" + u.path
 	} else {
 		return "unknown://"
