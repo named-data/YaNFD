@@ -44,6 +44,26 @@
     # Location of the socket file
     socket_path = "/run/nfd.sock"
 
+  [faces.websocket]
+
+    # Whether to enable WebSocket listener
+    enabled = true
+
+    # Bind address for WebSocket listener
+    bind = ""
+
+    # Port for WebSocket listener
+    port = 9696
+
+    # Whether to enable TLS
+    tls_enabled = false
+
+    # TLS certificate path (relative to the config file)
+    tls_cert = ""
+
+    # TLS private key (relative to the config file)
+    tls_key = ""
+
 [fw]
 
   # Number of forwarding threads

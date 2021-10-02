@@ -9,11 +9,15 @@ package core
 
 import (
 	"math"
+	"path/filepath"
 
 	"github.com/pelletier/go-toml"
 )
 
-var config *toml.Tree
+var (
+	configFileDir string
+	config        *toml.Tree
+)
 
 // LoadConfig loads the YaNFD configuration from the specified configuration file.
 func LoadConfig(file string) {
@@ -22,6 +26,7 @@ func LoadConfig(file string) {
 	if err != nil {
 		LogFatal("Config", "Unable to load configuration file: ", err)
 	}
+	configFileDir = filepath.Dir(file)
 }
 
 // GetConfigBoolDefault returns the boolean configuration value at the specified key or the specified default value if it does not exist.
@@ -86,4 +91,12 @@ func GetConfigArrayString(key string) []string {
 		return val
 	}
 	return nil
+}
+
+// ResolveConfigFileRelPath resolves a possibly relative path based on config file path.
+func ResolveConfigFileRelPath(target string) (abs string) {
+	if filepath.IsAbs(target) {
+		return target
+	}
+	return filepath.Join(configFileDir, target)
 }
