@@ -9,10 +9,12 @@ package ndn_test
 
 import (
 	"net"
+	"net/url"
 	"testing"
 
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDev(t *testing.T) {
@@ -179,6 +181,52 @@ func TestUnix(t *testing.T) {
 	assert.True(t, uri.IsCanonical())
 	// assert.Error(t, uri.Canonize())
 	// assert.False(t, uri.IsCanonical())
+}
+
+func TestWebSocket(t *testing.T) {
+	{
+		u, e := url.Parse("wss://:8443")
+		require.NoError(t, e)
+		uri := ndn.MakeWebSocketServerFaceURI(u)
+		require.NotNil(t, uri)
+		assert.Equal(t, "wss", uri.Scheme())
+		assert.Equal(t, "", uri.Path())
+		assert.Equal(t, uint16(8443), uri.Port())
+		assert.Equal(t, "wss://:8443", uri.String())
+
+		uri = ndn.DecodeURIString("wss://:8443")
+		assert.NotNil(t, uri)
+	}
+
+	{
+		u, e := url.Parse("ws://[::1]:9696")
+		require.NoError(t, e)
+		uri := ndn.MakeWebSocketServerFaceURI(u)
+		require.NotNil(t, uri)
+		assert.Equal(t, "ws", uri.Scheme())
+		assert.Equal(t, "::1", uri.Path())
+		assert.Equal(t, uint16(9696), uri.Port())
+		assert.Equal(t, "ws://[::1]:9696", uri.String())
+
+		uri = ndn.DecodeURIString("ws://[::1]:9696")
+		assert.NotNil(t, uri)
+	}
+
+	{
+		addr := &net.TCPAddr{
+			IP:   net.ParseIP("2001:db8:3334:7d::566b"),
+			Port: 59505,
+		}
+		uri := ndn.MakeWebSocketClientFaceURI(addr)
+		require.NotNil(t, uri)
+		assert.Equal(t, "wsclient", uri.Scheme())
+		assert.Equal(t, "2001:db8:3334:7d::566b", uri.Path())
+		assert.Equal(t, uint16(59505), uri.Port())
+		assert.Equal(t, "wsclient://[2001:db8:3334:7d::566b]:59505", uri.String())
+
+		uri = ndn.DecodeURIString("wsclient://[2001:db8:3334:7d::566b]:59505")
+		assert.NotNil(t, uri)
+	}
 }
 
 func TestUnknown(t *testing.T) {
