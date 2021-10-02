@@ -9,6 +9,7 @@ package ndn
 
 import (
 	"net"
+	"net/url"
 	"os"
 	"regexp"
 	"runtime"
@@ -32,15 +33,17 @@ const tcpPattern = `^(?P<scheme>tcp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P
 const unixPattern = `^(?P<scheme>unix)://(?P<path>[/\\A-Za-z0-9\:\.\-_]+)$`
 
 const (
-	unknownURI  URIType = iota
-	devURI      URIType = iota
-	ethernetURI URIType = iota
-	fdURI       URIType = iota
-	internalURI URIType = iota
-	nullURI     URIType = iota
-	udpURI      URIType = iota
-	tcpURI      URIType = iota
-	unixURI     URIType = iota
+	unknownURI URIType = iota
+	devURI
+	ethernetURI
+	fdURI
+	internalURI
+	nullURI
+	udpURI
+	tcpURI
+	unixURI
+	wsURI
+	wsclientURI
 )
 
 // URI represents a URI for a face.
@@ -142,6 +145,29 @@ func MakeUnixFaceURI(path string) *URI {
 	return uri
 }
 
+// MakeWebSocketServerFaceURI constructs a URI for a WebSocket server.
+func MakeWebSocketServerFaceURI(u *url.URL) *URI {
+	port, _ := strconv.ParseUint(u.Port(), 10, 16)
+	return &URI{
+		uriType: wsURI,
+		scheme:  u.Scheme,
+		path:    u.Hostname(),
+		port:    uint16(port),
+	}
+}
+
+// MakeWebSocketClientFaceURI constructs a URI for a WebSocket server.
+func MakeWebSocketClientFaceURI(addr net.Addr) *URI {
+	host, portStr, _ := net.SplitHostPort(addr.String())
+	port, _ := strconv.ParseUint(portStr, 10, 16)
+	return &URI{
+		uriType: wsclientURI,
+		scheme:  "wsclient",
+		path:    host,
+		port:    uint16(port),
+	}
+}
+
 // DecodeURIString decodes a URI from a string.
 func DecodeURIString(str string) *URI {
 	u := new(URI)
@@ -153,7 +179,8 @@ func DecodeURIString(str string) *URI {
 		return u
 	}
 
-	if strings.EqualFold("dev", schemeSplit[0]) {
+	switch {
+	case strings.EqualFold("dev", schemeSplit[0]):
 		u.uriType = devURI
 		u.scheme = "dev"
 
@@ -174,7 +201,7 @@ func DecodeURIString(str string) *URI {
 		// 	return u
 		// }
 		u.path = ifname
-	} else if strings.EqualFold("ether", schemeSplit[0]) {
+	case strings.EqualFold("ether", schemeSplit[0]):
 		u.uriType = ethernetURI
 		u.scheme = "ether"
 
@@ -188,7 +215,7 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("mac")]
-	} else if strings.EqualFold("fd", schemeSplit[0]) {
+	case strings.EqualFold("fd", schemeSplit[0]):
 		u.uriType = fdURI
 		u.scheme = "fd"
 
@@ -203,13 +230,15 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.path = matches[regex.SubexpIndex("fd")]
-	} else if strings.EqualFold("internal", schemeSplit[0]) {
+	case strings.EqualFold("internal", schemeSplit[0]):
 		u.uriType = internalURI
 		u.scheme = "internal"
-	} else if strings.EqualFold("null", schemeSplit[0]) {
+	case strings.EqualFold("null", schemeSplit[0]):
 		u.uriType = nullURI
 		u.scheme = "null"
-	} else if strings.EqualFold("udp", schemeSplit[0]) || strings.EqualFold("udp4", schemeSplit[0]) || strings.EqualFold("udp6", schemeSplit[0]) {
+	case strings.EqualFold("udp", schemeSplit[0]),
+		strings.EqualFold("udp4", schemeSplit[0]),
+		strings.EqualFold("udp6", schemeSplit[0]):
 		u.uriType = udpURI
 		u.scheme = "udp"
 
@@ -231,7 +260,9 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.port = uint16(port)
-	} else if strings.EqualFold("tcp", schemeSplit[0]) || strings.EqualFold("tcp4", schemeSplit[0]) || strings.EqualFold("tcp6", schemeSplit[0]) {
+	case strings.EqualFold("tcp", schemeSplit[0]),
+		strings.EqualFold("tcp4", schemeSplit[0]),
+		strings.EqualFold("tcp6", schemeSplit[0]):
 		u.uriType = tcpURI
 		u.scheme = "tcp"
 
@@ -253,7 +284,7 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.port = uint16(port)
-	} else if strings.EqualFold("unix", schemeSplit[0]) {
+	case strings.EqualFold("unix", schemeSplit[0]):
 		u.uriType = unixURI
 		u.scheme = "unix"
 
@@ -267,6 +298,20 @@ func DecodeURIString(str string) *URI {
 			return u
 		}
 		u.path = matches[2]
+	case strings.EqualFold("ws", schemeSplit[0]),
+		strings.EqualFold("wss", schemeSplit[0]):
+		uri, e := url.Parse(str)
+		if e != nil || uri.User != nil || strings.TrimLeft(uri.Path, "/") != "" ||
+			uri.RawQuery != "" || uri.Fragment != "" {
+			return nil
+		}
+		return MakeWebSocketServerFaceURI(uri)
+	case strings.EqualFold("wsclient", schemeSplit[0]):
+		addr, e := net.ResolveTCPAddr("tcp", strings.Trim(schemeSplit[1], "/"))
+		if e != nil {
+			return nil
+		}
+		return MakeWebSocketClientFaceURI(addr)
 	}
 
 	// Canonize, if possible
@@ -354,9 +399,10 @@ func (u *URI) IsCanonical() bool {
 
 // Canonize attempts to canonize the URI, if not already canonical.
 func (u *URI) Canonize() error {
-	if u.uriType == devURI {
+	switch u.uriType {
+	case devURI, fdURI:
 		// Nothing to do to canonize these
-	} else if u.uriType == ethernetURI {
+	case ethernetURI:
 		mac, err := net.ParseMAC(strings.Trim(u.path, "[]"))
 		if err != nil {
 			return core.ErrNotCanonical
@@ -364,9 +410,7 @@ func (u *URI) Canonize() error {
 		u.scheme = "ether"
 		u.path = mac.String()
 		u.port = 0
-	} else if u.uriType == fdURI {
-		// Nothing to do to canonize these
-	} else if u.uriType == udpURI {
+	case udpURI:
 		path := u.path
 		zone := ""
 		if strings.Contains(u.path, "%") {
@@ -396,7 +440,7 @@ func (u *URI) Canonize() error {
 		} else {
 			return core.ErrNotCanonical
 		}
-	} else if u.uriType == unixURI {
+	case unixURI:
 		u.scheme = "unix"
 		testPath := "/" + u.path
 		if runtime.GOOS == "windows" {
@@ -411,7 +455,7 @@ func (u *URI) Canonize() error {
 			return core.ErrNotCanonical
 		}
 		u.port = 0
-	} else {
+	default:
 		return core.ErrNotCanonical
 	}
 
@@ -424,20 +468,21 @@ func (u *URI) Scope() Scope {
 		return Unknown
 	}
 
-	if u.uriType == devURI {
+	switch u.uriType {
+	case devURI:
 		return NonLocal
-	} else if u.uriType == ethernetURI {
+	case ethernetURI:
 		return NonLocal
-	} else if u.uriType == fdURI {
+	case fdURI:
 		return Local
-	} else if u.uriType == nullURI {
+	case nullURI:
 		return NonLocal
-	} else if u.uriType == udpURI {
+	case udpURI:
 		if net.ParseIP(u.path).IsLoopback() {
 			return Local
 		}
 		return NonLocal
-	} else if u.uriType == unixURI {
+	case unixURI:
 		return Local
 	}
 
@@ -446,27 +491,22 @@ func (u *URI) Scope() Scope {
 }
 
 func (u *URI) String() string {
-	if u.uriType == devURI {
+	switch u.uriType {
+	case devURI:
 		return "dev://" + u.path
-	} else if u.uriType == ethernetURI {
+	case ethernetURI:
 		return u.scheme + "://[" + u.path + "]"
-	} else if u.uriType == fdURI {
+	case fdURI:
 		return "fd://" + u.path
-	} else if u.uriType == internalURI {
+	case internalURI:
 		return "internal://"
-	} else if u.uriType == nullURI {
+	case nullURI:
 		return "null://"
-	} else if u.uriType == udpURI {
-		if u.scheme == "udp4" {
-			return u.scheme + "://" + u.path + ":" + strconv.FormatUint(uint64(u.port), 10)
-		} else if u.scheme == "udp6" {
-			return u.scheme + "://[" + u.path + "]:" + strconv.FormatUint(uint64(u.port), 10)
-		} else {
-			return u.scheme + "://" + u.path + ":" + strconv.FormatUint(uint64(u.port), 10)
-		}
-	} else if u.uriType == unixURI {
+	case udpURI, tcpURI, wsURI, wsclientURI:
+		return u.scheme + "://" + net.JoinHostPort(u.path, strconv.FormatUint(uint64(u.port), 10))
+	case unixURI:
 		return u.scheme + "://" + u.path
-	} else {
+	default:
 		return "unknown://"
 	}
 }
