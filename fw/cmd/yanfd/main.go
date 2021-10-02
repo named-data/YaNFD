@@ -229,6 +229,25 @@ func main() {
 		}
 	}
 
+	var wsListener *face.WebSocketListener
+	if core.GetConfigBoolDefault("faces.websocket.enabled", false) {
+		cfg := face.WebSocketListenerConfig{
+			Bind:       core.GetConfigStringDefault("faces.websocket.bind", ""),
+			Port:       core.GetConfigUint16Default("faces.websocket.port", 9696),
+			TLSEnabled: core.GetConfigBoolDefault("faces.websocket.tls_enabled", false),
+			TLSCert:    core.ResolveConfigFileRelPath(core.GetConfigStringDefault("faces.websocket.tls_cert", "")),
+			TLSKey:     core.ResolveConfigFileRelPath(core.GetConfigStringDefault("faces.websocket.tls_key", "")),
+		}
+		wsListener, err = face.NewWebSocketListener(cfg)
+		if err != nil {
+			core.LogError("Main", "Unable to create ", cfg, ": ", err)
+		} else {
+			faceCnt++
+			go wsListener.Run()
+			core.LogInfo("Main", "Created ", cfg)
+		}
+	}
+
 	if faceCnt <= 0 {
 		core.LogFatal("Main", "No face or listener is successfully created. Quit.")
 		os.Exit(2)
@@ -245,6 +264,9 @@ func main() {
 	if !disableUnix {
 		unixListener.Close()
 		<-unixListener.HasQuit
+	}
+	if wsListener != nil {
+		wsListener.Close()
 	}
 
 	// Tell all faces to quit
