@@ -103,11 +103,10 @@ func (l *UDPListener) Run() {
 			core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
 			continue
 		}
-		// Pass this frame to the link service for processing
-		newLinkService.handleIncomingFrame(recvBuf[:readSize])
 
-		// Add face to table and start its thread
+		// Add face to table (which assigns FaceID) before passing current frame to link service
 		FaceTable.Add(newLinkService)
+		newLinkService.handleIncomingFrame(recvBuf[:readSize])
 		go newLinkService.Run()
 	}
 
