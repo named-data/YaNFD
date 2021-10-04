@@ -73,6 +73,7 @@ func main() {
 	face.Configure()
 	fw.Configure()
 	table.Configure()
+	mgmt.Configure()
 
 	if cpuProfile != "" {
 		cpuProfileFile, err := os.Create(cpuProfile)
@@ -230,7 +231,7 @@ func main() {
 	}
 
 	var wsListener *face.WebSocketListener
-	if core.GetConfigBoolDefault("faces.websocket.enabled", false) {
+	if core.GetConfigBoolDefault("faces.websocket.enabled", true) {
 		cfg := face.WebSocketListenerConfig{
 			Bind:       core.GetConfigStringDefault("faces.websocket.bind", ""),
 			Port:       core.GetConfigUint16Default("faces.websocket.port", 9696),
