@@ -88,3 +88,7 @@ To run YaNFD, run the `yanfd` (or `yanfd.exe`) executable.
 To view a list of available options, specify the `--help` argument. 
 
 After starting YaNFD, you can treat it like NFD from an application and configuration perspective.
+
+# Publications
+
+- Eric Newberry, Xinyu Ma, and Lixia Zhang. 2021. [YaNFD: Yet another named data networking forwarding daemon](https://dl.acm.org/doi/10.1145/3460417.3482969). In Proceedings of the 8th ACM Conference on Information-Centric Networking (ICN '21).
