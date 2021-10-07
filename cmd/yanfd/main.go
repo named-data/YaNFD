@@ -155,6 +155,9 @@ func main() {
 		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
+	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
+	tcpPort := core.GetConfigUint16Default("faces.tcp.port", 6363)
+	tcpListeners := make([]*face.TCPListener, 0)
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 {
 			core.LogInfo("Main", "Skipping interface ", iface.Name, " because not up")
@@ -178,7 +181,7 @@ func main() {
 			}
 		}
 
-		// Create UDP listener and multicast UDP interface for every address on interface
+		// Create UDP/TCP listener and multicast UDP interface for every address on interface
 		addrs, err := iface.Addrs()
 		if err != nil {
 			core.LogFatal("Main", "Unable to access addresses on network interface ", iface.Name, ": ", err)
@@ -206,7 +209,7 @@ func main() {
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
-			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, 6363))
+			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort))
 			if err != nil {
 				core.LogError("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
 				continue
@@ -214,6 +217,18 @@ func main() {
 			faceCnt += 1
 			go udpListener.Run()
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
+
+			if tcpEnabled {
+				tcpListener, err := face.MakeTCPListener(ndn.MakeTCPFaceURI(ipVersion, path, tcpPort))
+				if err != nil {
+					core.LogError("Main", "Unable to create TCP listener for ", path, " on ", iface.Name, ": ", err)
+					continue
+				}
+				faceCnt += 1
+				go tcpListener.Run()
+				core.LogInfo("Main", "Created TCP listener for ", path, " on ", iface.Name)
+				tcpListeners = append(tcpListeners, tcpListener)
+			}
 		}
 	}
 
@@ -268,6 +283,11 @@ func main() {
 	}
 	if wsListener != nil {
 		wsListener.Close()
+	}
+
+	// Wait for TCP listeners to quit
+	for _, tcpListener := range tcpListeners {
+		tcpListener.Close()
 	}
 
 	// Tell all faces to quit

@@ -99,10 +99,6 @@ func (l *UDPListener) Run() {
 			continue
 		}
 		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
-		if err != nil {
-			core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
-			continue
-		}
 
 		// Add face to table (which assigns FaceID) before passing current frame to link service
 		FaceTable.Add(newLinkService)
