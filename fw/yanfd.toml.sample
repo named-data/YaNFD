@@ -39,6 +39,14 @@
     # Lifetime of on-demand faces (in seconds)
     lifetime = 600
 
+  [faces.tcp]
+
+    # Whether to enable TCP listener
+    enabled = true
+
+    # Port used for unicast TCP faces
+    port = 6363
+
   [faces.unix]
 
     # Location of the socket file

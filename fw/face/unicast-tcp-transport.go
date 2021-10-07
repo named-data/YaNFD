@@ -85,6 +85,70 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	return t, nil
 }
 
+func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+	// Construct remote URI
+	var remoteURI *ndn.URI
+	remoteAddr := remoteConn.RemoteAddr()
+	host, port, err := net.SplitHostPort(remoteAddr.String())
+	if err != nil {
+		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
+		return nil, err
+	}
+	portInt, _ := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
+		return nil, err
+	}
+	remoteURI = ndn.MakeUDPFaceURI(4, host, uint16(portInt))
+	remoteURI.Canonize()
+	if !remoteURI.IsCanonical() {
+		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteURI, ": remote URI is not canonical")
+		return nil, err
+	}
+
+	t := new(UnicastTCPTransport)
+	// All persistencies are accepted.
+	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.expirationTime = new(time.Time)
+	*t.expirationTime = time.Now().Add(tcpLifetime)
+
+	// Set scope
+	ip := net.ParseIP(remoteURI.Path())
+	if ip.IsLoopback() {
+		t.scope = ndn.Local
+	} else {
+		t.scope = ndn.NonLocal
+	}
+
+	// Set local and remote addresses
+	if localURI != nil {
+		t.localAddr.IP = net.ParseIP(localURI.Path())
+		t.localAddr.Port = int(localURI.Port())
+	} else {
+		t.localAddr.Port = int(TCPUnicastPort)
+	}
+	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
+	t.remoteAddr.Port = int(remoteURI.Port())
+
+	var success bool
+	t.conn, success = remoteConn.(*net.TCPConn)
+	if !success {
+		core.LogError("UnicastTCPTransport", "Specified connection ", remoteConn, " is not a net.TCPConn")
+		return nil, errors.New("Specified connection is not a net.TCPConn")
+	}
+
+	if localURI == nil {
+		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
+		t.localURI = ndn.DecodeURIString("tcp://" + t.localAddr.String())
+	}
+
+	t.changeState(ndn.Up)
+
+	go t.expirationHandler()
+
+	return t, nil
+}
+
 func (t *UnicastTCPTransport) String() string {
 	return "UnicastTCPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
@@ -176,11 +240,12 @@ func (t *UnicastTCPTransport) runReceive() {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
 			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF")
+				core.LogDebug(t, "EOF - Face DOWN")
 			} else {
 				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
 				t.onTransportFailure(true)
 			}
+			t.changeState(ndn.Down)
 			break
 		}
 
