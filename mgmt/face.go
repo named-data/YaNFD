@@ -229,6 +229,91 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 
 		// Start new face
 		go linkService.Run()
+	} else if params.URI.Scheme() == "tcp4" || params.URI.Scheme() == "tcp6" {
+		// Check that remote endpoint is not a unicast address
+		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+			core.LogWarn(f, "Cannot create unicast TCP face to non-unicast address ", params.URI)
+			response = mgmt.MakeControlResponse(406, "URI must be unicast", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		persistency := face.PersistencyPersistent
+		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) || *params.FacePersistency == uint64(face.PersistencyPermanent)) {
+			persistency = face.Persistency(*params.FacePersistency)
+		} else if params.FacePersistency != nil {
+			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency), " for UDP face specified in ControlParameters for ", interest.Name())
+			response = mgmt.MakeControlResponse(406, "Unacceptable persistency", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		baseCongestionMarkingInterval := 100 * time.Millisecond
+		if params.BaseCongestionMarkingInterval != nil {
+			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+		}
+
+		defaultCongestionThresholdBytes := uint64(math.Pow(2, 16))
+		if params.DefaultCongestionThreshold != nil {
+			defaultCongestionThresholdBytes = *params.DefaultCongestionThreshold
+		}
+
+		// Create new TCP face
+		transport, err := face.MakeUnicastTCPTransport(params.URI, nil, persistency)
+		if err != nil {
+			core.LogWarn(f, "Unable to create unicast TCP face with URI ", params.URI, ":", err.Error())
+			response = mgmt.MakeControlResponse(406, "Transport error", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		if params.MTU != nil {
+			mtu := int(*params.MTU)
+			if *params.MTU > tlv.MaxNDNPacketSize {
+				mtu = tlv.MaxNDNPacketSize
+			}
+			transport.SetMTU(mtu)
+		}
+
+		// NDNLP link service parameters
+		options := face.MakeNDNLPLinkServiceOptions()
+		if params.Flags != nil {
+			// Mask already guaranteed to be present if Flags is above
+			flags := *params.Flags
+			mask := *params.Mask
+
+			if mask&0x1 == 1 {
+				// LocalFieldsEnabled
+				if flags&0x1 == 1 {
+					options.IsConsumerControlledForwardingEnabled = true
+					options.IsIncomingFaceIndicationEnabled = true
+					options.IsLocalCachePolicyEnabled = true
+				} else {
+					options.IsConsumerControlledForwardingEnabled = false
+					options.IsIncomingFaceIndicationEnabled = false
+					options.IsLocalCachePolicyEnabled = false
+				}
+			}
+
+			if mask>>1&0x1 == 1 {
+				// LpReliabilityEnabled
+				options.IsReliabilityEnabled = flags>>1&0x01 == 1
+			}
+
+			// Congestion control
+			if mask>>2&0x01 == 1 {
+				// CongestionMarkingEnabled
+				options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
+			}
+			options.BaseCongestionMarkingInterval = baseCongestionMarkingInterval
+			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
+		}
+
+		linkService = face.MakeNDNLPLinkService(transport, options)
+		face.FaceTable.Add(linkService)
+
+		// Start new face
+		go linkService.Run()
 	} else {
 		// Unsupported scheme
 		core.LogWarn(f, "Cannot create face with URI ", params.URI, ": Unsupported scheme ", params.URI)
