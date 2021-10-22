@@ -49,6 +49,7 @@ func (t *Table) Add(face LinkService) {
 	dispatch.AddFace(faceID, face)
 
 	core.LogDebug("FaceTable", "Registered FaceID=", faceID)
+	EmitFaceEvent(FaceEventCreated, face)
 }
 
 // Get gets the face with the specified ID (if any) from the face table.
@@ -91,6 +92,7 @@ func (t *Table) GetAll() []LinkService {
 func (t *Table) Remove(id uint64) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
+	EmitFaceEvent(FaceEventDestroyed, t.Faces[id])
 	delete(t.Faces, id)
 
 	// Remove from dispatch
