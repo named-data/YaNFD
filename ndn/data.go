@@ -9,6 +9,7 @@ package ndn
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/named-data/YaNFD/ndn/security"
@@ -68,7 +69,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 			mostRecentElem = 1
 			d.name, err = DecodeName(elem)
 			if err != nil {
-				return nil, errors.New("error decoding Name")
+				return nil, fmt.Errorf("error decoding Name: %w", err)
 			}
 		case tlv.MetaInfo:
 			if mostRecentElem >= 2 {
@@ -92,7 +93,7 @@ func DecodeData(wire *tlv.Block, shouldValidateSignature bool) (*Data, error) {
 			mostRecentElem = 4
 			d.sigInfo, err = DecodeSignatureInfo(elem)
 			if err != nil {
-				return nil, errors.New("error decoding SignatureInfo")
+				return nil, fmt.Errorf("error decoding SignatureInfo: %w", err)
 			}
 		case tlv.SignatureValue:
 			if mostRecentElem >= 5 {
