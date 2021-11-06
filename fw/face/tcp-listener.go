@@ -87,5 +87,8 @@ func (l *TCPListener) Run() {
 // Close closes the TCPListener.
 func (l *TCPListener) Close() {
 	core.LogInfo(l, "Stopping listener")
-	l.conn.Close()
+	if l.conn != nil {
+		l.conn.Close()
+		l.conn = nil
+	}
 }
