@@ -8,6 +8,7 @@
 package ndn_test
 
 import (
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -55,6 +56,33 @@ func TestDataDecode(t *testing.T) {
 	assert.NotNil(t, d.SignatureInfo())
 	assert.Equal(t, security.DigestSha256Type, d.SignatureInfo().Type())
 	assert.True(t, d.HasWire())
+}
+
+func TestDataDecodeCertificate(t *testing.T) {
+	// https://named-data.net/ndnsec/ndn-testbed-root.ndncert.x3.base64
+	cert, _ := base64.StdEncoding.DecodeString("Bv0BSQckCANuZG4IA0tFWQgI7PFMjlEjFeAIA25kbggJ/QAAAXXmfzIQFAkYAQIZBAA27oAVWzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBsft2OBb2KNXknCL4A++JUIUHczeM6tNtXaKfLe5BnxKXxnSn9hxqZ5+P6qBfYidclGRP+zWvM8zuMU+kaSDNEWcBsBAxwWBxQIA25kbggDS0VZCAjs8UyOUSMV4P0A/Sb9AP4PMjAyMDExMjBUMTYzMTM3/QD/DzIwMjQxMjMxVDIzNTk1Of0BAif9AgAj/QIBCGZ1bGxuYW1l/QICE05ETiBUZXN0YmVkIFJvb3QgWDMXRzBFAiEA/Ia7U+qGL01yLaX8uDSINwKweLdnUIYCnIXms6goCtoCIFPAsXZhQXYOZZa6HkBxLZz2tqh3DqiLkZoY4lDYCcWp")
+	b, _, _ := tlv.DecodeBlock(cert)
+	d, err := ndn.DecodeData(b, false)
+	assert.NotNil(t, d)
+	assert.NoError(t, err)
+	assert.True(t, d.HasWire())
+
+	name, _ := ndn.NameFromString("/ndn/KEY/%EC%F1L%8EQ%23%15%E0/ndn/%FD%00%00%01u%E6%7F2%10")
+	assert.True(t, d.Name().Equals(name))
+	if meta := d.MetaInfo(); assert.NotNil(t, meta) {
+		if ct := meta.ContentType(); assert.NotNil(t, ct) {
+			assert.Equal(t, uint64(0x02), *ct)
+		}
+		if fp := meta.FreshnessPeriod(); assert.NotNil(t, fp) {
+			assert.Equal(t, 3600*time.Second, *fp)
+		}
+		assert.Nil(t, meta.FinalBlockID())
+	}
+	assert.Len(t, d.Content(), 91)
+	if si := d.SignatureInfo(); assert.NotNil(t, si) {
+		assert.Equal(t, security.SignatureSha256WithEcdsaType, si.Type())
+	}
+	assert.Len(t, d.SignatureValue(), 71)
 }
 
 func TestDataDecodeNoSigValidation(t *testing.T) {

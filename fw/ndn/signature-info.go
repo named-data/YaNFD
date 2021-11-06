@@ -121,6 +121,8 @@ func DecodeSignatureInfo(wire *tlv.Block) (*SignatureInfo, error) {
 			if err != nil {
 				return nil, errors.New("error decoding SignatureSeqNum")
 			}
+		case tlv.ValidityPeriod:
+			// recognized but not recorded
 		default:
 			if tlv.IsCritical(elem.Type()) {
 				return nil, tlv.ErrUnrecognizedCritical
