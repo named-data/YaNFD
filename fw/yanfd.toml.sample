@@ -16,6 +16,9 @@
 
   [faces.ethernet]
 
+    # Whether to enable Ethernet transports
+    enabled = true
+
     # EtherType to use for NDN
     ethertype = 0x8624
 
@@ -48,6 +51,9 @@
     port = 6363
 
   [faces.unix]
+
+    # Whether to enable Unix stream transports
+    enabled = true
 
     # Location of the socket file
     socket_path = "/run/nfd.sock"
