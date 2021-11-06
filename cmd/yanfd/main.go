@@ -41,15 +41,15 @@ func main() {
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
 	var disableEthernet bool
-	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports")
+	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports (deprecated; set.faces.ethernet.enabled=false in config file instead)")
 	var disableUnix bool
-	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports")
+	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports (deprecated; set.faces.unix.enabled=false in config file instead)")
 	var cpuProfile string
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
 	var memProfile string
 	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
 	var blockProfile string
-	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file")
+	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file)")
 	var memoryBallastSize int
 	flag.IntVar(&memoryBallastSize, "memory-ballast", 0, "Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
@@ -74,6 +74,13 @@ func main() {
 	fw.Configure()
 	table.Configure()
 	mgmt.Configure()
+
+	if disableEthernet {
+		core.LogWarn("Main", "-disable-ethernet flag is deprecated. Set .faces.ethernet.enabled=false in config file instead")
+	}
+	if disableUnix {
+		core.LogWarn("Main", "-disable-unix flag is deprecated. Set .faces.unix.enabled=false in config file instead")
+	}
 
 	if cpuProfile != "" {
 		cpuProfileFile, err := os.Create(cpuProfile)
@@ -155,6 +162,7 @@ func main() {
 		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
+	ethEnabled := core.GetConfigBoolDefault("faces.ethernet.enabled", true) && !disableEthernet
 	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
 	tcpPort := core.GetConfigUint16Default("faces.tcp.port", 6363)
 	tcpListeners := make([]*face.TCPListener, 0)
@@ -164,7 +172,7 @@ func main() {
 			continue
 		}
 
-		if !disableEthernet && iface.Flags&net.FlagMulticast != 0 {
+		if ethEnabled && iface.Flags&net.FlagMulticast != 0 {
 			// Create multicast Ethernet face for interface
 			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
 			if err != nil {
@@ -233,7 +241,7 @@ func main() {
 	}
 
 	var unixListener *face.UnixStreamListener
-	if !disableUnix {
+	if core.GetConfigBoolDefault("faces.unix.enabled", true) && !disableUnix {
 		// Set up Unix stream listener
 		unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
@@ -277,7 +285,7 @@ func main() {
 	core.ShouldQuit = true
 
 	// Wait for unix socket listener to quit
-	if !disableUnix {
+	if unixListener != nil {
 		unixListener.Close()
 		<-unixListener.HasQuit
 	}
