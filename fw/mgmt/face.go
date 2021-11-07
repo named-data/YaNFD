@@ -33,6 +33,7 @@ func (f *FaceModule) String() string {
 
 func (f *FaceModule) registerManager(manager *Thread) {
 	f.manager = manager
+	face.FaceEventSendFunc = f.sendFaceEventNotification
 }
 
 func (f *FaceModule) getManager() *Thread {
@@ -61,6 +62,8 @@ func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []b
 		f.query(interest, pitToken, inFace)
 	case "channels":
 		f.channels(interest, pitToken, inFace)
+	case "events":
+		f.events(interest, pitToken, inFace)
 	default:
 		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
 		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
@@ -197,9 +200,9 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			flags := *params.Flags
 			mask := *params.Mask
 
-			if mask&0x1 == 1 {
+			if mask&face.FaceFlagLocalFields > 0 {
 				// LocalFieldsEnabled
-				if flags&0x1 == 1 {
+				if flags&face.FaceFlagLocalFields > 0 {
 					options.IsConsumerControlledForwardingEnabled = true
 					options.IsIncomingFaceIndicationEnabled = true
 					options.IsLocalCachePolicyEnabled = true
@@ -210,15 +213,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 				}
 			}
 
-			if mask>>1&0x1 == 1 {
+			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
 				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags>>1&0x01 == 1
+				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
 			}
 
 			// Congestion control
-			if mask>>2&0x01 == 1 {
+			if mask&face.FaceFlagCongestionMarking > 0 {
 				// CongestionMarkingEnabled
-				options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
+				options.IsCongestionMarkingEnabled = flags&face.FaceFlagCongestionMarking > 0
 			}
 			options.BaseCongestionMarkingInterval = baseCongestionMarkingInterval
 			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
@@ -282,9 +285,9 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			flags := *params.Flags
 			mask := *params.Mask
 
-			if mask&0x1 == 1 {
+			if mask&face.FaceFlagLocalFields > 0 {
 				// LocalFieldsEnabled
-				if flags&0x1 == 1 {
+				if flags&face.FaceFlagLocalFields > 0 {
 					options.IsConsumerControlledForwardingEnabled = true
 					options.IsIncomingFaceIndicationEnabled = true
 					options.IsLocalCachePolicyEnabled = true
@@ -295,15 +298,15 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 				}
 			}
 
-			if mask>>1&0x1 == 1 {
+			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
 				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags>>1&0x01 == 1
+				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
 			}
 
 			// Congestion control
-			if mask>>2&0x01 == 1 {
+			if mask&face.FaceFlagCongestionMarking > 0 {
 				// CongestionMarkingEnabled
-				options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
+				options.IsCongestionMarkingEnabled = flags&face.FaceFlagCongestionMarking > 0
 			}
 			options.BaseCongestionMarkingInterval = baseCongestionMarkingInterval
 			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
@@ -474,9 +477,9 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 		flags := *params.Flags
 		mask := *params.Mask
 
-		if mask&0x1 == 1 {
+		if mask&face.FaceFlagLocalFields > 0 {
 			// Update LocalFieldsEnabled
-			if flags&0x1 == 1 {
+			if flags&face.FaceFlagLocalFields > 0 {
 				core.LogInfo(f, "FaceID=", faceID, ", Enabling local fields")
 				options.IsConsumerControlledForwardingEnabled = true
 				options.IsIncomingFaceIndicationEnabled = true
@@ -489,20 +492,20 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 			}
 		}
 
-		if mask>>1&0x01 == 1 {
+		if mask&face.FaceFlagLpReliabilityEnabled > 0 {
 			// Update LpReliabilityEnabled
-			options.IsReliabilityEnabled = flags>>1&0x01 == 1
-			if flags>>1&0x01 == 1 {
+			options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
+			if flags&face.FaceFlagLpReliabilityEnabled > 0 {
 				core.LogInfo(f, "FaceID=", faceID, ", Enabling LpReliability")
 			} else {
 				core.LogInfo(f, "FaceID=", faceID, ", Disabling LpReliability")
 			}
 		}
 
-		if mask>>2&0x01 == 1 {
+		if mask&face.FaceFlagCongestionMarking > 0 {
 			// Update CongestionMarkingEnabled
-			options.IsCongestionMarkingEnabled = flags>>2&0x01 == 1
-			if flags>>2&0x01 == 1 {
+			options.IsCongestionMarkingEnabled = flags&face.FaceFlagCongestionMarking > 0
+			if flags&face.FaceFlagCongestionMarking > 0 {
 				core.LogInfo(f, "FaceID=", faceID, ", Enabling congestion marking")
 			} else {
 				core.LogInfo(f, "FaceID=", faceID, ", Disabling congestion marking")
@@ -700,7 +703,7 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 		*faceDataset.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
 		faceDataset.DefaultCongestionThreshold = new(uint64)
 		*faceDataset.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
-
+		faceDataset.Flags = options.Flags()
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
 			faceDataset.Flags += 1 << 0
@@ -822,16 +825,71 @@ func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selected
 		*params.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
 		params.DefaultCongestionThreshold = new(uint64)
 		*params.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
+		*params.Flags = options.Flags()
+	}
+}
 
-		if options.IsConsumerControlledForwardingEnabled {
-			// This one will only be enabled if the other two local fields are enabled (and vice versa)
-			*params.Flags += 1 << 0
+func (f *FaceModule) events(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	var id uint64 = 0
+	var err error
+
+	if interest.Name().Size() < f.manager.prefixLength()+3 {
+		// Name is a prefix, take the last one
+		id = face.FaceEventLastId()
+		if !interest.CanBePrefix() {
+			core.LogInfo(f, "FaceEvent Interest with a prefix should set CanBePrefix=true: ", interest.Name())
+			return
 		}
-		if options.IsReliabilityEnabled {
-			*params.Flags += 1 << 1
+	} else {
+		seg, ok := interest.Name().At(f.manager.prefixLength() + 2).(*ndn.SequenceNumNameComponent)
+		if !ok {
+			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name())
+			return
 		}
-		if options.IsCongestionMarkingEnabled {
-			*params.Flags += 1 << 2
+		id, err = tlv.DecodeNNI(seg.Value())
+		if err != nil {
+			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name(), "err: ", err)
+			return
 		}
+	}
+
+	f.sendFaceEventNotification(id, pitToken)
+}
+
+func (f *FaceModule) sendFaceEventNotification(id uint64, pitToken []byte) {
+	event := face.GetFaceEvent(id)
+	if event == nil {
+		return
+	}
+
+	eventBlock, err := event.Encode()
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
+		return
+	}
+	wire, err := eventBlock.Wire()
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
+		return
+	}
+
+	dataName, err := ndn.NameFromString("/localhost/nfd/faces/events")
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceEventNotification name.")
+		return
+	}
+	dataName = dataName.Append(ndn.NewSequenceNumNameComponent(id))
+	data := ndn.NewData(dataName, wire)
+	metaInfo := ndn.NewMetaInfo()
+	metaInfo.SetFreshnessPeriod(1 * time.Millisecond)
+	data.SetMetaInfo(metaInfo)
+
+	encodedData, err := data.Encode()
+	if err != nil {
+		core.LogError(f, "Cannot encode FaceEventNotification data for EventID=", id, ": ", err)
+		return
+	}
+	if f.manager.transport != nil {
+		f.manager.transport.Send(encodedData, pitToken, nil)
 	}
 }
