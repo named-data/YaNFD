@@ -60,8 +60,8 @@ func (s *StrategyBase) GetName() *ndn.Name {
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
-	s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
+func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) bool {
+	return s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
