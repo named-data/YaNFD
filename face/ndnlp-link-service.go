@@ -26,6 +26,12 @@ const pitTokenOverhead = 1 + 1 + 6
 const congestionMarkOverhead = 3 + 1 + 8
 const ackOverhead = 3 + 1 + 8
 
+const (
+	FaceFlagLocalFields          uint64 = 1 << iota
+	FaceFlagLpReliabilityEnabled uint64 = 1 << iota
+	FaceFlagCongestionMarking    uint64 = 1 << iota
+)
+
 // NDNLPLinkServiceOptions contains the settings for an NDNLPLinkService.
 type NDNLPLinkServiceOptions struct {
 	IsFragmentationEnabled bool
@@ -559,4 +565,17 @@ func (l *NDNLPLinkService) runIdleAckTimer() {
 		l.idleAckTimer <- new(interface{})
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+func (op *NDNLPLinkServiceOptions) Flags() (ret uint64) {
+	if op.IsConsumerControlledForwardingEnabled {
+		ret |= FaceFlagLocalFields
+	}
+	if op.IsReliabilityEnabled {
+		ret |= FaceFlagLpReliabilityEnabled
+	}
+	if op.IsCongestionMarkingEnabled {
+		ret |= FaceFlagCongestionMarking
+	}
+	return
 }
