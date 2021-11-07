@@ -9,6 +9,7 @@ package fw
 
 import (
 	"reflect"
+	"sort"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
@@ -48,20 +49,15 @@ func (s *BestRoute) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, da
 
 // AfterReceiveInterest ...
 func (s *BestRoute) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
-	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", interest.Name(), " - DROP")
-		return
-	}
-
-	lowestCost := nexthops[0]
-	for _, nexthop := range nexthops {
-		if nexthop.Cost < lowestCost.Cost {
-			lowestCost = nexthop
+	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
+	for _, nh := range nexthops {
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", interest.Name(), " to FaceID=", nh.Nexthop)
+		if sent := s.SendInterest(interest, pitEntry, nh.Nexthop, inFace); sent {
+			return
 		}
 	}
 
-	core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", interest.Name(), " to FaceID=", lowestCost.Nexthop)
-	s.SendInterest(interest, pitEntry, lowestCost.Nexthop, inFace)
+	core.LogDebug(s, "AfterReceiveInterest: No usable nexthop for Interest=", interest.Name(), " - DROP")
 }
 
 // BeforeSatisfyInterest ...

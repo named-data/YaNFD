@@ -276,20 +276,24 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest, nexthops)
 }
 
-func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
+func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) bool {
 	core.LogTrace(t, "OnOutgoingInterest: ", interest.Name(), ", FaceID=", nexthop)
 
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
 		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", interest.Name(), " - DROP")
-		return
+		return false
+	}
+	if outgoingFace.FaceID() == inFace && outgoingFace.LinkType() != ndn.AdHoc {
+		core.LogDebug(t, "Attempting to send Interest=", interest.Name(), " back to incoming face - DROP")
+		return false
 	}
 
 	// Drop if HopLimit (if present) on Interest going to non-local face is 0. If so, drop
 	if interest.HopLimit() != nil && *interest.HopLimit() == 0 && outgoingFace.Scope() == ndn.NonLocal {
 		core.LogDebug(t, "Attempting to send Interest=", interest.Name(), " with HopLimit=0 to non-local face - DROP")
-		return
+		return false
 	}
 
 	// Create or update out-record
@@ -308,9 +312,10 @@ func (t *Thread) processOutgoingInterest(interest *ndn.Interest, pitEntry *table
 	pendingPacket.Wire, err = interest.Encode()
 	if err != nil {
 		core.LogWarn(t, "Unable to encode Interest ", interest.Name(), " (", err, " ) - DROP")
-		return
+		return false
 	}
 	outgoingFace.SendPacket(pendingPacket)
+	return true
 }
 
 func (t *Thread) finalizeInterest(pitEntry *table.PitEntry) {
