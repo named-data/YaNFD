@@ -34,11 +34,7 @@ func Sign(signatureType SignatureType, buffer []byte) ([]byte, error) {
 	switch signatureType {
 	case DigestSha256Type:
 		var signer DigestSha256
-		signature, err := signer.Sign(buffer)
-		if err != nil {
-			return nil, err
-		}
-		return signature, nil
+		return signer.Sign(buffer)
 	case SignatureSha256WithRsaType:
 		return nil, errors.New("cannot sign SignatureSha256WithRsa")
 	case SignatureSha256WithEcdsaType:
