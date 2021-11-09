@@ -8,8 +8,8 @@
 package ndn
 
 import (
-	"bytes"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -164,7 +164,7 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 		generatedHash := h.Sum(nil)
 
 		// Verify hash
-		if !bytes.EqualFold(paramsDigest.Value(), generatedHash) {
+		if subtle.ConstantTimeCompare(paramsDigest.Value(), generatedHash) != 1 {
 			return nil, errors.New("ParametersSha256DigestComponent did not match hash of application parameters")
 		}
 	}
