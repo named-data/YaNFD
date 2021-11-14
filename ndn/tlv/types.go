@@ -19,11 +19,11 @@ const (
 	ParametersSha256DigestComponent = 0x02
 	GenericNameComponent            = 0x08
 	KeywordNameComponent            = 0x20
-	SegmentNameComponent            = 0x21
-	ByteOffsetNameComponent         = 0x22
-	VersionNameComponent            = 0x23
-	TimestampNameComponent          = 0x24
-	SequenceNumNameComponent        = 0x25
+	SegmentNameComponent            = 0x32
+	ByteOffsetNameComponent         = 0x34
+	VersionNameComponent            = 0x36
+	TimestampNameComponent          = 0x38
+	SequenceNumNameComponent        = 0x3A
 
 	// Interest packets
 	CanBePrefix            = 0x21
