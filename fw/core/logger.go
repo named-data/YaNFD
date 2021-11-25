@@ -19,10 +19,20 @@ import (
 
 var shouldPrintTraceLogs = false
 var logLevel log.Level
+var logFileObj *os.File
 
 // InitializeLogger initializes the logger.
-func InitializeLogger() {
-	log.SetHandler(text.New(os.Stdout))
+func InitializeLogger(logFile string) {
+	if logFile == "" {
+		log.SetHandler(text.New(os.Stdout))
+	} else {
+		var err error
+		logFileObj, err = os.Create(logFile)
+		if err != nil {
+			os.Exit(1)
+		}
+		log.SetHandler(text.New(logFileObj))
+	}
 
 	logLevelString := GetConfigStringDefault("core.log_level", "INFO")
 
@@ -36,6 +46,13 @@ func InitializeLogger() {
 		shouldPrintTraceLogs = true
 	} else {
 		log.SetLevel(log.InfoLevel)
+	}
+}
+
+// ShutdownLogger shuts down the logger.
+func ShutdownLogger() {
+	if logFileObj != nil {
+		logFileObj.Close()
 	}
 }
 
@@ -79,7 +96,7 @@ func generateLogMessage(module interface{}, components ...interface{}) string {
 	return message.String()
 }
 
-// LogFatal logs a message at the FATAL level.
+// LogFatal logs a message at the FATAL level. Note: Fatal will let the program exit
 func LogFatal(module interface{}, components ...interface{}) {
 	if logLevel <= log.FatalLevel {
 		log.Fatal(generateLogMessage(module, components...))

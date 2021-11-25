@@ -64,12 +64,14 @@ func EmitFaceEvent(kind FaceEventKind, face LinkService) {
 	faceEvents[faceEventsIdx].eventId = faceEventsNextId
 	faceEventsNextId++
 	faceEvents[faceEventsIdx].faceEventKind = kind
-	faceEvents[faceEventsIdx].faceId = face.FaceID()
-	faceEvents[faceEventsIdx].remoteURI = face.RemoteURI()
-	faceEvents[faceEventsIdx].localURI = face.LocalURI()
-	faceEvents[faceEventsIdx].scope = face.Scope()
-	faceEvents[faceEventsIdx].persistency = face.Persistency()
-	faceEvents[faceEventsIdx].linkType = face.LinkType()
+	if face != nil {
+		faceEvents[faceEventsIdx].faceId = face.FaceID()
+		faceEvents[faceEventsIdx].remoteURI = face.RemoteURI()
+		faceEvents[faceEventsIdx].localURI = face.LocalURI()
+		faceEvents[faceEventsIdx].scope = face.Scope()
+		faceEvents[faceEventsIdx].persistency = face.Persistency()
+		faceEvents[faceEventsIdx].linkType = face.LinkType()
+	}
 	lp, ok := face.(*NDNLPLinkService)
 	if ok {
 		faceEvents[faceEventsIdx].flags = lp.options.Flags()
@@ -86,7 +88,7 @@ func EmitFaceEvent(kind FaceEventKind, face LinkService) {
 // GetFaceEvent returns the face event with the given id.
 // It will return nil if the specified event is discarded or does not exist.
 func GetFaceEvent(eventId uint64) *FaceEvent {
-	if eventId >= faceEventsNextId || eventId+FaceEventsCacheSize < faceEventsNextId {
+	if eventId >= faceEventsNextId || eventId < faceEventsNextId-FaceEventsCacheSize {
 		return nil
 	}
 	idx := (faceEventsIdx + uint(eventId+FaceEventsCacheSize-faceEventsNextId)) % FaceEventsCacheSize
