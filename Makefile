@@ -1,14 +1,14 @@
 PACKAGE = github.com/named-data/YaNFD
 VERSION = 0.0.1
-COMMIT != git rev-parse --short HEAD
-DATE != date
+# COMMIT = git rev-parse --short HEAD
+# DATE != date
 
 .PHONY: all install clean test coverage
 
 all: yanfd
 
 yanfd: clean
-	go build -ldflags "-X 'main.Version=${VERSION}-${COMMIT}'" ${PACKAGE}/cmd/yanfd
+	go build -ldflags "-X 'main.Version=${VERSION}'" ${PACKAGE}/cmd/yanfd
 
 install:
 	install -m 755 yanfd /usr/local/bin
