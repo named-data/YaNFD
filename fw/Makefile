@@ -23,3 +23,9 @@ test:
 
 coverage:
 	go tool cover -html=coverage.out
+
+cleanui:
+	rm -f yanfdui
+
+yanfdui: cleanui
+	go build -ldflags "-X 'main.Version=${VERSION}'" ${PACKAGE}/cmd/yanfdui
