@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
 	"os/exec"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/named-data/YaNFD/face"
 	"github.com/named-data/YaNFD/fw"
 	"github.com/named-data/YaNFD/table"
+	"github.com/pelletier/go-toml"
 )
 
 type menuList struct {
@@ -81,6 +85,7 @@ type renderInput struct {
 	Setting     setting
 }
 
+// TODO: setting is a temporary solution; should change to toml.Marshal
 type setting struct {
 	LogLevel                 string `toml:"core.log_level"`
 	FacesQueueSize           int    `toml:"faces.queue_size"`
@@ -130,6 +135,68 @@ var menus = []menuList{
 	{LinkName: "/routing", PageName: "Routing"},
 	{LinkName: "/strategies", PageName: "Strategies"},
 	{LinkName: "/config", PageName: "Configuration"},
+}
+
+func tomlTreeToSetting(tree *toml.Tree) *setting {
+	var s setting
+	sType := reflect.TypeOf(s)
+	for i := 0; i < sType.NumField(); i++ {
+		f := sType.Field(i)
+		if fName := f.Tag.Get("toml"); fName != "" {
+			switch f.Type.Kind() {
+			case reflect.String:
+				if v, ok := tree.Get(fName).(string); ok {
+					reflect.ValueOf(&s).Elem().Field(i).SetString(v)
+				}
+			case reflect.Uint16:
+				if v, ok := tree.Get(fName).(int64); ok {
+					reflect.ValueOf(&s).Elem().Field(i).SetUint(uint64(v))
+				}
+			case reflect.Int:
+				if v, ok := tree.Get(fName).(int64); ok {
+					reflect.ValueOf(&s).Elem().Field(i).SetInt(v)
+				}
+			case reflect.Bool:
+				if v, ok := tree.Get(fName).(bool); ok {
+					reflect.ValueOf(&s).Elem().Field(i).SetBool(v)
+				}
+			}
+		}
+	}
+	return &s
+}
+
+func tomlFormToTree(tree *toml.Tree, r *http.Request) {
+	sType := reflect.TypeOf(setting{})
+	for i := 0; i < sType.NumField(); i++ {
+		f := sType.Field(i)
+		val := r.Form.Get(f.Name)
+		if val == "" {
+			continue
+		}
+		if fName := f.Tag.Get("toml"); fName != "" {
+			switch f.Type.Kind() {
+			case reflect.String:
+				tree.Set(fName, val)
+			case reflect.Uint16:
+				v, err := strconv.ParseUint(val, 10, 16)
+				if err != nil {
+					tree.Set(fName, v)
+				}
+			case reflect.Int:
+				v, err := strconv.Atoi(val)
+				if err != nil {
+					tree.Set(fName, v)
+				}
+			case reflect.Bool:
+				if strings.ToUpper(val) == "TRUE" {
+					tree.Set(fName, true)
+				} else {
+					tree.Set(fName, false)
+				}
+			}
+		}
+	}
 }
 
 func forwarderStatus(w http.ResponseWriter, req *http.Request) {
@@ -437,15 +504,39 @@ func autoconf(w http.ResponseWriter, req *http.Request) {
 func config(w http.ResponseWriter, req *http.Request) {
 	action := req.URL.Path[len("/config/"):]
 	req.ParseForm()
+
+	tree, err := toml.LoadFile(configFile)
+	if err != nil {
+		core.LogError("HttpServer", "toml.LoadFile failed with: ", err)
+		// TODO: handle error
+		http.Redirect(w, req, "/", http.StatusFound)
+		return
+	}
+
 	switch action {
 	case "save":
-		// TODO: save configuration
-		notImplemented(w, req, "/config/")
+		tomlFormToTree(tree, req)
+		s, err := tree.ToTomlString()
+		if err == nil {
+			file, err := os.Create(configFile)
+			if err == nil {
+				file.WriteString(s)
+			} else {
+				core.LogError("HttpServer", "os.Create failed with: ", err)
+			}
+		} else {
+			core.LogError("HttpServer", "toml.ToTomlString failed with: ", err)
+		}
+		http.Redirect(w, req, "/config/", http.StatusFound)
+		return
 	}
+
+	set := tomlTreeToSetting(tree)
 
 	input := renderInput{
 		ReferName: "/",
 		MenuList:  menus,
+		Setting:   *set,
 	}
 
 	// Render
