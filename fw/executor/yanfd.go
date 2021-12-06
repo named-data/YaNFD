@@ -154,7 +154,7 @@ func (y *YaNFD) Start() {
 	}
 	ethEnabled := core.GetConfigBoolDefault("faces.ethernet.enabled", true) && !y.config.DisableEthernet
 	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
-	tcpPort := core.GetConfigUint16Default("faces.tcp.port", 6363)
+	tcpPort := face.TCPUnicastPort
 	y.tcpListeners = make([]*face.TCPListener, 0)
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 {
