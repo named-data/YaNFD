@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 
@@ -27,22 +28,15 @@ var Version string
 // Addr of HTTP server.
 var Addr string = "localhost:5010"
 
+// Base directory of server files
+var HttpBaseDir string = "."
+
 func main() {
 	// Parse command line options
 	var shouldPrintVersion bool
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
-	var disableEthernet bool
-	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports (deprecated; set.faces.ethernet.enabled=false in config file instead)")
-	var disableUnix bool
-	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports (deprecated; set.faces.unix.enabled=false in config file instead)")
-	var cpuProfile string
-	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
-	var memProfile string
-	flag.StringVar(&memProfile, "mem-profile", "", "Enable memory profiling (output to specified file)")
-	var blockProfile string
-	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file)")
 	var memoryBallastSize int
 	flag.IntVar(&memoryBallastSize, "memory-ballast", 0, "Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
@@ -55,15 +49,19 @@ func main() {
 		return
 	}
 
+	if runtime.GOOS == "windows" && configFileName[0] == '/' {
+		configFileName = "yanfd.toml" // On Windows, read the file in the same folder by default
+	}
+
 	config := executor.YaNFDConfig{
 		Version:           Version,
 		ConfigFileName:    configFileName,
-		DisableEthernet:   disableEthernet,
-		DisableUnix:       disableUnix,
+		DisableEthernet:   false,
+		DisableUnix:       false,
 		LogFile:           "",
-		CpuProfile:        cpuProfile,
-		MemProfile:        memProfile,
-		BlockProfile:      blockProfile,
+		CpuProfile:        "",
+		MemProfile:        "",
+		BlockProfile:      "",
 		MemoryBallastSize: memoryBallastSize,
 	}
 
@@ -73,7 +71,8 @@ func main() {
 	// Start HTTP server
 	httpServerExitDone := &sync.WaitGroup{}
 	httpServerExitDone.Add(1)
-	srv := server.StartHttpServer(httpServerExitDone, Addr)
+	srv := server.StartHttpServer(httpServerExitDone, Addr, HttpBaseDir, configFileName)
+	server.OpenBrowser("http://" + Addr)
 
 	// Set up signal handler channel and wait for interrupt
 	core.LogInfo("Main", "HTTP server started, serving at http://", Addr)

@@ -28,4 +28,4 @@ cleanui:
 	rm -f yanfdui
 
 yanfdui: cleanui
-	go build -ldflags "-X 'main.Version=${VERSION}'" ${PACKAGE}/cmd/yanfdui
+	go build -ldflags "-X 'main.Version=${VERSION}' -X 'main.HttpBaseDir=cmd/yanfdui'" ${PACKAGE}/cmd/yanfdui

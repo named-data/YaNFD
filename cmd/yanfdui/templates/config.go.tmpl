@@ -1,0 +1,224 @@
+{{template "base" .}}
+
+{{define "title"}}YaNFD Config{{end}}
+{{define "extrahead"}}
+  <style type="text/css">
+      .center {
+          text-align: center;
+      }
+  </style>
+{{end}}
+{{define "bodyhead"}}
+  <h1>YaNFD Config</h1>
+{{end}}
+{{define "content"}}
+  <div>
+    <form class="pure-form pure-form-aligned" action="/config/save" method="post">
+      <fieldset>
+        <legend>Core</legend>
+        <div class="pure-control-group">
+          <label for="LogLevel">Log Level</label>
+          <select id="LogLevel" name="LogLevel">
+            <option>DEBUG</option>
+            <option selected>INFO</option>
+            <option>WARN</option>
+            <option>ERROR</option>
+          </select>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Face System</legend>
+        <div class="pure-control-group">
+          <label for="FacesQueueSize">Queue Size</label>
+          <input type="number" id="FacesQueueSize" name="FacesQueueSize" placeholder="1024" value="1024"
+                 min="10" max="1048576"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="FacesCongestionMarking">Congestion Marking</label>
+          <input type="checkbox" id="FacesCongestionMarking" name="FacesCongestionMarking" checked/>
+        </div>
+        <div class="pure-control-group">
+          <label for="FacesLockThreadsToCores">Lock Thread to CPU Cores</label>
+          <input type="checkbox" id="FacesLockThreadsToCores" name="FacesLockThreadsToCores"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Ethernet Face</legend>
+        <div class="pure-control-group">
+          <label for="EtherEnabled">Enabled</label>
+          <input type="checkbox" id="EtherEnabled" name="EtherEnabled"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="EtherType">EtherType</label>
+          <input type="text" id="EtherType" name="EtherType" placeholder="34340" value="34340"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="EtherAddr">Multicast Address</label>
+          <input type="text" id="EtherAddr" name="EtherAddr"
+                 placeholder="01:00:5e:00:17:aa" value="01:00:5e:00:17:aa"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>UDP Face</legend>
+        <div class="pure-control-group">
+          <label for="UdpPortUnicast">Unicast Port</label>
+          <input type="number" id="UdpPortUnicast" name="UdpPortUnicast" placeholder="6363" value="6363"
+                 min="1024" max="65353"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="UdpPortMulticast">Multicast Port</label>
+          <input type="number" id="UdpPortMulticast" name="UdpPortMulticast" placeholder="56363" value="56363"
+                 min="1024" max="65353"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="UdpMulticastIpv4">Multicast IPv4 Address</label>
+          <input type="text" id="UdpMulticastIpv4" name="UdpMulticastIpv4"
+                 placeholder="224.0.23.170" value="224.0.23.170"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="UdpMulticastIpv6">Multicast IPv6 Address</label>
+          <input type="text" id="UdpMulticastIpv6" name="UdpMulticastIpv6"
+                 placeholder="ff02::114" value="ff02::114"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="UdpLifetime">Lifetime of On-Demand Faces (sec)</label>
+          <input type="number" id="UdpLifetime" name="UdpLifetime"
+                 placeholder="600" value="600" min="1" max="316224000"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>TCP Face</legend>
+        <div class="pure-control-group">
+          <label for="TcpEnabled">Enabled</label>
+          <input type="checkbox" id="TcpEnabled" name="TcpEnabled" checked/>
+        </div>
+        <div class="pure-control-group">
+          <label for="TcpPort">Port</label>
+          <input type="number" id="TcpPort" name="TcpPort" placeholder="6363" value="6363"
+                 min="1024" max="65353"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="TcpLifetime">Lifetime of On-Demand Faces (sec)</label>
+          <input type="number" id="TcpLifetime" name="TcpLifetime"
+                 placeholder="600" value="600" min="1" max="316224000"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Unix Socket Face</legend>
+        <div class="pure-control-group">
+          <label for="UnixEnabled">Enabled</label>
+          <input type="checkbox" id="UnixEnabled" name="UnixEnabled" checked/>
+        </div>
+        <div class="pure-control-group">
+          <label for="UnixSocketPath">Socket File Path</label>
+          <input type="text" id="UnixSocketPath" name="UnixSocketPath"
+                 placeholder="${TEMP}\\nfd.sock" value="${TEMP}\\nfd.sock"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>WebSocket Face</legend>
+        <div class="pure-control-group">
+          <label for="WsEnabled">Enabled</label>
+          <input type="checkbox" id="WsEnabled" name="WsEnabled" checked/>
+        </div>
+        <div class="pure-control-group">
+          <label for="WsBind">Bind Address</label>
+          <input type="text" id="WsBind" name="WsBind"
+                 placeholder="" value=""/>
+        </div>
+        <div class="pure-control-group">
+          <label for="WsPort">Port</label>
+          <input type="number" id="WsPort" name="WsPort" placeholder="9696" value="9696"
+                 min="1024" max="65353"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="WsTlsEnabled">TLS Enabled</label>
+          <input type="checkbox" id="WsTlsEnabled" name="WsTlsEnabled"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="WsTlsCert">TLS Certificate File</label>
+          <input type="text" id="WsTlsCert" name="WsTlsCert"
+                 placeholder="" value=""/>
+        </div>
+        <div class="pure-control-group">
+          <label for="WsTlsKey">TLS Key File</label>
+          <input type="text" id="WsTlsKey" name="WsTlsKey"
+                 placeholder="" value=""/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Forwarding Threads</legend>
+        <div class="pure-control-group">
+          <label for="FwThreads">Number of Threads</label>
+          <input type="number" id="FwThreads" name="FwThreads" placeholder="8" value="8"
+                 min="1" max="100"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="FwQueueSize">Queue Size</label>
+          <input type="number" id="FwQueueSize" name="FwQueueSize" placeholder="1024" value="1024"
+                 min="10" max="1048576"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="FwLockThreadsToCores">Lock Thread to CPU Cores</label>
+          <input type="checkbox" id="FwLockThreadsToCores" name="FwLockThreadsToCores"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Management</legend>
+        <div class="pure-control-group">
+          <label for="AllowLocalhop">Allow "/Localhop"</label>
+          <input type="checkbox" id="AllowLocalhop" name="AllowLocalhop"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Tables General</legend>
+        <div class="pure-control-group">
+          <label for="TablesQueueSize">Queue Size</label>
+          <input type="number" id="TablesQueueSize" name="TablesQueueSize" placeholder="1024" value="1024"
+                 min="10" max="1048576"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Content Store</legend>
+        <div class="pure-control-group">
+          <label for="CsCapacity">Capacity</label>
+          <input type="number" id="CsCapacity" name="CsCapacity" placeholder="1024" value="1024"
+                 min="10" max="1048576"/>
+        </div>
+        <div class="pure-control-group">
+          <label for="CsAdmit">Admit Packets</label>
+          <input type="checkbox" id="CsAdmit" name="CsAdmit" checked/>
+        </div>
+        <div class="pure-control-group">
+          <label for="CsServe">Serve Content</label>
+          <input type="checkbox" id="CsServe" name="CsServe" checked/>
+        </div>
+         <div class="pure-control-group">
+          <label for="CsReplacementPolicy">Replacement Policy </label>
+          <select id="CsReplacementPolicy" name="CsReplacementPolicy">
+            <option selected>lru</option>
+          </select>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Dead Nonce List</legend>
+        <div class="pure-control-group">
+          <label for="DnlLifetime">Lifetime (ms)</label>
+          <input type="number" id="DnlLifetime" name="DnlLifetime" placeholder="6000" value="6000"
+                 min="1" max="864000000"/>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>RIB</legend>
+        <div class="pure-control-group">
+          <label for="RibAutoPrefixPropagation">Auto Prefix Propagation</label>
+          <input type="checkbox" id="RibAutoPrefixPropagation" name="RibAutoPrefixPropagation"/>
+        </div>
+      </fieldset>
+      <div class="pure-controls">
+        <button type="submit" class="pure-button pure-button-primary">Save</button>
+        <!--Should submit a JSON-->
+      </div>
+    </form>
+  </div>
+{{end}}

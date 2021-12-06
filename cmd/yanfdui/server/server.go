@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -69,28 +71,66 @@ type renderInput struct {
 	FaceData    *faceData
 	RouteData   []faceRouteData
 	StatusCode  int
-	StatueMsg   string
+	StatusMsg   string
 	FibList     []routeBrief
 	RibList     []routeBrief
 	RequestName string
 	FibHops     []routeHops
 	RibHops     []routeHops
 	Strategies  []strategy
+	Setting     setting
 }
 
-var serverTmpl map[string]*template.Template
+type setting struct {
+	LogLevel                 string `toml:"core.log_level"`
+	FacesQueueSize           int    `toml:"faces.queue_size"`
+	FacesCongestionMarking   bool   `toml:"faces.congestion_marking"`
+	FacesLockThreadsToCores  bool   `toml:"faces.lock_threads_to_cores"`
+	EtherEnabled             bool   `toml:"faces.ethernet.enabled"`
+	EtherType                int    `toml:"faces.ethernet.ethertype"`
+	EtherAddr                string `toml:"faces.ethernet.multicast_address"`
+	UdpPortUnicast           uint16 `toml:"faces.udp.port_unicast"`
+	UdpPortMulticast         uint16 `toml:"faces.udp.port_multicast"`
+	UdpMulticastIpv4         string `toml:"faces.udp.multicast_address_ipv4"`
+	UdpMulticastIpv6         string `toml:"faces.udp.multicast_address_ipv6"`
+	UdpLifetime              uint16 `toml:"faces.udp.lifetime"`
+	TcpEnabled               bool   `toml:"faces.tcp.enabled"`
+	TcpPort                  uint16 `toml:"faces.tcp.port_unicast"`
+	TcpLifetime              uint16 `toml:"faces.tcp.lifetime"`
+	UnixEnabled              bool   `toml:"faces.unix.enabled"`
+	UnixSocketPath           string `toml:"faces.unix.socket_path"`
+	WsEnabled                bool   `toml:"faces.websocket.enabled"`
+	WsBind                   string `toml:"faces.websocket.bind"`
+	WsPort                   uint16 `toml:"faces.websocket.port"`
+	WsTlsEnabled             bool   `toml:"faces.websocket.tls_enabled"`
+	WsTlsCert                string `toml:"faces.websocket.tls_cert"`
+	WsTlsKey                 string `toml:"faces.websocket.tls_key"`
+	FwThreads                int    `toml:"fw.threads"`
+	FwQueueSize              int    `toml:"fw.queue_size"`
+	FwLockThreadsToCores     bool   `toml:"fw.lock_threads_to_cores"`
+	AllowLocalhop            bool   `toml:"mgmt.allow_localhop"`
+	TablesQueueSize          int    `toml:"tables.queue_size"`
+	CsCapacity               uint16 `toml:"tables.content_store.capacity"`
+	CsAdmit                  bool   `toml:"tables.content_store.admit"`
+	CsServe                  bool   `toml:"tables.content_store.serve"`
+	CsReplacementPolicy      string `toml:"tables.content_store.replacement_policy"`
+	DnlLifetime              int    `toml:"tables.dead_nonce_list.lifetime"`
+	RibAutoPrefixPropagation bool   `toml:"tables.rib.auto_prefix_propagation"`
+}
+
+var (
+	serverTmpl  map[string]*template.Template
+	httpBaseDir string
+	configFile  string
+)
 
 var menus = []menuList{
 	{LinkName: "/forwarder-status", PageName: "Forwarder Status"},
 	{LinkName: "/faces", PageName: "Faces"},
 	{LinkName: "/routing", PageName: "Routing"},
 	{LinkName: "/strategies", PageName: "Strategies"},
-	{LinkName: "/autoconf", PageName: "Autoconfiguration"},
-	{LinkName: "/key-management", PageName: "Key Management"},
-	{LinkName: "/ndn-peek", PageName: "NDN Peek"},
+	{LinkName: "/config", PageName: "Configuration"},
 }
-
-var HttpBaseDir string = "cmd/yanfdui"
 
 func forwarderStatus(w http.ResponseWriter, req *http.Request) {
 	var nPitEntries, nCsEntries, nInInterests, nInData, nOutInterests, nFibEntries uint64
@@ -128,7 +168,11 @@ func forwarderStatus(w http.ResponseWriter, req *http.Request) {
 }
 
 func statics(w http.ResponseWriter, req *http.Request) {
-	http.ServeFile(w, req, HttpBaseDir+req.URL.Path)
+	http.ServeFile(w, req, httpBaseDir+req.URL.Path)
+}
+
+func notImplemented(w http.ResponseWriter, req *http.Request, url string) {
+	http.Redirect(w, req, url+"?status_code=-1&status_text=Not%20Implemented", http.StatusFound)
 }
 
 func index(w http.ResponseWriter, req *http.Request) {
@@ -143,17 +187,27 @@ func index(w http.ResponseWriter, req *http.Request) {
 
 func faces(w http.ResponseWriter, req *http.Request) {
 	action := req.URL.Path[len("/faces/"):]
+	req.ParseForm()
 	switch action {
 	case "add":
 		// TODO: add face
+		notImplemented(w, req, "/faces/")
 	case "remove":
 		// TODO: remove face
+		notImplemented(w, req, "/faces/")
 	}
 
 	input := renderInput{
 		ReferName: "/faces",
 		MenuList:  menus,
 		FaceList:  make([]faceListEntry, 0),
+	}
+	if stCodeStr := req.Form.Get("status_code"); stCodeStr != "" {
+		stCode, err := strconv.Atoi(stCodeStr)
+		if err == nil {
+			input.StatusCode = stCode
+			input.StatusMsg = req.Form.Get("status_text")
+		}
 	}
 
 	// Obtain face lists
@@ -171,7 +225,6 @@ func faces(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Obtain face data and associated routes
-	req.ParseForm()
 	func(faceIdStr string) {
 		if faceIdStr == "" {
 			return
@@ -222,11 +275,14 @@ func faces(w http.ResponseWriter, req *http.Request) {
 
 func routing(w http.ResponseWriter, req *http.Request) {
 	action := req.URL.Path[len("/routing/"):]
+	req.ParseForm()
 	switch action {
 	case "add":
 		// TODO: add route
+		notImplemented(w, req, "/routing/")
 	case "remove":
 		// TODO: remove route
+		notImplemented(w, req, "/routing/")
 	}
 
 	input := renderInput{
@@ -234,6 +290,13 @@ func routing(w http.ResponseWriter, req *http.Request) {
 		MenuList:  menus,
 		FibList:   make([]routeBrief, 0),
 		RibList:   make([]routeBrief, 0),
+	}
+	if stCodeStr := req.Form.Get("status_code"); stCodeStr != "" {
+		stCode, err := strconv.Atoi(stCodeStr)
+		if err == nil {
+			input.StatusCode = stCode
+			input.StatusMsg = req.Form.Get("status_text")
+		}
 	}
 
 	// Obtain route lists
@@ -260,7 +323,6 @@ func routing(w http.ResponseWriter, req *http.Request) {
 	})
 
 	// Obtain associated routes
-	req.ParseForm()
 	func(prefix string) {
 		if prefix == "" {
 			return
@@ -308,17 +370,27 @@ func routing(w http.ResponseWriter, req *http.Request) {
 
 func strategies(w http.ResponseWriter, req *http.Request) {
 	action := req.URL.Path[len("/strategies/"):]
+	req.ParseForm()
 	switch action {
 	case "set":
 		// TODO: set strategies
+		notImplemented(w, req, "/strategies/")
 	case "unset":
 		// TODO: unset strategies
+		notImplemented(w, req, "/strategies/")
 	}
 
 	input := renderInput{
 		ReferName:  "/strategies",
 		MenuList:   menus,
 		Strategies: make([]strategy, 0),
+	}
+	if stCodeStr := req.Form.Get("status_code"); stCodeStr != "" {
+		stCode, err := strconv.Atoi(stCodeStr)
+		if err == nil {
+			input.StatusCode = stCode
+			input.StatusMsg = req.Form.Get("status_text")
+		}
 	}
 
 	// Obtain strategy list
@@ -335,16 +407,67 @@ func strategies(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func StartHttpServer(wg *sync.WaitGroup, addr string) *http.Server {
+func autoconf(w http.ResponseWriter, req *http.Request) {
+	action := req.URL.Path[len("/autoconf/"):]
+	req.ParseForm()
+	switch action {
+	case "perform":
+		// TODO: perform autoconfiguration
+		notImplemented(w, req, "/autoconf/")
+	}
+
+	input := renderInput{
+		ReferName: "/autoconf",
+		MenuList:  menus,
+	}
+	if stCodeStr := req.Form.Get("status_code"); stCodeStr != "" {
+		stCode, err := strconv.Atoi(stCodeStr)
+		if err == nil {
+			input.StatusCode = stCode
+			input.StatusMsg = req.Form.Get("status_text")
+		}
+	}
+
+	// Render
+	if err := serverTmpl["autoconf"].ExecuteTemplate(w, "autoconf.go.tmpl", input); err != nil {
+		core.LogError("HttpServer", "autoconf.Execute failed with: ", err)
+	}
+}
+
+func config(w http.ResponseWriter, req *http.Request) {
+	action := req.URL.Path[len("/config/"):]
+	req.ParseForm()
+	switch action {
+	case "save":
+		// TODO: save configuration
+		notImplemented(w, req, "/config/")
+	}
+
+	input := renderInput{
+		ReferName: "/",
+		MenuList:  menus,
+	}
+
+	// Render
+	if err := serverTmpl["config"].ExecuteTemplate(w, "config.go.tmpl", input); err != nil {
+		core.LogError("HttpServer", "config.Execute failed with: ", err)
+	}
+}
+
+func StartHttpServer(wg *sync.WaitGroup, addr string, baseDir string, configFilePath string) *http.Server {
 	ret := &http.Server{Addr: addr}
 
-	dir := HttpBaseDir + "/templates/"
+	httpBaseDir = baseDir
+	configFile = configFilePath
+	dir := httpBaseDir + "/templates/"
 	serverTmpl = make(map[string]*template.Template)
 	serverTmpl["forwarder-status"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"forwarder-status.go.tmpl"))
 	serverTmpl["index"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"index.go.tmpl"))
 	serverTmpl["faces"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"faces.go.tmpl"))
 	serverTmpl["routing"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"routing.go.tmpl"))
 	serverTmpl["strategies"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"strategies.go.tmpl"))
+	serverTmpl["autoconf"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"autoconf.go.tmpl"))
+	serverTmpl["config"] = template.Must(template.ParseFiles(dir+"base.go.tmpl", dir+"config.go.tmpl"))
 
 	http.HandleFunc("/", index)
 	http.HandleFunc("/forwarder-status/", forwarderStatus)
@@ -352,6 +475,8 @@ func StartHttpServer(wg *sync.WaitGroup, addr string) *http.Server {
 	http.HandleFunc("/faces/", faces)
 	http.HandleFunc("/routing/", routing)
 	http.HandleFunc("/strategies/", strategies)
+	http.HandleFunc("/autoconf/", autoconf)
+	http.HandleFunc("/config/", config)
 
 	go func() {
 		defer wg.Done()
@@ -362,4 +487,18 @@ func StartHttpServer(wg *sync.WaitGroup, addr string) *http.Server {
 	}()
 
 	return ret
+}
+
+func OpenBrowser(url string) error {
+	switch runtime.GOOS {
+	case "linux":
+		return exec.Command("xdg-open", url).Start()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		return exec.Command("open", url).Start()
+	default:
+		core.LogError("HttpServer", "Unable to open the browser on OS: ", runtime.GOOS)
+		return nil
+	}
 }
