@@ -50,7 +50,7 @@ func main() {
 	}
 
 	if runtime.GOOS == "windows" && configFileName[0] == '/' {
-		configFileName = "yanfd.toml" // On Windows, read the file in the same folder by default
+		configFileName = os.ExpandEnv("${APPDATA}\\ndn\\yanfd.toml")
 	}
 
 	config := executor.YaNFDConfig{
