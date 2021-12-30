@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -15,6 +15,7 @@ import (
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/tlv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInterestCreate(t *testing.T) {
@@ -32,7 +33,26 @@ func TestInterestCreate(t *testing.T) {
 	assert.Equal(t, 0, len(i.ApplicationParameters()))
 }
 
-func TestInterestDecode(t *testing.T) {
+func TestInterestDecodeMinimal(t *testing.T) {
+	block := tlv.NewBlock(tlv.Interest,
+		[]byte{
+			tlv.Name, 0x02, tlv.GenericNameComponent, 0x00,
+			tlv.Nonce, 0x04, 0x01, 0x02, 0x03, 0x04})
+
+	i, e := ndn.DecodeInterest(block)
+	assert.NoError(t, e)
+	require.NotNil(t, i)
+	assert.Equal(t, "/...", i.Name().String())
+	assert.Equal(t, false, i.CanBePrefix())
+	assert.Equal(t, false, i.MustBeFresh())
+	assert.Len(t, i.ForwardingHint(), 0)
+	assert.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, i.Nonce())
+	assert.Equal(t, 4000*time.Millisecond, i.Lifetime())
+	assert.Nil(t, i.HopLimit())
+	assert.Len(t, i.ApplicationParameters(), 0)
+}
+
+func TestInterestDecodeFull(t *testing.T) {
 	block := tlv.NewBlock(tlv.Interest,
 		[]byte{
 			tlv.Name, 0x2B, tlv.GenericNameComponent, 0x02, 0x67, 0x6f, tlv.GenericNameComponent, 0x03, 0x6e, 0x64, 0x6e, tlv.ParametersSha256DigestComponent, 0x20, 0x09, 0x01, 0xA2, 0xD0, 0x4B, 0xB8, 0x8A, 0xB8, 0x19, 0x13, 0xC2, 0x32, 0xA3, 0xEF, 0xC8, 0x9F, 0xAC, 0xF8, 0xB3, 0x2D, 0xF2, 0x0E, 0x3D, 0x43, 0x53, 0x89, 0xF5, 0x50, 0x27, 0x25, 0xC0, 0x4F,
@@ -46,9 +66,9 @@ func TestInterestDecode(t *testing.T) {
 			0xAA, 0x04, 0xBB, 0xCC, 0xDD, 0xEE,
 			0xBB, 0x06, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66})
 
-	i, err := ndn.DecodeInterest(block)
-	assert.NotNil(t, i)
-	assert.NoError(t, err)
+	i, e := ndn.DecodeInterest(block)
+	assert.NoError(t, e)
+	require.NotNil(t, i)
 	assert.Equal(t, "/go/ndn/params-sha256=0901a2d04bb88ab81913c232a3efc89facf8b32df20e3d435389f5502725c04f", i.Name().String())
 	assert.Equal(t, true, i.CanBePrefix())
 	assert.Equal(t, true, i.MustBeFresh())
