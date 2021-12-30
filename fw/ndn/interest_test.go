@@ -58,7 +58,7 @@ func TestInterestDecodeFull(t *testing.T) {
 			tlv.Name, 0x2B, tlv.GenericNameComponent, 0x02, 0x67, 0x6f, tlv.GenericNameComponent, 0x03, 0x6e, 0x64, 0x6e, tlv.ParametersSha256DigestComponent, 0x20, 0x09, 0x01, 0xA2, 0xD0, 0x4B, 0xB8, 0x8A, 0xB8, 0x19, 0x13, 0xC2, 0x32, 0xA3, 0xEF, 0xC8, 0x9F, 0xAC, 0xF8, 0xB3, 0x2D, 0xF2, 0x0E, 0x3D, 0x43, 0x53, 0x89, 0xF5, 0x50, 0x27, 0x25, 0xC0, 0x4F,
 			tlv.CanBePrefix, 0x00,
 			tlv.MustBeFresh, 0x00,
-			tlv.ForwardingHint, 0x0d, tlv.Delegation, 0x0b, tlv.Preference, 0x01, 0x0a, tlv.Name, 0x06, tlv.GenericNameComponent, 0x04, 0x75, 0x63, 0x6c, 0x61,
+			tlv.ForwardingHint, 0x08, tlv.Name, 0x06, tlv.GenericNameComponent, 0x04, 0x75, 0x63, 0x6c, 0x61,
 			tlv.Nonce, 0x04, 0x01, 0x02, 0x03, 0x04,
 			tlv.InterestLifetime, 0x02, 0x03, 0xe8,
 			tlv.HopLimit, 0x01, 0x40,
@@ -73,13 +73,26 @@ func TestInterestDecodeFull(t *testing.T) {
 	assert.Equal(t, true, i.CanBePrefix())
 	assert.Equal(t, true, i.MustBeFresh())
 	assert.Equal(t, 1, len(i.ForwardingHint()))
-	assert.Equal(t, uint64(0x0a), i.ForwardingHint()[0].Preference())
-	assert.Equal(t, "/ucla", i.ForwardingHint()[0].Name().String())
+	assert.Equal(t, "/ucla", i.ForwardingHint()[0].String())
 	assert.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, i.Nonce())
 	assert.Equal(t, 1000*time.Millisecond, i.Lifetime())
 	assert.Equal(t, uint8(0x40), *i.HopLimit())
 	assert.Equal(t, 3, len(i.ApplicationParameters()))
-	assert.Equal(t, "Interest(Name=/go/ndn/params-sha256=0901a2d04bb88ab81913c232a3efc89facf8b32df20e3d435389f5502725c04f, CanBePrefix, MustBeFresh, ForwardingHint(Delegation(10, /ucla)), Nonce=0x01020304, Lifetime=1000ms, HopLimit=64, ApplicationParameters)", i.String())
+	assert.Equal(t, "Interest(Name=/go/ndn/params-sha256=0901a2d04bb88ab81913c232a3efc89facf8b32df20e3d435389f5502725c04f, CanBePrefix, MustBeFresh, ForwardingHint(/ucla), Nonce=0x01020304, Lifetime=1000ms, HopLimit=64, ApplicationParameters)", i.String())
+}
+
+func TestInterestDecodeForwardingHintDelegation(t *testing.T) {
+	block := tlv.NewBlock(tlv.Interest,
+		[]byte{
+			tlv.Name, 0x03, tlv.GenericNameComponent, 0x01, 'A',
+			tlv.ForwardingHint, 0x0B, tlv.Delegation, 0x09, tlv.Preference, 0x01, 0x0A, tlv.Name, 0x04, tlv.GenericNameComponent, 0x02, 'f', 'h',
+			tlv.Nonce, 0x04, 0x01, 0x02, 0x03, 0x04})
+
+	i, e := ndn.DecodeInterest(block)
+	assert.NoError(t, e)
+	require.NotNil(t, i)
+	assert.Len(t, i.ForwardingHint(), 1)
+	assert.Equal(t, "/fh", i.ForwardingHint()[0].String())
 }
 
 func TestInterestEncode(t *testing.T) {
@@ -88,7 +101,7 @@ func TestInterestEncode(t *testing.T) {
 			tlv.Name, 0x2B, tlv.GenericNameComponent, 0x02, 0x67, 0x6f, tlv.GenericNameComponent, 0x03, 0x6e, 0x64, 0x6e, tlv.ParametersSha256DigestComponent, 0x20, 0x09, 0x01, 0xA2, 0xD0, 0x4B, 0xB8, 0x8A, 0xB8, 0x19, 0x13, 0xC2, 0x32, 0xA3, 0xEF, 0xC8, 0x9F, 0xAC, 0xF8, 0xB3, 0x2D, 0xF2, 0x0E, 0x3D, 0x43, 0x53, 0x89, 0xF5, 0x50, 0x27, 0x25, 0xC0, 0x4F,
 			tlv.CanBePrefix, 0x00,
 			tlv.MustBeFresh, 0x00,
-			tlv.ForwardingHint, 0x0d, tlv.Delegation, 0x0b, tlv.Preference, 0x01, 0x0a, tlv.Name, 0x06, tlv.GenericNameComponent, 0x04, 0x75, 0x63, 0x6c, 0x61,
+			tlv.ForwardingHint, 0x08, tlv.Name, 0x06, tlv.GenericNameComponent, 0x04, 0x75, 0x63, 0x6c, 0x61,
 			tlv.Nonce, 0x04, 0x01, 0x02, 0x03, 0x04,
 			tlv.InterestLifetime, 0x02, 0x03, 0xe8,
 			tlv.HopLimit, 0x01, 0x40,
@@ -123,34 +136,12 @@ func TestForwardingHint(t *testing.T) {
 	name1, err := ndn.NameFromString("/ucla")
 	assert.NotNil(t, name1)
 	assert.NoError(t, err)
-	d1, err := ndn.NewDelegation(10, name1)
-	assert.NotNil(t, d1)
-	assert.NoError(t, err)
 	assert.Equal(t, 0, len(i.ForwardingHint()))
-	i.AppendForwardingHint(d1)
+	i.SetForwardingHint([]*ndn.Name{name1})
 	assert.Equal(t, 1, len(i.ForwardingHint()))
-	assert.Equal(t, uint64(10), i.ForwardingHint()[0].Preference())
-	assert.Equal(t, "/ucla", i.ForwardingHint()[0].Name().String())
+	assert.Equal(t, "/ucla", i.ForwardingHint()[0].String())
 
-	name2, err := ndn.NameFromString("/arizona")
-	assert.NotNil(t, name2)
-	assert.NoError(t, err)
-	d2, err := ndn.NewDelegation(20, name2)
-	assert.NotNil(t, d2)
-	assert.NoError(t, err)
-	i.AppendForwardingHint(d2)
-	assert.Equal(t, 2, len(i.ForwardingHint()))
-	assert.Equal(t, uint64(10), i.ForwardingHint()[0].Preference())
-	assert.Equal(t, "/ucla", i.ForwardingHint()[0].Name().String())
-	assert.Equal(t, uint64(20), i.ForwardingHint()[1].Preference())
-	assert.Equal(t, "/arizona", i.ForwardingHint()[1].Name().String())
-
-	assert.NoError(t, i.EraseForwardingHint(1))
-	assert.Equal(t, 1, len(i.ForwardingHint()))
-	assert.Equal(t, uint64(10), i.ForwardingHint()[0].Preference())
-	assert.Equal(t, "/ucla", i.ForwardingHint()[0].Name().String())
-
-	i.ClearForwardingHints()
+	i.SetForwardingHint(nil)
 	assert.Equal(t, 0, len(i.ForwardingHint()))
 }
 
