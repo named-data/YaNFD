@@ -13,6 +13,7 @@ import (
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/tlv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNameCreate(t *testing.T) {
@@ -27,21 +28,25 @@ func TestNameCreate(t *testing.T) {
 }
 
 func TestNameDecode(t *testing.T) {
-	n, err := ndn.DecodeName(nil)
+	n, e := ndn.DecodeName(nil)
 	assert.Nil(t, n)
-	assert.Error(t, err)
+	assert.Error(t, e)
 
-	n, err = ndn.DecodeName(tlv.NewBlock(0x07, []byte{0x08, 0x00}))
+	n, e = ndn.DecodeName(tlv.NewBlock(0x07, []byte{0x08, 0x00}))
+	assert.NoError(t, e)
+	require.NotNil(t, n)
+	require.Equal(t, 1, n.Size())
+	assert.Equal(t, uint16(tlv.GenericNameComponent), n.At(0).Type())
+	assert.Len(t, n.At(0).Value(), 0)
+	assert.Equal(t, "/...", n.String())
+
+	n, e = ndn.DecodeName(tlv.NewBlock(0x08, []byte{0x08, 0x02, 0x67, 0x6f, 0x08, 0x03, 0x6e, 0x64, 0x6e}))
 	assert.Nil(t, n)
-	assert.Error(t, err)
+	assert.Error(t, e)
 
-	n, err = ndn.DecodeName(tlv.NewBlock(0x08, []byte{0x08, 0x02, 0x67, 0x6f, 0x08, 0x03, 0x6e, 0x64, 0x6e}))
-	assert.Nil(t, n)
-	assert.Error(t, err)
-
-	n, err = ndn.DecodeName(tlv.NewBlock(0x07, []byte{0x08, 0x02, 0x67, 0x6f, 0x08, 0x03, 0x6e, 0x64, 0x6e}))
+	n, e = ndn.DecodeName(tlv.NewBlock(0x07, []byte{0x08, 0x02, 0x67, 0x6f, 0x08, 0x03, 0x6e, 0x64, 0x6e}))
 	assert.NotNil(t, n)
-	assert.NoError(t, err)
+	assert.NoError(t, e)
 
 	assert.Equal(t, 2, n.Size())
 	assert.Equal(t, uint16(tlv.GenericNameComponent), n.At(0).Type())

@@ -34,9 +34,6 @@ func DecodeNameComponent(wire *tlv.Block) (NameComponent, error) {
 	if wire == nil {
 		return nil, util.ErrNonExistent
 	}
-	if len(wire.Value()) == 0 {
-		return nil, tlv.ErrBufferTooShort
-	}
 
 	var n NameComponent
 	var err error
@@ -87,10 +84,6 @@ type BaseNameComponent struct {
 
 // NewBaseNameComponent creates a name component of an arbitrary type.
 func NewBaseNameComponent(tlvType uint16, value []byte) *BaseNameComponent {
-	if len(value) == 0 {
-		return nil
-	}
-
 	n := new(BaseNameComponent)
 	n.tlvType = tlvType
 	n.value = value
@@ -98,8 +91,7 @@ func NewBaseNameComponent(tlvType uint16, value []byte) *BaseNameComponent {
 }
 
 func (n *BaseNameComponent) String() string {
-	escaped := escapeComponent(string(n.value))
-	return strconv.FormatUint(uint64(n.tlvType), 10) + "=" + escaped
+	return strconv.FormatUint(uint64(n.tlvType), 10) + "=" + escapeComponent(n.value)
 }
 
 // DeepCopy makes a deep copy of the name component.
@@ -226,10 +218,6 @@ type GenericNameComponent struct {
 
 // NewGenericNameComponent creates a new GenericNameComponent.
 func NewGenericNameComponent(value []byte) *GenericNameComponent {
-	if len(value) == 0 {
-		return nil
-	}
-
 	n := new(GenericNameComponent)
 	n.tlvType = tlv.GenericNameComponent
 	n.value = value
@@ -237,8 +225,7 @@ func NewGenericNameComponent(value []byte) *GenericNameComponent {
 }
 
 func (n *GenericNameComponent) String() string {
-	escaped := escapeComponent(string(n.value))
-	return string(escaped)
+	return escapeComponent(n.value)
 }
 
 // DeepCopy creates a deep copy of the name component.
@@ -263,10 +250,6 @@ type KeywordNameComponent struct {
 
 // NewKeywordNameComponent creates a new KeywordNameComponent.
 func NewKeywordNameComponent(value []byte) *KeywordNameComponent {
-	if len(value) == 0 {
-		return nil
-	}
-
 	n := new(KeywordNameComponent)
 	n.tlvType = tlv.KeywordNameComponent
 	n.value = value
@@ -274,8 +257,7 @@ func NewKeywordNameComponent(value []byte) *KeywordNameComponent {
 }
 
 func (n *KeywordNameComponent) String() string {
-	escaped := escapeComponent(string(n.value))
-	return string(escaped)
+	return escapeComponent(n.value)
 }
 
 // DeepCopy creates a deep copy of the name component.
@@ -645,14 +627,23 @@ func NameFromString(str string) (*Name, error) {
 	return n, nil
 }
 
-func escapeComponent(in string) string {
+func escapeComponent(in []byte) string {
 	out := make([]byte, 0, 3*len(in)) // Capacity of 3 * len is worst case if every character has to be escaped
-	for i := 0; i < len(in); i++ {
-		if (in[i] >= 'A' && in[i] <= 'Z') || (in[i] >= 'a' && in[i] <= 'z') || (in[i] >= '0' && in[i] <= '9') || in[i] == '-' || in[i] == '.' || in[i] == '_' || in[i] == '~' {
-			out = append(out, in[i])
-		} else {
-			out = append(out, []byte("%"+hex.EncodeToString([]byte(in[i:i+1])))...)
+	nPeriods := 0
+	for _, b := range in {
+		switch {
+		case b == '.':
+			nPeriods++
+			fallthrough
+		case (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9') || b == '-' || b == '_' || b == '~':
+			out = append(out, b)
+		default:
+			out = append(out, '%', 0, 0)
+			hex.Encode(out[len(out)-2:], []byte{b})
 		}
+	}
+	if nPeriods == len(in) {
+		out = append(out, '.', '.', '.')
 	}
 	return string(out)
 }
