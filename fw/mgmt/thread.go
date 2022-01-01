@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020-2021 Eric Newberry.
+ * Copyright (C) 2020-2022 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -38,6 +38,7 @@ func MakeMgmtThread() *Thread {
 		core.LogFatal(m, "Unable to create name for management prefix: ", err)
 	}
 	m.modules = make(map[string]Module)
+	m.registerModule("cs", new(ContentStoreModule))
 	m.registerModule("faces", new(FaceModule))
 	m.registerModule("fib", new(FIBModule))
 	m.registerModule("rib", new(RIBModule))
