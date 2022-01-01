@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020-2021 Eric Newberry.
+ * Copyright (C) 2020-2022 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -9,6 +9,8 @@ package mgmt
 
 import (
 	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/dispatch"
+	"github.com/named-data/YaNFD/fw"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/table"
@@ -16,9 +18,8 @@ import (
 
 // ContentStoreModule is the module that handles Content Store Management.
 type ContentStoreModule struct {
-	manager *Thread
-	//nextCsDatasetVersion uint64
-	csPrefix *ndn.Name
+	manager            *Thread
+	nextDatasetVersion uint64
 }
 
 func (c *ContentStoreModule) String() string {
@@ -27,7 +28,6 @@ func (c *ContentStoreModule) String() string {
 
 func (c *ContentStoreModule) registerManager(manager *Thread) {
 	c.manager = manager
-	c.csPrefix = c.manager.localPrefix.DeepCopy().Append(ndn.NewGenericNameComponent([]byte("cs")))
 }
 
 func (c *ContentStoreModule) getManager() *Thread {
@@ -50,8 +50,7 @@ func (c *ContentStoreModule) handleIncomingInterest(interest *ndn.Interest, pitT
 		// TODO
 		//c.erase(interest, pitToken, inFace)
 	case "info":
-		// TODO
-		//c.info(interest, pitToken, inFace)
+		c.info(interest, pitToken, inFace)
 	case "query":
 		// TODO
 		//c.query(interest, pitToken, inFace)
@@ -119,4 +118,42 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
 	}
 	c.manager.sendResponse(response, interest, pitToken, inFace)
+}
+
+func (c *ContentStoreModule) info(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+	if interest.Name().Size() > c.manager.prefixLength()+2 {
+		// Ignore because contains version and/or segment components
+		return
+	}
+
+	// Generate new dataset
+	status := mgmt.CsStatus{
+		Flags: mgmt.CsFlagEnableAdmit | mgmt.CsFlagEnableServe,
+	}
+	for threadID := 0; threadID < fw.NumFwThreads; threadID++ {
+		thread := dispatch.GetFWThread(threadID)
+		status.NCsEntries += uint64(thread.GetNumCsEntries())
+	}
+	// TODO fill other fields
+
+	wire, err := status.Encode()
+	if err != nil {
+		core.LogError(c, "Cannot encode CsStatus dataset: ", err)
+		return
+	}
+	dataset, _ := wire.Wire()
+
+	name, _ := ndn.NameFromString(c.manager.localPrefix.String() + "/cs/info")
+	segments := mgmt.MakeStatusDataset(name, c.nextDatasetVersion, dataset)
+	for _, segment := range segments {
+		encoded, err := segment.Encode()
+		if err != nil {
+			core.LogError(c, "Unable to encode forwarder status dataset: ", err)
+			return
+		}
+		c.manager.transport.Send(encoded, pitToken, nil)
+	}
+
+	core.LogTrace(c, "Published forwarder status dataset version=", c.nextDatasetVersion, ", containing ", len(segments), " segments")
+	c.nextDatasetVersion++
 }
