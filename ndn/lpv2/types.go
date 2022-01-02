@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020 Eric Newberry.
+ * Copyright (C) 2020-2022 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -16,8 +16,8 @@ const (
 	PitToken           = 0x62
 	LpPacket           = 0x64
 	Nack               = 0x0320
+	IncomingFaceID     = 0x032C
 	NextHopFaceID      = 0x0330
-	IncomingFaceID     = 0x0331
 	CachePolicy        = 0x0334
 	CachePolicyType    = 0x0335
 	CongestionMark     = 0x0340
