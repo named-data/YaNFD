@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020-2021 Eric Newberry.
+ * Copyright (C) 2020-2022 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -27,9 +27,9 @@ const congestionMarkOverhead = 3 + 1 + 8
 const ackOverhead = 3 + 1 + 8
 
 const (
-	FaceFlagLocalFields          uint64 = 1 << iota
-	FaceFlagLpReliabilityEnabled uint64 = 1 << iota
-	FaceFlagCongestionMarking    uint64 = 1 << iota
+	FaceFlagLocalFields = 1 << iota
+	FaceFlagLpReliabilityEnabled
+	FaceFlagCongestionMarking
 )
 
 // NDNLPLinkServiceOptions contains the settings for an NDNLPLinkService.
