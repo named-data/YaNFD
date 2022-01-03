@@ -1,0 +1,97 @@
+{{template "base" .}}
+
+{{define "title"}}NDN Peek{{end}}
+{{define "extrahead"}}
+  <style type="text/css">
+      .pure-form-message-inline {
+          font-size: 1.2em;
+      }
+  </style>
+{{end}}
+{{define "bodyhead"}}
+  <h1>NDN Peek</h1>
+{{end}}
+{{define "content"}}
+  <form class="pure-form pure-form-aligned" action="/exec/ndn-ping" method="post">
+    <fieldset>
+      <div class="pure-control-group">
+        <label for="name">Name</label>
+        <input type="text" class="pure-u-2-3" name="name" id="name" required/>
+      </div>
+      <div class="pure-control-group">
+        <label for="can_be_prefix">CanBePrefix</label>
+        <input type="radio" name="can_be_prefix" id="can_be_prefix" value="true" checked> True
+        <input type="radio" name="can_be_prefix" id="can_be_prefix" value="false"> False
+      </div>
+      <div class="pure-control-group">
+        <label for="must_be_fresh">MustBeFresh</label>
+        <input type="radio" name="must_be_fresh" id="must_be_fresh" value="true"> True
+        <input type="radio" name="must_be_fresh" id="must_be_fresh" value="false" checked> False
+      </div>
+      <div class="pure-control-group">
+        <label for="interest_lifetime">InterestLifetime (sec)</label>
+        <input type="number" name="interest_lifetime" id="interest_lifetime" min="0" max="120" step="1" value="4"
+               required/>
+      </div>
+      <div class="pure-controls">
+        <button type="submit" class="pure-button pure-button-primary">Express Interest</button>
+      </div>
+    </fieldset>
+  </form>
+
+  {% if response_time %}
+    <h2 style="text-align: center">Response</h2>
+    <form class="pure-form pure-form-aligned">
+      <fieldset>
+        <div class="pure-control-group">
+          <label>Response Time</label>
+          <span class="pure-form-message-inline">{{ response_time|e }}</span>
+        </div>
+        <div class="pure-control-group">
+          <label>Response Type</label>
+          <span class="pure-form-message-inline">{{ response_type|e }}</span>
+        </div>
+        <div class="pure-control-group">
+          <label for="res_name">Name</label>
+          <input type="text" class="pure-u-2-3" name="res_name" id="res_name" value="{{ name|urlencode }}" readonly/>
+        </div>
+        {% if content_type %}
+          <div class="pure-control-group">
+            <label>ContentType</label>
+            <span class="pure-form-message-inline">{{ content_type|e }}</span>
+          </div>
+        {% endif %}
+        {% if freshness_period %}
+          <div class="pure-control-group">
+            <label>FreshnessPeriod</label>
+            <span class="pure-form-message-inline">{{ freshness_period|e }}</span>
+          </div>
+        {% endif %}
+        {% if final_block_id %}
+          <div class="pure-control-group">
+            <label for="res_finalblockid">FinalBlockId</label>
+            <input type="text" class="pure-u-2-3" name="res_finalblockid" id="res_finalblockid"
+                   value="{{ final_block_id|urlencode }}" readonly/>
+          </div>
+        {% endif %}
+        {% if signature_type %}
+          <div class="pure-control-group">
+            <label>SignatureType</label>
+            <span class="pure-form-message-inline">{{ signature_type|e }}</span>
+          </div>
+        {% endif %}
+        {% if reason %}
+          <div class="pure-control-group">
+            <label>Reason Code</label>
+            <span class="pure-form-message-inline">{{ reason|e }}</span>
+          </div>
+        {% endif %}
+        {% if download %}
+          <div class="pure-controls">
+            <a class="pure-button pure-button-primary" href="{{ download }}">Download</a>
+          </div>
+        {% endif %}
+      </fieldset>
+    </form>
+  {% endif %}
+{{end}}

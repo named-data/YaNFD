@@ -1,0 +1,124 @@
+{{template "base" .}}
+
+{{define "title"}}Routing{{end}}
+{{define "bodyhead"}}
+  <h1>Routing</h1>
+{{end}}
+{{define "content"}}
+  <div class="pure-g">
+    <div id="left-side" class="pure-u-1-2">
+      <h2>Forwarding Table (FIB)</h2>
+      <table class="pure-table pure-table-bordered">
+        <thead>
+        <tr>
+          <th>Prefix</th>
+          <th>#Route</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{$rowClass := "pure-table-odd"}}
+        {{range .FibList}}
+          <tr class="{{$rowClass}}">
+            <td><a href="/routing?name={{.Prefix}}">{{.Prefix}}</a></td>
+            <td>{{.RouteCount}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table><br/>
+      <h2>Routing Table (RIB)</h2>
+      <table class="pure-table pure-table-bordered">
+        <thead>
+        <tr>
+          <th>Prefix</th>
+          <th>#Route</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{$rowClass := "pure-table-odd"}}
+        {{range .RibList}}
+          <tr class="{{$rowClass}}">
+            <td><a href="/routing?name={{.Prefix}}">{{.Prefix}}</a></td>
+            <td>{{.RouteCount}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table><br/>
+      <form action="/routing/add" method="post">
+        <p>
+          <label for="name">Prefix</label>
+          <input type="text" name="name" id="name"/>
+        </p>
+        <p>
+          <label for="face_id">Face ID</label>
+          <input type="text" name="face_id" id="face_id"/>
+        </p>
+        <p>
+          <button type="submit">Add</button>
+        </p>
+      </form>
+      {{if ne .StatusCode 0}}
+        <p>{{.StatusCode}} {{.StatusMsg}}</p>
+      {{end}}
+    </div>
+    <div id="right-side" class="pure-u-1-2">
+      {{if .FibHops }}
+        <h2>FIB Entry for {{.RequestName}}</h2>
+        <table class="pure-table">
+          <thead>
+          <tr>
+            <th>Face</th>
+            <th>URI</th>
+            <th>Cost</th>
+          </tr>
+          </thead>
+          <tbody>
+          {{$rowClass := "pure-table-odd"}}
+          {{range .FibHops}}
+            <tr class="{{$rowClass}}">
+              <td><a href="/faces?face_id={{.FaceID}}">{{.FaceID}}</a></td>
+              <td>{{.Uri}}</td>
+              <td>{{.Cost}}</td>
+            </tr>
+            {{if eq $rowClass "pure-table-odd"}}{{$rowClass = ""}}{{else}}{{$rowClass = "pure-table-odd"}}{{end}}
+          {{end}}
+          </tbody>
+        </table>
+      {{end}}
+      {{if .RibHops }}
+        <h2>RIB Entry for {{.RequestName}}</h2>
+        <table class="pure-table">
+          <thead>
+          <tr>
+            <th>Face</th>
+            <th>URI</th>
+            <th>Origin</th>
+            <th>Cost</th>
+            <th>Flags</th>
+            <th>Delete</th>
+          </tr>
+          </thead>
+          <tbody>
+          {{$rowClass := "pure-table-odd"}}
+          {{range .RibHops}}
+            <tr class="{{$rowClass}}">
+              <td><a href="/faces?face_id={{.FaceID}}">{{.FaceID}}</a></td>
+              <td>{{.Uri}}</td>
+              <td>{{.Origin}}</td>
+              <td>{{.Cost}}</td>
+              <td>{{.Flags}}</td>
+              <td>
+                <form action="/routing/remove" method="post">
+                  <input type="hidden" name="name" value="{{.RequestName}}">
+                  <input type="hidden" name="face_id" value="{{.FaceID}}">
+                  <button type="submit">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {{if eq $rowClass "pure-table-odd"}}{{$rowClass = ""}}{{else}}{{$rowClass = "pure-table-odd"}}{{end}}
+          {{end}}
+          </tbody>
+        </table>
+      {{end}}
+    </div>
+  </div>
+{{end}}
