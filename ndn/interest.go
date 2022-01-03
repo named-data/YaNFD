@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -26,7 +27,7 @@ type Interest struct {
 	name           Name
 	canBePrefix    bool
 	mustBeFresh    bool
-	forwardingHint []Delegation
+	forwardingHint []*Name
 	nonce          []byte
 	lifetime       time.Duration
 	hopLimit       *uint8
@@ -87,12 +88,25 @@ func DecodeInterest(wire *tlv.Block) (*Interest, error) {
 			}
 			mostRecentElem = 4
 			elem.Parse()
-			for _, delegationBlock := range elem.Subelements() {
-				delegation, err := DecodeDelegation(delegationBlock)
-				if err != nil {
-					return nil, errors.New("error decoding Delegation")
+			for _, del := range elem.Subelements() {
+				switch del.Type() {
+				case tlv.Name:
+					name, e := DecodeName(del)
+					if e != nil {
+						return nil, fmt.Errorf("error decoding ForwardingHint.Name: %w", e)
+					}
+					i.forwardingHint = append(i.forwardingHint, name)
+				case tlv.Delegation:
+					delegation, e := DecodeDelegation(del)
+					if e != nil {
+						return nil, fmt.Errorf("error decoding ForwardingHint.Delegation: %w", e)
+					}
+					i.forwardingHint = append(i.forwardingHint, delegation.Name())
+				default:
+					if tlv.IsCritical(del.Type()) {
+						return nil, tlv.ErrUnrecognizedCritical
+					}
 				}
-				i.forwardingHint = append(i.forwardingHint, *delegation)
 			}
 		case tlv.Nonce:
 			if mostRecentElem >= 5 {
@@ -243,32 +257,16 @@ func (i *Interest) SetMustBeFresh(mustBeFresh bool) {
 	i.wire = nil
 }
 
-// ForwardingHint returns a copy of the delegations in the ForwardingHint in the Interest.
-func (i *Interest) ForwardingHint() []Delegation {
+// ForwardingHint returns the ForwardingHint.
+// The return value should not be modified.
+func (i *Interest) ForwardingHint() []*Name {
 	return i.forwardingHint
 }
 
-// AppendForwardingHint appends a delegation to the ForwardingHint in the Interest.
-func (i *Interest) AppendForwardingHint(delegation *Delegation) {
-	i.forwardingHint = append(i.forwardingHint, *delegation)
+// SetForwardingHint replaces the ForwardingHint.
+func (i *Interest) SetForwardingHint(fh []*Name) {
+	i.forwardingHint = fh
 	i.wire = nil
-}
-
-// ClearForwardingHints removes all forwarding hints attached to the Interest.
-func (i *Interest) ClearForwardingHints() {
-	i.forwardingHint = []Delegation{}
-	i.wire = nil
-}
-
-// EraseForwardingHint removes the forwarding hint at the specified index from the Interest.
-func (i *Interest) EraseForwardingHint(index int) error {
-	if index < 0 || index >= len(i.forwardingHint) {
-		return util.ErrOutOfRange
-	}
-
-	i.forwardingHint = append(i.forwardingHint[:index], i.forwardingHint[index+1:]...)
-	i.wire = nil
-	return nil
 }
 
 // Nonce gets the nonce of the Interest.
