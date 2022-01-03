@@ -20,6 +20,10 @@ We have received reports that YaNFD operates properly on Windows 10 (with minor 
 go install github.com/named-data/YaNFD/cmd/yanfd@latest
 ```
 
+## Install YaNFD from Windows Store
+
+Get it from: https://www.microsoft.com/store/apps/9NBK3ZJT4CL8
+
 ## Install the configuration file
 ### On MacOS/Linux
 ```bash
