@@ -202,26 +202,26 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// Check for forwarding hint and, if present, determine if reaching producer region (and then strip forwarding hint)
 	isReachingProducerRegion := true
-	var forwardingHint *ndn.Delegation
+	var fhName *ndn.Name
 	if len(interest.ForwardingHint()) > 0 {
 		isReachingProducerRegion = false
 		for _, fh := range interest.ForwardingHint() {
-			if table.NetworkRegion.IsProducer(fh.Name()) {
+			if table.NetworkRegion.IsProducer(fh) {
 				isReachingProducerRegion = true
 				break
-			} else if forwardingHint == nil || fh.Preference() < forwardingHint.Preference() {
-				forwardingHint = &fh
+			} else if fhName == nil {
+				fhName = fh
 			}
 		}
 
 		if isReachingProducerRegion {
-			interest.ClearForwardingHints()
-			forwardingHint = nil
+			interest.SetForwardingHint(nil)
+			fhName = nil
 		}
 	}
 
 	// Check if any matching PIT entries (and if duplicate)
-	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, forwardingHint, incomingFace.FaceID())
+	pitEntry, isDuplicate := t.pitCS.FindOrInsertPIT(interest, fhName, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
 		core.LogInfo(t, "Interest ", interest.Name(), " is looping - DROP")
@@ -268,10 +268,10 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// Pass to strategy AfterReceiveInterest pipeline
 	var nexthops []*table.FibNextHopEntry
-	if forwardingHint == nil {
+	if fhName == nil {
 		nexthops = table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
 	} else {
-		nexthops = table.FibStrategyTable.LongestPrefixNexthops(forwardingHint.Name())
+		nexthops = table.FibStrategyTable.LongestPrefixNexthops(fhName)
 	}
 	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest, nexthops)
 }

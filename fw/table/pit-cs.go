@@ -51,7 +51,7 @@ type PitEntry struct {
 	Name           *ndn.Name
 	CanBePrefix    bool
 	MustBeFresh    bool
-	ForwardingHint *ndn.Delegation          // Interests must match in terms of Forwarding Hint to be aggregated in PIT.
+	ForwardingHint *ndn.Name                // Interests must match in terms of Forwarding Hint to be aggregated in PIT.
 	InRecords      map[uint64]*PitInRecord  // Key is face ID
 	OutRecords     map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime time.Time
@@ -195,12 +195,12 @@ func (p *PitCs) IsCsServing() bool {
 }
 
 // FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
-func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Delegation, inFace uint64) (*PitEntry, bool) {
+func (p *PitCs) FindOrInsertPIT(interest *ndn.Interest, hint *ndn.Name, inFace uint64) (*PitEntry, bool) {
 	node := p.root.fillTreeToPrefix(interest.Name())
 
 	var entry *PitEntry
 	for _, curEntry := range node.pitEntries {
-		if curEntry.CanBePrefix == interest.CanBePrefix() && curEntry.MustBeFresh == interest.MustBeFresh() && ((hint == nil && curEntry.ForwardingHint == nil) || hint.Name().Equals(curEntry.ForwardingHint.Name())) {
+		if curEntry.CanBePrefix == interest.CanBePrefix() && curEntry.MustBeFresh == interest.MustBeFresh() && ((hint == nil && curEntry.ForwardingHint == nil) || hint.Equals(curEntry.ForwardingHint)) {
 			entry = curEntry
 			break
 		}
