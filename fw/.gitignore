@@ -1,5 +1,7 @@
 /yanfd
 /yanfd.exe
+/yanfdui
+/yanfdui.exe
 
 *.test
 *.out
@@ -7,3 +9,4 @@
 
 .vscode
 .idea
+publish/**
