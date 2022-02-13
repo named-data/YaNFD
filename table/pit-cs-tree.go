@@ -139,19 +139,19 @@ func (p *PitCsTree) RemoveInterest(pitEntry PitEntry) bool {
 // Originally implemented as FindOrInsertPIT()
 func (p *PitCsTree) FindInterestExactMatch(interest *ndn.Interest) PitEntry {
 	node := p.root.findExactMatchEntry(interest.Name())
-	for _, curEntry := range node.pitEntries {
-		if curEntry.CanBePrefix() == interest.CanBePrefix() && curEntry.MustBeFresh() == interest.MustBeFresh() {
-			return curEntry
+	if node != nil {
+		for _, curEntry := range node.pitEntries {
+			if curEntry.CanBePrefix() == interest.CanBePrefix() && curEntry.MustBeFresh() == interest.MustBeFresh() {
+				return curEntry
+			}
 		}
 	}
 	return nil
 }
 
 // Logic taken from FindPITFromData
-func (p *PitCsTree) FindInterestPrefixMatch(interest *ndn.Interest, token uint32) []PitEntry {
-	return p.findInterestPrefixMatchByName(interest.Name())
-}
-
+// If we have interests /a and /a/b, a prefix search for data with name /a/b
+// will return PitEntries for both /a and /a/b
 func (p *PitCsTree) FindInterestPrefixMatchByData(data *ndn.Data, token *uint32) []PitEntry {
 	if token != nil {
 		if entry, ok := p.pitTokenMap[*token]; ok && entry.Token() == *token {
@@ -352,15 +352,24 @@ func (p *PitCsTree) eraseCsDataFromReplacementStrategy(index uint64) {
 	}
 }
 
+// Given a pitCsTreeNode that is the longest prefix match of an interest, look for any
+// CS data rechable from this pitCsTreeNode. This function must be called only after
+// the interest as far as possible with the nodes components in the PitCSTree.
+// For example, if we have data for /a/b/v=10 and the interest is /a/b,
+// p should be the `b` node, not the root node.
 func (p *pitCsTreeNode) findMatchingDataCSPrefix(interest *ndn.Interest) CsEntry {
 	if p.csEntry != nil && (!interest.MustBeFresh() || time.Now().Before(p.csEntry.staleTime)) {
+		// A csEntry exists at this node and is acceptable to satisfy the interest
 		return p.csEntry
 	}
 
-	if p.depth < interest.Name().Size() {
+	// No csEntry at current node, look farther down the tree
+	// We must have already matched the entire interest name
+	if p.depth >= interest.Name().Size() {
 		for _, child := range p.children {
-			if interest.Name().At(p.depth).Equals(child.component) {
-				return child.findMatchingDataCSPrefix(interest)
+			potentialMatch := child.findMatchingDataCSPrefix(interest)
+			if potentialMatch != nil {
+				return potentialMatch
 			}
 		}
 	}
