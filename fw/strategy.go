@@ -23,10 +23,10 @@ type Strategy interface {
 	String() string
 	GetName() *ndn.Name
 
-	AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry)
-	BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data)
+	AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
+	AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
+	AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry)
+	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
 }
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
@@ -60,16 +60,16 @@ func (s *StrategyBase) GetName() *ndn.Name {
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) bool {
+func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry table.PitEntry, nexthop uint64, inFace uint64) bool {
 	return s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(data *ndn.Data, pitEntry *table.PitEntry, nexthop uint64, inFace uint64) {
+func (s *StrategyBase) SendData(data *ndn.Data, pitEntry table.PitEntry, nexthop uint64, inFace uint64) {
 	var pitToken []byte
-	if inRecord, ok := pitEntry.InRecords[nexthop]; ok {
+	if inRecord, ok := pitEntry.InRecords()[nexthop]; ok {
 		pitToken = inRecord.PitToken
-		delete(pitEntry.InRecords, nexthop)
+		delete(pitEntry.InRecords(), nexthop)
 	}
 	s.thread.processOutgoingData(data, nexthop, pitToken, inFace)
 }
