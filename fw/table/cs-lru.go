@@ -15,13 +15,13 @@ import (
 
 // CsLRU is a least recently used (LRU) replacement policy for the Content Store.
 type CsLRU struct {
-	cs        *PitCs
+	cs        PitCsTable
 	queue     *list.List
 	locations map[uint64]*list.Element
 }
 
 // NewCsLRU creates a new LRU replacement policy for the Content Store.
-func NewCsLRU(cs *PitCs) *CsLRU {
+func NewCsLRU(cs PitCsTable) *CsLRU {
 	l := new(CsLRU)
 	l.cs = cs
 	l.queue = list.New()
@@ -62,7 +62,7 @@ func (l *CsLRU) BeforeUse(index uint64, data *ndn.Data) {
 func (l *CsLRU) EvictEntries() {
 	for l.queue.Len() > csCapacity {
 		indexToErase := l.queue.Front().Value.(uint64)
-		l.cs.eraseCsDataFromReplacementStrategy(indexToErase)
+		l.cs.eraseCsDataFromReplacementStrategy(indexToErase) // TODO: find better name for this method
 		l.queue.Remove(l.queue.Front())
 	}
 }

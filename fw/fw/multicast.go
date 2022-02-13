@@ -31,23 +31,23 @@ func (s *Multicast) Instantiate(fwThread *Thread) {
 }
 
 // AfterContentStoreHit ...
-func (s *Multicast) AfterContentStoreHit(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *Multicast) AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
 	// Send downstream
 	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", data.Name(), " to FaceID=", inFace)
 	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
-func (s *Multicast) AfterReceiveData(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
-	core.LogTrace(s, "AfterReceiveData: Data=", data.Name(), ", ", len(pitEntry.InRecords), " In-Records")
-	for faceID := range pitEntry.InRecords {
+func (s *Multicast) AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
+	core.LogTrace(s, "AfterReceiveData: Data=", data.Name(), ", ", len(pitEntry.InRecords()), " In-Records")
+	for faceID := range pitEntry.InRecords() {
 		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", data.Name(), " to FaceID=", faceID)
 		s.SendData(data, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
-func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
+func (s *Multicast) AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", interest.Name(), " - DROP")
 		return
@@ -60,6 +60,6 @@ func (s *Multicast) AfterReceiveInterest(pitEntry *table.PitEntry, inFace uint64
 }
 
 // BeforeSatisfyInterest ...
-func (s *Multicast) BeforeSatisfyInterest(pitEntry *table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *Multicast) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
 	// This does nothing in Multicast
 }
