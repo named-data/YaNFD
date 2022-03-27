@@ -126,8 +126,10 @@ func (t *UnixStreamTransport) runReceive() {
 			} else if startPos >= tlvSize {
 				// Packet was successfully received, send up to link service
 				t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
-				copy(recvBuf, recvBuf[tlvSize:])
 				startPos -= tlvSize
+				if startPos > 0 {
+					copy(recvBuf, recvBuf[tlvSize:])
+				}
 			} else {
 				core.LogTrace(t, "Received packet is incomplete")
 				break
