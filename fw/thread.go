@@ -128,8 +128,10 @@ func (t *Thread) Run() {
 			t.processIncomingInterest(pendingPacket)
 		case pendingPacket := <-t.pendingDatas:
 			t.processIncomingData(pendingPacket)
-		case expiringPitEntry := <-t.pitCS.ExpiringPitEntries:
-			t.finalizeInterest(expiringPitEntry)
+		case <-t.pitCS.Ticker.C:
+			for _, entry := range t.pitCS.RemoveExpiredEntries() {
+				t.finalizeInterest(entry)
+			}
 		case <-t.deadNonceList.Ticker.C:
 			t.deadNonceList.RemoveExpiredEntries()
 		case <-t.shouldQuit:
@@ -261,7 +263,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Update PIT entry expiration timer
-	pitEntry.UpdateExpirationTimer()
+	t.pitCS.UpdateExpirationTimer(pitEntry)
 
 	// If NextHopFaceId set, forward to that face (if it exists) or drop
 	if pendingPacket.NextHopFaceID != nil {
@@ -338,9 +340,6 @@ func (t *Thread) finalizeInterest(pitEntry *table.PitEntry) {
 	if !pitEntry.Satisfied {
 		t.NUnsatisfiedInterests += uint64(len(pitEntry.InRecords))
 	}
-
-	// Remove from PIT
-	t.pitCS.RemovePITEntry(pitEntry)
 }
 
 func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
@@ -407,7 +406,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 
 	if len(pitEntries) == 1 {
 		// Set PIT entry expiration to now
-		pitEntries[0].SetExpirationTimerToNow()
+		t.pitCS.SetExpirationTimerToNow(pitEntries[0])
 
 		// Invoke strategy's AfterReceiveData
 		core.LogTrace(t, "Sending Data=", data.Name(), " to strategy=", strategyName)
@@ -436,7 +435,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 			}
 
 			// Set PIT entry expiration to now
-			pitEntry.SetExpirationTimerToNow()
+			t.pitCS.SetExpirationTimerToNow(pitEntry)
 
 			// Invoke strategy's BeforeSatisfyInterest
 			strategy.BeforeSatisfyInterest(pitEntry, *pendingPacket.IncomingFaceID, data)

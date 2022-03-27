@@ -9,6 +9,7 @@ package table
 
 import (
 	"bytes"
+	"container/heap"
 	"math/rand"
 	"time"
 
@@ -20,10 +21,11 @@ import (
 // PitCs represents the PIT-CS tree for a thread.
 type PitCs struct {
 	root               *PitCsNode
-	ExpiringPitEntries chan *PitEntry
 
-	nPitEntries int // Number of PIT entries in tree
-	pitTokenMap map[uint32]*PitEntry
+	nPitEntries    int // Number of PIT entries in tree
+	pitTokenMap    map[uint32]*PitEntry
+	pitExpiryQueue PriorityQueue
+	Ticker         *time.Ticker
 
 	nCsEntries    int // Number of CS entries in tree
 	csReplacement CsReplacementPolicy
@@ -56,6 +58,7 @@ type PitEntry struct {
 	OutRecords     map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime time.Time
 	Satisfied      bool
+	queueItem      *PQItem
 
 	Token uint32
 }
@@ -94,8 +97,8 @@ func NewPitCS() *PitCs {
 	pitCs.root = new(PitCsNode)
 	pitCs.root.component = nil // Root component will be nil since it represents zero components
 	pitCs.root.pitEntries = make([]*PitEntry, 0)
-	pitCs.ExpiringPitEntries = make(chan *PitEntry, tableQueueSize)
 	pitCs.pitTokenMap = make(map[uint32]*PitEntry)
+	pitCs.Ticker = time.NewTicker(100*time.Millisecond)
 
 	// This value has already been validated from loading the configuration, so we know it will be one of the following (or else fatal)
 	switch csReplacementPolicy {
@@ -151,8 +154,8 @@ func (p *PitCsNode) pruneIfEmpty() {
 		// Remove from parent's children
 		for i, child := range curNode.parent.children {
 			if child == p {
-				if i < len(curNode.parent.children)-1 {
-					copy(curNode.parent.children[i:], curNode.parent.children[i+1:])
+				if len(curNode.parent.children) > 1 {
+					curNode.parent.children[i] = curNode.parent.children[len(curNode.parent.children)-1]
 				}
 				curNode.parent.children = curNode.parent.children[:len(curNode.parent.children)-1]
 				break
@@ -261,14 +264,16 @@ func (p *PitCs) FindPITFromData(data *ndn.Data, token *uint32) []*PitEntry {
 func (p *PitCs) RemovePITEntry(pitEntry *PitEntry) bool {
 	for i, entry := range pitEntry.node.pitEntries {
 		if entry == pitEntry {
-			if i < len(pitEntry.node.pitEntries)-1 {
-				copy(pitEntry.node.pitEntries[i:], pitEntry.node.pitEntries[i+1:])
+			if len(pitEntry.node.pitEntries) > 1 {
+				pitEntry.node.pitEntries[i] = pitEntry.node.pitEntries[len(pitEntry.node.pitEntries)-1]
 			}
 			pitEntry.node.pitEntries = pitEntry.node.pitEntries[:len(pitEntry.node.pitEntries)-1]
 			if len(pitEntry.node.pitEntries) == 0 {
 				entry.node.pruneIfEmpty()
 			}
 			p.nPitEntries--
+
+			delete(p.pitTokenMap, entry.Token)
 			return true
 		}
 	}
@@ -347,16 +352,6 @@ func (p *PitCsNode) findMatchingDataCSPrefix(interest *ndn.Interest) *CsEntry {
 	return nil
 }
 
-func (e *PitEntry) waitForPitExpiry() {
-	if !e.ExpirationTime.IsZero() {
-		time.Sleep(e.ExpirationTime.Sub(time.Now().Add(time.Millisecond * 1))) // Add 1 millisecond to ensure *after* expiration
-		if e.ExpirationTime.Before(time.Now()) {
-			// Otherwise, has been updated by another PIT entry
-			e.pitCs.ExpiringPitEntries <- e
-		}
-	}
-}
-
 // FindOrInsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
 func (e *PitEntry) FindOrInsertInRecord(interest *ndn.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool) {
 	var record *PitInRecord
@@ -405,8 +400,8 @@ func (e *PitEntry) FindOrInsertOutRecord(interest *ndn.Interest, face uint64) *P
 }
 
 // UpdateExpirationTimer updates the expiration timer to the latest expiration time of any in or out record in the entry.
-func (e *PitEntry) UpdateExpirationTimer() {
-	e.ExpirationTime = time.Unix(0, 0)
+func (p *PitCs) UpdateExpirationTimer(e *PitEntry) {
+	e.ExpirationTime = time.Now()
 
 	for _, record := range e.InRecords {
 		if record.ExpirationTime.After(e.ExpirationTime) {
@@ -420,13 +415,26 @@ func (e *PitEntry) UpdateExpirationTimer() {
 		}
 	}
 
-	go e.waitForPitExpiry()
+	p.updatePitExpiryQueue(e)
 }
 
 // SetExpirationTimerToNow updates the expiration timer to the current time.
-func (e *PitEntry) SetExpirationTimerToNow() {
+func (p *PitCs) SetExpirationTimerToNow(e *PitEntry) {
 	e.ExpirationTime = time.Now()
-	e.pitCs.ExpiringPitEntries <- e
+	p.updatePitExpiryQueue(e)
+}
+
+// Update the queueItem for the pitExpiryQueue
+func (p *PitCs) updatePitExpiryQueue(e *PitEntry) {
+	if e.queueItem == nil {
+		e.queueItem = &PQItem{
+                        Object: e,
+                        Priority: e.ExpirationTime.UnixNano(),
+                }
+		heap.Push(&p.pitExpiryQueue, e.queueItem)
+	} else {
+		p.pitExpiryQueue.update(e.queueItem, e, e.ExpirationTime.UnixNano())
+	}
 }
 
 // ClearInRecords removes all in-records from the PIT entry.
@@ -437,4 +445,14 @@ func (e *PitEntry) ClearInRecords() {
 // ClearOutRecords removes all out-records from the PIT entry.
 func (e *PitEntry) ClearOutRecords() {
 	e.OutRecords = make(map[uint64]*PitOutRecord)
+}
+
+func (p *PitCs) RemoveExpiredEntries() []*PitEntry {
+	res := make([]*PitEntry, 0)
+	for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.Peek().Priority < time.Now().UnixNano() {
+		entry := heap.Pop(&p.pitExpiryQueue).(*PQItem).Object.(*PitEntry)
+		res = append(res, entry)
+		p.RemovePITEntry(entry)
+	}
+	return res
 }
