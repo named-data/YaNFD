@@ -143,12 +143,18 @@ func (t *Thread) Run() {
 
 // QueueInterest queues an Interest for processing by this forwarding thread.
 func (t *Thread) QueueInterest(interest *ndn.PendingPacket) {
-	t.pendingInterests <- interest
+	select {
+		case t.pendingInterests <- interest:
+		default:
+	}
 }
 
 // QueueData queues a Data packet for processing by this forwarding thread.
 func (t *Thread) QueueData(data *ndn.PendingPacket) {
-	t.pendingDatas <- data
+	select {
+		case t.pendingDatas <- data:
+		default:
+	}
 }
 
 func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
