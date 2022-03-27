@@ -8,7 +8,7 @@
 package table
 
 import (
-	"container/list"
+	"container/heap"
 	"encoding/binary"
 	"time"
 
@@ -18,16 +18,16 @@ import (
 
 // DeadNonceList represents the Dead Nonce List for a forwarding thread.
 type DeadNonceList struct {
-	list            map[uint64]byte
-	ExpirationTimer chan bool
-	expiringEntries list.List
+	list            map[uint64]bool
+	expirationQueue PriorityQueue
+	Ticker          *time.Ticker
 }
 
 // NewDeadNonceList creates a new Dead Nonce List for a forwarding thread.
 func NewDeadNonceList() *DeadNonceList {
 	d := new(DeadNonceList)
-	d.list = make(map[uint64]byte)
-	d.ExpirationTimer = make(chan bool, tableQueueSize)
+	d.list = make(map[uint64]bool)
+	d.Ticker = time.NewTicker(100 * time.Millisecond)
 	return d
 }
 
@@ -52,20 +52,25 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) bool {
 	_, exists := d.list[hash]
 
 	if !exists {
-		d.expiringEntries.PushBack(hash)
-		go func() {
-			time.Sleep(deadNonceListLifetime)
-			d.ExpirationTimer <- true
-		}()
+		d.list[hash] = true
+		heap.Push(&d.expirationQueue, &PQItem{
+			Object: hash,
+			Priority: (time.Now().Add(deadNonceListLifetime)).UnixNano(),
+		})
 	}
 	return exists
 }
 
-// RemoveExpiredEntry removes the front entry from Dead Nonce List.
-func (d *DeadNonceList) RemoveExpiredEntry() {
-	if d.expiringEntries.Len() > 0 {
-		hash := d.expiringEntries.Front().Value.(uint64)
+// RemoveExpiredEntry removes all expired entries from Dead Nonce List.
+func (d *DeadNonceList) RemoveExpiredEntries() {
+	evicted := 0
+	for d.expirationQueue.Len() > 0 && d.expirationQueue.Peek().Priority < time.Now().UnixNano() {
+		hash := heap.Pop(&d.expirationQueue).(*PQItem).Object.(uint64)
 		delete(d.list, hash)
-		d.expiringEntries.Remove(d.expiringEntries.Front())
+		evicted += 1
+
+		if evicted >= 100 {
+			break
+		}
 	}
 }
