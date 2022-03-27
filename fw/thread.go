@@ -130,12 +130,14 @@ func (t *Thread) Run() {
 			t.processIncomingData(pendingPacket)
 		case expiringPitEntry := <-t.pitCS.ExpiringPitEntries:
 			t.finalizeInterest(expiringPitEntry)
-		case <-t.deadNonceList.ExpirationTimer:
-			t.deadNonceList.RemoveExpiredEntry()
+		case <-t.deadNonceList.Ticker.C:
+			t.deadNonceList.RemoveExpiredEntries()
 		case <-t.shouldQuit:
 			continue
 		}
 	}
+
+	t.deadNonceList.Ticker.Stop()
 
 	core.LogInfo(t, "Stopping thread")
 	t.HasQuit <- true
