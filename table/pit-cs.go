@@ -18,16 +18,8 @@ type PitCsTable interface {
 	InsertInterest(interest *ndn.Interest, hint *ndn.Name, inFace uint64) (PitEntry, bool)
 	RemoveInterest(pitEntry PitEntry) bool
 	FindInterestExactMatch(interest *ndn.Interest) PitEntry
-	// FindInterestExactMatchByName(name *ndn.Name) PitEntry
-	FindInterestPrefixMatch(interest *ndn.Interest, token uint32) []PitEntry
 	FindInterestPrefixMatchByData(data *ndn.Data, token *uint32) []PitEntry
-	// FindInterestPrefixMatchByName(me *ndn.Name) []PitEntry
-
 	PitSize() int
-
-	// InsertOutRecord(interest *ndn.Interest, face uint64) *PitOutRecord
-	// GetOutRecords(interest *ndn.Interest) []*PitOutRecord
-	// GetOutRecordsByName(name *ndn.Name) []*PitOutRecord
 
 	InsertData(data *ndn.Data)
 	FindMatchingDataFromCS(interest *ndn.Interest) CsEntry
@@ -48,7 +40,7 @@ type basePitCsTable struct {
 // PitEntry dictates what entries in a PIT-CS table should implement
 type PitEntry interface {
 	PitCs() PitCsTable
-	Name() *ndn.Name // external users can access this
+	Name() *ndn.Name
 	CanBePrefix() bool
 	MustBeFresh() bool
 	ForwardingHint() *ndn.Name
@@ -133,7 +125,7 @@ func (bpe *basePitEntry) InsertInRecord(interest *ndn.Interest, face uint64, inc
 		record.ExpirationTime = time.Now().Add(interest.Lifetime())
 		record.PitToken = incomingPitToken
 		bpe.inRecords[face] = record
-		return record, len(bpe.inRecords) > 1
+		return record, false
 	}
 
 	// Existing record
@@ -142,16 +134,6 @@ func (bpe *basePitEntry) InsertInRecord(interest *ndn.Interest, face uint64, inc
 	record.LatestInterest = interest
 	record.ExpirationTime = time.Now().Add(interest.Lifetime())
 	return record, true
-}
-
-// ClearInRecords removes all in-records from the PIT entry.
-func (bpe *basePitEntry) ClearInRecords() {
-	bpe.inRecords = make(map[uint64]*PitInRecord)
-}
-
-// ClearOutRecords removes all out-records from the PIT entry.
-func (bpe *basePitEntry) ClearOutRecords() {
-	bpe.outRecords = make(map[uint64]*PitOutRecord)
 }
 
 // SetExpirationTimerToNow updates the expiration timer to the current time.
@@ -215,6 +197,16 @@ func (bpe *basePitEntry) InRecords() map[uint64]*PitInRecord {
 
 func (bpe *basePitEntry) OutRecords() map[uint64]*PitOutRecord {
 	return bpe.outRecords
+}
+
+// ClearInRecords removes all in-records from the PIT entry.
+func (bpe *basePitEntry) ClearInRecords() {
+	bpe.inRecords = make(map[uint64]*PitInRecord)
+}
+
+// ClearOutRecords removes all out-records from the PIT entry.
+func (bpe *basePitEntry) ClearOutRecords() {
+	bpe.outRecords = make(map[uint64]*PitOutRecord)
 }
 
 func (bpe *basePitEntry) ExpirationTime() time.Time {
