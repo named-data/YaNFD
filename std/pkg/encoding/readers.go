@@ -1,0 +1,211 @@
+package encoding
+
+import (
+	"errors"
+	"io"
+)
+
+type BufferReader struct {
+	buf Buffer
+	pos int
+}
+
+func (r *BufferReader) Read(b []byte) (int, error) {
+	if r.pos >= len(r.buf) && len(b) > 0 {
+		return 0, io.EOF
+	}
+	n := copy(b, r.buf[r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func (r *BufferReader) ReadByte() (byte, error) {
+	if r.pos >= len(r.buf) {
+		return 0, io.EOF
+	}
+	ret := r.buf[r.pos]
+	r.pos++
+	return ret, nil
+}
+
+func (r *BufferReader) UnreadByte() error {
+	if r.pos == 0 {
+		return errors.New("encoding.BufferReader.UnreadByte: negative position")
+	}
+	r.pos--
+	return nil
+}
+
+func (r *BufferReader) Seek(offset int64, whence int) (int64, error) {
+	var newPos int
+	switch whence {
+	case io.SeekStart:
+		newPos = int(offset)
+	case io.SeekCurrent:
+		newPos = r.pos + int(offset)
+	case io.SeekEnd:
+		newPos = len(r.buf) - int(offset)
+	default:
+		return 0, errors.New("encoding.BufferReader.Seek: invalid whence")
+	}
+	if newPos < 0 {
+		return 0, errors.New("encoding.BufferReader.Seek: negative position")
+	}
+	r.pos = newPos
+	return int64(r.pos), nil
+}
+
+func (r *BufferReader) ReadWire(l int) (Wire, error) {
+	if r.pos >= len(r.buf) && l > 0 {
+		return nil, io.EOF
+	}
+	if r.pos+l > len(r.buf) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	ret := make(Wire, 1)
+	ret[0] = r.buf[r.pos : r.pos+l]
+	r.pos += l
+	return ret, nil
+}
+
+func (r *BufferReader) Pos() int {
+	return r.pos
+}
+
+func (r *BufferReader) Length() int {
+	return len(r.buf)
+}
+
+func (r *BufferReader) Range(start, end int) Wire {
+	if start < 0 || end > len(r.buf) || start > end {
+		return nil
+	}
+	return Wire{r.buf[start:end]}
+}
+
+func NewBufferReader(buf Buffer) *BufferReader {
+	return &BufferReader{
+		buf: buf,
+		pos: 0,
+	}
+}
+
+// WireReader is used for reading from a Wire.
+// It is used when parsing a fragmented packet.
+type WireReader struct {
+	wire  Wire
+	seg   int
+	pos   int
+	accSz []int
+}
+
+func (r *WireReader) nextSeg() bool {
+	if r.seg < len(r.wire) && r.pos >= len(r.wire[r.seg]) {
+		r.seg++
+		r.pos = 0
+	}
+	return r.seg < len(r.wire)
+}
+
+func (r *WireReader) Read(b []byte) (int, error) {
+	if !r.nextSeg() && len(b) > 0 {
+		return 0, io.EOF
+	}
+	n := copy(b, r.wire[r.seg][r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func (r *WireReader) ReadByte() (byte, error) {
+	if !r.nextSeg() {
+		return 0, io.EOF
+	}
+	ret := r.wire[r.seg][r.pos]
+	r.pos++
+	return ret, nil
+}
+
+func (r *WireReader) UnreadByte() error {
+	if r.pos == 0 {
+		if r.seg == 0 {
+			return errors.New("encoding.WireReader.UnreadByte: negative position")
+		}
+		r.seg--
+		r.pos = len(r.wire[r.seg])
+	}
+	r.pos--
+	return nil
+}
+
+func (r *WireReader) ReadWire(l int) (Wire, error) {
+	if !r.nextSeg() && l > 0 {
+		return nil, io.EOF
+	}
+	ret := make(Wire, 0, len(r.wire)-r.seg)
+	for l > 0 {
+		if r.seg > len(r.wire) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		if r.pos+l > len(r.wire[r.seg]) {
+			ret = append(ret, r.wire[r.seg][r.pos:])
+			l -= len(r.wire[r.seg]) - r.pos
+			r.seg++
+			r.pos = 0
+		} else {
+			ret = append(ret, r.wire[r.seg][r.pos:r.pos+l])
+			r.pos += l
+			l = 0
+		}
+	}
+	return ret, nil
+}
+
+func (r *WireReader) Pos() int {
+	return r.pos + r.accSz[r.seg]
+}
+
+func (r *WireReader) Length() int {
+	return r.accSz[len(r.wire)]
+}
+
+func (r *WireReader) Range(start, end int) Wire {
+	if start < 0 || end > len(r.wire) || start > end {
+		return nil
+	}
+	var startSeg, startPos, endSeg, endPos int
+	for i := 0; i < len(r.wire); i++ {
+		if r.accSz[i] <= start && r.accSz[i+1] > start {
+			startSeg = i
+			startPos = start - r.accSz[i]
+		}
+		if r.accSz[i] < end && r.accSz[i+1] >= end {
+			endSeg = i
+			endPos = end - r.accSz[i]
+		}
+	}
+	if startSeg == endSeg {
+		return Wire{r.wire[startSeg][startPos:endPos]}
+	} else {
+		ret := make(Wire, endSeg-startSeg+1)
+		ret[0] = r.wire[startSeg][startPos:]
+		for i := startSeg + 1; i < endSeg; i++ {
+			ret = append(ret, r.wire[i])
+		}
+		ret[endSeg-startSeg] = r.wire[endSeg][:endPos]
+		return ret
+	}
+}
+
+func NewWireReader(w Wire) *WireReader {
+	accSz := make([]int, len(w)+1)
+	accSz[0] = 0
+	for i := 0; i < len(w); i++ {
+		accSz[i+1] = accSz[i] + len(w[i])
+	}
+	return &WireReader{
+		wire:  w,
+		seg:   0,
+		pos:   0,
+		accSz: accSz,
+	}
+}
