@@ -210,11 +210,11 @@ func (s *StrategyChoiceModule) list(interest *ndn.Interest, pitToken []byte, inF
 
 	// Generate new dataset
 	// TODO: For thread safety, we should lock the Strategy table from writes until we are done
-	entries := table.FibStrategyTable.GetAllStrategyChoices()
+	entries := table.FibStrategyTable.GetAllForwardingStrategies()
 	dataset := make([]byte, 0)
 	strategyChoiceList := mgmt.MakeStrategyChoiceList()
 	for _, fsEntry := range entries {
-		strategyChoiceList = append(strategyChoiceList, mgmt.MakeStrategyChoice(fsEntry.Name, fsEntry.GetStrategy()))
+		strategyChoiceList = append(strategyChoiceList, mgmt.MakeStrategyChoice(fsEntry.Name(), fsEntry.GetStrategy()))
 	}
 
 	wires, err := strategyChoiceList.Encode()
