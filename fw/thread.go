@@ -230,7 +230,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	core.LogDebug(t, "Found or updated PIT entry for Interest=", interest.Name(), ", PitToken=", uint64(pitEntry.Token()))
 
 	// Get strategy for name
-	strategyName := table.FibStrategyTable.LongestPrefixStrategy(interest.Name())
+	strategyName := table.FibStrategyTable.FindStrategy(interest.Name())
 	strategy := t.strategies[strategyName.String()]
 	core.LogDebug(t, "Using Strategy=", strategyName, " for Interest=", interest.Name())
 
@@ -270,9 +270,9 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	// Pass to strategy AfterReceiveInterest pipeline
 	var nexthops []*table.FibNextHopEntry
 	if fhName == nil {
-		nexthops = table.FibStrategyTable.LongestPrefixNexthops(interest.Name())
+		nexthops = table.FibStrategyTable.FindNextHops(interest.Name())
 	} else {
-		nexthops = table.FibStrategyTable.LongestPrefixNexthops(fhName)
+		nexthops = table.FibStrategyTable.FindNextHops(fhName)
 	}
 	strategy.AfterReceiveInterest(pitEntry, incomingFace.FaceID(), interest, nexthops)
 }
@@ -395,7 +395,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Get strategy for name
-	strategyName := table.FibStrategyTable.LongestPrefixStrategy(data.Name())
+	strategyName := table.FibStrategyTable.FindStrategy(data.Name())
 	strategy := t.strategies[strategyName.String()]
 
 	if len(pitEntries) == 1 {
