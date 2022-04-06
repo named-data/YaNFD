@@ -545,6 +545,7 @@ func config(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// StartHttpServer starts the HTTP server of YaNFD UI.
 func StartHttpServer(wg *sync.WaitGroup, addr string, baseDir string, configFilePath string) *http.Server {
 	ret := &http.Server{Addr: addr}
 
@@ -580,6 +581,7 @@ func StartHttpServer(wg *sync.WaitGroup, addr string, baseDir string, configFile
 	return ret
 }
 
+// OpenBrowser opens the browser to the specified URL.
 func OpenBrowser(url string) error {
 	switch runtime.GOOS {
 	case "linux":

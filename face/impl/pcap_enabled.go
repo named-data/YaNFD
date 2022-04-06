@@ -1,4 +1,4 @@
-// +build windows cgo
+//go:build windows || cgo
 
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
