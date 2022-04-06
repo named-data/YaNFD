@@ -89,9 +89,9 @@ func (m *Thread) Run() {
 
 	// Create and register Internal transport
 	m.face, m.transport = face.RegisterInternalTransport()
-	table.FibStrategyTable.AddNexthop(m.localPrefix, m.face.FaceID(), 0)
+	table.FibStrategyTable.InsertNextHop(m.localPrefix, m.face.FaceID(), 0)
 	if enableLocalhopManagement {
-		table.FibStrategyTable.AddNexthop(m.nonLocalPrefix, m.face.FaceID(), 0)
+		table.FibStrategyTable.InsertNextHop(m.nonLocalPrefix, m.face.FaceID(), 0)
 	}
 
 	for {
