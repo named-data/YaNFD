@@ -28,7 +28,7 @@ var Version string
 // Addr of HTTP server.
 var Addr string = "localhost:5010"
 
-// Base directory of server files
+// HttpBaseDir is the base directory of server files
 var HttpBaseDir string = "."
 
 func main() {

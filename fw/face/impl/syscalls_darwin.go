@@ -1,4 +1,4 @@
-// +build darwin
+//go:build darwin
 
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
