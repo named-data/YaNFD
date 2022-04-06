@@ -1,4 +1,4 @@
-// +build linux
+//go:build linux
 
 /* YaNFD - Yet another NDN Forwarding Daemon
  *

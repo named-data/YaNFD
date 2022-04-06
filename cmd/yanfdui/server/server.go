@@ -320,10 +320,10 @@ func faces(w http.ResponseWriter, req *http.Request) {
 		}
 		input.RouteData = make([]faceRouteData, 0)
 		for _, entry := range table.FibStrategyTable.GetAllFIBEntries() {
-			for _, nh := range entry.GetNexthops() {
+			for _, nh := range entry.GetNextHops() {
 				if nh.Nexthop == fid {
 					input.RouteData = append(input.RouteData, faceRouteData{
-						Route: entry.Name.String(),
+						Route: entry.Name().String(),
 						Cost:  nh.Cost,
 					})
 				}
@@ -371,8 +371,8 @@ func routing(w http.ResponseWriter, req *http.Request) {
 	rib := table.Rib.GetAllEntries()
 	for _, entry := range fib {
 		input.FibList = append(input.FibList, routeBrief{
-			Prefix:     entry.Name.String(),
-			RouteCount: len(entry.GetNexthops()),
+			Prefix:     entry.Name().String(),
+			RouteCount: len(entry.GetNextHops()),
 		})
 	}
 	for _, entry := range rib {
@@ -400,9 +400,9 @@ func routing(w http.ResponseWriter, req *http.Request) {
 			faceMap[face.FaceID()] = face.RemoteURI().String()
 		}
 		for _, entry := range fib {
-			if entry.Name.String() == prefix {
+			if entry.Name().String() == prefix {
 				input.FibHops = make([]routeHops, 0)
-				for _, nh := range entry.GetNexthops() {
+				for _, nh := range entry.GetNextHops() {
 					input.FibHops = append(input.FibHops, routeHops{
 						FaceID: nh.Nexthop,
 						Uri:    faceMap[nh.Nexthop],
@@ -461,9 +461,9 @@ func strategies(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Obtain strategy list
-	for _, sc := range table.FibStrategyTable.GetAllStrategyChoices() {
+	for _, sc := range table.FibStrategyTable.GetAllForwardingStrategies() {
 		input.Strategies = append(input.Strategies, strategy{
-			Name:     sc.Name.String(),
+			Name:     sc.Name().String(),
 			Strategy: sc.GetStrategy().String(),
 		})
 	}
@@ -545,6 +545,7 @@ func config(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// StartHttpServer starts the HTTP server of YaNFD UI.
 func StartHttpServer(wg *sync.WaitGroup, addr string, baseDir string, configFilePath string) *http.Server {
 	ret := &http.Server{Addr: addr}
 
@@ -580,6 +581,7 @@ func StartHttpServer(wg *sync.WaitGroup, addr string, baseDir string, configFile
 	return ret
 }
 
+// OpenBrowser opens the browser to the specified URL.
 func OpenBrowser(url string) error {
 	switch runtime.GOOS {
 	case "linux":

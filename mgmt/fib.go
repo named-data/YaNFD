@@ -97,7 +97,7 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 		cost = *params.Cost
 	}
 
-	table.FibStrategyTable.AddNexthop(params.Name, faceID, cost)
+	table.FibStrategyTable.InsertNextHop(params.Name, faceID, cost)
 
 	core.LogInfo(f, "Created nexthop for ", params.Name, " to FaceID=", faceID, "with Cost=", cost)
 	responseParams := mgmt.MakeControlParameters()
@@ -146,7 +146,7 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 		faceID = *params.FaceID
 	}
 
-	table.FibStrategyTable.RemoveNexthop(params.Name, faceID)
+	table.FibStrategyTable.RemoveNextHop(params.Name, faceID)
 
 	core.LogInfo(f, "Removed nexthop for ", params.Name, " to FaceID=", faceID)
 	responseParams := mgmt.MakeControlParameters()
@@ -174,8 +174,8 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	entries := table.FibStrategyTable.GetAllFIBEntries()
 	dataset := make([]byte, 0)
 	for _, fsEntry := range entries {
-		fibEntry := mgmt.MakeFibEntry(fsEntry.Name)
-		for _, nexthop := range fsEntry.GetNexthops() {
+		fibEntry := mgmt.MakeFibEntry(fsEntry.Name())
+		for _, nexthop := range fsEntry.GetNextHops() {
 			var record mgmt.NextHopRecord
 			record.FaceID = nexthop.Nexthop
 			record.Cost = nexthop.Cost

@@ -5,7 +5,7 @@ It is compatible with existing NDN applications and utilizes the management tool
 
 # Prerequisites
 
-YaNFD requires Go 1.16+, although it may be possible to use older versions of Go.
+YaNFD requires Go 1.18+, although it may be possible to use older versions of Go.
 Go will handle the installation of all other prerequisites.
 
 YaNFD has been developed and tested on Linux (namely, Ubuntu).
