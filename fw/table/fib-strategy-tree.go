@@ -31,6 +31,10 @@ type FibStrategyTree struct {
 }
 
 func init() {
+	newFibStrategyTable()
+}
+
+func newFibStrategyTable() {
 	var err error
 	FibStrategyTable = new(FibStrategyTree)
 	fibStrategyTableTree := FibStrategyTable.(*FibStrategyTree)
@@ -200,7 +204,7 @@ func (f *FibStrategyTree) GetAllFIBEntries() []FibStrategyEntry {
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
-	queue.PushBack(f)
+	queue.PushBack(f.root)
 	for queue.Len() > 0 {
 		fsEntry := queue.Front().Value.(*fibStrategyTreeEntry)
 		queue.Remove(queue.Front())
@@ -240,18 +244,13 @@ func (f *FibStrategyTree) UnsetStrategy(name *ndn.Name) {
 	f.fibStrategyRWMutex.Unlock()
 }
 
-// GetStrategy gets the strategy set at the root node.
-func (f *FibStrategyTree) GetStrategy() *ndn.Name {
-	return f.root.strategy
-}
-
 // GetAllStrategyChoices returns all strategy choice entries in the Strategy Table.
 func (f *FibStrategyTree) GetAllForwardingStrategies() []FibStrategyEntry {
 	f.fibStrategyRWMutex.RLock()
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
-	queue.PushBack(f)
+	queue.PushBack(f.root)
 	for queue.Len() > 0 {
 		fsEntry := queue.Front().Value.(*fibStrategyTreeEntry)
 		queue.Remove(queue.Front())
