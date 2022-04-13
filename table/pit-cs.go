@@ -44,8 +44,7 @@ type PitEntry interface {
 	CanBePrefix() bool
 	MustBeFresh() bool
 	ForwardingHint() *ndn.Name
-	// Interests must match in terms of Forwarding Hint to be
-	// aggregated in PIT.
+	// Interests must match in terms of Forwarding Hint to be aggregated in PIT.
 	InRecords() map[uint64]*PitInRecord   // Key is face ID
 	OutRecords() map[uint64]*PitOutRecord // Key is face ID
 	ExpirationTime() time.Time
@@ -112,7 +111,8 @@ type baseCsEntry struct {
 	data      *ndn.Data
 }
 
-// InsertInRecord finds or inserts an InRecord for the face, updating the metadata and returning whether there was already an in-record in the entry.
+// InsertInRecord finds or inserts an InRecord for the face, updating the
+// metadata and returning whether there was already an in-record in the entry.
 func (bpe *basePitEntry) InsertInRecord(interest *ndn.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool) {
 	var record *PitInRecord
 	var ok bool
@@ -139,12 +139,14 @@ func (bpe *basePitEntry) InsertInRecord(interest *ndn.Interest, face uint64, inc
 // SetExpirationTimerToNow updates the expiration timer to the current time.
 func SetExpirationTimerToNow(e PitEntry) {
 	e.SetExpirationTime(time.Now())
-	// ExpiringPitEntries() accesses a channel that is part of a particular Pit-CS table.
-	//  Send itself to this channel so that the Pit-CS table knows it is about to expire.
+	// ExpiringPitEntries() accesses a channel that is part of a particular
+	// Pit-CS table. The function sends `e` to this channel so that the
+	// Pit-CS table knows it is about to expire.
 	e.PitCs().ExpiringPitEntries() <- e
 }
 
-// UpdateExpirationTimer updates the expiration timer to the latest expiration time of any in or out record in the entry.
+// UpdateExpirationTimer updates the expiration timer to the latest expiration
+// time of any in or out record in the entry.
 func UpdateExpirationTimer(e PitEntry) {
 	e.SetExpirationTime((time.Unix(0, 0)))
 
@@ -241,7 +243,8 @@ func (bce *baseCsEntry) Data() *ndn.Data {
 	return bce.data
 }
 
-// ExpiringPitEntries is a channel to which PIT entries that are about to expire are sent and received.
+// ExpiringPitEntries returns the channel to which PIT entries that are about
+// to expire are sent and received.
 func (p *basePitCsTable) ExpiringPitEntries() chan PitEntry {
 	return p.expiringPitEntries
 }

@@ -73,8 +73,8 @@ func (e *nameTreePitEntry) PitCs() PitCsTable {
 	return e.pitCsTable
 }
 
-// FindOrInsertPIT inserts an entry in the PIT upon receipt of an Interest. Returns tuple of PIT entry and whether the Nonce is a duplicate.
-// Originally implemented as FindOrInsertPIT()
+// InsertInterest inserts an entry in the PIT upon receipt of an Interest.
+// Returns tuple of PIT entry and whether the Nonce is a duplicate.
 func (p *PitCsTree) InsertInterest(interest *ndn.Interest, hint *ndn.Name, inFace uint64) (PitEntry, bool) {
 	node := p.root.fillTreeToPrefix(interest.Name())
 
@@ -116,8 +116,8 @@ func (p *PitCsTree) InsertInterest(interest *ndn.Interest, hint *ndn.Name, inFac
 	return entry, false
 }
 
-// RemovePITEntry removes the specified PIT entry.
-// Originally implemented as RemovePITEntry()
+// RemoveInterest removes the specified PIT entry, returning true if the entry
+// was removed and false if was not (because it does not exist).
 func (p *PitCsTree) RemoveInterest(pitEntry PitEntry) bool {
 	e := pitEntry.(*nameTreePitEntry) // No error check needed because PitCsTree always uses nameTreePitEntry
 	for i, entry := range e.node.pitEntries {
@@ -136,7 +136,8 @@ func (p *PitCsTree) RemoveInterest(pitEntry PitEntry) bool {
 	return false
 }
 
-// Originally implemented as FindOrInsertPIT()
+// FindInterestExactMatch returns the PIT entry for an exact match of the
+// given interest.
 func (p *PitCsTree) FindInterestExactMatch(interest *ndn.Interest) PitEntry {
 	node := p.root.findExactMatchEntry(interest.Name())
 	if node != nil {
@@ -149,8 +150,9 @@ func (p *PitCsTree) FindInterestExactMatch(interest *ndn.Interest) PitEntry {
 	return nil
 }
 
-// Logic taken from FindPITFromData
-// If we have interests /a and /a/b, a prefix search for data with name /a/b
+// FindInterestPrefixMatchByData returns all interests that could be satisfied
+// by the given data.
+// Example: If we have interests /a and /a/b, a prefix search for data with name /a/b
 // will return PitEntries for both /a and /a/b
 func (p *PitCsTree) FindInterestPrefixMatchByData(data *ndn.Data, token *uint32) []PitEntry {
 	if token != nil {
@@ -186,17 +188,18 @@ func (p *PitCsTree) CsSize() int {
 	return p.nCsEntries
 }
 
-// IsCsAdmitting returns whether the CS is admitting contents.
+// IsCsAdmitting returns whether the CS is admitting content.
 func (p *PitCsTree) IsCsAdmitting() bool {
 	return csAdmit
 }
 
-// IsCsServing returns whether the CS is serving contents.
+// IsCsServing returns whether the CS is serving content.
 func (p *PitCsTree) IsCsServing() bool {
 	return csServe
 }
 
-// Originally implemented as FindOrInsertOutRecord()
+// InsertOutRecord inserts an outrecord for the given interest, updating the
+// preexisting one if it already occcurs.
 func (e *nameTreePitEntry) InsertOutRecord(interest *ndn.Interest, face uint64) *PitOutRecord {
 	var record *PitOutRecord
 	var ok bool
@@ -219,7 +222,7 @@ func (e *nameTreePitEntry) InsertOutRecord(interest *ndn.Interest, face uint64) 
 	return record
 }
 
-// Originally implemented as FindOrInsertOutRecord()
+// GetOutRecords returns all outrecords for the given PIT entry.
 func (e *nameTreePitEntry) GetOutRecords() []*PitOutRecord {
 	records := make([]*PitOutRecord, 0)
 	for _, value := range e.outRecords {
@@ -293,7 +296,9 @@ func (p *PitCsTree) hashCsName(name *ndn.Name) uint64 {
 	return xxhash.Sum64String(name.String())
 }
 
-// FindMatchingDataCS finds the best matching entry in the CS (if any). If MustBeFresh is set to true in the Interest, only non-stale CS entries will be returned.
+// FindMatchingDataFromCS finds the best matching entry in the CS (if any).
+// If MustBeFresh is set to true in the Interest, only non-stale CS entries
+// will be returned.
 func (p *PitCsTree) FindMatchingDataFromCS(interest *ndn.Interest) CsEntry {
 	node := p.root.findExactMatchEntry(interest.Name())
 	if node != nil {
@@ -312,7 +317,6 @@ func (p *PitCsTree) FindMatchingDataFromCS(interest *ndn.Interest) CsEntry {
 }
 
 // InsertData inserts a Data packet into the Content Store.
-// Originally implemented as InsertDataCS
 func (p *PitCsTree) InsertData(data *ndn.Data) {
 	index := p.hashCsName(data.Name())
 
@@ -343,7 +347,8 @@ func (p *PitCsTree) InsertData(data *ndn.Data) {
 	}
 }
 
-// eraseCsDataFromReplacementStrategy allows the replacement strategy to erase the data with the specified name from the Content Store.
+// eraseCsDataFromReplacementStrategy allows the replacement strategy to
+// erase the data with the specified name from the Content Store.
 func (p *PitCsTree) eraseCsDataFromReplacementStrategy(index uint64) {
 	if entry, ok := p.csMap[index]; ok {
 		entry.node.csEntry = nil

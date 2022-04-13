@@ -18,6 +18,8 @@ type FibStrategyEntry interface {
 	GetNextHops() []*FibNextHopEntry
 }
 
+// baseFibStrategyEntry represents information that all
+// FibStrategyEntry implementations should include.
 type baseFibStrategyEntry struct {
 	component ndn.NameComponent
 	name      *ndn.Name
@@ -31,6 +33,7 @@ type FibNextHopEntry struct {
 	Cost    uint64
 }
 
+// FibStrategy represents the functionality that a FIB-strategy table should implement.
 type FibStrategy interface {
 	FindNextHops(name *ndn.Name) []*FibNextHopEntry
 	FindStrategy(name *ndn.Name) *ndn.Name
@@ -48,17 +51,17 @@ type FibStrategy interface {
 // FibStrategy is a table containing FIB and Strategy entries for given prefixes.
 var FibStrategyTable FibStrategy
 
-// var FibStrategyTable *FibStrategyEntry
-
+// Name returns the name associated with the baseFibStrategyEntry.
 func (e *baseFibStrategyEntry) Name() *ndn.Name {
 	return e.name
 }
 
+// GetStrategy returns the strategy associated with the baseFibStrategyEntry.
 func (e *baseFibStrategyEntry) GetStrategy() *ndn.Name {
 	return e.strategy
 }
 
-// GetNexthops gets nexthops in the specified entry.
+// GetNexthops gets the nexthops of the specified entry.
 func (e *baseFibStrategyEntry) GetNextHops() []*FibNextHopEntry {
 	return e.nexthops
 }
