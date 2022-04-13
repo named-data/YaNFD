@@ -22,15 +22,19 @@ type fibStrategyTreeEntry struct {
 	children []*fibStrategyTreeEntry
 }
 
+// FibStrategy Tree represents a tree implementation of the FIB-Strategy table.
 type FibStrategyTree struct {
 	root *fibStrategyTreeEntry
 
-	// private to fib-strategy-tree
 	fibStrategyRWMutex sync.RWMutex
 	fibPrefixes        map[string]*fibStrategyTreeEntry
 }
 
 func init() {
+	newFibStrategyTable()
+}
+
+func newFibStrategyTable() {
 	var err error
 	FibStrategyTable = new(FibStrategyTree)
 	fibStrategyTableTree := FibStrategyTable.(*FibStrategyTree)
@@ -44,6 +48,8 @@ func init() {
 	fibStrategyTableTree.fibPrefixes = make(map[string]*fibStrategyTreeEntry)
 }
 
+// findExactMatchEntry returns the entry corresponding to the exact match of
+// the given name. It returns nil if no exact match was found.
 func (f *fibStrategyTreeEntry) findExactMatchEntry(name *ndn.Name) *fibStrategyTreeEntry {
 	if name.Size() > f.depth {
 		for _, child := range f.children {
@@ -57,6 +63,8 @@ func (f *fibStrategyTreeEntry) findExactMatchEntry(name *ndn.Name) *fibStrategyT
 	return nil
 }
 
+// findLongestPrefixEntry returns the entry corresponding to the longest
+// prefix match of the given name. It returns nil if no exact match was found.
 func (f *fibStrategyTreeEntry) findLongestPrefixEntry(name *ndn.Name) *fibStrategyTreeEntry {
 	if name.Size() > f.depth {
 		for _, child := range f.children {
@@ -68,6 +76,8 @@ func (f *fibStrategyTreeEntry) findLongestPrefixEntry(name *ndn.Name) *fibStrate
 	return f
 }
 
+// fillTreeToPrefix breaks the given name into components and adds nodes to the
+// tree for any missing components.
 func (f *FibStrategyTree) fillTreeToPrefix(name *ndn.Name) *fibStrategyTreeEntry {
 	curNode := f.root.findLongestPrefixEntry(name)
 	for depth := curNode.depth + 1; depth <= name.Size(); depth++ {
@@ -81,6 +91,8 @@ func (f *FibStrategyTree) fillTreeToPrefix(name *ndn.Name) *fibStrategyTreeEntry
 	return curNode
 }
 
+// pruneIfEmpty prunes nodes from the tree if they no longer carry any information,
+// where information is the combination of child nodes, nexthops, and strategies.
 func (f *fibStrategyTreeEntry) pruneIfEmpty() {
 	for curNode := f; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.nexthops) == 0 && curNode.strategy == nil; curNode = curNode.parent {
 		// Remove from parent's children
@@ -139,7 +151,7 @@ func (f *FibStrategyTree) FindStrategy(name *ndn.Name) *ndn.Name {
 	return strategy
 }
 
-// AddNexthop adds or updates a nexthop entry for the specified prefix.
+// InsertNextHop adds or updates a nexthop entry for the specified prefix.
 func (f *FibStrategyTree) InsertNextHop(name *ndn.Name, nexthop uint64, cost uint64) {
 	f.fibStrategyRWMutex.Lock()
 	entry := f.fillTreeToPrefix(name)
@@ -162,7 +174,7 @@ func (f *FibStrategyTree) InsertNextHop(name *ndn.Name, nexthop uint64, cost uin
 	f.fibStrategyRWMutex.Unlock()
 }
 
-// ClearNexthops clears all nexthops for the specified prefix.
+// ClearNextHops clears all nexthops for the specified prefix.
 func (f *FibStrategyTree) ClearNextHops(name *ndn.Name) {
 	f.fibStrategyRWMutex.Lock()
 	node := f.root.findExactMatchEntry(name)
@@ -172,7 +184,7 @@ func (f *FibStrategyTree) ClearNextHops(name *ndn.Name) {
 	f.fibStrategyRWMutex.Unlock()
 }
 
-// RemoveNexthop removes the specified nexthop entry from the specified prefix.
+// RemoveNextHop removes the specified nexthop entry from the specified prefix.
 func (f *FibStrategyTree) RemoveNextHop(name *ndn.Name, nexthop uint64) {
 	f.fibStrategyRWMutex.Lock()
 	entry := f.root.findExactMatchEntry(name)
@@ -200,7 +212,7 @@ func (f *FibStrategyTree) GetAllFIBEntries() []FibStrategyEntry {
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
-	queue.PushBack(f)
+	queue.PushBack(f.root)
 	for queue.Len() > 0 {
 		fsEntry := queue.Front().Value.(*fibStrategyTreeEntry)
 		queue.Remove(queue.Front())
@@ -240,18 +252,13 @@ func (f *FibStrategyTree) UnsetStrategy(name *ndn.Name) {
 	f.fibStrategyRWMutex.Unlock()
 }
 
-// GetStrategy gets the strategy set at the root node.
-func (f *FibStrategyTree) GetStrategy() *ndn.Name {
-	return f.root.strategy
-}
-
-// GetAllStrategyChoices returns all strategy choice entries in the Strategy Table.
+// GetAllForwardingStrategies returns all strategy choice entries in the Strategy Table.
 func (f *FibStrategyTree) GetAllForwardingStrategies() []FibStrategyEntry {
 	f.fibStrategyRWMutex.RLock()
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
-	queue.PushBack(f)
+	queue.PushBack(f.root)
 	for queue.Len() > 0 {
 		fsEntry := queue.Front().Value.(*fibStrategyTreeEntry)
 		queue.Remove(queue.Front())
