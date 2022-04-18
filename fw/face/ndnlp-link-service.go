@@ -379,6 +379,9 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 }
 
 func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
+	// Free up memory
+	defer l.stealthPool.Return(wire)
+
 	// Attempt to decode buffer into TLV block
 	block, _, err := tlv.DecodeBlock(wire)
 	if err != nil {
@@ -501,7 +504,6 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 	}
 
 	l.dispatchIncomingPacket(netPacket)
-	l.stealthPool.Return(wire)
 }
 
 func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uint64, fragIndex uint64, fragCount uint64) []byte {
