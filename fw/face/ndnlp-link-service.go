@@ -119,8 +119,6 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.rto = 0
 	l.nextTxSequence = 0
 
-	l.stealthPool, _ = stealthpool.New(maxPoolBlockCnt, stealthpool.WithBlockSize(maxPoolBlockSize))
-
 	return l
 }
 
@@ -172,6 +170,15 @@ func (l *NDNLPLinkService) computeHeaderOverhead() {
 
 // Run starts the face and associated goroutines
 func (l *NDNLPLinkService) Run() {
+	// Allocate and clear up the memory pool
+	pool, err := stealthpool.New(maxPoolBlockCnt, stealthpool.WithBlockSize(maxPoolBlockSize))
+	if err != nil {
+		core.LogError(l, "Failed to allocate stealthpool")
+		return
+	}
+	defer pool.Close()
+	l.stealthPool = pool
+
 	if l.transport == nil {
 		core.LogError(l, "Unable to start face due to unset transport")
 		return
