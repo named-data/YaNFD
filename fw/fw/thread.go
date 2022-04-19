@@ -144,16 +144,18 @@ func (t *Thread) Run() {
 // QueueInterest queues an Interest for processing by this forwarding thread.
 func (t *Thread) QueueInterest(interest *ndn.PendingPacket) {
 	select {
-		case t.pendingInterests <- interest:
-		default:
+	case t.pendingInterests <- interest:
+	default:
+		core.LogError(t, "Interest dropped due to full queue")
 	}
 }
 
 // QueueData queues a Data packet for processing by this forwarding thread.
 func (t *Thread) QueueData(data *ndn.PendingPacket) {
 	select {
-		case t.pendingDatas <- data:
-		default:
+	case t.pendingDatas <- data:
+	default:
+		core.LogError(t, "Data dropped due to full queue")
 	}
 }
 
