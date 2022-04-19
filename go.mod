@@ -3,6 +3,7 @@ module github.com/named-data/YaNFD
 go 1.18
 
 require (
+	github.com/Link512/stealthpool v0.2.0
 	github.com/apex/log v1.9.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/cornelk/hashmap v1.0.1
