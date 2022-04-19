@@ -15,18 +15,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Link512/stealthpool"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/lpv2"
 	"github.com/named-data/YaNFD/ndn/tlv"
-
-	"github.com/Link512/stealthpool"
 )
 
 const lpPacketOverhead = 1 + 3
 const pitTokenOverhead = 1 + 1 + 6
 const congestionMarkOverhead = 3 + 1 + 8
 const ackOverhead = 3 + 1 + 8
+
+const maxPoolBlockCnt = 1000
+const maxPoolBlockSize = 9000
 
 const (
 	FaceFlagLocalFields = 1 << iota
@@ -96,7 +98,7 @@ type NDNLPLinkService struct {
 	nextTxSequence           uint64
 	lastTimeCongestionMarked time.Time
 
-	stealthPool              *stealthpool.Pool
+	stealthPool *stealthpool.Pool
 }
 
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
@@ -117,7 +119,7 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.rto = 0
 	l.nextTxSequence = 0
 
-	l.stealthPool, _ = stealthpool.New(1000, stealthpool.WithBlockSize(9000))
+	l.stealthPool, _ = stealthpool.New(maxPoolBlockCnt, stealthpool.WithBlockSize(maxPoolBlockSize))
 
 	return l
 }
