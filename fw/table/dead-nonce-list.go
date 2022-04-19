@@ -54,7 +54,7 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) bool {
 	if !exists {
 		d.list[hash] = true
 		heap.Push(&d.expirationQueue, &PQItem{
-			Object: hash,
+			Object:   hash,
 			Priority: (time.Now().Add(deadNonceListLifetime)).UnixNano(),
 		})
 	}

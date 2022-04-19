@@ -2,10 +2,14 @@ package table
 
 import "container/heap"
 
+// TODO: This PriorityQueue implementation has two problems:
+// 1. Does not use generics (ref: https://go.dev/doc/tutorial/generics)
+// 2. Have different type of receivers (ref: https://go.dev/tour/methods/8)
+
 type PQItem struct {
-	Object interface{}
+	Object   interface{}
 	Priority int64
-	Index  int
+	Index    int
 }
 
 type PriorityQueue []*PQItem
