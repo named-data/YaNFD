@@ -8,18 +8,18 @@
 package table
 
 import (
-	"container/heap"
 	"encoding/binary"
 	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/utils/priority_queue"
 )
 
 // DeadNonceList represents the Dead Nonce List for a forwarding thread.
 type DeadNonceList struct {
 	list            map[uint64]bool
-	expirationQueue PriorityQueue
+	expirationQueue priority_queue.Queue[uint64, int64]
 	Ticker          *time.Ticker
 }
 
@@ -28,6 +28,7 @@ func NewDeadNonceList() *DeadNonceList {
 	d := new(DeadNonceList)
 	d.list = make(map[uint64]bool)
 	d.Ticker = time.NewTicker(100 * time.Millisecond)
+	d.expirationQueue = priority_queue.New[uint64, int64]()
 	return d
 }
 
@@ -53,10 +54,7 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) bool {
 
 	if !exists {
 		d.list[hash] = true
-		heap.Push(&d.expirationQueue, &PQItem{
-			Object:   hash,
-			Priority: (time.Now().Add(deadNonceListLifetime)).UnixNano(),
-		})
+		d.expirationQueue.Push(hash, time.Now().Add(deadNonceListLifetime).UnixNano())
 	}
 	return exists
 }
@@ -64,8 +62,8 @@ func (d *DeadNonceList) Insert(name *ndn.Name, nonce []byte) bool {
 // RemoveExpiredEntry removes all expired entries from Dead Nonce List.
 func (d *DeadNonceList) RemoveExpiredEntries() {
 	evicted := 0
-	for d.expirationQueue.Len() > 0 && d.expirationQueue.Peek().Priority < time.Now().UnixNano() {
-		hash := heap.Pop(&d.expirationQueue).(*PQItem).Object.(uint64)
+	for d.expirationQueue.Len() > 0 && d.expirationQueue.PeekPriority() < time.Now().UnixNano() {
+		hash := d.expirationQueue.Pop()
 		delete(d.list, hash)
 		evicted += 1
 
