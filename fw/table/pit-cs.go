@@ -28,6 +28,7 @@ type PitCsTable interface {
 	IsCsServing() bool
 
 	eraseCsDataFromReplacementStrategy(index uint64)
+	updatePitExpiry(pitEntry PitEntry)
 
 	ExpiringPitEntries() chan PitEntry
 }
@@ -139,16 +140,13 @@ func (bpe *basePitEntry) InsertInRecord(interest *ndn.Interest, face uint64, inc
 // SetExpirationTimerToNow updates the expiration timer to the current time.
 func SetExpirationTimerToNow(e PitEntry) {
 	e.SetExpirationTime(time.Now())
-	// ExpiringPitEntries() accesses a channel that is part of a particular
-	// Pit-CS table. The function sends `e` to this channel so that the
-	// Pit-CS table knows it is about to expire.
-	e.PitCs().ExpiringPitEntries() <- e
+	e.PitCs().updatePitExpiry(e)
 }
 
 // UpdateExpirationTimer updates the expiration timer to the latest expiration
 // time of any in or out record in the entry.
 func UpdateExpirationTimer(e PitEntry) {
-	e.SetExpirationTime((time.Unix(0, 0)))
+	e.SetExpirationTime(time.Now())
 
 	for _, record := range e.InRecords() {
 		if record.ExpirationTime.After(e.ExpirationTime()) {
@@ -162,17 +160,7 @@ func UpdateExpirationTimer(e PitEntry) {
 		}
 	}
 
-	go waitForPitExpiry(e)
-}
-
-func waitForPitExpiry(e PitEntry) {
-	if !e.ExpirationTime().IsZero() {
-		time.Sleep(e.ExpirationTime().Sub(time.Now().Add(time.Millisecond * 1))) // Add 1 millisecond to ensure *after* expiration
-		if e.ExpirationTime().Before(time.Now()) {
-			// Otherwise, has been updated by another PIT entry
-			e.PitCs().ExpiringPitEntries() <- e
-		}
-	}
+	e.PitCs().updatePitExpiry(e)
 }
 
 ///// Setters and Getters /////

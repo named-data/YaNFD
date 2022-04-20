@@ -8,7 +8,10 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/utils/priority_queue"
 )
+
+const expiredPitTickerInterval = 100 * time.Millisecond
 
 // PitCsTree represents a PIT-CS implementation that uses a name tree
 type PitCsTree struct {
@@ -22,12 +25,15 @@ type PitCsTree struct {
 	nCsEntries    int
 	csReplacement CsReplacementPolicy
 	csMap         map[uint64]*nameTreeCsEntry
+
+	pitExpiryQueue priority_queue.Queue[*nameTreePitEntry, int64]
 }
 
 type nameTreePitEntry struct {
 	basePitEntry                // compose with BasePitEntry
 	pitCsTable   *PitCsTree     // pointer to tree
 	node         *pitCsTreeNode // the tree node associated with this entry
+	queueIndex   int            // index of entry in the expiring queue
 }
 
 type nameTreeCsEntry struct {
@@ -56,6 +62,7 @@ func NewPitCS() *PitCsTree {
 	pitCs.root.pitEntries = make([]*nameTreePitEntry, 0)
 	pitCs.expiringPitEntries = make(chan PitEntry, tableQueueSize)
 	pitCs.pitTokenMap = make(map[uint32]*nameTreePitEntry)
+	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
 
 	// This value has already been validated from loading the configuration, so we know it will be one of the following (or else fatal)
 	switch csReplacementPolicy {
@@ -66,7 +73,41 @@ func NewPitCS() *PitCsTree {
 	}
 	pitCs.csMap = make(map[uint64]*nameTreeCsEntry)
 
+	// Set up the expired PIT entries goroutine
+	go pitCs.expirationPitLoop()
+
 	return pitCs
+}
+
+func (p *PitCsTree) expirationPitLoop() {
+	for !core.ShouldQuit {
+		if p.pitExpiryQueue.Len() > 0 {
+			sleepTime := time.Duration(p.pitExpiryQueue.PeekPriority()-time.Now().UnixNano()) * time.Nanosecond
+			if sleepTime > 0 {
+				if sleepTime > expiredPitTickerInterval {
+					sleepTime = expiredPitTickerInterval
+				}
+				time.Sleep(sleepTime)
+			}
+		} else {
+			time.Sleep(expiredPitTickerInterval)
+		}
+		for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.PeekPriority() <= time.Now().UnixNano() {
+			entry := p.pitExpiryQueue.Pop()
+			entry.queueIndex = -1
+			p.expiringPitEntries <- entry
+			p.RemoveInterest(entry)
+		}
+	}
+}
+
+func (p *PitCsTree) updatePitExpiry(pitEntry PitEntry) {
+	e := pitEntry.(*nameTreePitEntry)
+	if e.queueIndex < 0 {
+		e.queueIndex = p.pitExpiryQueue.Push(e, e.expirationTime.UnixNano())
+	} else {
+		p.pitExpiryQueue.Update(e.queueIndex, e, e.expirationTime.UnixNano())
+	}
 }
 
 func (e *nameTreePitEntry) PitCs() PitCsTable {
@@ -100,6 +141,7 @@ func (p *PitCsTree) InsertInterest(interest *ndn.Interest, hint *ndn.Name, inFac
 		entry.satisfied = false
 		node.pitEntries = append(node.pitEntries, entry)
 		entry.token = p.generateNewPitToken()
+		entry.queueIndex = -1
 		p.pitTokenMap[entry.token] = entry
 	}
 
@@ -122,14 +164,15 @@ func (p *PitCsTree) RemoveInterest(pitEntry PitEntry) bool {
 	e := pitEntry.(*nameTreePitEntry) // No error check needed because PitCsTree always uses nameTreePitEntry
 	for i, entry := range e.node.pitEntries {
 		if entry == pitEntry {
-			if i < len(e.node.pitEntries)-1 {
-				copy(e.node.pitEntries[i:], e.node.pitEntries[i+1:])
+			if len(e.node.pitEntries) > 1 {
+				e.node.pitEntries[i] = e.node.pitEntries[len(e.node.pitEntries)-1]
 			}
 			e.node.pitEntries = e.node.pitEntries[:len(e.node.pitEntries)-1]
 			if len(e.node.pitEntries) == 0 {
 				entry.node.pruneIfEmpty()
 			}
 			p.nPitEntries--
+			delete(p.pitTokenMap, e.token)
 			return true
 		}
 	}
@@ -273,8 +316,8 @@ func (p *pitCsTreeNode) pruneIfEmpty() {
 		// Remove from parent's children
 		for i, child := range curNode.parent.children {
 			if child == p {
-				if i < len(curNode.parent.children)-1 {
-					copy(curNode.parent.children[i:], curNode.parent.children[i+1:])
+				if len(curNode.parent.children) > 1 {
+					curNode.parent.children[i] = curNode.parent.children[len(curNode.parent.children)-1]
 				}
 				curNode.parent.children = curNode.parent.children[:len(curNode.parent.children)-1]
 				break
