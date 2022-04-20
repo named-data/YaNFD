@@ -84,19 +84,6 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 		pprof.StartCPUProfile(cpuProfileFile)
 	}
 
-	if config.MemProfile != "" {
-		memProfileFile, err = os.Create(config.MemProfile)
-		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
-		}
-
-		core.LogInfo("Main", "Profiling memory - outputting to ", config.MemProfile)
-		runtime.GC()
-		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
-			core.LogFatal("Main", "Unable to write memory profile: ", err)
-		}
-	}
-
 	if config.BlockProfile != "" {
 		core.LogInfo("Main", "Profiling blocking operations - outputting to ", config.BlockProfile)
 		runtime.SetBlockProfileRate(1)
@@ -270,6 +257,19 @@ func (y *YaNFD) Start() {
 func (y *YaNFD) Stop() {
 	core.LogInfo("Main", "Forwarder shutting down ...")
 	core.ShouldQuit = true
+
+	if y.config.MemProfile != "" {
+		memProfileFile, err := os.Create(y.config.MemProfile)
+		if err != nil {
+			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
+		}
+
+		core.LogInfo("Main", "Profiling memory - outputting to ", y.config.MemProfile)
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
+			core.LogFatal("Main", "Unable to write memory profile: ", err)
+		}
+	}
 
 	// Wait for unix socket listener to quit
 	if y.unixListener != nil {

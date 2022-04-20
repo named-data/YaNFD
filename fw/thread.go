@@ -130,12 +130,14 @@ func (t *Thread) Run() {
 			t.processIncomingData(pendingPacket)
 		case expiringPitEntry := <-t.pitCS.ExpiringPitEntries():
 			t.finalizeInterest(expiringPitEntry)
-		case <-t.deadNonceList.ExpirationTimer:
-			t.deadNonceList.RemoveExpiredEntry()
+		case <-t.deadNonceList.Ticker.C:
+			t.deadNonceList.RemoveExpiredEntries()
 		case <-t.shouldQuit:
 			continue
 		}
 	}
+
+	t.deadNonceList.Ticker.Stop()
 
 	core.LogInfo(t, "Stopping thread")
 	t.HasQuit <- true
@@ -143,12 +145,20 @@ func (t *Thread) Run() {
 
 // QueueInterest queues an Interest for processing by this forwarding thread.
 func (t *Thread) QueueInterest(interest *ndn.PendingPacket) {
-	t.pendingInterests <- interest
+	select {
+	case t.pendingInterests <- interest:
+	default:
+		core.LogError(t, "Interest dropped due to full queue")
+	}
 }
 
 // QueueData queues a Data packet for processing by this forwarding thread.
 func (t *Thread) QueueData(data *ndn.PendingPacket) {
-	t.pendingDatas <- data
+	select {
+	case t.pendingDatas <- data:
+	default:
+		core.LogError(t, "Data dropped due to full queue")
+	}
 }
 
 func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
