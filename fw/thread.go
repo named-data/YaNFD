@@ -341,9 +341,6 @@ func (t *Thread) finalizeInterest(pitEntry table.PitEntry) {
 	if !pitEntry.Satisfied() {
 		t.NUnsatisfiedInterests += uint64(len(pitEntry.InRecords()))
 	}
-
-	// Remove from PIT
-	t.pitCS.RemoveInterest(pitEntry)
 }
 
 func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
