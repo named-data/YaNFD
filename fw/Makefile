@@ -1,5 +1,5 @@
 PACKAGE = github.com/named-data/YaNFD
-VERSION = 1.0.0.0
+VERSION = 1.1.0.0
 # COMMIT = git rev-parse --short HEAD
 # DATE != date
 
@@ -33,9 +33,10 @@ yanfdui: cleanui
 # To publish a Windows Store application
 # 	rm -rf publish
 # 	mkdir publish
+# 	go generate github.com/named-data/YaNFD/cmd/yanfdui
 # 	go build -ldflags "-X 'main.Version=${VERSION}' ${PACKAGE}/cmd/yanfdui
 # 	mv yanfdui publish/
 # 	cp -R cmd/yanfdui/static publish/
-# 	cp -R cmd/yanfdui/static publish/
+# 	cp -R cmd/yanfdui/templates publish/
 # 	cp ./ndn_app.ico publish/
 # 	Then, create the YaNFD-x64.msix file (including publish, yanfd.toml)

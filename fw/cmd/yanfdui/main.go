@@ -1,10 +1,10 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2020-2021 Eric Newberry.
+ * Copyright (C) 2020-2022 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
-
+//go:generate goversioninfo -icon=static/ndn_app.ico
 package main
 
 import (
