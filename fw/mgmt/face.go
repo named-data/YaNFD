@@ -231,7 +231,7 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		face.FaceTable.Add(linkService)
 
 		// Start new face
-		go linkService.Run()
+		go linkService.Run(nil)
 	} else if params.URI.Scheme() == "tcp4" || params.URI.Scheme() == "tcp6" {
 		// Check that remote endpoint is not a unicast address
 		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
@@ -316,7 +316,7 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		face.FaceTable.Add(linkService)
 
 		// Start new face
-		go linkService.Run()
+		go linkService.Run(nil)
 	} else {
 		// Unsupported scheme
 		core.LogWarn(f, "Cannot create face with URI ", params.URI, ": Unsupported scheme ", params.URI)

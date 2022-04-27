@@ -102,8 +102,7 @@ func (l *UDPListener) Run() {
 
 		// Add face to table (which assigns FaceID) before passing current frame to link service
 		FaceTable.Add(newLinkService)
-		newLinkService.handleIncomingFrame(recvBuf[:readSize])
-		go newLinkService.Run()
+		go newLinkService.Run(recvBuf[:readSize])
 	}
 
 	l.conn.Close()

@@ -94,7 +94,7 @@ func (l *UnixStreamListener) Run() {
 
 		// Add face to table and start its thread
 		FaceTable.Add(newLinkService)
-		go newLinkService.Run()
+		go newLinkService.Run(nil)
 	}
 
 	l.HasQuit <- true

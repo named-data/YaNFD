@@ -169,7 +169,7 @@ func (l *NDNLPLinkService) computeHeaderOverhead() {
 }
 
 // Run starts the face and associated goroutines
-func (l *NDNLPLinkService) Run() {
+func (l *NDNLPLinkService) Run(optNewFrame []byte) {
 	// Allocate and clear up the memory pool
 	pool, err := stealthpool.New(maxPoolBlockCnt, stealthpool.WithBlockSize(maxPoolBlockSize))
 	if err != nil {
@@ -182,6 +182,10 @@ func (l *NDNLPLinkService) Run() {
 	if l.transport == nil {
 		core.LogError(l, "Unable to start face due to unset transport")
 		return
+	}
+
+	if optNewFrame != nil {
+		l.handleIncomingFrame(optNewFrame)
 	}
 
 	// Start transport goroutines

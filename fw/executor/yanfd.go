@@ -111,7 +111,7 @@ func (y *YaNFD) Start() {
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)
-	go nullFace.Run()
+	go nullFace.Run(nil)
 
 	// Start management thread
 	management := mgmt.MakeMgmtThread()
@@ -158,7 +158,7 @@ func (y *YaNFD) Start() {
 				multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
 				face.FaceTable.Add(multicastEthFace)
 				faceCnt += 1
-				go multicastEthFace.Run()
+				go multicastEthFace.Run(nil)
 				core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
 
 				// Create Ethernet listener for interface
@@ -190,7 +190,7 @@ func (y *YaNFD) Start() {
 				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.MakeNDNLPLinkServiceOptions())
 				face.FaceTable.Add(multicastUDPFace)
 				faceCnt += 1
-				go multicastUDPFace.Run()
+				go multicastUDPFace.Run(nil)
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 

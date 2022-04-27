@@ -78,7 +78,7 @@ func (l *TCPListener) Run() {
 
 		// Add face to table (which assigns FaceID) before passing current frame to link service
 		FaceTable.Add(newLinkService)
-		go newLinkService.Run()
+		go newLinkService.Run(nil)
 	}
 
 	l.HasQuit <- true

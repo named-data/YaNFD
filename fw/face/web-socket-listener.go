@@ -119,7 +119,7 @@ func (l *WebSocketListener) handler(w http.ResponseWriter, r *http.Request) {
 
 	core.LogInfo(l, "Accepting new WebSocket face ", t.RemoteURI())
 	FaceTable.Add(linkService)
-	go linkService.Run()
+	go linkService.Run(nil)
 }
 
 // Close closes the WebSocketListener.
