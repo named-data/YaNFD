@@ -42,7 +42,7 @@ func RegisterInternalTransport() (LinkService, *InternalTransport) {
 		IsConsumerControlledForwardingEnabled: true,
 	})
 	FaceTable.Add(l)
-	go l.Run()
+	go l.Run(nil)
 	return l, t
 }
 

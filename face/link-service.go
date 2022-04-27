@@ -38,8 +38,9 @@ type LinkService interface {
 	ExpirationPeriod() time.Duration
 	State() ndn.State
 
-	// Main entry point for running face thread
-	Run()
+	// Run is the main entry point for running face thread
+	// optNewFrame is optional new incoming frame
+	Run(optNewFrame []byte)
 
 	// SendPacket Add a packet to the send queue for this link service
 	SendPacket(packet *ndn.PendingPacket)
