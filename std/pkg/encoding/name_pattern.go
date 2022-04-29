@@ -20,8 +20,7 @@ func (n Name) String() string {
 	}
 	if len(ret) == 0 {
 		ret = "/"
-	}
-	if len(n) > 0 && n[len(n)-1].Typ == TypeGenericNameComponent && len(n[len(n)-1].Val) == 0 {
+	} else if n[len(n)-1].Typ == TypeGenericNameComponent && len(n[len(n)-1].Val) == 0 {
 		ret += "/"
 	}
 	return ret
@@ -32,7 +31,9 @@ func (n NamePattern) String() string {
 	for _, c := range n {
 		ret += "/" + c.String()
 	}
-	if len(n) > 0 {
+	if len(ret) == 0 {
+		ret = "/"
+	} else {
 		if c, ok := n[len(n)-1].(*Component); ok {
 			if c.Typ == TypeGenericNameComponent && len(c.Val) == 0 {
 				ret += "/"
@@ -229,4 +230,22 @@ func (n NamePattern) HasPrefix(rhs NamePattern) bool {
 		}
 	}
 	return true
+}
+
+func (n NamePattern) Match(name Name, m Matching) {
+	for i, c := range n {
+		c.Match(name[i], m)
+	}
+}
+
+func (n NamePattern) FromMatching(m Matching) (Name, error) {
+	ret := make(Name, len(n))
+	for i, c := range n {
+		comp, err := c.FromMatching(m)
+		if err != nil {
+			return nil, err
+		}
+		ret[i] = *comp
+	}
+	return ret, nil
 }

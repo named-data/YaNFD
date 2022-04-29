@@ -22,14 +22,157 @@ const (
 	TypeSequenceNumNameComponent        TLNum = 0x3a
 )
 
-type compValFmt int
+type compValFmt interface {
+	ToString(val []byte) string
+	FromString(s string) ([]byte, error)
+	ToMatching(val []byte) any
+	FromMatching(m any) ([]byte, error)
+}
 
-const (
-	compValFmtInvalid compValFmt = iota
-	compValFmtText
-	compValFmtDec
-	compValFmtHex
-)
+type compValFmtInvalid struct{}
+type compValFmtText struct{}
+type compValFmtDec struct{}
+type compValFmtHex struct{}
+
+func (_ compValFmtInvalid) ToString(val []byte) string {
+	return ""
+}
+
+func (_ compValFmtInvalid) FromString(s string) ([]byte, error) {
+	return nil, ErrFormat{"Invalid component format"}
+}
+
+func (_ compValFmtInvalid) ToMatching(val []byte) any {
+	return nil
+}
+
+func (_ compValFmtInvalid) FromMatching(m any) ([]byte, error) {
+	return nil, ErrFormat{"Invalid component format"}
+}
+
+func (_ compValFmtText) ToString(val []byte) string {
+	vText := ""
+	for _, b := range val {
+		if isLegalCompText(b) {
+			vText = vText + string(b)
+		} else {
+			vText = vText + fmt.Sprintf("%%%02X", b)
+		}
+	}
+	return vText
+}
+
+func (_ compValFmtText) FromString(valStr string) ([]byte, error) {
+	val := make([]byte, 0)
+	for i := 0; i < len(valStr); {
+		if isLegalCompText(valStr[i]) {
+			val = append(val, valStr[i])
+			i++
+		} else if valStr[i] == '%' && i+2 < len(valStr) {
+			v, err := strconv.ParseUint(valStr[i+1:i+3], 16, 8)
+			if err != nil {
+				return nil, ErrFormat{"invalid component value: " + valStr}
+			}
+			val = append(val, byte(v))
+			i += 3
+		} else {
+			// Gracefully accept invalid character
+			if valStr[i] != '%' && valStr[i] != '=' && valStr[i] != '/' && valStr[i] != '\\' {
+				val = append(val, valStr[i])
+				i++
+			} else {
+				return nil, ErrFormat{"invalid component value: " + valStr}
+			}
+		}
+	}
+	return val, nil
+}
+
+func (_ compValFmtText) ToMatching(val []byte) any {
+	return val
+}
+
+func (_ compValFmtText) FromMatching(m any) ([]byte, error) {
+	ret, ok := m.([]byte)
+	if !ok {
+		return nil, ErrFormat{"invalid text component value: " + fmt.Sprintf("%v", m)}
+	} else {
+		return ret, nil
+	}
+}
+
+func (_ compValFmtDec) ToString(val []byte) string {
+	x := uint64(0)
+	for _, b := range val {
+		x = (x << 8) | uint64(b)
+	}
+	return strconv.FormatUint(x, 10)
+}
+
+func (_ compValFmtDec) FromString(s string) ([]byte, error) {
+	x, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return nil, ErrFormat{"invalid decimal component value: " + s}
+	}
+	ret := make([]byte, Nat(x).EncodingLength())
+	Nat(x).EncodeInto(ret)
+	return ret, nil
+}
+
+func (_ compValFmtDec) ToMatching(val []byte) any {
+	x := uint64(0)
+	for _, b := range val {
+		x = (x << 8) | uint64(b)
+	}
+	return x
+}
+
+func (_ compValFmtDec) FromMatching(m any) ([]byte, error) {
+	x, ok := m.(uint64)
+	if !ok {
+		return nil, ErrFormat{"invalid decimal component value: " + fmt.Sprintf("%v", m)}
+	}
+	ret := make([]byte, Nat(x).EncodingLength())
+	Nat(x).EncodeInto(ret)
+	return ret, nil
+}
+
+func (_ compValFmtHex) ToString(val []byte) string {
+	vText := ""
+	for _, b := range val {
+		vText = vText + fmt.Sprintf("%02x", b)
+	}
+	return vText
+}
+
+func (_ compValFmtHex) FromString(s string) ([]byte, error) {
+	if len(s)%2 != 0 {
+		return nil, ErrFormat{"invalid hexadecimal component value: " + s}
+	}
+	l := len(s) / 2
+	val := make([]byte, l)
+	for i := 0; i < l; i++ {
+		b, err := strconv.ParseUint(s[i*2:i*2+2], 16, 8)
+		if err != nil {
+			return nil, ErrFormat{"invalid hexadecimal component value: " + s}
+		}
+		val[i] = byte(b)
+	}
+	return val, nil
+}
+
+func (_ compValFmtHex) ToMatching(val []byte) any {
+	return val
+}
+
+func (_ compValFmtHex) FromMatching(m any) ([]byte, error) {
+	ret, ok := m.([]byte)
+	if !ok {
+		return nil, ErrFormat{"invalid text component value: " + fmt.Sprintf("%v", m)}
+	} else {
+		return ret, nil
+	}
+}
 
 type componentConvention struct {
 	typ  TLNum
@@ -42,37 +185,37 @@ var (
 		TypeImplicitSha256DigestComponent: {
 			typ:  TypeImplicitSha256DigestComponent,
 			name: "sha256digest",
-			vFmt: compValFmtHex,
+			vFmt: compValFmtHex{},
 		},
 		TypeParametersSha256DigestComponent: {
 			typ:  TypeParametersSha256DigestComponent,
 			name: "params-sha256",
-			vFmt: compValFmtHex,
+			vFmt: compValFmtHex{},
 		},
 		TypeSegmentNameComponent: {
 			typ:  TypeSegmentNameComponent,
 			name: "seg",
-			vFmt: compValFmtDec,
+			vFmt: compValFmtDec{},
 		},
 		TypeByteOffsetNameComponent: {
 			typ:  TypeByteOffsetNameComponent,
 			name: "off",
-			vFmt: compValFmtDec,
+			vFmt: compValFmtDec{},
 		},
 		TypeVersionNameComponent: {
 			typ:  TypeVersionNameComponent,
 			name: "v",
-			vFmt: compValFmtDec,
+			vFmt: compValFmtDec{},
 		},
 		TypeTimestampNameComponent: {
 			typ:  TypeTimestampNameComponent,
 			name: "t",
-			vFmt: compValFmtDec,
+			vFmt: compValFmtDec{},
 		},
 		TypeSequenceNumNameComponent: {
 			typ:  TypeSequenceNumNameComponent,
 			name: "seq",
-			vFmt: compValFmtDec,
+			vFmt: compValFmtDec{},
 		},
 	}
 	compConvByStr map[string]*componentConvention
@@ -89,7 +232,13 @@ type ComponentPattern interface {
 	Compare(ComponentPattern) int
 
 	Equal(ComponentPattern) bool
+
+	Match(value Component, m Matching)
+
+	FromMatching(m Matching) (*Component, error)
 }
+
+type Matching map[string]any
 
 type Pattern struct {
 	Typ TLNum
@@ -101,11 +250,11 @@ type Component struct {
 	Val []byte
 }
 
-func (c *Component) ComponentPatternTrait() ComponentPattern {
+func (c Component) ComponentPatternTrait() ComponentPattern {
 	return c
 }
 
-func (p *Pattern) ComponentPatternTrait() ComponentPattern {
+func (p Pattern) ComponentPatternTrait() ComponentPattern {
 	return p
 }
 
@@ -116,7 +265,7 @@ func initComponentConventions() {
 	}
 }
 
-func (p *Pattern) String() string {
+func (p Pattern) String() string {
 	if p.Typ == TypeGenericNameComponent {
 		return "<" + p.Tag + ">"
 	} else if conv, ok := compConvByType[p.Typ]; ok {
@@ -126,7 +275,7 @@ func (p *Pattern) String() string {
 	}
 }
 
-func (c *Component) Length() TLNum {
+func (c Component) Length() TLNum {
 	return TLNum(len(c.Val))
 }
 
@@ -134,8 +283,8 @@ func isLegalCompText(b byte) bool {
 	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '-' || b == '_' || b == '.' || b == '~'
 }
 
-func (c *Component) String() string {
-	vFmt := compValFmtText
+func (c Component) String() string {
+	vFmt := compValFmt(compValFmtText{})
 	tName := ""
 	if conv, ok := compConvByType[c.Typ]; ok {
 		vFmt = conv.vFmt
@@ -143,28 +292,7 @@ func (c *Component) String() string {
 	} else if c.Typ != TypeGenericNameComponent {
 		tName = strconv.FormatUint(uint64(c.Typ), 10) + "="
 	}
-	vText := ""
-	switch vFmt {
-	case compValFmtDec:
-		x := uint64(0)
-		for _, b := range c.Val {
-			x = (x << 8) | uint64(b)
-		}
-		vText = strconv.FormatUint(x, 10)
-	case compValFmtHex:
-		for _, b := range c.Val {
-			vText = vText + fmt.Sprintf("%02x", b)
-		}
-	case compValFmtText:
-		for _, b := range c.Val {
-			if isLegalCompText(b) {
-				vText = vText + string(b)
-			} else {
-				vText = vText + fmt.Sprintf("%%%02X", b)
-			}
-		}
-	}
-	return tName + vText
+	return tName + vFmt.ToString(c.Val)
 }
 
 func ParseComponent(buf Buffer) (Component, int) {
@@ -228,14 +356,14 @@ func parseCompTypeFromStr(s string) (TLNum, compValFmt, error) {
 		if conv, ok := compConvByStr[s]; ok {
 			return conv.typ, conv.vFmt, nil
 		} else {
-			return 0, 0, ErrFormat{"unknown component type: " + s}
+			return 0, compValFmtInvalid{}, ErrFormat{"unknown component type: " + s}
 		}
 	} else {
 		typInt, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			return 0, 0, ErrFormat{"invalid component type: " + s}
+			return 0, compValFmtInvalid{}, ErrFormat{"invalid component type: " + s}
 		}
-		return TLNum(typInt), compValFmtText, nil
+		return TLNum(typInt), compValFmtText{}, nil
 	}
 }
 
@@ -247,7 +375,7 @@ func ComponentFromStr(s string) (*Component, error) {
 	}
 	valStr := strs[len(strs)-1]
 	typ := TypeGenericNameComponent
-	vFmt := compValFmtText
+	vFmt := compValFmt(compValFmtText{})
 	val := []byte(nil)
 	if len(strs) == 2 {
 		typ, vFmt, err = parseCompTypeFromStr(strs[0])
@@ -258,52 +386,9 @@ func ComponentFromStr(s string) (*Component, error) {
 			return nil, ErrFormat{"invalid component type: " + valStr}
 		}
 	}
-	switch vFmt {
-	case compValFmtDec:
-		x, err := strconv.ParseUint(valStr, 10, 64)
-		if err != nil {
-			return nil, ErrFormat{"invalid decimal component value: " + valStr}
-		}
-		val = make([]byte, Nat(x).EncodingLength())
-		Nat(x).EncodeInto(val)
-	case compValFmtHex:
-		if len(valStr)%2 != 0 {
-			return nil, ErrFormat{"invalid hexadecimal component value: " + valStr}
-		}
-		l := len(valStr) / 2
-		val = make([]byte, l)
-		for i := 0; i < l; i++ {
-			b, err := strconv.ParseUint(valStr[i*2:i*2+2], 16, 8)
-			if err != nil {
-				return nil, ErrFormat{"invalid hexadecimal component value: " + valStr}
-			}
-			val[i] = byte(b)
-		}
-	case compValFmtText:
-		val = make([]byte, 0)
-		for i := 0; i < len(valStr); {
-			if isLegalCompText(valStr[i]) {
-				val = append(val, valStr[i])
-				i++
-			} else if valStr[i] == '%' && i+2 < len(valStr) {
-				v, err := strconv.ParseUint(valStr[i+1:i+3], 16, 8)
-				if err != nil {
-					return nil, ErrFormat{"invalid component value: " + valStr}
-				}
-				val = append(val, byte(v))
-				i += 3
-			} else {
-				// Gracefully accept invalid character
-				if valStr[i] != '%' && valStr[i] != '=' && valStr[i] != '/' && valStr[i] != '\\' {
-					val = append(val, valStr[i])
-					i++
-				} else {
-					return nil, ErrFormat{"invalid component value: " + valStr}
-				}
-			}
-		}
-	default:
-		panic("unknown component value format")
+	val, err = vFmt.FromString(valStr)
+	if err != nil {
+		return nil, err
 	}
 	return &Component{
 		Typ: typ,
@@ -340,19 +425,19 @@ func ComponentPatternFromStr(s string) (ComponentPattern, error) {
 	}
 }
 
-func (c *Component) EncodingLength() int {
+func (c Component) EncodingLength() int {
 	l := len(c.Val)
 	return c.Typ.EncodingLength() + Nat(l).EncodingLength() + l
 }
 
-func (c *Component) EncodeInto(buf Buffer) int {
+func (c Component) EncodeInto(buf Buffer) int {
 	p1 := c.Typ.EncodeInto(buf)
 	p2 := Nat(len(c.Val)).EncodeInto(buf[p1:])
 	copy(buf[p1+p2:], c.Val)
 	return p1 + p2 + len(c.Val)
 }
 
-func (c *Component) Bytes() []byte {
+func (c Component) Bytes() []byte {
 	buf := make([]byte, c.EncodingLength())
 	c.EncodeInto(buf)
 	return buf
@@ -363,7 +448,7 @@ func ComponentFromBytes(buf []byte) (*Component, error) {
 	return ReadComponent(r)
 }
 
-func (c *Component) Compare(rhs ComponentPattern) int {
+func (c Component) Compare(rhs ComponentPattern) int {
 	rc, ok := rhs.(*Component)
 	if !ok {
 		return -1
@@ -385,7 +470,7 @@ func (c *Component) Compare(rhs ComponentPattern) int {
 	return bytes.Compare(c.Val, rc.Val)
 }
 
-func (c *Component) Equal(rhs ComponentPattern) bool {
+func (c Component) Equal(rhs ComponentPattern) bool {
 	rc, ok := rhs.(*Component)
 	if !ok {
 		return false
@@ -396,7 +481,7 @@ func (c *Component) Equal(rhs ComponentPattern) bool {
 	return bytes.Equal(c.Val, rc.Val)
 }
 
-func (p *Pattern) Compare(rhs ComponentPattern) int {
+func (p Pattern) Compare(rhs ComponentPattern) int {
 	rp, ok := rhs.(*Pattern)
 	if !ok {
 		return 1
@@ -411,7 +496,7 @@ func (p *Pattern) Compare(rhs ComponentPattern) int {
 	return strings.Compare(p.Tag, rp.Tag)
 }
 
-func (p *Pattern) Equal(rhs ComponentPattern) bool {
+func (p Pattern) Equal(rhs ComponentPattern) bool {
 	rp, ok := rhs.(*Pattern)
 	if !ok {
 		return false
@@ -419,43 +504,80 @@ func (p *Pattern) Equal(rhs ComponentPattern) bool {
 	return p.Typ == rp.Typ && p.Tag == rp.Tag
 }
 
-func NewNumberComponent(typ TLNum, val uint64) *Component {
-	return &Component{
+func NewNumberComponent(typ TLNum, val uint64) Component {
+	return Component{
 		Typ: typ,
 		Val: Nat(val).Bytes(),
 	}
 }
 
-func NewSegmentComponent(seg uint64) *Component {
+func NewSegmentComponent(seg uint64) Component {
 	return NewNumberComponent(TypeSegmentNameComponent, seg)
 }
 
-func NewByteOffsetComponent(off uint64) *Component {
+func NewByteOffsetComponent(off uint64) Component {
 	return NewNumberComponent(TypeByteOffsetNameComponent, off)
 }
 
-func NewSequenceNumComponent(seq uint64) *Component {
+func NewSequenceNumComponent(seq uint64) Component {
 	return NewNumberComponent(TypeSequenceNumNameComponent, seq)
 }
 
-func NewVersionComponent(v uint64) *Component {
+func NewVersionComponent(v uint64) Component {
 	return NewNumberComponent(TypeVersionNameComponent, v)
 }
 
-func NewTimestampComponent(t uint64) *Component {
+func NewTimestampComponent(t uint64) Component {
 	return NewNumberComponent(TypeTimestampNameComponent, t)
 }
 
-func NewBytesComponent(typ TLNum, val []byte) *Component {
-	return &Component{
+func NewBytesComponent(typ TLNum, val []byte) Component {
+	return Component{
 		Typ: typ,
 		Val: val,
 	}
 }
 
-func NewStringComponent(typ TLNum, val string) *Component {
-	return &Component{
+func NewStringComponent(typ TLNum, val string) Component {
+	return Component{
 		Typ: typ,
 		Val: []byte(val),
 	}
+}
+
+func (_ Component) Match(value Component, m Matching) {}
+
+func (p Pattern) Match(value Component, m Matching) {
+	vFmt := compValFmt(compValFmtText{})
+	if p.Typ != TypeGenericNameComponent {
+		if conv, ok := compConvByType[p.Typ]; ok {
+			vFmt = conv.vFmt
+		}
+	}
+	m[p.Tag] = vFmt.ToMatching(value.Val)
+}
+
+func (c Component) FromMatching(m Matching) (*Component, error) {
+	return &c, nil
+}
+
+func (p Pattern) FromMatching(m Matching) (*Component, error) {
+	val, ok := m[p.Tag]
+	if !ok {
+		return nil, ErrNotFound{p.Tag}
+	}
+	vFmt := compValFmt(compValFmtText{})
+	if p.Typ != TypeGenericNameComponent {
+		if conv, ok := compConvByType[p.Typ]; ok {
+			vFmt = conv.vFmt
+		}
+	}
+	cVal, err := vFmt.FromMatching(val)
+	if err != nil {
+		return nil, err
+	}
+	return &Component{
+		Typ: p.Typ,
+		Val: cVal,
+	}, nil
 }

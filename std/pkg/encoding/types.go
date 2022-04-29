@@ -18,6 +18,14 @@ func (e ErrFormat) Error() string {
 	return e.Msg
 }
 
+type ErrNotFound struct {
+	Key string
+}
+
+func (e ErrNotFound) Error() string {
+	return e.Key + ": not found"
+}
+
 // ParseReader is an interface operating on Buffer and Wire
 type ParseReader interface {
 	io.Reader
