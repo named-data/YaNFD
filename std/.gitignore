@@ -12,4 +12,5 @@ __pycache__/
 *$py.class
 *.log
 
-temp/
+/temp/
+/gondn_tlv_gen

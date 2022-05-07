@@ -1,4 +1,4 @@
-package encoding
+package codegen
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ func (m *strErrBuf) printlne(str string, err error) {
 
 func (m *strErrBuf) printlnf(format string, args ...any) {
 	if m.err == nil {
-		fmt.Fprintf(&m.b, format, args...)
+		_, m.err = fmt.Fprintf(&m.b, format, args...)
 		m.b.WriteRune('\n')
 	}
 }

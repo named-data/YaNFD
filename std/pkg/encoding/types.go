@@ -1,6 +1,9 @@
 package encoding
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"io"
 )
 
@@ -9,6 +12,19 @@ type Buffer []byte
 
 // Wire is a collection of Buffer. May be allocated in non-contiguous memory.
 type Wire []Buffer
+
+func (w Wire) Join() []byte {
+	var lst = make([][]byte, len(w))
+	for i, c := range w {
+		lst[i] = c
+	}
+	ret := bytes.Join(lst, nil)
+	if ret != nil {
+		return ret
+	} else {
+		return []byte{}
+	}
+}
 
 type ErrFormat struct {
 	Msg string
@@ -28,7 +44,7 @@ func (e ErrNotFound) Error() string {
 
 // ParseReader is an interface operating on Buffer and Wire
 type ParseReader interface {
-	io.Reader
+	io.ReadSeeker
 	io.ByteScanner
 
 	// ReadWire reads a list of buffers in place without copy.
@@ -40,4 +56,35 @@ type ParseReader interface {
 	Pos() int
 
 	Length() int
+}
+
+type ErrUnrecognizedField struct {
+	TypeNum TLNum
+}
+
+func (e ErrUnrecognizedField) Error() string {
+	return fmt.Sprintf("There exists an unrecognized field that has a critical type number: %d", e.TypeNum)
+}
+
+var ErrBufferOverflow = errors.New("Buffer overflow when parsing. One of the TLV Length is wrong")
+
+type ErrSkipRequired struct {
+	TypeNum TLNum
+}
+
+func (e ErrSkipRequired) Error() string {
+	return fmt.Sprintf("The required field of type %d is missing in the wire", e.TypeNum)
+}
+
+type ErrFailToParse struct {
+	TypeNum TLNum
+	Err     error
+}
+
+func (e ErrFailToParse) Error() string {
+	return fmt.Sprintf("Failed to parse field %d: %v", e.TypeNum, e.Err)
+}
+
+func (e ErrFailToParse) Unwrap() error {
+	return e.Err
 }
