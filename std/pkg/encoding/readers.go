@@ -51,8 +51,23 @@ func (r *BufferReader) Seek(offset int64, whence int) (int64, error) {
 	if newPos < 0 {
 		return 0, errors.New("encoding.BufferReader.Seek: negative position")
 	}
+	if newPos > len(r.buf) {
+		return 0, errors.New("encoding.BufferReader.Seek: position out of range")
+	}
 	r.pos = newPos
 	return int64(r.pos), nil
+}
+
+func (r *BufferReader) Skip(n int) error {
+	newPos := r.pos + n
+	if newPos < 0 {
+		return errors.New("encoding.BufferReader.Skip: negative position")
+	}
+	if newPos > len(r.buf) {
+		return errors.New("encoding.BufferReader.Skip: position out of range")
+	}
+	r.pos = newPos
+	return nil
 }
 
 func (r *BufferReader) ReadWire(l int) (Wire, error) {
@@ -194,6 +209,23 @@ func (r *WireReader) Range(start, end int) Wire {
 		ret[endSeg-startSeg] = r.wire[endSeg][:endPos]
 		return ret
 	}
+}
+
+func (r *WireReader) Skip(n int) error {
+	if n < 0 {
+		return errors.New("encoding.WireReader.Skip: backword skipping is not allowed")
+	}
+	r.pos += n
+	for r.pos >= len(r.wire[r.seg]) {
+		r.pos -= len(r.wire[r.seg])
+		r.seg++
+		if r.seg >= len(r.wire) {
+			if r.pos > 0 {
+				return io.EOF
+			}
+		}
+	}
+	return nil
 }
 
 func NewWireReader(w Wire) *WireReader {

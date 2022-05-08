@@ -44,7 +44,7 @@ func (e ErrNotFound) Error() string {
 
 // ParseReader is an interface operating on Buffer and Wire
 type ParseReader interface {
-	io.ReadSeeker
+	io.Reader
 	io.ByteScanner
 
 	// ReadWire reads a list of buffers in place without copy.
@@ -56,6 +56,8 @@ type ParseReader interface {
 	Pos() int
 
 	Length() int
+
+	Skip(n int) error
 }
 
 type ErrUnrecognizedField struct {
@@ -88,3 +90,6 @@ func (e ErrFailToParse) Error() string {
 func (e ErrFailToParse) Unwrap() error {
 	return e.Err
 }
+
+// PlaceHolder is an empty structure that used to give names of procedure arguments.
+type PlaceHolder struct{}

@@ -65,7 +65,7 @@ func (f *NaturalField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return "err = enc.ErrSkipRequired{TypeNum: typ}", nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
 	}
 }
 
@@ -137,7 +137,7 @@ func (f *TimeField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return "err = enc.ErrSkipRequired{TypeNum: typ}", nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
 	}
 }
 

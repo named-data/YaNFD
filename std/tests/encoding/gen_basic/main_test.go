@@ -153,3 +153,55 @@ func TestWireName(t *testing.T) {
 	require.Equal(t, enc.Name{}, f2.Name)
 	require.Equal(t, []byte{}, f2.Wire.Join())
 }
+
+func TestMarkers(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := gen_basic.Markers{
+		Wire: enc.Wire{
+			[]byte{1, 2, 3},
+			[]byte{4, 5, 6},
+		},
+		Name: utils.WithoutErr(enc.NameFromStr("/A/B/C")),
+	}
+	buf := f.Encode(1)
+	require.Equal(t,
+		[]byte{
+			0x01, 0x06, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+			0x02, 0x09, 0x08, 0x01, 'A', 0x08, 0x01, 'B', 0x08, 0x01, 'C',
+		},
+		buf)
+	f2 := gen_basic.ParseMarkers(buf, 2)
+	require.True(t, f.Name.Equal(f2.Name))
+	require.Equal(t, f.Wire.Join(), f2.Wire.Join())
+}
+
+func TestNoCopy(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := gen_basic.NoCopyStruct{
+		Wire1: enc.Wire{
+			[]byte{1, 2, 3},
+			[]byte{4, 5, 6},
+		},
+		Number: 1,
+		Wire2: enc.Wire{
+			[]byte{7, 8, 9},
+			[]byte{10, 11, 12},
+		},
+	}
+	wire := f.Encode()
+	require.Equal(t, []byte{0x01, 0x06}, []byte(wire[0]))
+	require.Equal(t, []byte{0x01, 0x02, 0x03}, []byte(wire[1]))
+	require.Equal(t, []byte{0x04, 0x05, 0x06}, []byte(wire[2]))
+	require.Equal(t, []byte{0x02, 0x01, 0x01, 0x03, 0x06}, []byte(wire[3]))
+	require.Equal(t, []byte{0x07, 0x08, 0x09}, []byte(wire[4]))
+	require.Equal(t, []byte{0x0a, 0x0b, 0x0c}, []byte(wire[5]))
+	for i := 6; i < len(wire); i++ {
+		require.Equal(t, enc.Buffer(nil), wire[i])
+	}
+	f2 := utils.WithoutErr(gen_basic.ParseNoCopyStruct(enc.NewWireReader(wire), true))
+	require.Equal(t, f.Wire1.Join(), f2.Wire1.Join())
+	require.Equal(t, f.Number, f2.Number)
+	require.Equal(t, f.Wire2.Join(), f2.Wire2.Join())
+}

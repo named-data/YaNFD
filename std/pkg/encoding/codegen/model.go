@@ -23,6 +23,15 @@ type TlvModel struct {
 	Fields []TlvField
 }
 
+func (m *TlvModel) ProcessOption(option string) {
+	switch option {
+	case "private":
+		m.PrivMethods = true
+	case "nocopy":
+		m.NoCopy = true
+	}
+}
+
 func (m *TlvModel) GenEncoderStruct(buf *bytes.Buffer) error {
 	const Temp = `type {{.Name}}Encoder struct {
 		length uint
@@ -55,6 +64,7 @@ func (m *TlvModel) GenInitEncoder(buf *bytes.Buffer) error {
 		{{$f.GenEncodingWirePlan}}
 		{{- end}}
 		wirePlan = append(wirePlan, l)
+		encoder.wirePlan = wirePlan
 		{{- end}}
 	}
 	`
@@ -65,7 +75,7 @@ func (m *TlvModel) GenInitEncoder(buf *bytes.Buffer) error {
 func (m *TlvModel) GenEncodeInto(buf *bytes.Buffer) error {
 	const Temp = `func (encoder *{{.Name}}Encoder) encode(value *{{.Name}}) enc.Wire {
 		{{if .NoCopy}}
-		wire := make(enc.Wire, 0, len(encoder.wirePlan))
+		wire := make(enc.Wire, len(encoder.wirePlan))
 		for i, l := range encoder.wirePlan {
 			if l > 0 {
 				wire[i] = make([]byte, l)
@@ -123,7 +133,12 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 		progress := -1
 		value := &{{.Model.Name}}{}
 		var err error
-		for reader.Pos() < reader.Length() {
+		var startPos int
+		for {
+			startPos = reader.Pos()
+			if startPos >= reader.Length() {
+				break
+			}
 			typ := enc.TLNum(0)
 			l := enc.TLNum(0)
 			{{call .GenTlvNumberDecode "typ"}}
@@ -145,7 +160,7 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 					if !ignoreCritical && {{.IsCritical}} {
 						return nil, enc.ErrUnrecognizedField{TypeNum: typ}
 					}
-					_, err = reader.Seek(int64(l), io.SeekCurrent)
+					err = reader.Skip(int(l))
 				}
 				if err == nil && !handled {
 					switch progress {
@@ -158,6 +173,15 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 				if err != nil {
 					return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
 				}
+			}
+		}
+		startPos = reader.Pos()
+		for ; progress < {{len .Model.Fields}}; progress ++ {
+			switch progress {
+				{{- range $i, $f := .Model.Fields}}
+			case {{$i}} - 1:
+				{{$f.GenSkipProcess}}
+				{{- end}}
 			}
 		}
 		return value, nil

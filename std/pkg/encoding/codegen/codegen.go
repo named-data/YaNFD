@@ -43,11 +43,11 @@ func (g *Generator) parseTag(tag *ast.BasicLit) uint64 {
 	return typVal
 }
 
-func (g *Generator) parseDoc(doc *ast.CommentGroup) string {
+func (g *Generator) parseDoc(doc *ast.CommentGroup, indicator string) string {
 	if doc == nil {
 		return ""
 	}
-	const Prefix = "//+field:"
+	var Prefix = "//+" + indicator + ":"
 	for _, c := range doc.List {
 		if c != nil && strings.HasPrefix(c.Text, Prefix) {
 			return c.Text[len(Prefix):]
@@ -96,14 +96,21 @@ func (g *Generator) ProcessDecl(node ast.Node) bool {
 		Name:   typSpec.Name.Name,
 		Fields: make([]TlvField, 0),
 	}
+	modelOptions := g.parseDoc(decl.Doc, "tlv-model")
+	if modelOptions != "" {
+		opts := strings.Split(modelOptions, ",")
+		for _, opt := range opts {
+			model.ProcessOption(opt)
+		}
+	}
 	for _, f := range stru.Fields.List {
 		if len(f.Names) <= 0 {
 			continue
 		}
 		fieldName := f.Names[0].Name
 		tlvTypNum := g.parseTag(f.Tag)
-		fieldStr := g.parseDoc(f.Doc)
-		if tlvTypNum == 0 || fieldStr == "" {
+		fieldStr := g.parseDoc(f.Doc, "field")
+		if fieldStr == "" {
 			continue
 		}
 		// Dispatch to specific fields

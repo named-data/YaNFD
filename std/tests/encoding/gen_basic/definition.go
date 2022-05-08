@@ -33,3 +33,55 @@ type WireNameField struct {
 	//+field:name
 	Name enc.Name `tlv:"0x02"`
 }
+
+//+tlv-model:private
+type Markers struct {
+	//+field:offsetMarker
+	startMarker enc.PlaceHolder
+	//+field:wire
+	Wire enc.Wire `tlv:"0x01"`
+	//+field:procedureArgument:int
+	argument enc.PlaceHolder
+	//+field:name
+	Name enc.Name `tlv:"0x02"`
+	//+field:offsetMarker
+	endMarker enc.PlaceHolder
+}
+
+func (m *Markers) Encode(arg int) []byte {
+	enc := MarkersEncoder{}
+	enc.init(m)
+	enc.argument = arg
+	wire := enc.encode(m)
+	ret := wire.Join()
+	if enc.startMarker != 0 {
+		return nil
+	}
+	if enc.endMarker != len(ret) {
+		return nil
+	}
+	return ret
+}
+
+func ParseMarkers(buf []byte, arg int) *Markers {
+	cont := MarkersParsingContext{
+		argument: arg,
+	}
+	cont.init()
+	ret, err := cont.parse(enc.NewBufferReader(buf), true)
+	if err == nil && cont.startMarker == 0 && cont.endMarker == len(buf) {
+		return ret
+	} else {
+		return nil
+	}
+}
+
+//+tlv-model:nocopy
+type NoCopyStruct struct {
+	//+field:wire
+	Wire1 enc.Wire `tlv:"0x01"`
+	//+field:natural
+	Number uint64 `tlv:"0x02"`
+	//+field:wire
+	Wire2 enc.Wire `tlv:"0x03"`
+}

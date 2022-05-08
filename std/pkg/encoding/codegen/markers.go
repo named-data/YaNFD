@@ -1,8 +1,5 @@
 package codegen
 
-// PlaceHolder is an empty structure that used to give names of procedure arguments.
-type PlaceHolder struct{}
-
 // ProcedureArgument is a variable used during encoding and decoding procedure.
 type ProcedureArgument struct {
 	BaseTlvField
@@ -47,11 +44,11 @@ func (f *OffsetMarker) GenReadFrom() (string, error) {
 }
 
 func (f *OffsetMarker) GenSkipProcess() (string, error) {
-	return "context." + f.name + " = reader.Pos()", nil
+	return "context." + f.name + " = int(startPos)", nil
 }
 
 func (f *OffsetMarker) GenEncodeInto() (string, error) {
-	return "encoder." + f.name + " = pos", nil
+	return "encoder." + f.name + " = int(pos)", nil
 }
 
 // NewOffsetMarker creates an offset marker field.
