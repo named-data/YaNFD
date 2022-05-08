@@ -1,7 +1,11 @@
 //go:generate gondn_tlv_gen
 package gen_basic
 
-import "time"
+import (
+	"time"
+
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+)
 
 type FakeMetaInfo struct {
 	//+field:natural
@@ -19,4 +23,13 @@ type OptField struct {
 	Time *time.Duration `tlv:"0x19"`
 	//+field:binary
 	Binary []byte `tlv:"0x1a"`
+	//+field:bool
+	Bool bool `tlv:"0x30"`
+}
+
+type WireNameField struct {
+	//+field:wire
+	Wire enc.Wire `tlv:"0x01"`
+	//+field:name
+	Name enc.Name `tlv:"0x02"`
 }

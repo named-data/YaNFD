@@ -77,6 +77,7 @@ func TestOptField(t *testing.T) {
 		Number: utils.ConstPtr[uint64](1),
 		Time:   utils.ConstPtr(2 * time.Second),
 		Binary: []byte{3, 4, 5},
+		Bool:   true,
 	}
 	buf := f.Bytes()
 	require.Equal(t,
@@ -84,6 +85,7 @@ func TestOptField(t *testing.T) {
 			0x18, 0x01, 0x01,
 			0x19, 0x02, 0x07, 0xd0,
 			0x1a, 0x03, 0x03, 0x04, 0x05,
+			0x30, 0x00,
 		},
 		buf)
 	f2 := utils.WithoutErr(gen_basic.ParseOptField(enc.NewBufferReader(buf), false))
@@ -93,6 +95,7 @@ func TestOptField(t *testing.T) {
 		Number: nil,
 		Time:   nil,
 		Binary: nil,
+		Bool:   false,
 	}
 	buf = f.Bytes()
 	require.Equal(t,
@@ -116,4 +119,37 @@ func TestOptField(t *testing.T) {
 		buf)
 	f2 = utils.WithoutErr(gen_basic.ParseOptField(enc.NewBufferReader(buf), false))
 	require.Equal(t, f, *f2)
+}
+
+func TestWireName(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := gen_basic.WireNameField{
+		Wire: enc.Wire{
+			[]byte{1, 2, 3},
+			[]byte{4, 5, 6},
+		},
+		Name: utils.WithoutErr(enc.NameFromStr("/A/B/C")),
+	}
+	buf := f.Bytes()
+	require.Equal(t,
+		[]byte{
+			0x01, 0x06, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+			0x02, 0x09, 0x08, 0x01, 'A', 0x08, 0x01, 'B', 0x08, 0x01, 'C',
+		},
+		buf)
+	f2 := utils.WithoutErr(gen_basic.ParseWireNameField(enc.NewBufferReader(buf), false))
+	require.True(t, f.Name.Equal(f2.Name))
+	require.Equal(t, f.Wire.Join(), f2.Wire.Join())
+
+	f2 = utils.WithoutErr(gen_basic.ParseWireNameField(enc.NewBufferReader([]byte{}), false))
+	require.Equal(t, enc.Name(nil), f2.Name)
+	require.Equal(t, enc.Wire(nil), f2.Wire)
+
+	f2 = utils.WithoutErr(gen_basic.ParseWireNameField(enc.NewBufferReader(
+		[]byte{
+			0x01, 0x00, 0x02, 0x00,
+		}), false))
+	require.Equal(t, enc.Name{}, f2.Name)
+	require.Equal(t, []byte{}, f2.Wire.Join())
 }

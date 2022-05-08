@@ -40,6 +40,8 @@ func main() {
 	outFullName := filepath.Join(*outputPath)
 	pkgFullPath := filepath.Join(*inputPath)
 
+	os.Remove(outFullName)
+
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, pkgFullPath, nil, parser.ParseComments)
 	if err != nil {

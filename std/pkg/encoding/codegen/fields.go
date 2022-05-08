@@ -221,14 +221,14 @@ func (f *WireField) GenInitEncoder() (string, error) {
 	}
 	`
 	t := template.Must(template.New("WireInitEncoder").Parse(Temp))
-	g.executeTemplate(t, f.Name)
+	g.executeTemplate(t, f.name)
 	return g.output()
 }
 
 func (f *WireField) GenEncodingLength() (string, error) {
 	g := strErrBuf{}
 	g.printlne(GenTypeNumLen(f.typeNum))
-	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length)", true))
+	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 	g.printlnf("l += encoder." + f.name + "_length")
 	return g.output()
 }
@@ -237,7 +237,7 @@ func (f *WireField) GenEncodingWirePlan() (string, error) {
 	if f.noCopy {
 		g := strErrBuf{}
 		g.printlne(GenTypeNumLen(f.typeNum))
-		g.printlne(GenNaturalNumberLen("len(value."+f.name+")", true))
+		g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 		g.printlne(GenSwitchWirePlan())
 		g.printlnf("for range value.%s {", f.name)
 		g.printlne(GenSwitchWirePlan())
@@ -251,7 +251,7 @@ func (f *WireField) GenEncodingWirePlan() (string, error) {
 func (f *WireField) GenEncodeInto() (string, error) {
 	g := strErrBuf{}
 	g.printlne(GenEncodeTypeNum(f.typeNum))
-	g.printlne(GenNaturalNumberEncode("len(value."+f.name+")", true))
+	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
 	if f.noCopy {
 		g.printlne(GenSwitchWire())
 		g.printlnf("for _, w := range value.%s {", f.name)
@@ -269,7 +269,7 @@ func (f *WireField) GenEncodeInto() (string, error) {
 
 func (f *WireField) GenReadFrom() (string, error) {
 	g := strErrBuf{}
-	g.printlnf("value.%s, err = reader.ReadWire(l)", f.name)
+	g.printlnf("value.%s, err = reader.ReadWire(int(l))", f.name)
 	return g.output()
 }
 
@@ -303,15 +303,15 @@ func (f *NameField) GenInitEncoder() (string, error) {
 		encoder.{{.}}_length += uint(c.EncodingLength())
 	}
 	`
-	t := template.Must(template.New("WireInitEncoder").Parse(Temp))
-	g.executeTemplate(t, f.Name)
+	t := template.Must(template.New("NameInitEncoder").Parse(Temp))
+	g.executeTemplate(t, f.name)
 	return g.output()
 }
 
 func (f *NameField) GenEncodingLength() (string, error) {
 	g := strErrBuf{}
 	g.printlne(GenTypeNumLen(f.typeNum))
-	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length)", true))
+	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 	g.printlnf("l += encoder." + f.name + "_length")
 	return g.output()
 }
@@ -323,7 +323,7 @@ func (f *NameField) GenEncodingWirePlan() (string, error) {
 func (f *NameField) GenEncodeInto() (string, error) {
 	g := strErrBuf{}
 	g.printlne(GenEncodeTypeNum(f.typeNum))
-	g.printlne(GenNaturalNumberEncode("len(value."+f.name+")", true))
+	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
 	g.printlnf("for _, c := range value.%s {", f.name)
 	g.printlnf("pos += uint(c.EncodeInto(buf[pos:]))")
 	g.printlnf("}")
@@ -332,11 +332,11 @@ func (f *NameField) GenEncodeInto() (string, error) {
 
 func (f *NameField) GenReadFrom() (string, error) {
 	var g strErrBuf
-	const Temp = `value.{{.Name}} = make([][]byte, 0)
+	const Temp = `value.{{.Name}} = make(enc.Name, 0)
 	startName := reader.Pos()
-	endName := startName + uint(l)
+	endName := startName + int(l)
 	for reader.Pos() < endName {
-		c, err := enc.ReadComponent()
+		c, err := enc.ReadComponent(reader)
 		if err != nil {
 			break
 		}

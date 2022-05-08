@@ -132,11 +132,13 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 			for handled := false; !handled; progress ++ {
 				switch typ {
 					{{- range $i, $f := .Model.Fields}}
+					{{- if (ne $f.TypeNum 0)}}
 				case {{$f.TypeNum}}:
 					if progress + 1 == {{$i}} {
 						handled = true
 						{{$f.GenReadFrom}}
 					}
+					{{- end}}
 					{{- end}}
 				default:
 					handled = true
