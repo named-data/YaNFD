@@ -15,11 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Link512/stealthpool"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/lpv2"
 	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/zjkmxy/stealthpool"
 )
 
 const lpPacketOverhead = 1 + 3
