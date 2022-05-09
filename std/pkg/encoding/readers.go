@@ -98,6 +98,15 @@ func (r *BufferReader) Range(start, end int) Wire {
 	return Wire{r.buf[start:end]}
 }
 
+func (r *BufferReader) Delegate(l int) ParseReader {
+	if l < 0 || r.pos+l > len(r.buf) {
+		return nil
+	}
+	subBuf := r.buf[r.pos : r.pos+l]
+	r.pos += l
+	return NewBufferReader(subBuf)
+}
+
 func NewBufferReader(buf Buffer) *BufferReader {
 	return &BufferReader{
 		buf: buf,
@@ -226,6 +235,14 @@ func (r *WireReader) Skip(n int) error {
 		}
 	}
 	return nil
+}
+
+func (r *WireReader) Delegate(l int) ParseReader {
+	if l < 0 {
+		return nil
+	}
+	// subWire := make(Wire, 0, len(r.wire)-r.seg)
+	panic("TODO: NOT IMPLEMENTED")
 }
 
 func NewWireReader(w Wire) *WireReader {

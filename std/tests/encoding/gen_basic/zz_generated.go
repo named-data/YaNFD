@@ -13,7 +13,10 @@ type FakeMetaInfoEncoder struct {
 	length uint
 }
 
-func (encoder *FakeMetaInfoEncoder) init(value *FakeMetaInfo) {
+type FakeMetaInfoParsingContext struct {
+}
+
+func (encoder *FakeMetaInfoEncoder) Init(value *FakeMetaInfo) {
 
 	l := uint(0)
 	l += 1
@@ -59,13 +62,13 @@ func (encoder *FakeMetaInfoEncoder) init(value *FakeMetaInfo) {
 
 }
 
-func (encoder *FakeMetaInfoEncoder) encode(value *FakeMetaInfo) enc.Wire {
+func (context *FakeMetaInfoParsingContext) Init() {
 
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
+}
+
+func (encoder *FakeMetaInfoEncoder) EncodeInto(value *FakeMetaInfo, buf []byte) {
+
 	pos := uint(0)
-
 	buf[pos] = byte(24)
 	pos += 1
 	switch x := value.Number; {
@@ -132,10 +135,19 @@ func (encoder *FakeMetaInfoEncoder) encode(value *FakeMetaInfo) enc.Wire {
 		pos += uint(len(value.Binary))
 	}
 
+}
+
+func (encoder *FakeMetaInfoEncoder) Encode(value *FakeMetaInfo) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
 	return wire
 }
 
-func ParseFakeMetaInfo(reader enc.ParseReader, ignoreCritical bool) (*FakeMetaInfo, error) {
+func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*FakeMetaInfo, error) {
 	progress := -1
 	value := &FakeMetaInfo{}
 	var err error
@@ -242,19 +254,28 @@ func ParseFakeMetaInfo(reader enc.ParseReader, ignoreCritical bool) (*FakeMetaIn
 
 func (value *FakeMetaInfo) Encode() enc.Wire {
 	encoder := FakeMetaInfoEncoder{}
-	encoder.init(value)
-	return encoder.encode(value)
+	encoder.Init(value)
+	return encoder.Encode(value)
 }
 
 func (value *FakeMetaInfo) Bytes() []byte {
 	return value.Encode().Join()
 }
 
+func ParseFakeMetaInfo(reader enc.ParseReader, ignoreCritical bool) (*FakeMetaInfo, error) {
+	context := FakeMetaInfoParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
 type OptFieldEncoder struct {
 	length uint
 }
 
-func (encoder *OptFieldEncoder) init(value *OptField) {
+type OptFieldParsingContext struct {
+}
+
+func (encoder *OptFieldEncoder) Init(value *OptField) {
 
 	l := uint(0)
 	if value.Number != nil {
@@ -309,13 +330,13 @@ func (encoder *OptFieldEncoder) init(value *OptField) {
 
 }
 
-func (encoder *OptFieldEncoder) encode(value *OptField) enc.Wire {
+func (context *OptFieldParsingContext) Init() {
 
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
+}
+
+func (encoder *OptFieldEncoder) EncodeInto(value *OptField, buf []byte) {
+
 	pos := uint(0)
-
 	if value.Number != nil {
 		buf[pos] = byte(24)
 		pos += 1
@@ -393,10 +414,19 @@ func (encoder *OptFieldEncoder) encode(value *OptField) enc.Wire {
 		pos += 1
 	}
 
+}
+
+func (encoder *OptFieldEncoder) Encode(value *OptField) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
 	return wire
 }
 
-func ParseOptField(reader enc.ParseReader, ignoreCritical bool) (*OptField, error) {
+func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*OptField, error) {
 	progress := -1
 	value := &OptField{}
 	var err error
@@ -518,12 +548,18 @@ func ParseOptField(reader enc.ParseReader, ignoreCritical bool) (*OptField, erro
 
 func (value *OptField) Encode() enc.Wire {
 	encoder := OptFieldEncoder{}
-	encoder.init(value)
-	return encoder.encode(value)
+	encoder.Init(value)
+	return encoder.Encode(value)
 }
 
 func (value *OptField) Bytes() []byte {
 	return value.Encode().Join()
+}
+
+func ParseOptField(reader enc.ParseReader, ignoreCritical bool) (*OptField, error) {
+	context := OptFieldParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
 }
 
 type WireNameFieldEncoder struct {
@@ -533,7 +569,10 @@ type WireNameFieldEncoder struct {
 	Name_length uint
 }
 
-func (encoder *WireNameFieldEncoder) init(value *WireNameField) {
+type WireNameFieldParsingContext struct {
+}
+
+func (encoder *WireNameFieldEncoder) Init(value *WireNameField) {
 	encoder.Wire_length = 0
 	for _, c := range value.Wire {
 		encoder.Wire_length += uint(len(c))
@@ -575,13 +614,13 @@ func (encoder *WireNameFieldEncoder) init(value *WireNameField) {
 
 }
 
-func (encoder *WireNameFieldEncoder) encode(value *WireNameField) enc.Wire {
+func (context *WireNameFieldParsingContext) Init() {
 
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
+}
+
+func (encoder *WireNameFieldEncoder) EncodeInto(value *WireNameField, buf []byte) {
+
 	pos := uint(0)
-
 	buf[pos] = byte(1)
 	pos += 1
 	switch x := encoder.Wire_length; {
@@ -629,10 +668,19 @@ func (encoder *WireNameFieldEncoder) encode(value *WireNameField) enc.Wire {
 		pos += uint(c.EncodeInto(buf[pos:]))
 	}
 
+}
+
+func (encoder *WireNameFieldEncoder) Encode(value *WireNameField) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
 	return wire
 }
 
-func ParseWireNameField(reader enc.ParseReader, ignoreCritical bool) (*WireNameField, error) {
+func (context *WireNameFieldParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*WireNameField, error) {
 	progress := -1
 	value := &WireNameField{}
 	var err error
@@ -713,12 +761,18 @@ func ParseWireNameField(reader enc.ParseReader, ignoreCritical bool) (*WireNameF
 
 func (value *WireNameField) Encode() enc.Wire {
 	encoder := WireNameFieldEncoder{}
-	encoder.init(value)
-	return encoder.encode(value)
+	encoder.Init(value)
+	return encoder.Encode(value)
 }
 
 func (value *WireNameField) Bytes() []byte {
 	return value.Encode().Join()
+}
+
+func ParseWireNameField(reader enc.ParseReader, ignoreCritical bool) (*WireNameField, error) {
+	context := WireNameFieldParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
 }
 
 type MarkersEncoder struct {
@@ -739,7 +793,7 @@ type MarkersParsingContext struct {
 	endMarker int
 }
 
-func (encoder *MarkersEncoder) init(value *Markers) {
+func (encoder *MarkersEncoder) Init(value *Markers) {
 
 	encoder.Wire_length = 0
 	for _, c := range value.Wire {
@@ -783,17 +837,13 @@ func (encoder *MarkersEncoder) init(value *Markers) {
 
 }
 
-func (context *MarkersParsingContext) init() {
+func (context *MarkersParsingContext) Init() {
 
 }
 
-func (encoder *MarkersEncoder) encode(value *Markers) enc.Wire {
+func (encoder *MarkersEncoder) EncodeInto(value *Markers, buf []byte) {
 
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
 	pos := uint(0)
-
 	encoder.startMarker = int(pos)
 	buf[pos] = byte(1)
 	pos += 1
@@ -843,10 +893,19 @@ func (encoder *MarkersEncoder) encode(value *Markers) enc.Wire {
 	}
 
 	encoder.endMarker = int(pos)
+}
+
+func (encoder *MarkersEncoder) Encode(value *Markers) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
 	return wire
 }
 
-func (context *MarkersParsingContext) parse(reader enc.ParseReader, ignoreCritical bool) (*Markers, error) {
+func (context *MarkersParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*Markers, error) {
 	progress := -1
 	value := &Markers{}
 	var err error
@@ -947,7 +1006,10 @@ type NoCopyStructEncoder struct {
 	Wire2_length uint
 }
 
-func (encoder *NoCopyStructEncoder) init(value *NoCopyStruct) {
+type NoCopyStructParsingContext struct {
+}
+
+func (encoder *NoCopyStructEncoder) Init(value *NoCopyStruct) {
 	encoder.Wire1_length = 0
 	for _, c := range value.Wire1 {
 		encoder.Wire1_length += uint(len(c))
@@ -1049,22 +1111,22 @@ func (encoder *NoCopyStructEncoder) init(value *NoCopyStruct) {
 		l = 0
 	}
 
-	wirePlan = append(wirePlan, l)
+	if l > 0 {
+		wirePlan = append(wirePlan, l)
+	}
 	encoder.wirePlan = wirePlan
 }
 
-func (encoder *NoCopyStructEncoder) encode(value *NoCopyStruct) enc.Wire {
+func (context *NoCopyStructParsingContext) Init() {
 
-	wire := make(enc.Wire, len(encoder.wirePlan))
-	for i, l := range encoder.wirePlan {
-		if l > 0 {
-			wire[i] = make([]byte, l)
-		}
-	}
+}
+
+func (encoder *NoCopyStructEncoder) EncodeInto(value *NoCopyStruct, wire enc.Wire) {
+
 	wireIdx := 0
 	buf := wire[wireIdx]
-	pos := uint(0)
 
+	pos := uint(0)
 	buf[pos] = byte(1)
 	pos += 1
 	switch x := encoder.Wire1_length; {
@@ -1086,12 +1148,20 @@ func (encoder *NoCopyStructEncoder) encode(value *NoCopyStruct) enc.Wire {
 	}
 	wireIdx++
 	pos = 0
-	buf = wire[wireIdx]
+	if wireIdx < len(wire) {
+		buf = wire[wireIdx]
+	} else {
+		buf = nil
+	}
 	for _, w := range value.Wire1 {
 		wire[wireIdx] = w
 		wireIdx++
 		pos = 0
-		buf = wire[wireIdx]
+		if wireIdx < len(wire) {
+			buf = wire[wireIdx]
+		} else {
+			buf = nil
+		}
 	}
 
 	buf[pos] = byte(2)
@@ -1136,18 +1206,38 @@ func (encoder *NoCopyStructEncoder) encode(value *NoCopyStruct) enc.Wire {
 	}
 	wireIdx++
 	pos = 0
-	buf = wire[wireIdx]
+	if wireIdx < len(wire) {
+		buf = wire[wireIdx]
+	} else {
+		buf = nil
+	}
 	for _, w := range value.Wire2 {
 		wire[wireIdx] = w
 		wireIdx++
 		pos = 0
-		buf = wire[wireIdx]
+		if wireIdx < len(wire) {
+			buf = wire[wireIdx]
+		} else {
+			buf = nil
+		}
 	}
+
+}
+
+func (encoder *NoCopyStructEncoder) Encode(value *NoCopyStruct) enc.Wire {
+
+	wire := make(enc.Wire, len(encoder.wirePlan))
+	for i, l := range encoder.wirePlan {
+		if l > 0 {
+			wire[i] = make([]byte, l)
+		}
+	}
+	encoder.EncodeInto(value, wire)
 
 	return wire
 }
 
-func ParseNoCopyStruct(reader enc.ParseReader, ignoreCritical bool) (*NoCopyStruct, error) {
+func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*NoCopyStruct, error) {
 	progress := -1
 	value := &NoCopyStruct{}
 	var err error
@@ -1237,10 +1327,16 @@ func ParseNoCopyStruct(reader enc.ParseReader, ignoreCritical bool) (*NoCopyStru
 
 func (value *NoCopyStruct) Encode() enc.Wire {
 	encoder := NoCopyStructEncoder{}
-	encoder.init(value)
-	return encoder.encode(value)
+	encoder.Init(value)
+	return encoder.Encode(value)
 }
 
 func (value *NoCopyStruct) Bytes() []byte {
 	return value.Encode().Join()
+}
+
+func ParseNoCopyStruct(reader enc.ParseReader, ignoreCritical bool) (*NoCopyStruct, error) {
+	context := NoCopyStructParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
 }

@@ -50,9 +50,9 @@ type Markers struct {
 
 func (m *Markers) Encode(arg int) []byte {
 	enc := MarkersEncoder{}
-	enc.init(m)
+	enc.Init(m)
 	enc.argument = arg
-	wire := enc.encode(m)
+	wire := enc.Encode(m)
 	ret := wire.Join()
 	if enc.startMarker != 0 {
 		return nil
@@ -67,8 +67,8 @@ func ParseMarkers(buf []byte, arg int) *Markers {
 	cont := MarkersParsingContext{
 		argument: arg,
 	}
-	cont.init()
-	ret, err := cont.parse(enc.NewBufferReader(buf), true)
+	cont.Init()
+	ret, err := cont.Parse(enc.NewBufferReader(buf), true)
 	if err == nil && cont.startMarker == 0 && cont.endMarker == len(buf) {
 		return ret
 	} else {

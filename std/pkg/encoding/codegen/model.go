@@ -20,6 +20,7 @@ type TlvModel struct {
 	// WithParsingContext is true if any field has a non-trivial GenParsingContextStruct()
 	WithParsingContext bool
 
+	// Fields are the TLV fields of the structure.
 	Fields []TlvField
 }
 
@@ -48,7 +49,7 @@ func (m *TlvModel) GenEncoderStruct(buf *bytes.Buffer) error {
 }
 
 func (m *TlvModel) GenInitEncoder(buf *bytes.Buffer) error {
-	const Temp = `func (encoder *{{.Name}}Encoder) init(value *{{.Name}}) {
+	const Temp = `func (encoder *{{.Name}}Encoder) Init(value *{{.Name}}) {
 		{{- range $f := .Fields}}
 		{{$f.GenInitEncoder}}
 		{{- end}}
@@ -63,7 +64,9 @@ func (m *TlvModel) GenInitEncoder(buf *bytes.Buffer) error {
 		{{- range $f := .Fields}}
 		{{$f.GenEncodingWirePlan}}
 		{{- end}}
-		wirePlan = append(wirePlan, l)
+		if l > 0 {
+			wirePlan = append(wirePlan, l)
+		}
 		encoder.wirePlan = wirePlan
 		{{- end}}
 	}
@@ -73,7 +76,19 @@ func (m *TlvModel) GenInitEncoder(buf *bytes.Buffer) error {
 }
 
 func (m *TlvModel) GenEncodeInto(buf *bytes.Buffer) error {
-	const Temp = `func (encoder *{{.Name}}Encoder) encode(value *{{.Name}}) enc.Wire {
+	const Temp = `func (encoder *{{.Name}}Encoder) EncodeInto(value *{{.Name}},
+		{{- if .NoCopy}}wire enc.Wire{{else}}buf []byte{{end}}) {
+		{{if .NoCopy}}
+		wireIdx := 0
+		buf := wire[wireIdx]
+		{{end}}
+		pos := uint(0)
+		{{- range $f := .Fields}}
+		{{$f.GenEncodeInto}}
+		{{- end}}
+	}
+
+	func (encoder *{{.Name}}Encoder) Encode(value *{{.Name}}) enc.Wire {
 		{{if .NoCopy}}
 		wire := make(enc.Wire, len(encoder.wirePlan))
 		for i, l := range encoder.wirePlan {
@@ -81,18 +96,13 @@ func (m *TlvModel) GenEncodeInto(buf *bytes.Buffer) error {
 				wire[i] = make([]byte, l)
 			}
 		}
-		wireIdx := 0
-		buf := wire[wireIdx]
-		pos := uint(0)
+		encoder.EncodeInto(value, wire)
 		{{else}}
 		wire := make(enc.Wire, 1)
 		wire[0] = make([]byte, encoder.length)
 		buf := wire[0]
-		pos := uint(0)
+		encoder.EncodeInto(value, buf)
 		{{end}}
-		{{- range $f := .Fields}}
-		{{$f.GenEncodeInto}}
-		{{- end}}
 		return wire
 	}
 	`
@@ -112,7 +122,7 @@ func (m *TlvModel) GenParsingContextStruct(buf *bytes.Buffer) error {
 }
 
 func (m *TlvModel) GenInitContext(buf *bytes.Buffer) error {
-	const Temp = `func (context *{{.Name}}ParsingContext) init() {
+	const Temp = `func (context *{{.Name}}ParsingContext) Init() {
 		{{- range $f := .Fields}}
 		{{$f.GenInitContext}}
 		{{- end}}
@@ -125,11 +135,14 @@ func (m *TlvModel) GenInitContext(buf *bytes.Buffer) error {
 func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 	const Temp = `
 	{{if .Model.WithParsingContext -}}
-	func (context *{{.Model.Name}}ParsingContext) parse
+	func (context *{{.Model.Name}}ParsingContext) Parse
 	{{- else -}}
 	func {{if .Model.PrivMethods -}}parse{{else}}Parse{{end}}{{.Model.Name}}
 	{{- end -}}
 	(reader enc.ParseReader, ignoreCritical bool) (*{{.Model.Name}}, error) {
+		if reader == nil {
+			return nil, enc.ErrBufferOverflow
+		}
 		progress := -1
 		value := &{{.Model.Name}}{}
 		var err error
@@ -213,8 +226,8 @@ func (m *TlvModel) detectParsingContext() {
 func (m *TlvModel) genPublicEncode(buf *bytes.Buffer) error {
 	const Temp = `func (value *{{.Name}}) Encode() enc.Wire {
 		encoder := {{.Name}}Encoder{}
-		encoder.init(value)
-		return encoder.encode(value)
+		encoder.Init(value)
+		return encoder.Encode(value)
 	}
 
 	func (value *{{.Name}}) Bytes() []byte {
@@ -226,18 +239,19 @@ func (m *TlvModel) genPublicEncode(buf *bytes.Buffer) error {
 }
 
 func (m *TlvModel) genPublicParse(buf *bytes.Buffer) error {
-	const Temp = `func Parse{{.Model.Name}}(reader enc.ParseReader, ignoreCritical bool) (*{{.Model.Name}}, error) {
-		context := {{.Model.Name}}ParsingContext{}
-		context.init()
-		return context.parse(reader, ignoreCritical)
+	const Temp = `func Parse{{.Name}}(reader enc.ParseReader, ignoreCritical bool) (*{{.Name}}, error) {
+		context := {{.Name}}ParsingContext{}
+		context.Init()
+		return context.Parse(reader, ignoreCritical)
 	}
 	`
-	t := template.Must(template.New("PublicEncode").Parse(Temp))
+	t := template.Must(template.New("PublicParse").Parse(Temp))
 	return t.Execute(buf, m)
 }
 
 func (m *TlvModel) Generate(buf *bytes.Buffer) error {
-	m.detectParsingContext()
+	// m.detectParsingContext()
+	m.WithParsingContext = true
 	err := m.GenEncoderStruct(buf)
 	if err != nil {
 		return err

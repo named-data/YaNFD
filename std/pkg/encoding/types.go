@@ -58,6 +58,8 @@ type ParseReader interface {
 	Length() int
 
 	Skip(n int) error
+
+	Delegate(l int) ParseReader
 }
 
 type ErrUnrecognizedField struct {

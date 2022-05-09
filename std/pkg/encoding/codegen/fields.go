@@ -408,24 +408,287 @@ func NewBoolField(name string, typeNum uint64, _ string, _ *TlvModel) (TlvField,
 	}, nil
 }
 
-func CreateField(fieldName string, name string, typeNum uint64, annotation string, model *TlvModel) (TlvField, error) {
-	for k, f := range fieldList {
-		if strings.HasPrefix(fieldName, k) {
-			return f(name, typeNum, annotation, model)
-		}
-	}
-	return nil, ErrInvalidField
+// SequenceField represents a slice field of another supported field type.
+type SequenceField struct {
+	BaseTlvField
+
+	SubField  TlvField
+	FieldType string
 }
 
-func initFields() {
-	fieldList = map[string]func(string, uint64, string, *TlvModel) (TlvField, error){
-		"natural":           NewNaturalField,
-		"time":              NewTimeField,
-		"binary":            NewBinaryField,
-		"wire":              NewWireField,
-		"name":              NewNameField,
-		"bool":              NewBoolField,
-		"procedureArgument": NewProcedureArgument,
-		"offsetMarker":      NewOffsetMarker,
+func (f *SequenceField) GenEncoderStruct() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("%s_subencoder []struct{", f.name)
+	g.printlne(f.SubField.GenEncoderStruct())
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *SequenceField) GenInitEncoder() (string, error) {
+	var g strErrBuf
+	// Sequence uses faked encoder variable to embed the subfield.
+	// I have verified that the Go compiler can optimize this in simple cases.
+	const Temp = `{
+		{{.Name}}_l := len(value.{{.Name}})
+		encoder.{{.Name}}_subencoder = make([]struct{
+			{{.SubField.GenEncoderStruct}}
+		}, {{.Name}}_l)
+		for i := 0; i < {{.Name}}_l; i ++ {
+			pseudoEncoder := &encoder.{{.Name}}_subencoder[i]
+			pseudoValue := struct {
+				{{.Name}} {{.FieldType}}
+			}{
+				{{.Name}}: value.{{.Name}}[i],
+			}
+			{
+				encoder := pseudoEncoder
+				value := &pseudoValue
+				{{.SubField.GenInitEncoder}}
+				_ = encoder
+				_ = value
+			}
+		}
 	}
+	`
+	t := template.Must(template.New("SeqInitEncoder").Parse(Temp))
+	g.executeTemplate(t, f)
+	return g.output()
+}
+
+func (f *SequenceField) GenParsingContextStruct() (string, error) {
+	// This is not a slice, because the number of elements is unknown before parsing.
+	return f.SubField.GenParsingContextStruct()
+}
+
+func (f *SequenceField) GenInitContext() (string, error) {
+	return f.SubField.GenInitContext()
+}
+
+func (f *SequenceField) encodingGeneral(funcName string) (string, error) {
+	var g strErrBuf
+	const TempFmt = `for seq_i, seq_v := range value.{{.Name}} {
+		pseudoEncoder := &encoder.{{.Name}}_subencoder[seq_i]
+		pseudoValue := struct {
+			{{.Name}} {{.FieldType}}
+		}{
+			{{.Name}}: seq_v,
+		}
+		{
+			encoder := pseudoEncoder
+			value := &pseudoValue
+			{{.SubField.%s}}
+			_ = encoder
+			_ = value
+		}
+	}
+	`
+	temp := fmt.Sprintf(TempFmt, funcName)
+	t := template.Must(template.New("SequenceEncodingGeneral").Parse(temp))
+	g.executeTemplate(t, f)
+	return g.output()
+}
+
+func (f *SequenceField) GenEncodingLength() (string, error) {
+	return f.encodingGeneral("GenEncodingLength")
+}
+
+func (f *SequenceField) GenEncodingWirePlan() (string, error) {
+	return f.encodingGeneral("GenEncodingWirePlan")
+}
+
+func (f *SequenceField) GenEncodeInto() (string, error) {
+	return f.encodingGeneral("GenEncodeInto")
+}
+
+func (f *SequenceField) GenReadFrom() (string, error) {
+	var g strErrBuf
+	const Temp = `if value.{{.Name}} == nil {
+		value.{{.Name}} = make([]{{.FieldType}}, 0)
+	}
+	{
+		pseudoValue := struct {
+			{{.Name}} {{.FieldType}}
+		}{}
+		{
+			value := &pseudoValue
+			{{.SubField.GenReadFrom}}
+			_ = value
+		}
+		value.{{.Name}} = append(value.{{.Name}}, pseudoValue.{{.Name}})
+	}
+	progress --
+	`
+	t := template.Must(template.New("NameEncodeInto").Parse(Temp))
+	g.executeTemplate(t, f)
+	return g.output()
+}
+
+func (f *SequenceField) GenSkipProcess() (string, error) {
+	// Skip is called after all elements are parsed, so we should not assign nil.
+	return "", nil
+}
+
+func NewSequenceField(name string, typeNum uint64, annotation string, model *TlvModel) (TlvField, error) {
+	strs := strings.SplitN(annotation, ":", 3)
+	if len(strs) < 2 {
+		return nil, ErrInvalidField
+	}
+	subFieldType := strs[0]
+	subFieldClass := strs[1]
+	if len(strs) >= 3 {
+		annotation = strs[2]
+	} else {
+		annotation = ""
+	}
+	subField, err := CreateField(subFieldClass, name, typeNum, annotation, model)
+	if err != nil {
+		return nil, err
+	}
+	return &SequenceField{
+		BaseTlvField: BaseTlvField{
+			name:    name,
+			typeNum: typeNum,
+		},
+		SubField:  subField,
+		FieldType: subFieldType,
+	}, nil
+}
+
+// StructField represents a struct field of another TlvModel.
+type StructField struct {
+	BaseTlvField
+
+	StructType  string
+	innerNoCopy bool
+}
+
+func (f *StructField) GenEncoderStruct() (string, error) {
+	return fmt.Sprintf("%s_encoder %sEncoder", f.name, f.StructType), nil
+}
+
+func (f *StructField) GenInitEncoder() (string, error) {
+	const Temp = `if value.{{.}} != nil {
+		encoder.{{.}}_encoder.Init(value.{{.}})
+	}`
+	var g strErrBuf
+	t := template.Must(template.New("StructInitEncoder").Parse(Temp))
+	g.executeTemplate(t, f.name)
+	return g.output()
+}
+
+func (f *StructField) GenParsingContextStruct() (string, error) {
+	return fmt.Sprintf("%s_context %sParsingContext", f.name, f.StructType), nil
+}
+
+func (f *StructField) GenInitContext() (string, error) {
+	return fmt.Sprintf("context.%s_context.Init()", f.name), nil
+}
+
+func (f *StructField) GenEncodingLength() (string, error) {
+	var g strErrBuf
+	g.printlnf("if value.%s != nil {", f.name)
+	g.printlne(GenTypeNumLen(f.typeNum))
+	g.printlne(GenNaturalNumberLen(fmt.Sprintf("encoder.%s_encoder.length", f.name), true))
+	g.printlnf("l += encoder.%s_encoder.length", f.name)
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *StructField) GenEncodingWirePlan() (string, error) {
+	if f.innerNoCopy {
+		var g strErrBuf
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlne(GenTypeNumLen(f.typeNum))
+		g.printlne(GenNaturalNumberLen(fmt.Sprintf("encoder.%s_encoder.length", f.name), true))
+		// wirePlan[0] is always nonzero.
+		g.printlnf("l += encoder.%s_encoder.wirePlan[0]", f.name)
+		g.printlnf("for i := 1; i < len(encoder.%s_encoder.wirePlan); i ++ {", f.name)
+		g.printlne(GenSwitchWirePlan())
+		g.printlnf("l = encoder.%s_encoder.wirePlan[i]", f.name)
+		g.printlnf("}")
+		// If l == 0 then inner struct ends with a Wire. So we cannot continue.
+		// Otherwise, continue on the last part of the inner wire.
+		// Therefore, if the inner structure only uses 1 buf (i.e. with no Wire field),
+		// the outer structure will not create extra buffers.
+		g.printlnf("if l == 0 {")
+		g.printlne(GenSwitchWirePlan())
+		g.printlnf("}")
+		g.printlnf("}")
+		return g.output()
+	} else {
+		return f.GenEncodingLength()
+	}
+}
+
+func (f *StructField) GenEncodeInto() (string, error) {
+	var g strErrBuf
+	g.printlnf("if value.%s != nil {", f.name)
+	g.printlne(GenEncodeTypeNum(f.typeNum))
+	g.printlne(GenNaturalNumberEncode(fmt.Sprintf("encoder.%s_encoder.length", f.name), true))
+	if !f.innerNoCopy {
+		g.printlnf("encoder.%s_encoder.EncodeInto(value.%s, buf[pos:])", f.name, f.name)
+		g.printlnf("pos += encoder.%s_encoder.length", f.name)
+	} else {
+		const Temp = `{
+			subWire := make(enc.Wire, encoder.{{.}}_encoder.length)
+			subWire[0] = buf[pos:]
+			for i := 1; i < len(subWire); i ++ {
+				subWire[i] = wire[wireIdx + i]
+			}
+			encoder.{{.}}_encoder.EncodeInto(value.{{.}}, subWire)
+			for i := 1; i < len(subWire); i ++ {
+				wire[wireIdx + i] = subWire[i]
+			}
+			if lastL := encoder.{{.}}_encoder.wirePlan[len(subWire)-1]; lastL > 0 {
+				wireIdx += len(subWire) - 1
+				pos = lastL
+			} else {
+				wireIdx += len(subWire)
+				pos = 0
+			}
+			if wireIdx < len(wire) {
+				buf = wire[wireIdx]
+			} else {
+				buf = nil
+			}
+		}
+		`
+		t := template.Must(template.New("StructEncodeInto").Parse(Temp))
+		g.executeTemplate(t, f.name)
+	}
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *StructField) GenSkipProcess() (string, error) {
+	return "value." + f.name + " = nil", nil
+}
+
+func (f *StructField) GenReadFrom() (string, error) {
+	ret := fmt.Sprintf("value.%s, err = context.%s_context.Parse(reader.Delegate(int(l)), ignoreCritical)",
+		f.name, f.name)
+	return ret, nil
+}
+
+func NewStructField(name string, typeNum uint64, annotation string, model *TlvModel) (TlvField, error) {
+	if annotation == "" {
+		return nil, ErrInvalidField
+	}
+	strs := strings.Split(annotation, ":")
+	structType := strs[0]
+	innerNoCopy := false
+	if len(strs) > 1 && strs[1] == "nocopy" {
+		innerNoCopy = true
+	}
+	if !model.NoCopy && innerNoCopy {
+		return nil, ErrInvalidField
+	}
+	return &StructField{
+		BaseTlvField: BaseTlvField{
+			name:    name,
+			typeNum: typeNum,
+		},
+		StructType:  structType,
+		innerNoCopy: innerNoCopy,
+	}, nil
 }

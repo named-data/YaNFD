@@ -149,5 +149,9 @@ func GenSwitchWirePlan() (string, error) {
 func GenSwitchWire() (string, error) {
 	return `wireIdx ++
 	pos = 0
-	buf = wire[wireIdx]`, nil
+	if wireIdx < len(wire) {
+		buf = wire[wireIdx]
+	} else {
+		buf = nil
+	}`, nil
 }
