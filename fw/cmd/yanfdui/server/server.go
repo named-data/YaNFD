@@ -121,6 +121,8 @@ type setting struct {
 	CsReplacementPolicy      string `toml:"tables.content_store.replacement_policy"`
 	DnlLifetime              int    `toml:"tables.dead_nonce_list.lifetime"`
 	RibAutoPrefixPropagation bool   `toml:"tables.rib.auto_prefix_propagation"`
+	FibTableAlgorithm        string `toml:"tables.fib.algorithm"`
+	FibTableHashTableM       uint16 `toml:"tables.fib.hashtable.m"`
 }
 
 var (
