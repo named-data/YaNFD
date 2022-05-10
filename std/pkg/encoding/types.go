@@ -51,14 +51,24 @@ type ParseReader interface {
 	// It always tries to read the required length of bytes.
 	ReadWire(l int) (Wire, error)
 
+	// Range returns a wire that contains the bytes between start and end, without copy.
 	Range(start, end int) Wire
 
+	// Pos returns the current position in the buffer/wire.
 	Pos() int
 
+	// Length returns the length of the buffer/wire.
 	Length() int
 
+	// Skip skips the next n bytes.
 	Skip(n int) error
 
+	// Delegate returns a new ParseReader that starts from the current position with length l.
+	// The result is equivalent to the following:
+	//
+	//   start := r.Pos()
+	//   r.Skip(l)
+	//   return r.Range(start, r.Pos())
 	Delegate(l int) ParseReader
 }
 

@@ -100,7 +100,7 @@ func (r *BufferReader) Range(start, end int) Wire {
 
 func (r *BufferReader) Delegate(l int) ParseReader {
 	if l < 0 || r.pos+l > len(r.buf) {
-		return nil
+		return NewBufferReader([]byte{})
 	}
 	subBuf := r.buf[r.pos : r.pos+l]
 	r.pos += l
@@ -213,7 +213,7 @@ func (r *WireReader) Range(start, end int) Wire {
 		ret := make(Wire, endSeg-startSeg+1)
 		ret[0] = r.wire[startSeg][startPos:]
 		for i := startSeg + 1; i < endSeg; i++ {
-			ret = append(ret, r.wire[i])
+			ret[i] = r.wire[i]
 		}
 		ret[endSeg-startSeg] = r.wire[endSeg][:endPos]
 		return ret
@@ -225,24 +225,51 @@ func (r *WireReader) Skip(n int) error {
 		return errors.New("encoding.WireReader.Skip: backword skipping is not allowed")
 	}
 	r.pos += n
-	for r.pos >= len(r.wire[r.seg]) {
+	for r.pos > len(r.wire[r.seg]) {
 		r.pos -= len(r.wire[r.seg])
 		r.seg++
 		if r.seg >= len(r.wire) {
-			if r.pos > 0 {
-				return io.EOF
-			}
+			return io.EOF
 		}
 	}
 	return nil
 }
 
 func (r *WireReader) Delegate(l int) ParseReader {
-	if l < 0 {
-		return nil
+	if l < 0 || r.seg >= len(r.wire) {
+		return NewBufferReader([]byte{})
 	}
-	// subWire := make(Wire, 0, len(r.wire)-r.seg)
-	panic("TODO: NOT IMPLEMENTED")
+	if r.pos+l <= len(r.wire[r.seg]) {
+		// Return a buffer reader
+		startPos := r.pos
+		r.pos += l
+		return NewBufferReader(r.wire[r.seg][startPos:r.pos])
+	}
+	// Return a wire reader
+	startSeg := r.seg
+	startPos := r.pos
+	r.pos += l
+	for r.pos > len(r.wire[r.seg]) {
+		r.pos -= len(r.wire[r.seg])
+		r.seg++
+		if r.seg >= len(r.wire) {
+			return NewBufferReader([]byte{})
+		}
+	}
+	if r.pos == len(r.wire[r.seg]) {
+		return &WireReader{
+			wire:  r.wire[0 : r.seg+1],
+			seg:   startSeg,
+			pos:   startPos,
+			accSz: r.accSz[0 : r.seg+1],
+		}
+	} else {
+		newWire := Wire{}
+		newWire = append(newWire, r.wire[startSeg:r.seg+1]...)
+		newWire[0] = newWire[0][startPos:]
+		newWire[len(newWire)-1] = newWire[len(newWire)-1][:r.pos]
+		return NewWireReader(newWire)
+	}
 }
 
 func NewWireReader(w Wire) *WireReader {
