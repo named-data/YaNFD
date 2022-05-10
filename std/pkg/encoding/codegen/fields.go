@@ -215,9 +215,11 @@ func (f *WireField) GenEncoderStruct() (string, error) {
 
 func (f *WireField) GenInitEncoder() (string, error) {
 	var g strErrBuf
-	const Temp = `encoder.{{.}}_length = 0
-	for _, c := range value.{{.}} {
-		encoder.{{.}}_length += uint(len(c))
+	const Temp = `if value.{{.}} != nil {
+		encoder.{{.}}_length = 0
+		for _, c := range value.{{.}} {
+			encoder.{{.}}_length += uint(len(c))
+		}
 	}
 	`
 	t := template.Must(template.New("WireInitEncoder").Parse(Temp))
@@ -227,20 +229,24 @@ func (f *WireField) GenInitEncoder() (string, error) {
 
 func (f *WireField) GenEncodingLength() (string, error) {
 	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenTypeNumLen(f.typeNum))
 	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 	g.printlnf("l += encoder." + f.name + "_length")
+	g.printlnf("}")
 	return g.output()
 }
 
 func (f *WireField) GenEncodingWirePlan() (string, error) {
 	if f.noCopy {
 		g := strErrBuf{}
+		g.printlnf("if value.%s != nil {", f.name)
 		g.printlne(GenTypeNumLen(f.typeNum))
 		g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 		g.printlne(GenSwitchWirePlan())
 		g.printlnf("for range value.%s {", f.name)
 		g.printlne(GenSwitchWirePlan())
+		g.printlnf("}")
 		g.printlnf("}")
 		return g.output()
 	} else {
@@ -250,6 +256,7 @@ func (f *WireField) GenEncodingWirePlan() (string, error) {
 
 func (f *WireField) GenEncodeInto() (string, error) {
 	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenEncodeTypeNum(f.typeNum))
 	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
 	if f.noCopy {
@@ -264,6 +271,7 @@ func (f *WireField) GenEncodeInto() (string, error) {
 		g.printlnf("pos += uint(len(w))")
 		g.printlnf("}")
 	}
+	g.printlnf("}")
 	return g.output()
 }
 
@@ -298,9 +306,11 @@ func (f *NameField) GenEncoderStruct() (string, error) {
 
 func (f *NameField) GenInitEncoder() (string, error) {
 	var g strErrBuf
-	const Temp = `encoder.{{.}}_length = 0
-	for _, c := range value.{{.}} {
-		encoder.{{.}}_length += uint(c.EncodingLength())
+	const Temp = `if value.{{.}} != nil {
+		encoder.{{.}}_length = 0
+		for _, c := range value.{{.}} {
+			encoder.{{.}}_length += uint(c.EncodingLength())
+		}
 	}
 	`
 	t := template.Must(template.New("NameInitEncoder").Parse(Temp))
@@ -310,9 +320,11 @@ func (f *NameField) GenInitEncoder() (string, error) {
 
 func (f *NameField) GenEncodingLength() (string, error) {
 	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenTypeNumLen(f.typeNum))
 	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
 	g.printlnf("l += encoder." + f.name + "_length")
+	g.printlnf("}")
 	return g.output()
 }
 
@@ -322,10 +334,12 @@ func (f *NameField) GenEncodingWirePlan() (string, error) {
 
 func (f *NameField) GenEncodeInto() (string, error) {
 	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenEncodeTypeNum(f.typeNum))
 	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
 	g.printlnf("for _, c := range value.%s {", f.name)
 	g.printlnf("pos += uint(c.EncodeInto(buf[pos:]))")
+	g.printlnf("}")
 	g.printlnf("}")
 	return g.output()
 }
@@ -466,19 +480,21 @@ func (f *SequenceField) GenInitContext() (string, error) {
 
 func (f *SequenceField) encodingGeneral(funcName string) (string, error) {
 	var g strErrBuf
-	const TempFmt = `for seq_i, seq_v := range value.{{.Name}} {
-		pseudoEncoder := &encoder.{{.Name}}_subencoder[seq_i]
-		pseudoValue := struct {
-			{{.Name}} {{.FieldType}}
-		}{
-			{{.Name}}: seq_v,
-		}
-		{
-			encoder := pseudoEncoder
-			value := &pseudoValue
-			{{.SubField.%s}}
-			_ = encoder
-			_ = value
+	const TempFmt = `if value.{{.Name}} != nil {
+			for seq_i, seq_v := range value.{{.Name}} {
+			pseudoEncoder := &encoder.{{.Name}}_subencoder[seq_i]
+			pseudoValue := struct {
+				{{.Name}} {{.FieldType}}
+			}{
+				{{.Name}}: seq_v,
+			}
+			{
+				encoder := pseudoEncoder
+				value := &pseudoValue
+				{{.SubField.%s}}
+				_ = encoder
+				_ = value
+			}
 		}
 	}
 	`
@@ -600,6 +616,7 @@ func (f *StructField) GenEncodingWirePlan() (string, error) {
 		g.printlnf("if value.%s != nil {", f.name)
 		g.printlne(GenTypeNumLen(f.typeNum))
 		g.printlne(GenNaturalNumberLen(fmt.Sprintf("encoder.%s_encoder.length", f.name), true))
+		g.printlnf("if encoder.%s_encoder.length > 0 {", f.name)
 		// wirePlan[0] is always nonzero.
 		g.printlnf("l += encoder.%s_encoder.wirePlan[0]", f.name)
 		g.printlnf("for i := 1; i < len(encoder.%s_encoder.wirePlan); i ++ {", f.name)
@@ -614,6 +631,7 @@ func (f *StructField) GenEncodingWirePlan() (string, error) {
 		g.printlne(GenSwitchWirePlan())
 		g.printlnf("}")
 		g.printlnf("}")
+		g.printlnf("}")
 		return g.output()
 	} else {
 		return f.GenEncodingLength()
@@ -625,12 +643,13 @@ func (f *StructField) GenEncodeInto() (string, error) {
 	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenEncodeTypeNum(f.typeNum))
 	g.printlne(GenNaturalNumberEncode(fmt.Sprintf("encoder.%s_encoder.length", f.name), true))
+	g.printlnf("if encoder.%s_encoder.length > 0 {", f.name)
 	if !f.innerNoCopy {
 		g.printlnf("encoder.%s_encoder.EncodeInto(value.%s, buf[pos:])", f.name, f.name)
 		g.printlnf("pos += encoder.%s_encoder.length", f.name)
 	} else {
 		const Temp = `{
-			subWire := make(enc.Wire, encoder.{{.}}_encoder.length)
+			subWire := make(enc.Wire, len(encoder.{{.}}_encoder.wirePlan))
 			subWire[0] = buf[pos:]
 			for i := 1; i < len(subWire); i ++ {
 				subWire[i] = wire[wireIdx + i]
@@ -641,7 +660,11 @@ func (f *StructField) GenEncodeInto() (string, error) {
 			}
 			if lastL := encoder.{{.}}_encoder.wirePlan[len(subWire)-1]; lastL > 0 {
 				wireIdx += len(subWire) - 1
-				pos = lastL
+				if len(subWire) > 1 {
+					pos = lastL
+				} else {
+					pos += lastL
+				}
 			} else {
 				wireIdx += len(subWire)
 				pos = 0
@@ -656,6 +679,7 @@ func (f *StructField) GenEncodeInto() (string, error) {
 		t := template.Must(template.New("StructEncodeInto").Parse(Temp))
 		g.executeTemplate(t, f.name)
 	}
+	g.printlnf("}")
 	g.printlnf("}")
 	return g.output()
 }

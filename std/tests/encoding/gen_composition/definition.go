@@ -29,3 +29,27 @@ type NestedSeq struct {
 	//+field:sequence:*Inner:struct:Inner
 	Vals []*Inner `tlv:"0x03"`
 }
+
+//+tlv-model:nocopy,private
+type InnerWire1 struct {
+	//+field:wire
+	Wire1 enc.Wire `tlv:"0x01"`
+	//+field:natural:optional
+	Num *uint64 `tlv:"0x02"`
+}
+
+//+tlv-model:nocopy,private
+type InnerWire2 struct {
+	//+field:wire
+	Wire2 enc.Wire `tlv:"0x03"`
+}
+
+//+tlv-model:nocopy
+type NestedWire struct {
+	//+field:struct:InnerWire1:nocopy
+	W1 *InnerWire1 `tlv:"0x04"`
+	//+field:natural
+	N uint64 `tlv:"0x05"`
+	//+field:struct:InnerWire2:nocopy
+	W2 *InnerWire2 `tlv:"0x06"`
+}

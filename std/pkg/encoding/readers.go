@@ -261,7 +261,7 @@ func (r *WireReader) Delegate(l int) ParseReader {
 			wire:  r.wire[0 : r.seg+1],
 			seg:   startSeg,
 			pos:   startPos,
-			accSz: r.accSz[0 : r.seg+1],
+			accSz: r.accSz[0 : r.seg+2],
 		}
 	} else {
 		newWire := Wire{}

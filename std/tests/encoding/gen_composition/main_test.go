@@ -95,3 +95,90 @@ func TestNestedSeq(t *testing.T) {
 	f2 = utils.WithoutErr(def.ParseNestedSeq(enc.NewBufferReader(buf), false))
 	require.Equal(t, 0, len(f2.Vals))
 }
+
+func TestNestedWire(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := def.NestedWire{
+		W1: &def.InnerWire1{
+			Wire1: enc.Wire{
+				[]byte{1, 2, 3},
+				[]byte{4, 5, 6},
+			},
+			Num: utils.ConstPtr[uint64](255),
+		},
+		N: 13,
+		W2: &def.InnerWire2{
+			Wire2: enc.Wire{
+				[]byte{7, 8, 9},
+				[]byte{10, 11, 12},
+			},
+		},
+	}
+	wire := f.Encode()
+	require.GreaterOrEqual(t, len(wire), 6)
+	buf := wire.Join()
+	require.Equal(t, []byte{
+		0x04, 0x0b,
+		0x01, 0x06, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x02, 0x01, 0xff,
+		0x05, 0x01, 0x0d,
+		0x06, 0x08,
+		0x03, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
+	}, buf)
+	f2 := utils.WithoutErr(def.ParseNestedWire(enc.NewWireReader(wire), false))
+	require.Equal(t, f.W1.Wire1.Join(), f2.W1.Wire1.Join())
+	require.Equal(t, f.W1.Num, f2.W1.Num)
+	require.Equal(t, f.N, f2.N)
+	require.Equal(t, f.W2.Wire2.Join(), f2.W2.Wire2.Join())
+
+	f = def.NestedWire{
+		W1: &def.InnerWire1{
+			Wire1: enc.Wire{},
+			Num:   nil,
+		},
+		N: 0,
+		W2: &def.InnerWire2{
+			Wire2: enc.Wire{},
+		},
+	}
+	buf = f.Bytes()
+	require.Equal(t, []byte{
+		0x04, 0x02,
+		0x01, 0x00,
+		0x05, 0x01, 0,
+		0x06, 0x02,
+		0x03, 0x00,
+	}, buf)
+	f2 = utils.WithoutErr(def.ParseNestedWire(enc.NewBufferReader(buf), false))
+	require.Equal(t, 0, len(f2.W1.Wire1.Join()))
+	require.False(t, f2.W1.Wire1 == nil)
+	require.Equal(t, 0, len(f2.W2.Wire2.Join()))
+	require.False(t, f2.W2.Wire2 == nil)
+
+	f = def.NestedWire{
+		W1: &def.InnerWire1{
+			Wire1: nil,
+			Num:   nil,
+		},
+		N: 0,
+		W2: &def.InnerWire2{
+			Wire2: nil,
+		},
+	}
+	buf = f.Bytes()
+	require.Equal(t, []byte{0x04, 0x00, 0x05, 0x01, 0, 0x06, 0x00}, buf)
+	f2 = utils.WithoutErr(def.ParseNestedWire(enc.NewBufferReader(buf), false))
+	require.Equal(t, enc.Wire(nil), f2.W1.Wire1)
+	require.Equal(t, enc.Wire(nil), f2.W2.Wire2)
+
+	f = def.NestedWire{
+		W1: nil,
+		N:  0,
+		W2: nil,
+	}
+	buf = f.Bytes()
+	require.Equal(t, []byte{0x05, 0x01, 0}, buf)
+	f2 = utils.WithoutErr(def.ParseNestedWire(enc.NewBufferReader(buf), false))
+	require.True(t, f2.W1 == nil)
+	require.True(t, f2.W2 == nil)
+}
