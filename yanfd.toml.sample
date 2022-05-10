@@ -133,3 +133,15 @@
 
     # Enables or disables auto prefix propagation
     auto_prefix_propagation = false
+  
+  [tables.fib]
+    # Selects the algorithm used to implement the FIB
+    # Allowed options: nametree, hashtable
+    # Default: nametree
+    algorithm = "nametree"
+
+    [tables.fib.hashtable]
+    # Specifies the virtual node depth. Must be a positive number.
+    # Default is 5.
+    m = 5
+
