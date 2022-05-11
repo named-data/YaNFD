@@ -9,8 +9,10 @@ func init() {
 func initFields() {
 	fieldList = map[string]func(string, uint64, string, *TlvModel) (TlvField, error){
 		"natural":           NewNaturalField,
+		"fixedUint":         NewFixedUintField,
 		"time":              NewTimeField,
 		"binary":            NewBinaryField,
+		"string":            NewStringField,
 		"wire":              NewWireField,
 		"name":              NewNameField,
 		"bool":              NewBoolField,

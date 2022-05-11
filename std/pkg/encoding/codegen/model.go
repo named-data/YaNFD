@@ -197,6 +197,9 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 				{{- end}}
 			}
 		}
+		if err != nil {
+			return nil, err
+		}
 		return value, nil
 	}
 	`

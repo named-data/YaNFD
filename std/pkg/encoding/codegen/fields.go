@@ -716,3 +716,243 @@ func NewStructField(name string, typeNum uint64, annotation string, model *TlvMo
 		innerNoCopy: innerNoCopy,
 	}, nil
 }
+
+// StringField represents a UTF-8 encoded string.
+type StringField struct {
+	BaseTlvField
+
+	opt bool
+}
+
+func (f *StringField) GenEncodingLength() (string, error) {
+	g := strErrBuf{}
+	if f.opt {
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlne(GenTypeNumLen(f.typeNum))
+		g.printlne(GenNaturalNumberLen("len(*value."+f.name+")", true))
+		g.printlnf("l += uint(len(*value." + f.name + "))")
+		g.printlnf("}")
+	} else {
+		g.printlne(GenTypeNumLen(f.typeNum))
+		g.printlne(GenNaturalNumberLen("len(value."+f.name+")", true))
+		g.printlnf("l += uint(len(value." + f.name + "))")
+	}
+	return g.output()
+}
+
+func (f *StringField) GenEncodingWirePlan() (string, error) {
+	return f.GenEncodingLength()
+}
+
+func (f *StringField) GenEncodeInto() (string, error) {
+	g := strErrBuf{}
+	if f.opt {
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlne(GenEncodeTypeNum(f.typeNum))
+		g.printlne(GenNaturalNumberEncode("len(*value."+f.name+")", true))
+		g.printlnf("copy(buf[pos:], *value." + f.name + ")")
+		g.printlnf("pos += uint(len(*value." + f.name + "))")
+		g.printlnf("}")
+	} else {
+		g.printlne(GenEncodeTypeNum(f.typeNum))
+		g.printlne(GenNaturalNumberEncode("len(value."+f.name+")", true))
+		g.printlnf("copy(buf[pos:], value." + f.name + ")")
+		g.printlnf("pos += uint(len(value." + f.name + "))")
+	}
+	return g.output()
+}
+
+func (f *StringField) GenReadFrom() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("{")
+	g.printlnf("var builder strings.Builder")
+	g.printlnf("_, err = io.CopyN(&builder, reader, int64(l))")
+	g.printlnf("if err == nil {")
+	if f.opt {
+		g.printlnf("tempStr := builder.String()")
+		g.printlnf("value.%s = &tempStr", f.name)
+	} else {
+		g.printlnf("value.%s = builder.String()", f.name)
+	}
+	g.printlnf("}")
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *StringField) GenSkipProcess() (string, error) {
+	if f.opt {
+		return "value." + f.name + " = nil", nil
+	} else {
+		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+	}
+}
+
+func NewStringField(name string, typeNum uint64, annotation string, _ *TlvModel) (TlvField, error) {
+	return &StringField{
+		BaseTlvField: BaseTlvField{
+			name:    name,
+			typeNum: typeNum,
+		},
+		opt: annotation == "optional",
+	}, nil
+}
+
+// FixedUintField represents a fixed-length unsigned integer.
+type FixedUintField struct {
+	BaseTlvField
+
+	opt bool
+	l   uint
+}
+
+func (f *FixedUintField) GenEncodingLength() (string, error) {
+	g := strErrBuf{}
+	if f.opt {
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlne(GenTypeNumLen(f.typeNum))
+		g.printlnf("l += 1 + %d", f.l)
+		g.printlnf("}")
+	} else {
+		g.printlne(GenTypeNumLen(f.typeNum))
+		g.printlnf("l += 1 + %d", f.l)
+	}
+	return g.output()
+}
+
+func (f *FixedUintField) GenEncodingWirePlan() (string, error) {
+	return f.GenEncodingLength()
+}
+
+func (f *FixedUintField) GenEncodeInto() (string, error) {
+	g := strErrBuf{}
+
+	gen := func(name string) {
+		switch f.l {
+		case 1:
+			g.printlnf("\tbuf[pos] = 1\n")
+			g.printlnf("\tbuf[pos+1] = byte(%s)", name)
+			g.printlnf("\tpos += %d", 2)
+		case 2:
+			g.printlnf("\tbuf[pos] = 2\n")
+			g.printlnf("\tbinary.BigEndian.PutUint16(buf[pos+1:], uint16(%s))\n", name)
+			g.printlnf("\tpos += %d", 3)
+		case 4:
+			g.printlnf("\tbuf[pos] = 4\n")
+			g.printlnf("\tbinary.BigEndian.PutUint32(buf[pos+1:], uint32(%s))\n", name)
+			g.printlnf("\tpos += %d", 5)
+		case 8:
+			g.printlnf("\tbuf[pos] = 8\n")
+			g.printlnf("\tbinary.BigEndian.PutUint64(buf[pos+1:], uint64(%s))\n", name)
+			g.printlnf("\tpos += %d", 9)
+		}
+	}
+
+	if f.opt {
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlne(GenEncodeTypeNum(f.typeNum))
+		gen("*value." + f.name)
+		g.printlnf("}")
+	} else {
+		g.printlne(GenEncodeTypeNum(f.typeNum))
+		gen("value." + f.name)
+	}
+	return g.output()
+}
+
+func (f *FixedUintField) GenReadFrom() (string, error) {
+	g := strErrBuf{}
+	digit := ""
+	switch f.l {
+	case 1:
+		digit = "byte"
+	case 2:
+		digit = "uint16"
+	case 4:
+		digit = "uint32"
+	case 8:
+		digit = "uint64"
+	}
+
+	gen := func(name string) {
+		if f.l == 1 {
+			g.printlnf("%s, err = reader.ReadByte()\n", name)
+			g.printlnf("if err == io.EOF {\n")
+			g.printlnf("\terr = io.ErrUnexpectedEOF\n")
+			g.printlnf("}\n")
+		} else {
+			const Temp = `{{.Name}} = {{.Digit}}(0)
+			{
+				for i := 0; i < int(l); i++ {
+					x := byte(0)
+					x, err = reader.ReadByte()
+					if err != nil {
+						if err == io.EOF {
+							err = io.ErrUnexpectedEOF
+						}
+						break
+					}
+					{{.Name}} = {{.Digit}}({{.Name}}<<8) | {{.Digit}}(x)
+				}
+			}
+			`
+			t := template.Must(template.New("FixedUintDecode").Parse(Temp))
+			g.executeTemplate(t, struct {
+				Name  string
+				Digit string
+			}{
+				Name:  name,
+				Digit: digit,
+			})
+		}
+	}
+
+	if f.opt {
+		g.printlnf("{")
+		g.printlnf("tempVal := %s(0)", digit)
+		gen("tempVal")
+		g.printlnf("value." + f.name + " = &tempVal")
+		g.printlnf("}")
+		return g.output()
+	} else {
+		gen("value." + f.name)
+	}
+	return g.output()
+}
+
+func (f *FixedUintField) GenSkipProcess() (string, error) {
+	if f.opt {
+		return "value." + f.name + " = nil", nil
+	} else {
+		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+	}
+}
+
+func NewFixedUintField(name string, typeNum uint64, annotation string, _ *TlvModel) (TlvField, error) {
+	if annotation == "" {
+		return nil, ErrInvalidField
+	}
+	strs := strings.Split(annotation, ":")
+	optional := false
+	if len(strs) >= 2 && strs[1] == "optional" {
+		optional = true
+	}
+	l := uint(0)
+	switch strs[0] {
+	case "byte":
+		l = 1
+	case "uint16":
+		l = 2
+	case "uint32":
+		l = 4
+	case "uint64":
+		l = 8
+	}
+	return &FixedUintField{
+		BaseTlvField: BaseTlvField{
+			name:    name,
+			typeNum: typeNum,
+		},
+		opt: optional,
+		l:   l,
+	}, nil
+}

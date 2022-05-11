@@ -4,6 +4,7 @@ package gen_basic
 import (
 	"encoding/binary"
 	"io"
+	"strings"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -179,7 +180,8 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 					value.Number = uint64(0)
 					{
 						for i := 0; i < int(l); i++ {
-							x, err := reader.ReadByte()
+							x := byte(0)
+							x, err = reader.ReadByte()
 							if err != nil {
 								if err == io.EOF {
 									err = io.ErrUnexpectedEOF
@@ -198,7 +200,8 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 						timeInt = uint64(0)
 						{
 							for i := 0; i < int(l); i++ {
-								x, err := reader.ReadByte()
+								x := byte(0)
+								x, err = reader.ReadByte()
 								if err != nil {
 									if err == io.EOF {
 										err = io.ErrUnexpectedEOF
@@ -251,6 +254,9 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 		case 2 - 1:
 			value.Binary = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -463,7 +469,8 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 						tempVal = uint64(0)
 						{
 							for i := 0; i < int(l); i++ {
-								x, err := reader.ReadByte()
+								x := byte(0)
+								x, err = reader.ReadByte()
 								if err != nil {
 									if err == io.EOF {
 										err = io.ErrUnexpectedEOF
@@ -485,7 +492,8 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 						timeInt = uint64(0)
 						{
 							for i := 0; i < int(l); i++ {
-								x, err := reader.ReadByte()
+								x := byte(0)
+								x, err = reader.ReadByte()
 								if err != nil {
 									if err == io.EOF {
 										err = io.ErrUnexpectedEOF
@@ -548,6 +556,9 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		case 3 - 1:
 			value.Bool = false
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -776,6 +787,9 @@ func (context *WireNameFieldParsingContext) Parse(reader enc.ParseReader, ignore
 		case 1 - 1:
 			value.Name = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -1028,6 +1042,9 @@ func (context *MarkersParsingContext) Parse(reader enc.ParseReader, ignoreCritic
 		case 4 - 1:
 			context.endMarker = int(startPos)
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -1327,7 +1344,8 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 					value.Number = uint64(0)
 					{
 						for i := 0; i < int(l); i++ {
-							x, err := reader.ReadByte()
+							x := byte(0)
+							x, err = reader.ReadByte()
 							if err != nil {
 								if err == io.EOF {
 									err = io.ErrUnexpectedEOF
@@ -1377,6 +1395,9 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 			value.Wire2 = nil
 		}
 	}
+	if err != nil {
+		return nil, err
+	}
 	return value, nil
 }
 
@@ -1392,6 +1413,427 @@ func (value *NoCopyStruct) Bytes() []byte {
 
 func ParseNoCopyStruct(reader enc.ParseReader, ignoreCritical bool) (*NoCopyStruct, error) {
 	context := NoCopyStructParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
+type StrFieldEncoder struct {
+	length uint
+}
+
+type StrFieldParsingContext struct {
+}
+
+func (encoder *StrFieldEncoder) Init(value *StrField) {
+
+	l := uint(0)
+	l += 1
+	switch x := len(value.Str1); {
+	case x <= 0xfc:
+		l += 1
+	case x <= 0xffff:
+		l += 3
+	case x <= 0xffffffff:
+		l += 5
+	default:
+		l += 9
+	}
+	l += uint(len(value.Str1))
+
+	if value.Str2 != nil {
+		l += 1
+		switch x := len(*value.Str2); {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += uint(len(*value.Str2))
+	}
+
+	encoder.length = l
+
+}
+
+func (context *StrFieldParsingContext) Init() {
+
+}
+
+func (encoder *StrFieldEncoder) EncodeInto(value *StrField, buf []byte) {
+
+	pos := uint(0)
+	buf[pos] = byte(1)
+	pos += 1
+	switch x := len(value.Str1); {
+	case x <= 0xfc:
+		buf[pos] = byte(x)
+		pos += 1
+	case x <= 0xffff:
+		buf[pos] = 0xfd
+		binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+		pos += 3
+	case x <= 0xffffffff:
+		buf[pos] = 0xfe
+		binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+		pos += 5
+	default:
+		buf[pos] = 0xff
+		binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+		pos += 9
+	}
+	copy(buf[pos:], value.Str1)
+	pos += uint(len(value.Str1))
+
+	if value.Str2 != nil {
+		buf[pos] = byte(2)
+		pos += 1
+		switch x := len(*value.Str2); {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		copy(buf[pos:], *value.Str2)
+		pos += uint(len(*value.Str2))
+	}
+
+}
+
+func (encoder *StrFieldEncoder) Encode(value *StrField) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
+	return wire
+}
+
+func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*StrField, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &StrField{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 1:
+				if progress+1 == 0 {
+					handled = true
+					{
+						var builder strings.Builder
+						_, err = io.CopyN(&builder, reader, int64(l))
+						if err == nil {
+							value.Str1 = builder.String()
+						}
+					}
+
+				}
+			case 2:
+				if progress+1 == 1 {
+					handled = true
+					{
+						var builder strings.Builder
+						_, err = io.CopyN(&builder, reader, int64(l))
+						if err == nil {
+							tempStr := builder.String()
+							value.Str2 = &tempStr
+						}
+					}
+
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+					err = enc.ErrSkipRequired{TypeNum: 1}
+				case 1 - 1:
+					value.Str2 = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 2; progress++ {
+		switch progress {
+		case 0 - 1:
+			err = enc.ErrSkipRequired{TypeNum: 1}
+		case 1 - 1:
+			value.Str2 = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (value *StrField) Encode() enc.Wire {
+	encoder := StrFieldEncoder{}
+	encoder.Init(value)
+	return encoder.Encode(value)
+}
+
+func (value *StrField) Bytes() []byte {
+	return value.Encode().Join()
+}
+
+func ParseStrField(reader enc.ParseReader, ignoreCritical bool) (*StrField, error) {
+	context := StrFieldParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
+type FixedUintFieldEncoder struct {
+	length uint
+}
+
+type FixedUintFieldParsingContext struct {
+}
+
+func (encoder *FixedUintFieldEncoder) Init(value *FixedUintField) {
+
+	l := uint(0)
+	l += 1
+	l += 1 + 1
+
+	if value.U32 != nil {
+		l += 1
+		l += 1 + 4
+	}
+
+	if value.U64 != nil {
+		l += 1
+		l += 1 + 8
+	}
+
+	encoder.length = l
+
+}
+
+func (context *FixedUintFieldParsingContext) Init() {
+
+}
+
+func (encoder *FixedUintFieldEncoder) EncodeInto(value *FixedUintField, buf []byte) {
+
+	pos := uint(0)
+	buf[pos] = byte(1)
+	pos += 1
+	buf[pos] = 1
+
+	buf[pos+1] = byte(value.Byte)
+	pos += 2
+
+	if value.U32 != nil {
+		buf[pos] = byte(2)
+		pos += 1
+		buf[pos] = 4
+
+		binary.BigEndian.PutUint32(buf[pos+1:], uint32(*value.U32))
+
+		pos += 5
+	}
+
+	if value.U64 != nil {
+		buf[pos] = byte(3)
+		pos += 1
+		buf[pos] = 8
+
+		binary.BigEndian.PutUint64(buf[pos+1:], uint64(*value.U64))
+
+		pos += 9
+	}
+
+}
+
+func (encoder *FixedUintFieldEncoder) Encode(value *FixedUintField) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
+	return wire
+}
+
+func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*FixedUintField, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &FixedUintField{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 1:
+				if progress+1 == 0 {
+					handled = true
+					value.Byte, err = reader.ReadByte()
+
+					if err == io.EOF {
+
+						err = io.ErrUnexpectedEOF
+
+					}
+
+				}
+			case 2:
+				if progress+1 == 1 {
+					handled = true
+					{
+						tempVal := uint32(0)
+						tempVal = uint32(0)
+						{
+							for i := 0; i < int(l); i++ {
+								x := byte(0)
+								x, err = reader.ReadByte()
+								if err != nil {
+									if err == io.EOF {
+										err = io.ErrUnexpectedEOF
+									}
+									break
+								}
+								tempVal = uint32(tempVal<<8) | uint32(x)
+							}
+						}
+						value.U32 = &tempVal
+					}
+
+				}
+			case 3:
+				if progress+1 == 2 {
+					handled = true
+					{
+						tempVal := uint64(0)
+						tempVal = uint64(0)
+						{
+							for i := 0; i < int(l); i++ {
+								x := byte(0)
+								x, err = reader.ReadByte()
+								if err != nil {
+									if err == io.EOF {
+										err = io.ErrUnexpectedEOF
+									}
+									break
+								}
+								tempVal = uint64(tempVal<<8) | uint64(x)
+							}
+						}
+						value.U64 = &tempVal
+					}
+
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+					err = enc.ErrSkipRequired{TypeNum: 1}
+				case 1 - 1:
+					value.U32 = nil
+				case 2 - 1:
+					value.U64 = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 3; progress++ {
+		switch progress {
+		case 0 - 1:
+			err = enc.ErrSkipRequired{TypeNum: 1}
+		case 1 - 1:
+			value.U32 = nil
+		case 2 - 1:
+			value.U64 = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (value *FixedUintField) Encode() enc.Wire {
+	encoder := FixedUintFieldEncoder{}
+	encoder.Init(value)
+	return encoder.Encode(value)
+}
+
+func (value *FixedUintField) Bytes() []byte {
+	return value.Encode().Join()
+}
+
+func ParseFixedUintField(reader enc.ParseReader, ignoreCritical bool) (*FixedUintField, error) {
+	context := FixedUintFieldParsingContext{}
 	context.Init()
 	return context.Parse(reader, ignoreCritical)
 }

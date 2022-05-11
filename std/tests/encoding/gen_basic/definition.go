@@ -85,3 +85,19 @@ type NoCopyStruct struct {
 	//+field:wire
 	Wire2 enc.Wire `tlv:"0x03"`
 }
+
+type StrField struct {
+	//+field:string
+	Str1 string `tlv:"0x01"`
+	//+field:string:optional
+	Str2 *string `tlv:"0x02"`
+}
+
+type FixedUintField struct {
+	//+field:fixedUint:byte
+	Byte byte `tlv:"0x01"`
+	//+field:fixedUint:uint32:optional
+	U32 *uint32 `tlv:"0x02"`
+	//+field:fixedUint:uint64:optional
+	U64 *uint64 `tlv:"0x03"`
+}

@@ -125,7 +125,8 @@ func GenNaturalNumberDecode(code string) (string, error) {
 	const Temp = `{{.}} = uint64(0)
 	{
 		for i := 0; i < int(l); i++ {
-			x, err := reader.ReadByte()
+			x := byte(0)
+			x, err = reader.ReadByte()
 			if err != nil {
 				if err == io.EOF {
 					err = io.ErrUnexpectedEOF

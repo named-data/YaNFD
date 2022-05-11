@@ -172,7 +172,8 @@ func (context *IntArrayParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 							value.Words = uint64(0)
 							{
 								for i := 0; i < int(l); i++ {
-									x, err := reader.ReadByte()
+									x := byte(0)
+									x, err = reader.ReadByte()
 									if err != nil {
 										if err == io.EOF {
 											err = io.ErrUnexpectedEOF
@@ -213,6 +214,9 @@ func (context *IntArrayParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		case 0 - 1:
 
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -455,6 +459,9 @@ func (context *NameArrayParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 
 		}
 	}
+	if err != nil {
+		return nil, err
+	}
 	return value, nil
 }
 
@@ -572,7 +579,8 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 					value.Num = uint64(0)
 					{
 						for i := 0; i < int(l); i++ {
-							x, err := reader.ReadByte()
+							x := byte(0)
+							x, err = reader.ReadByte()
 							if err != nil {
 								if err == io.EOF {
 									err = io.ErrUnexpectedEOF
@@ -607,6 +615,9 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 		case 0 - 1:
 			err = enc.ErrSkipRequired{TypeNum: 1}
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -761,6 +772,9 @@ func (context *NestedParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 		case 0 - 1:
 			value.Val = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -987,6 +1001,9 @@ func (context *NestedSeqParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 		case 0 - 1:
 
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -1227,7 +1244,8 @@ func (context *InnerWire1ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 						tempVal = uint64(0)
 						{
 							for i := 0; i < int(l); i++ {
-								x, err := reader.ReadByte()
+								x := byte(0)
+								x, err = reader.ReadByte()
 								if err != nil {
 									if err == io.EOF {
 										err = io.ErrUnexpectedEOF
@@ -1269,6 +1287,9 @@ func (context *InnerWire1ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 		case 1 - 1:
 			value.Num = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -1458,6 +1479,9 @@ func (context *InnerWire2ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 		case 0 - 1:
 			value.Wire2 = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }
@@ -1790,7 +1814,8 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					value.N = uint64(0)
 					{
 						for i := 0; i < int(l); i++ {
-							x, err := reader.ReadByte()
+							x := byte(0)
+							x, err = reader.ReadByte()
 							if err != nil {
 								if err == io.EOF {
 									err = io.ErrUnexpectedEOF
@@ -1838,6 +1863,9 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 		case 2 - 1:
 			value.W2 = nil
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return value, nil
 }

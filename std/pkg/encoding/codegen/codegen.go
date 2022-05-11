@@ -135,6 +135,7 @@ func (g *Generator) Generate(packName string) {
 		"bytes"
 		"encoding/binary"
 		"io"
+		"strings"
 		"time"
 
 		enc "github.com/zjkmxy/go-ndn/pkg/encoding"

@@ -205,3 +205,61 @@ func TestNoCopy(t *testing.T) {
 	require.Equal(t, f.Number, f2.Number)
 	require.Equal(t, f.Wire2.Join(), f2.Wire2.Join())
 }
+
+func TestStrField(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := gen_basic.StrField{
+		Str1: "hello",
+		Str2: utils.ConstPtr("world"),
+	}
+	buf := f.Bytes()
+	require.Equal(t, []byte{0x01, 0x05, 'h', 'e', 'l', 'l', 'o', 0x02, 0x05, 'w', 'o', 'r', 'l', 'd'}, buf)
+	f2 := utils.WithoutErr(gen_basic.ParseStrField(enc.NewBufferReader(buf), false))
+	require.Equal(t, f, *f2)
+
+	f = gen_basic.StrField{
+		Str1: "",
+		Str2: nil,
+	}
+	buf = f.Bytes()
+	require.Equal(t, []byte{0x01, 0x00}, buf)
+	f2 = utils.WithoutErr(gen_basic.ParseStrField(enc.NewBufferReader(buf), false))
+	require.Equal(t, f, *f2)
+
+	buf = []byte{}
+	utils.WithErr(gen_basic.ParseStrField(enc.NewBufferReader(buf), false))
+}
+
+func TestFixedUintField(t *testing.T) {
+	utils.SetTestingT(t)
+
+	f := gen_basic.FixedUintField{
+		Byte: 1,
+		U32:  utils.ConstPtr[uint32](2),
+		U64:  utils.ConstPtr[uint64](3),
+	}
+	buf := f.Bytes()
+	require.Equal(t, []byte{
+		0x01, 0x01, 0x01,
+		0x02, 0x04, 0x00, 0x00, 0x00, 0x02,
+		0x03, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+	}, buf)
+	f2 := utils.WithoutErr(gen_basic.ParseFixedUintField(enc.NewBufferReader(buf), false))
+	require.Equal(t, f, *f2)
+
+	f = gen_basic.FixedUintField{
+		Byte: 0,
+		U32:  nil,
+		U64:  nil,
+	}
+	buf = f.Bytes()
+	require.Equal(t, []byte{
+		0x01, 0x01, 0x00,
+	}, buf)
+	f2 = utils.WithoutErr(gen_basic.ParseFixedUintField(enc.NewBufferReader(buf), false))
+	require.Equal(t, f, *f2)
+
+	buf = []byte{}
+	utils.WithErr(gen_basic.ParseFixedUintField(enc.NewBufferReader(buf), false))
+}
