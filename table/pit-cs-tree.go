@@ -3,6 +3,7 @@ package table
 import (
 	"bytes"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -46,8 +47,9 @@ type pitCsTreeNode struct {
 	component ndn.NameComponent
 	depth     int
 
-	parent   *pitCsTreeNode
-	children []*pitCsTreeNode
+	parent        *pitCsTreeNode
+	children      map[string]*pitCsTreeNode
+	childrenMutex sync.RWMutex
 
 	pitEntries []*nameTreePitEntry
 
@@ -60,6 +62,7 @@ func NewPitCS() *PitCsTree {
 	pitCs.root = new(pitCsTreeNode)
 	pitCs.root.component = nil // Root component will be nil since it represents zero components
 	pitCs.root.pitEntries = make([]*nameTreePitEntry, 0)
+	pitCs.root.children = make(map[string]*pitCsTreeNode)
 	pitCs.expiringPitEntries = make(chan PitEntry, tableQueueSize)
 	pitCs.pitTokenMap = make(map[uint32]*nameTreePitEntry)
 	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
@@ -276,10 +279,11 @@ func (e *nameTreePitEntry) GetOutRecords() []*PitOutRecord {
 
 func (p *pitCsTreeNode) findExactMatchEntry(name *ndn.Name) *pitCsTreeNode {
 	if name.Size() > p.depth {
-		for _, child := range p.children {
-			if name.At(child.depth - 1).Equals(child.component) {
-				return child.findExactMatchEntry(name)
-			}
+		p.childrenMutex.RLock()
+		defer p.childrenMutex.RUnlock()
+
+		if child, ok := p.children[name.At(p.depth).String()]; ok {
+			return child.findExactMatchEntry(name)
 		}
 	} else if name.Size() == p.depth {
 		return p
@@ -289,10 +293,11 @@ func (p *pitCsTreeNode) findExactMatchEntry(name *ndn.Name) *pitCsTreeNode {
 
 func (p *pitCsTreeNode) findLongestPrefixEntry(name *ndn.Name) *pitCsTreeNode {
 	if name.Size() > p.depth {
-		for _, child := range p.children {
-			if name.At(child.depth - 1).Equals(child.component) {
-				return child.findLongestPrefixEntry(name)
-			}
+		p.childrenMutex.RLock()
+		defer p.childrenMutex.RUnlock()
+
+		if child, ok := p.children[name.At(p.depth).String()]; ok {
+			return child.findLongestPrefixEntry(name)
 		}
 	}
 	return p
@@ -305,24 +310,28 @@ func (p *pitCsTreeNode) fillTreeToPrefix(name *ndn.Name) *pitCsTreeNode {
 		newNode.component = name.At(depth - 1).DeepCopy()
 		newNode.depth = depth
 		newNode.parent = curNode
-		curNode.children = append(curNode.children, newNode)
+		newNode.children = make(map[string]*pitCsTreeNode)
+
+		curNode.childrenMutex.Lock()
+		curNode.children[newNode.component.String()] = newNode
+		curNode.childrenMutex.Unlock()
+
 		curNode = newNode
 	}
 	return curNode
 }
 
+func (p *pitCsTreeNode) getChildrenCount() int {
+	p.childrenMutex.RLock()
+	defer p.childrenMutex.RUnlock()
+	return len(p.children)
+}
+
 func (p *pitCsTreeNode) pruneIfEmpty() {
-	for curNode := p; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
-		// Remove from parent's children
-		for i, child := range curNode.parent.children {
-			if child == p {
-				if len(curNode.parent.children) > 1 {
-					curNode.parent.children[i] = curNode.parent.children[len(curNode.parent.children)-1]
-				}
-				curNode.parent.children = curNode.parent.children[:len(curNode.parent.children)-1]
-				break
-			}
-		}
+	for curNode := p; curNode.parent != nil && curNode.getChildrenCount() == 0 && len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
+		curNode.parent.childrenMutex.Lock()
+		delete(curNode.parent.children, curNode.component.String())
+		curNode.parent.childrenMutex.Unlock()
 	}
 }
 
