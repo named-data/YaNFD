@@ -14,6 +14,7 @@ import (
 )
 
 // PitCsTable dictates what functionality a Pit-Cs table should implement
+// Warning: All functions must be called in the same forwarding goroutine as the creation of the table.
 type PitCsTable interface {
 	InsertInterest(interest *ndn.Interest, hint *ndn.Name, inFace uint64) (PitEntry, bool)
 	RemoveInterest(pitEntry PitEntry) bool
@@ -31,6 +32,13 @@ type PitCsTable interface {
 	updatePitExpiry(pitEntry PitEntry)
 
 	ExpiringPitEntries() chan PitEntry
+
+	// UpdateTimer returns the channel used to signal regular Update() calls in the forwarding thread.
+	// <- UpdateTimer() and Update() must be called in pairs.
+	UpdateTimer() <-chan struct{}
+	// Update() does whatever the PIT table needs to do regularly.
+	// It may schedule the next UpdateTimer().
+	Update()
 }
 
 // basePitCsTable contains properties common to all PIT-CS tables

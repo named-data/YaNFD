@@ -3,7 +3,6 @@ package table
 import (
 	"bytes"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -28,6 +27,7 @@ type PitCsTree struct {
 	csMap         map[uint64]*nameTreeCsEntry
 
 	pitExpiryQueue priority_queue.Queue[*nameTreePitEntry, int64]
+	updateTimer    chan struct{}
 }
 
 type nameTreePitEntry struct {
@@ -47,9 +47,8 @@ type pitCsTreeNode struct {
 	component ndn.NameComponent
 	depth     int
 
-	parent        *pitCsTreeNode
-	children      map[string]*pitCsTreeNode
-	childrenMutex sync.RWMutex
+	parent   *pitCsTreeNode
+	children map[string]*pitCsTreeNode
 
 	pitEntries []*nameTreePitEntry
 
@@ -66,6 +65,7 @@ func NewPitCS() *PitCsTree {
 	pitCs.expiringPitEntries = make(chan PitEntry, tableQueueSize)
 	pitCs.pitTokenMap = make(map[uint32]*nameTreePitEntry)
 	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
+	pitCs.updateTimer = make(chan struct{})
 
 	// This value has already been validated from loading the configuration, so we know it will be one of the following (or else fatal)
 	switch csReplacementPolicy {
@@ -76,31 +76,40 @@ func NewPitCS() *PitCsTree {
 	}
 	pitCs.csMap = make(map[uint64]*nameTreeCsEntry)
 
-	// Set up the expired PIT entries goroutine
-	go pitCs.expirationPitLoop()
+	// Schedule first signal
+	time.AfterFunc(expiredPitTickerInterval, func() {
+		pitCs.updateTimer <- struct{}{}
+	})
 
 	return pitCs
 }
 
-func (p *PitCsTree) expirationPitLoop() {
-	for !core.ShouldQuit {
+func (p *PitCsTree) UpdateTimer() <-chan struct{} {
+	return p.updateTimer
+}
+
+func (p *PitCsTree) Update() {
+	for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.PeekPriority() <= time.Now().UnixNano() {
+		entry := p.pitExpiryQueue.Pop()
+		entry.queueIndex = -1
+		p.expiringPitEntries <- entry
+		p.RemoveInterest(entry)
+	}
+	if !core.ShouldQuit {
+		updateDuration := expiredPitTickerInterval
 		if p.pitExpiryQueue.Len() > 0 {
 			sleepTime := time.Duration(p.pitExpiryQueue.PeekPriority()-time.Now().UnixNano()) * time.Nanosecond
 			if sleepTime > 0 {
 				if sleepTime > expiredPitTickerInterval {
 					sleepTime = expiredPitTickerInterval
 				}
-				time.Sleep(sleepTime)
+				updateDuration = sleepTime
 			}
-		} else {
-			time.Sleep(expiredPitTickerInterval)
 		}
-		for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.PeekPriority() <= time.Now().UnixNano() {
-			entry := p.pitExpiryQueue.Pop()
-			entry.queueIndex = -1
-			p.expiringPitEntries <- entry
-			p.RemoveInterest(entry)
-		}
+		// Schedule next signal
+		time.AfterFunc(updateDuration, func() {
+			p.updateTimer <- struct{}{}
+		})
 	}
 }
 
@@ -279,9 +288,6 @@ func (e *nameTreePitEntry) GetOutRecords() []*PitOutRecord {
 
 func (p *pitCsTreeNode) findExactMatchEntry(name *ndn.Name) *pitCsTreeNode {
 	if name.Size() > p.depth {
-		p.childrenMutex.RLock()
-		defer p.childrenMutex.RUnlock()
-
 		if child, ok := p.children[name.At(p.depth).String()]; ok {
 			return child.findExactMatchEntry(name)
 		}
@@ -293,9 +299,6 @@ func (p *pitCsTreeNode) findExactMatchEntry(name *ndn.Name) *pitCsTreeNode {
 
 func (p *pitCsTreeNode) findLongestPrefixEntry(name *ndn.Name) *pitCsTreeNode {
 	if name.Size() > p.depth {
-		p.childrenMutex.RLock()
-		defer p.childrenMutex.RUnlock()
-
 		if child, ok := p.children[name.At(p.depth).String()]; ok {
 			return child.findLongestPrefixEntry(name)
 		}
@@ -312,26 +315,19 @@ func (p *pitCsTreeNode) fillTreeToPrefix(name *ndn.Name) *pitCsTreeNode {
 		newNode.parent = curNode
 		newNode.children = make(map[string]*pitCsTreeNode)
 
-		curNode.childrenMutex.Lock()
 		curNode.children[newNode.component.String()] = newNode
-		curNode.childrenMutex.Unlock()
-
 		curNode = newNode
 	}
 	return curNode
 }
 
 func (p *pitCsTreeNode) getChildrenCount() int {
-	p.childrenMutex.RLock()
-	defer p.childrenMutex.RUnlock()
 	return len(p.children)
 }
 
 func (p *pitCsTreeNode) pruneIfEmpty() {
 	for curNode := p; curNode.parent != nil && curNode.getChildrenCount() == 0 && len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
-		curNode.parent.childrenMutex.Lock()
 		delete(curNode.parent.children, curNode.component.String())
-		curNode.parent.childrenMutex.Unlock()
 	}
 }
 
