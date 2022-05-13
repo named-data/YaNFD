@@ -108,6 +108,10 @@ func (y *YaNFD) Start() {
 	//core.LogInfo("Main", "Loading strategies")
 	//fw.LoadStrategies()
 
+	// Initialize FIB table
+	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
+	table.CreateFIBTable(fibTableAlgorithm)
+
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)

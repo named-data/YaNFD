@@ -35,6 +35,10 @@ var csReplacementPolicy string
 // producerRegions contains the prefixes produced in this forwarder's region.
 var producerRegions []string
 
+// fibTableAlgorithm contains the options for how the FIB is implemented
+// Allowed values: nametree, hashtable
+var fibTableAlgorithm string
+
 // Configure configures the forwarding system.
 func Configure() {
 	tableQueueSize = core.GetConfigIntDefault("tables.queue_size", 1024)
@@ -73,4 +77,17 @@ func Configure() {
 // SetCsCapacity sets the CS capacity from management.
 func SetCsCapacity(capacity int) {
 	csCapacity = capacity
+}
+
+func CreateFIBTable(fibTableAlgorithm string) {
+	switch fibTableAlgorithm {
+	case "hashtable":
+		m := core.GetConfigUint16Default("tables.fib.hashtable.m", 5)
+		newFibStrategyTableHashTable(m)
+	case "nametree":
+		newFibStrategyTableTree()
+	default:
+		// Default to nametree
+		core.LogFatal("CreateFIBTable", "Unrecognized FIB table algorithm specified: ", fibTableAlgorithm)
+	}
 }

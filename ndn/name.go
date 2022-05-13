@@ -861,6 +861,7 @@ func (n *Name) Prefix(size int) *Name {
 	}
 	// Reset wire
 	prefix.wire = new(tlv.Block)
+	prefix.cachedString = ""
 	return &prefix
 }
 

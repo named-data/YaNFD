@@ -11,7 +11,6 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 )
 
@@ -26,24 +25,19 @@ type fibStrategyTreeEntry struct {
 type FibStrategyTree struct {
 	root *fibStrategyTreeEntry
 
+	// fibStrategyRWMutex is a mutex used to synchronize accesses to the FIB,
+	// which is shared across all the forwarding threads.
 	fibStrategyRWMutex sync.RWMutex
-	fibPrefixes        map[string]*fibStrategyTreeEntry
+
+	fibPrefixes map[string]*fibStrategyTreeEntry
 }
 
-func init() {
-	newFibStrategyTable()
-}
-
-func newFibStrategyTable() {
-	var err error
+func newFibStrategyTableTree() {
 	FibStrategyTable = new(FibStrategyTree)
 	fibStrategyTableTree := FibStrategyTable.(*FibStrategyTree)
 	fibStrategyTableTree.root = new(fibStrategyTreeEntry)
 	fibStrategyTableTree.root.component = nil // Root component will be nil since it represents zero components
-	fibStrategyTableTree.root.strategy, err = ndn.NameFromString("/localhost/nfd/strategy/best-route/v=1")
-	if err != nil {
-		core.LogFatal("FibStrategy", "Unable to create strategy name for best-route for \"/\": ", err)
-	}
+	fibStrategyTableTree.root.strategy, _ = ndn.NameFromString("/localhost/nfd/strategy/best-route/v=1")
 	fibStrategyTableTree.root.name = ndn.NewName()
 	fibStrategyTableTree.fibPrefixes = make(map[string]*fibStrategyTreeEntry)
 }
@@ -108,14 +102,15 @@ func (f *fibStrategyTreeEntry) pruneIfEmpty() {
 	}
 }
 
-// LongestPrefixNexthops returns the longest-prefix matching nexthop(s) matching the specified name.
+// FindNextHops returns the longest-prefix matching nexthop(s) matching the specified name.
 func (f *FibStrategyTree) FindNextHops(name *ndn.Name) []*FibNextHopEntry {
 	f.fibStrategyRWMutex.RLock()
 
 	// Find longest prefix matching entry
 	curNode := f.root.findLongestPrefixEntry(name)
 
-	// Now step back up until we find a nexthop entry
+	// Now step back up until we find a nexthops entry
+	// since some might only have a strategy but no nexthops
 	var nexthops []*FibNextHopEntry
 	for ; curNode != nil; curNode = curNode.parent {
 		if len(curNode.nexthops) > 0 {
@@ -131,14 +126,15 @@ func (f *FibStrategyTree) FindNextHops(name *ndn.Name) []*FibNextHopEntry {
 	return nexthops
 }
 
-// LongestPrefixStrategy returns the longest-prefix matching strategy choice entry for the specified name.
+// FindStrategy returns the longest-prefix matching strategy choice entry for the specified name.
 func (f *FibStrategyTree) FindStrategy(name *ndn.Name) *ndn.Name {
 	f.fibStrategyRWMutex.RLock()
 
 	// Find longest prefix matching entry
 	curNode := f.root.findLongestPrefixEntry(name)
 
-	// Now step back up until we find a nexthop entry
+	// Now step back up until we find a strategy entry
+	// since some might only have a nexthops but no strategy
 	var strategy *ndn.Name
 	for ; curNode != nil; curNode = curNode.parent {
 		if curNode.strategy != nil {
