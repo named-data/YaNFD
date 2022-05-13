@@ -12,7 +12,7 @@ import (
 
 func TestNewPitCSTree(t *testing.T) {
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 
 	// Initialization size should be 0
 	assert.Equal(t, pitCS.PitSize(), 0)
@@ -49,11 +49,11 @@ func TestIsCsAdmitting(t *testing.T) {
 	csAdmit = false
 	csReplacementPolicy = "lru"
 
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	assert.Equal(t, pitCS.IsCsAdmitting(), csAdmit)
 
 	csAdmit = true
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 	assert.Equal(t, pitCS.IsCsAdmitting(), csAdmit)
 }
 
@@ -61,11 +61,11 @@ func TestIsCsServing(t *testing.T) {
 	csServe = false
 	csReplacementPolicy = "lru"
 
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	assert.Equal(t, pitCS.IsCsServing(), csServe)
 
 	csServe = true
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 	assert.Equal(t, pitCS.IsCsServing(), csServe)
 }
 
@@ -78,7 +78,7 @@ func TestInsertInterest(t *testing.T) {
 
 	csReplacementPolicy = "lru"
 
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 
 	pitEntry, duplicateNonce := pitCS.InsertInterest(interest, hint, inFace)
 
@@ -161,7 +161,7 @@ func TestInsertInterest(t *testing.T) {
 	assert.Equal(t, pitCS.PitSize(), 2)
 
 	// PitCS with 2 interests, prefixes of each other.
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 
 	hint, _ = ndn.NameFromString("/")
 	inFace = uint64(4444)
@@ -204,7 +204,7 @@ func TestInsertInterest(t *testing.T) {
 
 func TestRemoveInterest(t *testing.T) {
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	hint, _ := ndn.NameFromString("/")
 	inFace := uint64(1111)
 	name1, _ := ndn.NameFromString("/interest1")
@@ -242,7 +242,7 @@ func TestRemoveInterest(t *testing.T) {
 	assert.Equal(t, pitCS.PitSize(), 3)
 
 	// Remove PIT entry from a node with more than 1 child
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 	name1, _ = ndn.NameFromString("/root/1")
 	name2, _ = ndn.NameFromString("/root/2")
 	name3, _ := ndn.NameFromString("/root/3")
@@ -261,7 +261,7 @@ func TestRemoveInterest(t *testing.T) {
 
 func TestFindInterestExactMatch(t *testing.T) {
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	hint, _ := ndn.NameFromString("/")
 	inFace := uint64(1111)
 	name, _ := ndn.NameFromString("/interest1")
@@ -303,7 +303,7 @@ func TestFindInterestExactMatch(t *testing.T) {
 func TestFindInterestPrefixMatchByData(t *testing.T) {
 	// Basically the same as FindInterestPrefixMatch, but with data instead
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	name, _ := ndn.NameFromString("/interest1")
 	data := ndn.NewData(name, []byte("abc"))
 	hint, _ := ndn.NameFromString("/")
@@ -347,7 +347,7 @@ func TestFindInterestPrefixMatchByData(t *testing.T) {
 
 func TestInsertOutRecord(t *testing.T) {
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	name, _ := ndn.NameFromString("/interest1")
 	hint, _ := ndn.NameFromString("/")
 	inFace := uint64(1111)
@@ -381,7 +381,7 @@ func TestInsertOutRecord(t *testing.T) {
 
 func TestGetOutRecords(t *testing.T) {
 	csReplacementPolicy = "lru"
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 	name, _ := ndn.NameFromString("/interest1")
 	hint, _ := ndn.NameFromString("/")
 	inFace := uint64(1111)
@@ -431,7 +431,7 @@ func TestGetOutRecords(t *testing.T) {
 func TestInsertData(t *testing.T) {
 	csReplacementPolicy = "lru"
 	csCapacity = 1024
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 
 	// Data does not already exist
 	name1, _ := ndn.NameFromString("/interest1")
@@ -465,7 +465,7 @@ func TestInsertData(t *testing.T) {
 	// PitCS with interest /a/b, data /a/b/v=10
 	// Interest /a/b is prefix allowed
 	// Should return data with name /a/b/v=10
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 
 	name1, _ = ndn.NameFromString("/a/b")
 	interest1 = ndn.NewInterest(name1)
@@ -480,7 +480,7 @@ func TestInsertData(t *testing.T) {
 
 	// Reduced CS capacity to check that eviction occurs
 	csCapacity = 1
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 	data1 = ndn.NewData(name1, []byte("data1"))
 	data2 = ndn.NewData(name2, []byte("data2"))
 	pitCS.InsertData(data1)
@@ -491,7 +491,7 @@ func TestInsertData(t *testing.T) {
 func FindMatchingDataFromCS(t *testing.T) {
 	csReplacementPolicy = "lru"
 	csCapacity = 1024
-	pitCS := NewPitCS()
+	pitCS := NewPitCS(func(PitEntry) {})
 
 	// Insert data and then fetch it
 	name1, _ := ndn.NameFromString("/interest1")
@@ -522,7 +522,7 @@ func FindMatchingDataFromCS(t *testing.T) {
 	// PitCS with interest /a/b, data /a/b/v=10
 	// Interest /a/b is prefix allowed
 	// Should return data with name /a/b/v=10
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 
 	name1, _ = ndn.NameFromString("/a/b")
 	interest1 = ndn.NewInterest(name1)
@@ -537,7 +537,7 @@ func FindMatchingDataFromCS(t *testing.T) {
 	// PitCS with interest /a/b
 	// Now look for interest /a/b with prefix allowed
 	// Should return nil since there is no data
-	pitCS = NewPitCS()
+	pitCS = NewPitCS(func(PitEntry) {})
 
 	name1, _ = ndn.NameFromString("/a/b")
 	interest1 = ndn.NewInterest(name1)
