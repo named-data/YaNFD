@@ -31,8 +31,6 @@ type PitCsTable interface {
 	eraseCsDataFromReplacementStrategy(index uint64)
 	updatePitExpiry(pitEntry PitEntry)
 
-	ExpiringPitEntries() chan PitEntry
-
 	// UpdateTimer returns the channel used to signal regular Update() calls in the forwarding thread.
 	// <- UpdateTimer() and Update() must be called in pairs.
 	UpdateTimer() <-chan struct{}
@@ -42,9 +40,7 @@ type PitCsTable interface {
 }
 
 // basePitCsTable contains properties common to all PIT-CS tables
-type basePitCsTable struct {
-	expiringPitEntries chan PitEntry
-}
+type basePitCsTable struct{}
 
 // PitEntry dictates what entries in a PIT-CS table should implement
 type PitEntry interface {
@@ -237,10 +233,4 @@ func (bce *baseCsEntry) StaleTime() time.Time {
 
 func (bce *baseCsEntry) Data() *ndn.Data {
 	return bce.data
-}
-
-// ExpiringPitEntries returns the channel to which PIT entries that are about
-// to expire are sent and received.
-func (p *basePitCsTable) ExpiringPitEntries() chan PitEntry {
-	return p.expiringPitEntries
 }

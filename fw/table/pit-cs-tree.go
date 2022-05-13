@@ -13,6 +13,8 @@ import (
 
 const expiredPitTickerInterval = 100 * time.Millisecond
 
+type OnPitExpiration func(PitEntry)
+
 // PitCsTree represents a PIT-CS implementation that uses a name tree
 type PitCsTree struct {
 	basePitCsTable
@@ -28,6 +30,7 @@ type PitCsTree struct {
 
 	pitExpiryQueue priority_queue.Queue[*nameTreePitEntry, int64]
 	updateTimer    chan struct{}
+	onExpiration   OnPitExpiration
 }
 
 type nameTreePitEntry struct {
@@ -56,13 +59,13 @@ type pitCsTreeNode struct {
 }
 
 // NewPitCS creates a new combined PIT-CS for a forwarding thread.
-func NewPitCS() *PitCsTree {
+func NewPitCS(onExpiration OnPitExpiration) *PitCsTree {
 	pitCs := new(PitCsTree)
 	pitCs.root = new(pitCsTreeNode)
 	pitCs.root.component = nil // Root component will be nil since it represents zero components
 	pitCs.root.pitEntries = make([]*nameTreePitEntry, 0)
 	pitCs.root.children = make(map[string]*pitCsTreeNode)
-	pitCs.expiringPitEntries = make(chan PitEntry, tableQueueSize)
+	pitCs.onExpiration = onExpiration
 	pitCs.pitTokenMap = make(map[uint32]*nameTreePitEntry)
 	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
 	pitCs.updateTimer = make(chan struct{})
@@ -92,7 +95,7 @@ func (p *PitCsTree) Update() {
 	for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.PeekPriority() <= time.Now().UnixNano() {
 		entry := p.pitExpiryQueue.Pop()
 		entry.queueIndex = -1
-		p.expiringPitEntries <- entry
+		p.onExpiration(entry)
 		p.RemoveInterest(entry)
 	}
 	if !core.ShouldQuit {

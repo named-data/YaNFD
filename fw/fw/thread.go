@@ -83,7 +83,7 @@ func NewThread(id int) *Thread {
 	t.threadID = id
 	t.pendingInterests = make(chan *ndn.PendingPacket, fwQueueSize)
 	t.pendingDatas = make(chan *ndn.PendingPacket, fwQueueSize)
-	t.pitCS = table.NewPitCS()
+	t.pitCS = table.NewPitCS(t.finalizeInterest)
 	t.strategies = InstantiateStrategies(t)
 	t.deadNonceList = table.NewDeadNonceList()
 	t.shouldQuit = make(chan interface{}, 1)
@@ -129,8 +129,6 @@ func (t *Thread) Run() {
 			t.processIncomingInterest(pendingPacket)
 		case pendingPacket := <-t.pendingDatas:
 			t.processIncomingData(pendingPacket)
-		case expiringPitEntry := <-t.pitCS.ExpiringPitEntries():
-			t.finalizeInterest(expiringPitEntry)
 		case <-t.deadNonceList.Ticker.C:
 			t.deadNonceList.RemoveExpiredEntries()
 		case <-pitUpdateTimer:
