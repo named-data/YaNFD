@@ -139,6 +139,7 @@ func (g *Generator) Generate(packName string) {
 		"time"
 
 		enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+		"github.com/zjkmxy/go-ndn/pkg/ndn"
 	)
 	`
 	if packName == "" {

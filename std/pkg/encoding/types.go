@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -14,16 +13,23 @@ type Buffer []byte
 type Wire []Buffer
 
 func (w Wire) Join() []byte {
-	var lst = make([][]byte, len(w))
-	for i, c := range w {
-		lst[i] = c
-	}
-	ret := bytes.Join(lst, nil)
-	if ret != nil {
-		return ret
-	} else {
+	if len(w) == 0 {
 		return []byte{}
+	} else if len(w) == 1 {
+		return w[0]
 	}
+
+	n := 0
+	for _, v := range w {
+		n += len(v)
+	}
+
+	b := make([]byte, n)
+	bp := copy(b, w[0])
+	for _, v := range w[1:] {
+		bp += copy(b[bp:], v)
+	}
+	return b
 }
 
 type ErrFormat struct {

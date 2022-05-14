@@ -813,11 +813,14 @@ func ParseWireNameField(reader enc.ParseReader, ignoreCritical bool) (*WireNameF
 type MarkersEncoder struct {
 	length uint
 
-	startMarker int
-	Wire_length uint
-	argument    int
-	Name_length uint
-	endMarker   int
+	startMarker     int
+	startMarker_pos int
+
+	Wire_length   uint
+	argument      int
+	Name_length   uint
+	endMarker     int
+	endMarker_pos int
 }
 
 type MarkersParsingContext struct {
@@ -845,7 +848,7 @@ func (encoder *MarkersEncoder) Init(value *Markers) {
 	}
 
 	l := uint(0)
-
+	encoder.startMarker = int(l)
 	if value.Wire != nil {
 		l += 1
 		switch x := encoder.Wire_length; {
@@ -876,6 +879,7 @@ func (encoder *MarkersEncoder) Init(value *Markers) {
 		l += encoder.Name_length
 	}
 
+	encoder.endMarker = int(l)
 	encoder.length = l
 
 }
@@ -887,7 +891,8 @@ func (context *MarkersParsingContext) Init() {
 func (encoder *MarkersEncoder) EncodeInto(value *Markers, buf []byte) {
 
 	pos := uint(0)
-	encoder.startMarker = int(pos)
+	encoder.startMarker_pos = int(pos)
+
 	if value.Wire != nil {
 		buf[pos] = byte(1)
 		pos += 1
@@ -939,7 +944,8 @@ func (encoder *MarkersEncoder) EncodeInto(value *Markers, buf []byte) {
 		}
 	}
 
-	encoder.endMarker = int(pos)
+	encoder.endMarker_pos = int(pos)
+
 }
 
 func (encoder *MarkersEncoder) Encode(value *Markers) enc.Wire {

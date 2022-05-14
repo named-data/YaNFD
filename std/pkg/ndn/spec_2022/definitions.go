@@ -117,11 +117,26 @@ type LpPacket struct {
 // TODO
 //   +tlv-model:nocopy,private
 type Interest struct {
+	NameV                 enc.Name
+	CanBePrefixV          bool
+	MustBeFreshV          bool
+	ForwardingHintV       *Links
+	NonceV                *uint32
+	InterestLifetimeV     *uint64
+	HopLimitV             *byte
+	ApplicationParameters enc.Wire
+	SignatureInfo         *SignatureInfo
+	SignatureValue        enc.Wire
 }
 
 // TODO
 //   +tlv-model:nocopy,private
 type Data struct {
+	NameV          enc.Name
+	MetaInfo       *MetaInfo
+	ContentV       enc.Wire
+	SignatureInfo  *SignatureInfo
+	SignatureValue enc.Wire
 }
 
 // TODO
