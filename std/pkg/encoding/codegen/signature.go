@@ -155,13 +155,17 @@ func (f *InterestNameField) GenInitEncoder() (string, error) {
 	encoder.{{.}}_wireIdx = -1
 	encoder.{{.}}_length = 0
 	if value.{{.}} != nil {
-		for _, c := range value.{{.}} {
-			encoder.{{.}}_length += uint(c.EncodingLength())
+		if len(value.{{.}}) > 0 && value.{{.}}[len(value.{{.}})-1].Typ == enc.TypeParametersSha256DigestComponent {
+			value.{{.}} = value.{{.}}[:len(value.{{.}})-1]
 		}
 		if encoder.{{.}}_needDigest {
-			if len(value.{{.}}) == 0 || value.{{.}}[len(value.{{.}})-1].Typ != enc.TypeParametersSha256DigestComponent {
-				encoder.{{.}}_length += 34
-			}
+			value.{{.}} = append(value.{{.}}, enc.Component{
+				Typ: enc.TypeParametersSha256DigestComponent,
+				Val: make([]byte, 32),
+			})
+		}
+		for _, c := range value.{{.}} {
+			encoder.{{.}}_length += uint(c.EncodingLength())
 		}
 	}
 	`
@@ -209,24 +213,12 @@ func (f *InterestNameField) GenEncodeInto() (string, error) {
 	}
 	sigCoverEnd := pos
 	encoder.{{.}}_wireIdx = int(wireIdx)
-	if len(value.{{.}}) > 0 && value.{{.}}[i].Typ == enc.TypeParametersSha256DigestComponent {
-		sigCoverEnd = pos
+	if len(value.{{.}}) > 0 {
 		encoder.{{.}}_pos = pos + 2
 		c := value.{{.}}[i]
 		pos += uint(c.EncodeInto(buf[pos:]))
-	} else {
-		if len(value.{{.}}) > 0 {
-			c := value.{{.}}[i]
-			pos += uint(c.EncodeInto(buf[pos:]))
-		}
-		sigCoverEnd = pos
-		if encoder.{{.}}_needDigest {
-			buf[pos] = 0x02
-			pos += 1
-			buf[pos] = 0x20
-			pos += 1
-			encoder.{{.}}_pos = pos
-			pos += 32
+		if !encoder.{{.}}_needDigest {
+			sigCoverEnd = pos
 		}
 	}
 	`

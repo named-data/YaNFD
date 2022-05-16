@@ -515,13 +515,17 @@ func (encoder *T2Encoder) Init(value *T2) {
 	encoder.Name_wireIdx = -1
 	encoder.Name_length = 0
 	if value.Name != nil {
-		for _, c := range value.Name {
-			encoder.Name_length += uint(c.EncodingLength())
+		if len(value.Name) > 0 && value.Name[len(value.Name)-1].Typ == enc.TypeParametersSha256DigestComponent {
+			value.Name = value.Name[:len(value.Name)-1]
 		}
 		if encoder.Name_needDigest {
-			if len(value.Name) == 0 || value.Name[len(value.Name)-1].Typ != enc.TypeParametersSha256DigestComponent {
-				encoder.Name_length += 34
-			}
+			value.Name = append(value.Name, enc.Component{
+				Typ: enc.TypeParametersSha256DigestComponent,
+				Val: make([]byte, 32),
+			})
+		}
+		for _, c := range value.Name {
+			encoder.Name_length += uint(c.EncodingLength())
 		}
 	}
 
@@ -688,24 +692,12 @@ func (encoder *T2Encoder) EncodeInto(value *T2, wire enc.Wire) {
 		}
 		sigCoverEnd := pos
 		encoder.Name_wireIdx = int(wireIdx)
-		if len(value.Name) > 0 && value.Name[i].Typ == enc.TypeParametersSha256DigestComponent {
-			sigCoverEnd = pos
+		if len(value.Name) > 0 {
 			encoder.Name_pos = pos + 2
 			c := value.Name[i]
 			pos += uint(c.EncodeInto(buf[pos:]))
-		} else {
-			if len(value.Name) > 0 {
-				c := value.Name[i]
-				pos += uint(c.EncodeInto(buf[pos:]))
-			}
-			sigCoverEnd = pos
-			if encoder.Name_needDigest {
-				buf[pos] = 0x02
-				pos += 1
-				buf[pos] = 0x20
-				pos += 1
-				encoder.Name_pos = pos
-				pos += 32
+			if !encoder.Name_needDigest {
+				sigCoverEnd = pos
 			}
 		}
 		encoder.sigCovered = append(encoder.sigCovered, buf[sigCoverStart:sigCoverEnd])

@@ -2,6 +2,7 @@
 package gen_signature
 
 import (
+	"bytes"
 	"crypto/sha256"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -71,6 +72,9 @@ type T2 struct {
 }
 
 func (v *T2) Encode(estLen uint, value []byte, needDigest bool) (enc.Wire, enc.Wire) {
+	if v.Name == nil {
+		return nil, nil
+	}
 	encoder := T2Encoder{
 		Sig_estLen:      estLen,
 		Name_needDigest: needDigest,
@@ -88,6 +92,7 @@ func (v *T2) Encode(estLen uint, value []byte, needDigest bool) (enc.Wire, enc.W
 	if needDigest {
 		buf := wire[encoder.Name_wireIdx]
 		digestBuf := buf[encoder.Name_pos : encoder.Name_pos+32]
+		v.Name[len(v.Name)-1].Val = digestBuf
 
 		digestCovered := enc.Wire(nil)
 		if encoder.digestCoverStart_wireIdx == encoder.digestCoverEnd_wireIdx {
@@ -117,4 +122,33 @@ func (v *T2) Encode(estLen uint, value []byte, needDigest bool) (enc.Wire, enc.W
 	}
 
 	return wire, encoder.sigCovered
+}
+
+func ReadT2(reader enc.ParseReader, digestRequired bool) (*T2, enc.Wire, error) {
+	context := T2ParsingContext{}
+	context.Init()
+	ret, err := context.Parse(reader, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if digestRequired {
+		if len(ret.Name) == 0 || ret.Name[len(ret.Name)-1].Typ != enc.TypeParametersSha256DigestComponent {
+			return nil, nil, enc.ErrIncorrectDigest
+		}
+		digestCovered := reader.Range(context.digestCoverStart, context.digestCoverEnd)
+		h := sha256.New()
+		for _, buf := range digestCovered {
+			_, err := h.Write(buf)
+			if err != nil {
+				return nil, nil, enc.ErrUnexpected{Err: err}
+			}
+		}
+		digestBuf := h.Sum(nil)
+		if !bytes.Equal(ret.Name[len(ret.Name)-1].Val, digestBuf) {
+			return nil, nil, enc.ErrIncorrectDigest
+		}
+	}
+
+	return ret, context.sigCovered, nil
 }

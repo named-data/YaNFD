@@ -88,6 +88,8 @@ func (e ErrUnrecognizedField) Error() string {
 
 var ErrBufferOverflow = errors.New("Buffer overflow when parsing. One of the TLV Length is wrong")
 
+var ErrIncorrectDigest = errors.New("The sha256 digest is missing or incorrect")
+
 type ErrSkipRequired struct {
 	TypeNum TLNum
 }
@@ -106,6 +108,18 @@ func (e ErrFailToParse) Error() string {
 }
 
 func (e ErrFailToParse) Unwrap() error {
+	return e.Err
+}
+
+type ErrUnexpected struct {
+	Err error
+}
+
+func (e ErrUnexpected) Error() string {
+	return fmt.Sprintf("Unexpected error happened in parsing: %v", e.Err)
+}
+
+func (e ErrUnexpected) Unwrap() error {
 	return e.Err
 }
 
