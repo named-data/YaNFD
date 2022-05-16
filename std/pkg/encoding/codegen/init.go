@@ -20,6 +20,7 @@ func initFields() {
 		"offsetMarker":      NewOffsetMarker,
 		"sequence":          NewSequenceField,
 		"struct":            NewStructField,
+		"signature":         NewSignatureField,
 	}
 }
 

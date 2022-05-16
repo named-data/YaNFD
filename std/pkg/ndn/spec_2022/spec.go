@@ -17,6 +17,8 @@ func _() {
 	var _ ndn.Signature = &Data{}
 }
 
+type Spec struct{}
+
 func (d *Data) SigType() ndn.SigType {
 	if d.SignatureInfo == nil {
 		return ndn.SignatureNone
@@ -36,7 +38,7 @@ func (d *Data) SetSigType(sigType ndn.SigType) error {
 		d.SignatureInfo.SignatureType = uint64(sigType)
 		return nil
 	} else {
-		return ndn.ErrInvalidValue{Item: "SignatureType", Value: sigType}
+		return ndn.ErrInvalidValue{Item: "Data.SignatureType", Value: sigType}
 	}
 }
 
@@ -142,7 +144,7 @@ func (d *Data) SetValidity(notBefore, notAfter *time.Time) error {
 			NotAfter:  notAfter.UTC().Format(TimeFmt),
 		}
 	} else {
-		return ndn.ErrInvalidValue{Item: "ValidityPeriod", Value: nil}
+		return ndn.ErrInvalidValue{Item: "Data.ValidityPeriod", Value: nil}
 	}
 	return nil
 }
@@ -153,4 +155,44 @@ func (d *Data) Value() []byte {
 
 func (d *Data) Signature() ndn.Signature {
 	return d
+}
+
+func (d *Data) Name() enc.Name {
+	return d.NameV
+}
+
+func (d *Data) ContentType() *ndn.ContentType {
+	if d.MetaInfo != nil && d.MetaInfo.ContentType != nil {
+		ret := ndn.ContentType(*d.MetaInfo.ContentType)
+		return &ret
+	} else {
+		return nil
+	}
+}
+
+func (d *Data) Freshness() *time.Duration {
+	if d.MetaInfo != nil {
+		return d.MetaInfo.FreshnessPeriod
+	} else {
+		return nil
+	}
+}
+
+func (d *Data) FinalBlockID() *enc.Component {
+	if d.MetaInfo != nil && d.MetaInfo.FinalBlockID != nil {
+		ret, _ := enc.ReadComponent(enc.NewBufferReader(d.MetaInfo.FinalBlockID))
+		return ret
+	} else {
+		return nil
+	}
+}
+
+func (d *Data) Content() enc.Wire {
+	return d.ContentV
+}
+
+func (_ Spec) MakeData(name enc.Name, config *ndn.DataConfig,
+	content enc.Wire, signer ndn.Signer) (enc.Wire, enc.Wire, error) {
+	ret := &Data{}
+	panic(ret) // TODO
 }

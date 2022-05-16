@@ -3291,23 +3291,590 @@ func (context *LpPacketParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 	return value, nil
 }
 
+type DataEncoder struct {
+	length uint
+
+	wirePlan []uint
+
+	sigCovered            enc.Wire
+	sigCoverStart         int
+	sigCoverStart_wireIdx int
+	sigCoverStart_pos     int
+
+	NameV_length           uint
+	MetaInfo_encoder       MetaInfoEncoder
+	ContentV_length        uint
+	SignatureInfo_encoder  SignatureInfoEncoder
+	SignatureValue_wireIdx int
+	SignatureValue_estLen  uint
+}
+
+type DataParsingContext struct {
+	sigCovered    enc.Wire
+	sigCoverStart int
+
+	MetaInfo_context MetaInfoParsingContext
+
+	SignatureInfo_context SignatureInfoParsingContext
+}
+
+func (encoder *DataEncoder) Init(value *Data) {
+
+	if value.NameV != nil {
+		encoder.NameV_length = 0
+		for _, c := range value.NameV {
+			encoder.NameV_length += uint(c.EncodingLength())
+		}
+	}
+
+	if value.MetaInfo != nil {
+		encoder.MetaInfo_encoder.Init(value.MetaInfo)
+	}
+	if value.ContentV != nil {
+		encoder.ContentV_length = 0
+		for _, c := range value.ContentV {
+			encoder.ContentV_length += uint(len(c))
+		}
+	}
+
+	if value.SignatureInfo != nil {
+		encoder.SignatureInfo_encoder.Init(value.SignatureInfo)
+	}
+	encoder.SignatureValue_wireIdx = -1
+
+	l := uint(0)
+
+	encoder.sigCoverStart = int(l)
+	if value.NameV != nil {
+		l += 1
+		switch x := encoder.NameV_length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.NameV_length
+	}
+
+	if value.MetaInfo != nil {
+		l += 1
+		switch x := encoder.MetaInfo_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.MetaInfo_encoder.length
+	}
+
+	if value.ContentV != nil {
+		l += 1
+		switch x := encoder.ContentV_length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.ContentV_length
+	}
+
+	if value.SignatureInfo != nil {
+		l += 1
+		switch x := encoder.SignatureInfo_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.SignatureInfo_encoder.length
+	}
+
+	if encoder.SignatureValue_estLen > 0 {
+		l += 1
+		switch x := encoder.SignatureValue_estLen; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.SignatureValue_estLen
+	}
+
+	encoder.length = l
+
+	wirePlan := make([]uint, 0)
+	l = uint(0)
+
+	if value.NameV != nil {
+		l += 1
+		switch x := encoder.NameV_length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.NameV_length
+	}
+
+	if value.MetaInfo != nil {
+		l += 1
+		switch x := encoder.MetaInfo_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.MetaInfo_encoder.length
+	}
+
+	if value.ContentV != nil {
+		l += 1
+		switch x := encoder.ContentV_length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		wirePlan = append(wirePlan, l)
+		l = 0
+		for range value.ContentV {
+			wirePlan = append(wirePlan, l)
+			l = 0
+		}
+	}
+
+	if value.SignatureInfo != nil {
+		l += 1
+		switch x := encoder.SignatureInfo_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.SignatureInfo_encoder.length
+	}
+
+	if encoder.SignatureValue_estLen > 0 {
+		l += 1
+		switch x := encoder.SignatureValue_estLen; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		wirePlan = append(wirePlan, l)
+		l = 0
+		encoder.SignatureValue_wireIdx = len(wirePlan)
+		wirePlan = append(wirePlan, l)
+		l = 0
+	}
+
+	if l > 0 {
+		wirePlan = append(wirePlan, l)
+	}
+	encoder.wirePlan = wirePlan
+}
+
+func (context *DataParsingContext) Init() {
+
+	context.MetaInfo_context.Init()
+
+	context.SignatureInfo_context.Init()
+	context.sigCovered = make(enc.Wire, 0)
+}
+
+func (encoder *DataEncoder) EncodeInto(value *Data, wire enc.Wire) {
+
+	wireIdx := 0
+	buf := wire[wireIdx]
+
+	pos := uint(0)
+
+	encoder.sigCoverStart_wireIdx = int(wireIdx)
+	encoder.sigCoverStart_pos = int(pos)
+
+	if value.NameV != nil {
+		buf[pos] = byte(7)
+		pos += 1
+		switch x := encoder.NameV_length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		for _, c := range value.NameV {
+			pos += uint(c.EncodeInto(buf[pos:]))
+		}
+	}
+
+	if value.MetaInfo != nil {
+		buf[pos] = byte(20)
+		pos += 1
+		switch x := encoder.MetaInfo_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.MetaInfo_encoder.length > 0 {
+			encoder.MetaInfo_encoder.EncodeInto(value.MetaInfo, buf[pos:])
+			pos += encoder.MetaInfo_encoder.length
+		}
+	}
+
+	if value.ContentV != nil {
+		buf[pos] = byte(21)
+		pos += 1
+		switch x := encoder.ContentV_length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		wireIdx++
+		pos = 0
+		if wireIdx < len(wire) {
+			buf = wire[wireIdx]
+		} else {
+			buf = nil
+		}
+		for _, w := range value.ContentV {
+			wire[wireIdx] = w
+			wireIdx++
+			pos = 0
+			if wireIdx < len(wire) {
+				buf = wire[wireIdx]
+			} else {
+				buf = nil
+			}
+		}
+	}
+
+	if value.SignatureInfo != nil {
+		buf[pos] = byte(22)
+		pos += 1
+		switch x := encoder.SignatureInfo_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.SignatureInfo_encoder.length > 0 {
+			encoder.SignatureInfo_encoder.EncodeInto(value.SignatureInfo, buf[pos:])
+			pos += encoder.SignatureInfo_encoder.length
+		}
+	}
+
+	if encoder.SignatureValue_estLen > 0 {
+		startPos := int(pos)
+		buf[pos] = byte(23)
+		pos += 1
+		switch x := encoder.SignatureValue_estLen; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.sigCoverStart_wireIdx == int(wireIdx) {
+			coveredPart := buf[encoder.sigCoverStart:startPos]
+			encoder.sigCovered = append(encoder.sigCovered, coveredPart)
+		} else {
+			coverStart := wire[encoder.sigCoverStart_wireIdx][encoder.sigCoverStart:]
+			encoder.sigCovered = append(encoder.sigCovered, coverStart)
+			for i := encoder.sigCoverStart_wireIdx + 1; i < int(wireIdx); i++ {
+				encoder.sigCovered = append(encoder.sigCovered, wire[i])
+			}
+			coverEnd := buf[:startPos]
+			encoder.sigCovered = append(encoder.sigCovered, coverEnd)
+		}
+		wireIdx++
+		pos = 0
+		if wireIdx < len(wire) {
+			buf = wire[wireIdx]
+		} else {
+			buf = nil
+		}
+		wireIdx++
+		pos = 0
+		if wireIdx < len(wire) {
+			buf = wire[wireIdx]
+		} else {
+			buf = nil
+		}
+	}
+
+}
+
+func (encoder *DataEncoder) Encode(value *Data) enc.Wire {
+
+	wire := make(enc.Wire, len(encoder.wirePlan))
+	for i, l := range encoder.wirePlan {
+		if l > 0 {
+			wire[i] = make([]byte, l)
+		}
+	}
+	encoder.EncodeInto(value, wire)
+
+	return wire
+}
+
+func (context *DataParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*Data, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &Data{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 7:
+				if progress+1 == 2 {
+					handled = true
+					value.NameV = make(enc.Name, 0)
+					startName := reader.Pos()
+					endName := startName + int(l)
+					for reader.Pos() < endName {
+						c, err := enc.ReadComponent(reader)
+						if err != nil {
+							break
+						}
+						value.NameV = append(value.NameV, *c)
+					}
+					if err != nil && reader.Pos() != endName {
+						err = enc.ErrBufferOverflow
+					}
+
+				}
+			case 20:
+				if progress+1 == 3 {
+					handled = true
+					value.MetaInfo, err = context.MetaInfo_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+				}
+			case 21:
+				if progress+1 == 4 {
+					handled = true
+					value.ContentV, err = reader.ReadWire(int(l))
+
+				}
+			case 22:
+				if progress+1 == 5 {
+					handled = true
+					value.SignatureInfo, err = context.SignatureInfo_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+				}
+			case 23:
+				if progress+1 == 6 {
+					handled = true
+					value.SignatureValue, err = reader.ReadWire(int(l))
+					if err == nil {
+						coveredPart := reader.Range(context.sigCoverStart, startPos)
+						context.sigCovered = append(context.sigCovered, coveredPart...)
+					}
+
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+
+				case 1 - 1:
+					context.sigCoverStart = int(startPos)
+				case 2 - 1:
+					value.NameV = nil
+				case 3 - 1:
+					value.MetaInfo = nil
+				case 4 - 1:
+					value.ContentV = nil
+				case 5 - 1:
+					value.SignatureInfo = nil
+				case 6 - 1:
+					value.SignatureValue = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 7; progress++ {
+		switch progress {
+		case 0 - 1:
+
+		case 1 - 1:
+			context.sigCoverStart = int(startPos)
+		case 2 - 1:
+			value.NameV = nil
+		case 3 - 1:
+			value.MetaInfo = nil
+		case 4 - 1:
+			value.ContentV = nil
+		case 5 - 1:
+			value.SignatureInfo = nil
+		case 6 - 1:
+			value.SignatureValue = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
 type PacketEncoder struct {
 	length uint
 
 	wirePlan []uint
 
+	Data_encoder     DataEncoder
 	LpPacket_encoder LpPacketEncoder
 }
 
 type PacketParsingContext struct {
+	Data_context     DataParsingContext
 	LpPacket_context LpPacketParsingContext
 }
 
 func (encoder *PacketEncoder) Init(value *Packet) {
+	if value.Data != nil {
+		encoder.Data_encoder.Init(value.Data)
+	}
 	if value.LpPacket != nil {
 		encoder.LpPacket_encoder.Init(value.LpPacket)
 	}
 	l := uint(0)
+	if value.Data != nil {
+		l += 1
+		switch x := encoder.Data_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.Data_encoder.length
+	}
+
 	if value.LpPacket != nil {
 		l += 1
 		switch x := encoder.LpPacket_encoder.length; {
@@ -3327,6 +3894,32 @@ func (encoder *PacketEncoder) Init(value *Packet) {
 
 	wirePlan := make([]uint, 0)
 	l = uint(0)
+	if value.Data != nil {
+		l += 1
+		switch x := encoder.Data_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		if encoder.Data_encoder.length > 0 {
+			l += encoder.Data_encoder.wirePlan[0]
+			for i := 1; i < len(encoder.Data_encoder.wirePlan); i++ {
+				wirePlan = append(wirePlan, l)
+				l = 0
+				l = encoder.Data_encoder.wirePlan[i]
+			}
+			if l == 0 {
+				wirePlan = append(wirePlan, l)
+				l = 0
+			}
+		}
+	}
+
 	if value.LpPacket != nil {
 		l += 1
 		switch x := encoder.LpPacket_encoder.length; {
@@ -3360,6 +3953,7 @@ func (encoder *PacketEncoder) Init(value *Packet) {
 }
 
 func (context *PacketParsingContext) Init() {
+	context.Data_context.Init()
 	context.LpPacket_context.Init()
 }
 
@@ -3369,6 +3963,57 @@ func (encoder *PacketEncoder) EncodeInto(value *Packet, wire enc.Wire) {
 	buf := wire[wireIdx]
 
 	pos := uint(0)
+	if value.Data != nil {
+		buf[pos] = byte(6)
+		pos += 1
+		switch x := encoder.Data_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.Data_encoder.length > 0 {
+			{
+				subWire := make(enc.Wire, len(encoder.Data_encoder.wirePlan))
+				subWire[0] = buf[pos:]
+				for i := 1; i < len(subWire); i++ {
+					subWire[i] = wire[wireIdx+i]
+				}
+				encoder.Data_encoder.EncodeInto(value.Data, subWire)
+				for i := 1; i < len(subWire); i++ {
+					wire[wireIdx+i] = subWire[i]
+				}
+				if lastL := encoder.Data_encoder.wirePlan[len(subWire)-1]; lastL > 0 {
+					wireIdx += len(subWire) - 1
+					if len(subWire) > 1 {
+						pos = lastL
+					} else {
+						pos += lastL
+					}
+				} else {
+					wireIdx += len(subWire)
+					pos = 0
+				}
+				if wireIdx < len(wire) {
+					buf = wire[wireIdx]
+				} else {
+					buf = nil
+				}
+			}
+		}
+	}
+
 	if value.LpPacket != nil {
 		buf[pos] = byte(100)
 		pos += 1
@@ -3461,8 +4106,13 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 		err = nil
 		for handled := false; !handled; progress++ {
 			switch typ {
-			case 100:
+			case 6:
 				if progress+1 == 0 {
+					handled = true
+					value.Data, err = context.Data_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+				}
+			case 100:
+				if progress+1 == 1 {
 					handled = true
 					value.LpPacket, err = context.LpPacket_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -3476,6 +4126,8 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
+					value.Data = nil
+				case 1 - 1:
 					value.LpPacket = nil
 				}
 			}
@@ -3485,9 +4137,11 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 		}
 	}
 	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
+	for ; progress < 2; progress++ {
 		switch progress {
 		case 0 - 1:
+			value.Data = nil
+		case 1 - 1:
 			value.LpPacket = nil
 		}
 	}

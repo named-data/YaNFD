@@ -129,14 +129,23 @@ type Interest struct {
 	SignatureValue        enc.Wire
 }
 
-// TODO
-//   +tlv-model:nocopy,private
+//+tlv-model:nocopy,private
 type Data struct {
-	NameV          enc.Name
-	MetaInfo       *MetaInfo
-	ContentV       enc.Wire
-	SignatureInfo  *SignatureInfo
-	SignatureValue enc.Wire
+	//+field:procedureArgument:enc.Wire
+	sigCovered enc.PlaceHolder
+	//+field:offsetMarker
+	sigCoverStart enc.PlaceHolder
+
+	//+field:name
+	NameV enc.Name `tlv:"0x07"`
+	//+field:struct:MetaInfo
+	MetaInfo *MetaInfo `tlv:"0x14"`
+	//+field:wire
+	ContentV enc.Wire `tlv:"0x15"`
+	//+field:struct:SignatureInfo
+	SignatureInfo *SignatureInfo `tlv:"0x16"`
+	//+field:signature:sigCoverStart:sigCovered
+	SignatureValue enc.Wire `tlv:"0x17"`
 }
 
 // TODO
@@ -144,8 +153,8 @@ type Data struct {
 type Packet struct {
 	//   +field:struct:Interest:nocopy
 	// Interest *Interest `tlv:"0x05"`
-	//   +field:struct:Data:nocopy
-	// Data *Data `tlv:"0x06"`
+	//+field:struct:Data:nocopy
+	Data *Data `tlv:"0x06"`
 	//+field:struct:LpPacket:nocopy
 	LpPacket *LpPacket `tlv:"0x64"`
 }

@@ -167,7 +167,7 @@ func (r *WireReader) ReadWire(l int) (Wire, error) {
 	}
 	ret := make(Wire, 0, len(r.wire)-r.seg)
 	for l > 0 {
-		if r.seg > len(r.wire) {
+		if r.seg >= len(r.wire) {
 			return nil, io.ErrUnexpectedEOF
 		}
 		if r.pos+l > len(r.wire[r.seg]) {
@@ -193,7 +193,7 @@ func (r *WireReader) Length() int {
 }
 
 func (r *WireReader) Range(start, end int) Wire {
-	if start < 0 || end > len(r.wire) || start > end {
+	if start < 0 || end > r.accSz[len(r.wire)] || start > end {
 		return nil
 	}
 	var startSeg, startPos, endSeg, endPos int
