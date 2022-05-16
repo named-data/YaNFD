@@ -114,19 +114,40 @@ type LpPacket struct {
 	Fragment enc.Wire `tlv:"0x50"`
 }
 
-// TODO
-//   +tlv-model:nocopy,private
+//+tlv-model:nocopy,private
 type Interest struct {
-	NameV                 enc.Name
-	CanBePrefixV          bool
-	MustBeFreshV          bool
-	ForwardingHintV       *Links
-	NonceV                *uint32
-	InterestLifetimeV     *uint64
-	HopLimitV             *byte
-	ApplicationParameters enc.Wire
-	SignatureInfo         *SignatureInfo
-	SignatureValue        enc.Wire
+	//+field:procedureArgument:enc.Wire
+	sigCovered enc.PlaceHolder
+
+	//+field:interestName:sigCovered
+	NameV enc.Name `tlv:"0x07"`
+	//+field:bool
+	CanBePrefixV bool `tlv:"0x21"`
+	//+field:bool
+	MustBeFreshV bool `tlv:"0x12"`
+	//+field:struct:Links
+	ForwardingHintV *Links `tlv:"0x1e"`
+	//+field:fixedUint:uint32:optional
+	NonceV *uint32 `tlv:"0x0a"`
+	//+field:natural:optional
+	InterestLifetimeV *uint64 `tlv:"0x0c"`
+	//+field:fixedUint:byte:optional
+	HopLimitV *byte `tlv:"0x22"`
+
+	//+field:offsetMarker
+	sigCoverStart enc.PlaceHolder
+	//+field:offsetMarker
+	digestCoverStart enc.PlaceHolder
+
+	//+field:wire
+	ApplicationParameters enc.Wire `tlv:"0x24"`
+	//+field:struct:SignatureInfo
+	SignatureInfo *SignatureInfo `tlv:"0x2c"`
+	//+field:signature:sigCoverStart:sigCovered
+	SignatureValue enc.Wire `tlv:"0x2e"`
+
+	//+field:offsetMarker
+	digestCoverEnd enc.PlaceHolder
 }
 
 //+tlv-model:nocopy,private
@@ -148,11 +169,10 @@ type Data struct {
 	SignatureValue enc.Wire `tlv:"0x17"`
 }
 
-// TODO
 //+tlv-model:nocopy,private
 type Packet struct {
-	//   +field:struct:Interest:nocopy
-	// Interest *Interest `tlv:"0x05"`
+	//+field:struct:Interest:nocopy
+	Interest *Interest `tlv:"0x05"`
 	//+field:struct:Data:nocopy
 	Data *Data `tlv:"0x06"`
 	//+field:struct:LpPacket:nocopy

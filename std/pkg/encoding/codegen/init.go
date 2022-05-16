@@ -21,6 +21,7 @@ func initFields() {
 		"sequence":          NewSequenceField,
 		"struct":            NewStructField,
 		"signature":         NewSignatureField,
+		"interestName":      NewInterestNameField,
 	}
 }
 

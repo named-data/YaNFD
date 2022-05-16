@@ -423,7 +423,7 @@ func (context *NameArrayParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 								}
 								value.Names = append(value.Names, *c)
 							}
-							if err != nil && reader.Pos() != endName {
+							if err == nil && reader.Pos() != endName {
 								err = enc.ErrBufferOverflow
 							}
 

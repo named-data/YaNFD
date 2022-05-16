@@ -754,7 +754,7 @@ func (context *WireNameFieldParsingContext) Parse(reader enc.ParseReader, ignore
 						}
 						value.Name = append(value.Name, *c)
 					}
-					if err != nil && reader.Pos() != endName {
+					if err == nil && reader.Pos() != endName {
 						err = enc.ErrBufferOverflow
 					}
 
@@ -1003,7 +1003,7 @@ func (context *MarkersParsingContext) Parse(reader enc.ParseReader, ignoreCritic
 						}
 						value.Name = append(value.Name, *c)
 					}
-					if err != nil && reader.Pos() != endName {
+					if err == nil && reader.Pos() != endName {
 						err = enc.ErrBufferOverflow
 					}
 

@@ -6,6 +6,10 @@ import (
 	"text/template"
 )
 
+// SignatureField represents SignatureValue field
+// It handles the signature covered part, and the position of the signature.
+// Requires estimated length of the signature as input, which should be >= the real length.
+// When estimated length is 0, the signature is not encoded.
 type SignatureField struct {
 	BaseTlvField
 
@@ -127,10 +131,161 @@ func NewSignatureField(name string, typeNum uint64, annotation string, model *Tl
 	}, nil
 }
 
+// InterestNameField represents the Name field in an Interest, which may contain a ParametersSha256DigestComponent.
+// Requires needDigest as input, indicating whether ParametersSha256Digest component is required.
+// It will modify the input Name value and generate a final Name value.
 type InterestNameField struct {
 	BaseTlvField
 
-	// needDigest string
-	// digestBuffer string
 	sigCovered string
+}
+
+func (f *InterestNameField) GenEncoderStruct() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("%s_length uint", f.name)
+	g.printlnf("%s_needDigest bool", f.name)
+	g.printlnf("%s_wireIdx int", f.name)
+	g.printlnf("%s_pos uint", f.name)
+	return g.output()
+}
+
+func (f *InterestNameField) GenInitEncoder() (string, error) {
+	var g strErrBuf
+	const Temp = `
+	encoder.{{.}}_wireIdx = -1
+	encoder.{{.}}_length = 0
+	if value.{{.}} != nil {
+		for _, c := range value.{{.}} {
+			encoder.{{.}}_length += uint(c.EncodingLength())
+		}
+		if encoder.{{.}}_needDigest {
+			if len(value.{{.}}) == 0 || value.{{.}}[len(value.{{.}})-1].Typ != enc.TypeParametersSha256DigestComponent {
+				encoder.{{.}}_length += 34
+			}
+		}
+	}
+	`
+	t := template.Must(template.New("InterestNameInitEncoder").Parse(Temp))
+	g.executeTemplate(t, f.name)
+	return g.output()
+}
+
+func (f *InterestNameField) GenParsingContextStruct() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("%s_wireIdx int", f.name)
+	g.printlnf("%s_pos uint", f.name)
+	return g.output()
+}
+
+func (f *InterestNameField) GenInitContext() (string, error) {
+	return "", nil
+}
+
+func (f *InterestNameField) GenEncodingLength() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
+	g.printlne(GenTypeNumLen(f.typeNum))
+	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
+	g.printlnf("l += encoder." + f.name + "_length")
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *InterestNameField) GenEncodingWirePlan() (string, error) {
+	return f.GenEncodingLength()
+}
+
+func (f *InterestNameField) GenEncodeInto() (string, error) {
+	g := strErrBuf{}
+	g.printlnf("if value.%s != nil {", f.name)
+	g.printlne(GenEncodeTypeNum(f.typeNum))
+	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
+	g.printlnf("sigCoverStart := pos")
+
+	const Temp = `i := 0
+	for i = 0; i < len(value.{{.}}) - 1; i ++ {
+		c := value.{{.}}[i]
+		pos += uint(c.EncodeInto(buf[pos:]))
+	}
+	sigCoverEnd := pos
+	encoder.{{.}}_wireIdx = int(wireIdx)
+	if len(value.{{.}}) > 0 && value.{{.}}[i].Typ == enc.TypeParametersSha256DigestComponent {
+		sigCoverEnd = pos
+		encoder.{{.}}_pos = pos + 2
+		c := value.{{.}}[i]
+		pos += uint(c.EncodeInto(buf[pos:]))
+	} else {
+		if len(value.{{.}}) > 0 {
+			c := value.{{.}}[i]
+			pos += uint(c.EncodeInto(buf[pos:]))
+		}
+		sigCoverEnd = pos
+		if encoder.{{.}}_needDigest {
+			buf[pos] = 0x02
+			pos += 1
+			buf[pos] = 0x20
+			pos += 1
+			encoder.{{.}}_pos = pos
+			pos += 32
+		}
+	}
+	`
+	t := template.Must(template.New("InterestNameEncodeInto").Parse(Temp))
+	g.executeTemplate(t, f.name)
+
+	g.printlnf("encoder.%s = append(encoder.%s, buf[sigCoverStart:sigCoverEnd])", f.sigCovered, f.sigCovered)
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *InterestNameField) GenReadFrom() (string, error) {
+	var g strErrBuf
+
+	g.printlnf("{")
+
+	const Temp = `value.{{.Name}} = make(enc.Name, 0)
+	startName := reader.Pos()
+	endName := startName + int(l)
+	sigCoverEnd := endName
+	for startComponent := startName; startComponent < endName; startComponent = reader.Pos() {
+		c, err := enc.ReadComponent(reader)
+		if err != nil {
+			break
+		}
+		value.{{.Name}} = append(value.{{.Name}}, *c)
+		if c.Typ == enc.TypeParametersSha256DigestComponent {
+			sigCoverEnd = startComponent
+		}
+	}
+	if err == nil && reader.Pos() != endName {
+		err = enc.ErrBufferOverflow
+	}
+	`
+	t := template.Must(template.New("NameEncodeInto").Parse(Temp))
+	g.executeTemplate(t, f)
+
+	g.printlnf("if err == nil {")
+	g.printlnf("coveredPart := reader.Range(startName, sigCoverEnd)")
+	g.printlnf("context.%s = append(context.%s, coveredPart...)", f.sigCovered, f.sigCovered)
+	g.printlnf("}")
+
+	g.printlnf("}")
+	return g.output()
+}
+
+func (f *InterestNameField) GenSkipProcess() (string, error) {
+	return "value." + f.name + " = nil", nil
+}
+
+func NewInterestNameField(name string, typeNum uint64, annotation string, _ *TlvModel) (TlvField, error) {
+	if annotation == "" {
+		return nil, ErrInvalidField
+	}
+	return &InterestNameField{
+		BaseTlvField: BaseTlvField{
+			name:    name,
+			typeNum: typeNum,
+		},
+		sigCovered: annotation,
+	}, nil
 }

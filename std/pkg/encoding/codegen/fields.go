@@ -356,7 +356,7 @@ func (f *NameField) GenReadFrom() (string, error) {
 		}
 		value.{{.Name}} = append(value.{{.Name}}, *c)
 	}
-	if err != nil && reader.Pos() != endName {
+	if err == nil && reader.Pos() != endName {
 		err = enc.ErrBufferOverflow
 	}
 	`
