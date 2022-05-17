@@ -3421,7 +3421,7 @@ func (encoder *InterestEncoder) Init(value *Interest) {
 
 	if value.InterestLifetimeV != nil {
 		l += 1
-		switch x := *value.InterestLifetimeV; {
+		switch x := uint64(*value.InterestLifetimeV / time.Millisecond); {
 		case x <= 0xff:
 			l += 2
 		case x <= 0xffff:
@@ -3538,7 +3538,7 @@ func (encoder *InterestEncoder) Init(value *Interest) {
 
 	if value.InterestLifetimeV != nil {
 		l += 1
-		switch x := *value.InterestLifetimeV; {
+		switch x := uint64(*value.InterestLifetimeV / time.Millisecond); {
 		case x <= 0xff:
 			l += 2
 		case x <= 0xffff:
@@ -3723,7 +3723,7 @@ func (encoder *InterestEncoder) EncodeInto(value *Interest, wire enc.Wire) {
 	if value.InterestLifetimeV != nil {
 		buf[pos] = byte(12)
 		pos += 1
-		switch x := *value.InterestLifetimeV; {
+		switch x := uint64(*value.InterestLifetimeV / time.Millisecond); {
 		case x <= 0xff:
 			buf[pos] = 1
 			buf[pos+1] = byte(x)
@@ -3986,8 +3986,8 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				if progress+1 == 6 {
 					handled = true
 					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
+						timeInt := uint64(0)
+						timeInt = uint64(0)
 						{
 							for i := 0; i < int(l); i++ {
 								x := byte(0)
@@ -3998,9 +3998,10 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 									}
 									break
 								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
+								timeInt = uint64(timeInt<<8) | uint64(x)
 							}
 						}
+						tempVal := time.Duration(timeInt) * time.Millisecond
 						value.InterestLifetimeV = &tempVal
 					}
 

@@ -129,8 +129,8 @@ type Interest struct {
 	ForwardingHintV *Links `tlv:"0x1e"`
 	//+field:fixedUint:uint32:optional
 	NonceV *uint32 `tlv:"0x0a"`
-	//+field:natural:optional
-	InterestLifetimeV *uint64 `tlv:"0x0c"`
+	//+field:time:optional
+	InterestLifetimeV *time.Duration `tlv:"0x0c"`
 	//+field:fixedUint:byte:optional
 	HopLimitV *byte `tlv:"0x22"`
 

@@ -16,7 +16,7 @@ func TestT1(t *testing.T) {
 	// Normal case (w/ & w/o sig.)
 	f := &def.T1{
 		H1: 1,
-		H2: utils.ConstPtr[uint64](2),
+		H2: utils.IdPtr[uint64](2),
 		C: enc.Wire{
 			[]byte{0x01, 0x02, 0x03},
 			[]byte{0x04, 0x05, 0x06},

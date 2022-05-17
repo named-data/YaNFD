@@ -5,6 +5,7 @@
 package ndn
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,18 +53,18 @@ type SigConfig struct {
 type Signature interface {
 	SigType() SigType
 	KeyName() enc.Name
-	Nonce() []byte
+	SigNonce() []byte
 	SigTime() *time.Time
-	SeqNum() *uint64
+	SigSeqNum() *uint64
 	Validity() (notBefore, notAfter *time.Time)
 
-	Value() []byte
+	SigValue() []byte
 }
 
 type Signer interface {
+	SigInfo(Data) (*SigConfig, error)
 	EstimateSize() uint
-	SetSigInfo() (*SigConfig, error)
-	ComputeSigValue() ([]byte, error)
+	ComputeSigValue(enc.Wire) ([]byte, error)
 }
 
 type DataConfig struct {
@@ -108,15 +109,18 @@ type Interest interface {
 type Spec interface {
 	MakeData(name enc.Name, config *DataConfig, content enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
 	MakeInterest(name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
-	ParseData(wire enc.Wire) (Data, enc.Wire, error)
-	ParseInterest(wire enc.Wire) (Interest, enc.Wire, error)
+	ReadData(reader enc.ParseReader) (Data, enc.Wire, error)
+	ReadInterest(reader enc.ParseReader) (Interest, enc.Wire, error)
 }
 
 type ReplyFunc func(encodedData enc.Wire) error
 
 type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire, sigCovered enc.Wire) error
 
-type InterestHandler func(interest Interest, rawInterest enc.Wire, sigCovered enc.Wire, reply ReplyFunc)
+type InterestHandler func(
+	interest Interest, rawInterest enc.Wire, sigCovered enc.Wire,
+	reply ReplyFunc, deadline time.Time,
+)
 
 // Engine represents a running NDN App low-level engine.
 // Used by NTSchema.
@@ -146,3 +150,7 @@ type ErrNotSupported struct {
 func (e ErrNotSupported) Error() string {
 	return fmt.Sprintf("Not supported field: %s", e.Item)
 }
+
+var ErrFailedToEncode = errors.New("Failed to encode an NDN packet.")
+
+var ErrWrongType = errors.New("Packet to parse is not of desired type.")

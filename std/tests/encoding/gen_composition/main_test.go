@@ -105,7 +105,7 @@ func TestNestedWire(t *testing.T) {
 				[]byte{1, 2, 3},
 				[]byte{4, 5, 6},
 			},
-			Num: utils.ConstPtr[uint64](255),
+			Num: utils.IdPtr[uint64](255),
 		},
 		N: 13,
 		W2: &def.InnerWire2{

@@ -74,8 +74,8 @@ func TestOptField(t *testing.T) {
 	utils.SetTestingT(t)
 
 	f := gen_basic.OptField{
-		Number: utils.ConstPtr[uint64](1),
-		Time:   utils.ConstPtr(2 * time.Second),
+		Number: utils.IdPtr[uint64](1),
+		Time:   utils.IdPtr(2 * time.Second),
 		Binary: []byte{3, 4, 5},
 		Bool:   true,
 	}
@@ -105,8 +105,8 @@ func TestOptField(t *testing.T) {
 	require.Equal(t, f, *f2)
 
 	f = gen_basic.OptField{
-		Number: utils.ConstPtr[uint64](0),
-		Time:   utils.ConstPtr(0 * time.Second),
+		Number: utils.IdPtr[uint64](0),
+		Time:   utils.IdPtr(0 * time.Second),
 		Binary: []byte{},
 	}
 	buf = f.Bytes()
@@ -211,7 +211,7 @@ func TestStrField(t *testing.T) {
 
 	f := gen_basic.StrField{
 		Str1: "hello",
-		Str2: utils.ConstPtr("world"),
+		Str2: utils.IdPtr("world"),
 	}
 	buf := f.Bytes()
 	require.Equal(t, []byte{0x01, 0x05, 'h', 'e', 'l', 'l', 'o', 0x02, 0x05, 'w', 'o', 'r', 'l', 'd'}, buf)
@@ -236,8 +236,8 @@ func TestFixedUintField(t *testing.T) {
 
 	f := gen_basic.FixedUintField{
 		Byte: 1,
-		U32:  utils.ConstPtr[uint32](2),
-		U64:  utils.ConstPtr[uint64](3),
+		U32:  utils.IdPtr[uint32](2),
+		U64:  utils.IdPtr[uint64](3),
 	}
 	buf := f.Bytes()
 	require.Equal(t, []byte{

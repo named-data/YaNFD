@@ -15,6 +15,12 @@ const (
 func _() {
 	// Trait for Signature of Data
 	var _ ndn.Signature = &Data{}
+	// Trait for Signature of Interest
+	var _ ndn.Signature = &Interest{}
+	// Trait for Data of Data
+	var _ ndn.Data = &Data{}
+	// Trait for Interest of Interest
+	var _ ndn.Interest = &Interest{}
 }
 
 type Spec struct{}
@@ -64,15 +70,11 @@ func (d *Data) SetKeyName(name enc.Name) error {
 	return nil
 }
 
-func (d *Data) Nonce() []byte {
-	if d.SignatureInfo != nil {
-		return d.SignatureInfo.SignatureNonce
-	} else {
-		return nil
-	}
+func (d *Data) SigNonce() []byte {
+	return nil
 }
 
-func (d *Data) SetNonce(nonce []byte) error {
+func (d *Data) SetSigNonce(nonce []byte) error {
 	if d.SignatureInfo == nil {
 		d.SignatureInfo = &SignatureInfo{}
 	}
@@ -81,11 +83,7 @@ func (d *Data) SetNonce(nonce []byte) error {
 }
 
 func (d *Data) SigTime() *time.Time {
-	if d.SignatureInfo != nil && d.SignatureInfo.SignatureTime != nil {
-		return utils.ConstPtr(time.UnixMilli(d.SignatureInfo.SignatureTime.Milliseconds()))
-	} else {
-		return nil
-	}
+	return nil
 }
 
 func (d *Data) SetSigTime(t *time.Time) error {
@@ -95,20 +93,16 @@ func (d *Data) SetSigTime(t *time.Time) error {
 	if t == nil {
 		d.SignatureInfo.SignatureTime = nil
 	} else {
-		d.SignatureInfo.SignatureTime = utils.ConstPtr(time.Duration(t.UnixMilli()) * time.Millisecond)
+		d.SignatureInfo.SignatureTime = utils.IdPtr(time.Duration(t.UnixMilli()) * time.Millisecond)
 	}
 	return nil
 }
 
-func (d *Data) SeqNum() *uint64 {
-	if d.SignatureInfo != nil {
-		return d.SignatureInfo.SignatureSeqNum
-	} else {
-		return nil
-	}
+func (d *Data) SigSeqNum() *uint64 {
+	return nil
 }
 
-func (d *Data) SetSeqNum(seq *uint64) error {
+func (d *Data) SetSigSeqNum(seq *uint64) error {
 	if d.SignatureInfo == nil {
 		d.SignatureInfo = &SignatureInfo{}
 	}
@@ -149,8 +143,12 @@ func (d *Data) SetValidity(notBefore, notAfter *time.Time) error {
 	return nil
 }
 
-func (d *Data) Value() []byte {
-	return d.SignatureValue.Join()
+func (d *Data) SigValue() []byte {
+	if d.SignatureValue == nil {
+		return nil
+	} else {
+		return d.SignatureValue.Join()
+	}
 }
 
 func (d *Data) Signature() ndn.Signature {
@@ -191,8 +189,237 @@ func (d *Data) Content() enc.Wire {
 	return d.ContentV
 }
 
-func (_ Spec) MakeData(name enc.Name, config *ndn.DataConfig,
-	content enc.Wire, signer ndn.Signer) (enc.Wire, enc.Wire, error) {
-	ret := &Data{}
-	panic(ret) // TODO
+func (t *Interest) SigType() ndn.SigType {
+	if t.SignatureInfo == nil {
+		return ndn.SignatureNone
+	} else {
+		return ndn.SigType(t.SignatureInfo.SignatureType)
+	}
+}
+
+func (t *Interest) KeyName() enc.Name {
+	if t.SignatureInfo == nil || t.SignatureInfo.KeyLocator == nil {
+		return nil
+	} else {
+		return t.SignatureInfo.KeyLocator.Name
+	}
+}
+
+func (t *Interest) SigNonce() []byte {
+	if t.SignatureInfo != nil {
+		return t.SignatureInfo.SignatureNonce
+	} else {
+		return nil
+	}
+}
+
+func (t *Interest) SigTime() *time.Time {
+	if t.SignatureInfo != nil && t.SignatureInfo.SignatureTime != nil {
+		return utils.IdPtr(time.UnixMilli(t.SignatureInfo.SignatureTime.Milliseconds()))
+	} else {
+		return nil
+	}
+}
+
+func (t *Interest) SigSeqNum() *uint64 {
+	if t.SignatureInfo != nil {
+		return t.SignatureInfo.SignatureSeqNum
+	} else {
+		return nil
+	}
+}
+
+func (t *Interest) Validity() (notBefore, notAfter *time.Time) {
+	return nil, nil
+}
+
+func (t *Interest) SigValue() []byte {
+	return t.SignatureValue.Join()
+}
+
+func (t *Interest) Signature() ndn.Signature {
+	return t
+}
+
+func (t *Interest) Name() enc.Name {
+	return t.NameV
+}
+
+func (t *Interest) CanBePrefix() bool {
+	return t.CanBePrefixV
+}
+
+func (t *Interest) MustBeFresh() bool {
+	return t.MustBeFreshV
+}
+
+func (t *Interest) ForwardingHint() []enc.Name {
+	if t.ForwardingHintV == nil {
+		return nil
+	}
+	return t.ForwardingHintV.Names
+}
+
+func (t *Interest) Nonce() *uint64 {
+	if t.NonceV == nil {
+		return nil
+	} else {
+		return utils.IdPtr(uint64(*t.NonceV))
+	}
+}
+
+func (t *Interest) Lifetime() *time.Duration {
+	return t.InterestLifetimeV
+}
+
+func (t *Interest) HopLimit() *uint {
+	if t.HopLimitV == nil {
+		return nil
+	} else {
+		return utils.IdPtr(uint(*t.HopLimitV))
+	}
+}
+
+func (t *Interest) AppParam() enc.Wire {
+	return t.ApplicationParameters
+}
+
+func (_ Spec) MakeData(
+	name enc.Name, config *ndn.DataConfig, content enc.Wire, signer ndn.Signer,
+) (enc.Wire, enc.Wire, error) {
+	// Create Data packet.
+	if name == nil {
+		return nil, nil, ndn.ErrInvalidValue{Item: "Data.Name", Value: nil}
+	}
+	if config == nil {
+		return nil, nil, ndn.ErrInvalidValue{Item: "Data.DataConfig", Value: nil}
+	}
+	contentType := (*uint64)(nil)
+	if config.ContentType != nil {
+		contentType = utils.IdPtr(uint64(*config.ContentType))
+	}
+	finalBlock := []byte(nil)
+	if config.FinalBlockID != nil {
+		finalBlock = config.FinalBlockID.Bytes()
+	}
+	data := &Data{
+		NameV: name,
+		MetaInfo: &MetaInfo{
+			ContentType:     contentType,
+			FreshnessPeriod: config.Freshness,
+			FinalBlockID:    finalBlock,
+		},
+		ContentV:       content,
+		SignatureInfo:  nil,
+		SignatureValue: nil,
+	}
+	packet := &Packet{
+		Data: data,
+	}
+
+	// Fill-in SignatureInfo.
+	if signer != nil {
+		sigConfig, err := signer.SigInfo(data)
+		if err != nil {
+			return nil, nil, err
+		}
+		if sigConfig != nil && sigConfig.Type != ndn.SignatureNone {
+			if sigConfig.Nonce != nil {
+				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureNonce"}
+			}
+			if sigConfig.SeqNum != nil {
+				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureSeqNum"}
+			}
+			if sigConfig.SigTime != nil {
+				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureTime"}
+			}
+			if sigConfig.Type != ndn.SignatureDigestSha256 {
+				if sigConfig.KeyName == nil {
+					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.KeyLocator", Value: nil}
+				}
+				data.SignatureInfo = &SignatureInfo{
+					SignatureType: uint64(sigConfig.Type),
+					KeyLocator: &KeyLocator{
+						Name: sigConfig.KeyName,
+					},
+				}
+			} else {
+				data.SignatureInfo = &SignatureInfo{SignatureType: uint64(sigConfig.Type)}
+			}
+
+			if sigConfig.NotBefore != nil || sigConfig.NotAfter != nil {
+				if sigConfig.NotBefore == nil {
+					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
+				}
+				if sigConfig.NotAfter == nil {
+					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
+				}
+				data.SignatureInfo.ValidityPeriod = &ValidityPeriod{
+					NotBefore: sigConfig.NotBefore.UTC().Format(TimeFmt),
+					NotAfter:  sigConfig.NotAfter.UTC().Format(TimeFmt),
+				}
+			}
+
+			// Encode packet.
+			encoder := PacketEncoder{
+				Data_encoder: DataEncoder{
+					SignatureValue_estLen: signer.EstimateSize(),
+				},
+			}
+			if encoder.Data_encoder.SignatureValue_estLen >= 253 {
+				return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+			}
+			encoder.Init(packet)
+			wire := encoder.Encode(packet)
+			if wire == nil {
+				return nil, nil, ndn.ErrFailedToEncode
+			}
+			sigCovered := encoder.Data_encoder.sigCovered
+			// Compute signature
+			// Since PacketEncoder only adds a TL, Data_encoder.SignatureValue_wireIdx is still valid
+			if encoder.Data_encoder.SignatureValue_wireIdx >= 0 {
+				sigVal, err := signer.ComputeSigValue(sigCovered)
+				if err != nil {
+					return nil, nil, err
+				}
+				if uint(len(sigVal)) > encoder.Data_encoder.SignatureValue_estLen {
+					return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+				}
+				wire[encoder.Data_encoder.SignatureValue_wireIdx] = sigVal
+				// Fix SignatureValue length
+				buf := wire[encoder.Data_encoder.SignatureValue_wireIdx-1]
+				buf[len(buf)-1] = byte(len(sigVal))
+				// Fix packet length
+				shrink := int(encoder.Data_encoder.SignatureValue_estLen) - len(sigVal)
+				wire[0] = enc.ShrinkLength(wire[0], shrink)
+			}
+
+			return wire, sigCovered, nil
+		}
+	}
+	// Encode packet without signature
+	encoder := PacketEncoder{
+		Data_encoder: DataEncoder{
+			SignatureValue_estLen: 0,
+		},
+	}
+	encoder.Init(packet)
+	wire := encoder.Encode(packet)
+	if wire == nil {
+		return nil, nil, ndn.ErrFailedToEncode
+	}
+	return wire, nil, nil
+}
+
+func (_ Spec) ReadData(reader enc.ParseReader) (ndn.Data, enc.Wire, error) {
+	context := PacketParsingContext{}
+	context.Init()
+	ret, err := context.Parse(reader, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	if ret.Data == nil {
+		return nil, nil, ndn.ErrWrongType
+	}
+	return ret.Data, context.Data_context.sigCovered, nil
 }
