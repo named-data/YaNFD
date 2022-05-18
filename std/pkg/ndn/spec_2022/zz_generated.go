@@ -159,20 +159,20 @@ func (context *KeyLocatorParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			case 7:
 				if progress+1 == 0 {
 					handled = true
-					value.Name = make(enc.Name, l/3)
+					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
 					endName := startName + int(l)
 					for j := range value.Name {
+						if reader.Pos() >= endName {
+							value.Name = value.Name[:j]
+							break
+						}
 						var err1, err3 error
 						value.Name[j].Typ, err1 = enc.ReadTLNum(reader)
 						l, err2 := enc.ReadTLNum(reader)
 						value.Name[j].Val, err3 = reader.ReadBuf(int(l))
 						if err1 != nil || err2 != nil || err3 != nil {
 							err = io.ErrUnexpectedEOF
-							break
-						}
-						if reader.Pos() >= endName {
-							value.Name = value.Name[:j+1]
 							break
 						}
 					}
@@ -415,20 +415,20 @@ func (context *LinksParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 						}{}
 						{
 							value := &pseudoValue
-							value.Names = make(enc.Name, l/3)
+							value.Names = make(enc.Name, l/2+1)
 							startName := reader.Pos()
 							endName := startName + int(l)
 							for j := range value.Names {
+								if reader.Pos() >= endName {
+									value.Names = value.Names[:j]
+									break
+								}
 								var err1, err3 error
 								value.Names[j].Typ, err1 = enc.ReadTLNum(reader)
 								l, err2 := enc.ReadTLNum(reader)
 								value.Names[j].Val, err3 = reader.ReadBuf(int(l))
 								if err1 != nil || err2 != nil || err3 != nil {
 									err = io.ErrUnexpectedEOF
-									break
-								}
-								if reader.Pos() >= endName {
-									value.Names = value.Names[:j+1]
 									break
 								}
 							}
@@ -3934,7 +3934,7 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				if progress+1 == 1 {
 					handled = true
 					{
-						value.NameV = make(enc.Name, l/3)
+						value.NameV = make(enc.Name, l/2+1)
 						startName := reader.Pos()
 						endName := startName + int(l)
 						sigCoverEnd := endName
@@ -4600,20 +4600,20 @@ func (context *DataParsingContext) Parse(reader enc.ParseReader, ignoreCritical 
 			case 7:
 				if progress+1 == 2 {
 					handled = true
-					value.NameV = make(enc.Name, l/3)
+					value.NameV = make(enc.Name, l/2+1)
 					startName := reader.Pos()
 					endName := startName + int(l)
 					for j := range value.NameV {
+						if reader.Pos() >= endName {
+							value.NameV = value.NameV[:j]
+							break
+						}
 						var err1, err3 error
 						value.NameV[j].Typ, err1 = enc.ReadTLNum(reader)
 						l, err2 := enc.ReadTLNum(reader)
 						value.NameV[j].Val, err3 = reader.ReadBuf(int(l))
 						if err1 != nil || err2 != nil || err3 != nil {
 							err = io.ErrUnexpectedEOF
-							break
-						}
-						if reader.Pos() >= endName {
-							value.NameV = value.NameV[:j+1]
 							break
 						}
 					}

@@ -235,7 +235,7 @@ func (f *InterestNameField) GenReadFrom() (string, error) {
 
 	g.printlnf("{")
 
-	const Temp = `value.{{.Name}} = make(enc.Name, l/3)
+	const Temp = `value.{{.Name}} = make(enc.Name, l/2+1)
 	startName := reader.Pos()
 	endName := startName + int(l)
 	sigCoverEnd := endName

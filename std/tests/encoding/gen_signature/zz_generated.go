@@ -845,7 +845,7 @@ func (context *T2ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 				if progress+1 == 0 {
 					handled = true
 					{
-						value.Name = make(enc.Name, l/3)
+						value.Name = make(enc.Name, l/2+1)
 						startName := reader.Pos()
 						endName := startName + int(l)
 						sigCoverEnd := endName
