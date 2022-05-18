@@ -63,7 +63,7 @@ func (_ compValFmtText) ToString(val []byte) string {
 }
 
 func (_ compValFmtText) FromString(valStr string) ([]byte, error) {
-	val := make([]byte, 0)
+	val := make([]byte, 0, len(valStr))
 	for i := 0; i < len(valStr); {
 		if isLegalCompText(valStr[i]) {
 			val = append(val, valStr[i])
@@ -306,23 +306,23 @@ func ParseComponent(buf Buffer) (Component, int) {
 	}, end
 }
 
-func ReadComponent(r ParseReader) (Component, error) {
+func ReadComponent(r ParseReader) (*Component, error) {
 	typ, err := ReadTLNum(r)
 	if err != nil {
-		return Component{}, err
+		return nil, err
 	}
 	l, err := ReadTLNum(r)
 	if err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return Component{}, err
+		return nil, err
 	}
 	val, err := r.ReadBuf(int(l))
 	if err != nil {
-		return Component{}, err
+		return nil, err
 	}
-	return Component{
+	return &Component{
 		Typ: typ,
 		Val: val,
 	}, nil
@@ -421,13 +421,7 @@ func (c Component) Bytes() []byte {
 }
 
 func ComponentFromBytes(buf []byte) (*Component, error) {
-	r := NewBufferReader(buf)
-	c, err := ReadComponent(r)
-	if err == nil {
-		return &c, nil
-	} else {
-		return nil, err
-	}
+	return ReadComponent(NewBufferReader(buf))
 }
 
 func (c Component) Compare(rhs ComponentPattern) int {
