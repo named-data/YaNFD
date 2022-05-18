@@ -306,49 +306,26 @@ func ParseComponent(buf Buffer) (Component, int) {
 	}, end
 }
 
-func ReadComponent(r ParseReader) (*Component, error) {
+func ReadComponent(r ParseReader) (Component, error) {
 	typ, err := ReadTLNum(r)
 	if err != nil {
-		return nil, err
+		return Component{}, err
 	}
 	l, err := ReadTLNum(r)
 	if err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return nil, err
+		return Component{}, err
 	}
-	val, err := r.ReadWire(int(l))
+	val, err := r.ReadBuf(int(l))
 	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return nil, err
+		return Component{}, err
 	}
-	if len(val) == 0 {
-		return &Component{
-			Typ: typ,
-			Val: []byte{},
-		}, nil
-	} else if len(val) == 1 {
-		// If it is within one fragment, no copy
-		return &Component{
-			Typ: typ,
-			Val: val[0],
-		}, nil
-	} else {
-		// If it crosses fragment boundary (very rare), copy it
-		valBuf := make([]byte, int(l))
-		pos := 0
-		for _, v := range val {
-			copy(valBuf[pos:pos+len(v)], v)
-			pos += len(v)
-		}
-		return &Component{
-			Typ: typ,
-			Val: valBuf,
-		}, nil
-	}
+	return Component{
+		Typ: typ,
+		Val: val,
+	}, nil
 }
 
 func parseCompTypeFromStr(s string) (TLNum, compValFmt, error) {
@@ -445,7 +422,12 @@ func (c Component) Bytes() []byte {
 
 func ComponentFromBytes(buf []byte) (*Component, error) {
 	r := NewBufferReader(buf)
-	return ReadComponent(r)
+	c, err := ReadComponent(r)
+	if err == nil {
+		return &c, nil
+	} else {
+		return nil, err
+	}
 }
 
 func (c Component) Compare(rhs ComponentPattern) int {

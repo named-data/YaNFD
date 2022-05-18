@@ -346,15 +346,22 @@ func (f *NameField) GenEncodeInto() (string, error) {
 
 func (f *NameField) GenReadFrom() (string, error) {
 	var g strErrBuf
-	const Temp = `value.{{.Name}} = make(enc.Name, 0)
+	const Temp = `value.{{.Name}} = make(enc.Name, l/3)
 	startName := reader.Pos()
 	endName := startName + int(l)
-	for reader.Pos() < endName {
-		c, err := enc.ReadComponent(reader)
-		if err != nil {
+	for j := range value.{{.Name}} {
+		var err1, err3 error
+		value.{{.Name}}[j].Typ, err1 = enc.ReadTLNum(reader)
+		l, err2 := enc.ReadTLNum(reader)
+		value.{{.Name}}[j].Val, err3 = reader.ReadBuf(int(l))
+		if err1 != nil || err2 != nil || err3 != nil {
+			err = io.ErrUnexpectedEOF
 			break
 		}
-		value.{{.Name}} = append(value.{{.Name}}, *c)
+		if reader.Pos() >= endName {
+			value.{{.Name}} = value.{{.Name}}[:j+1]
+			break
+		}
 	}
 	if err == nil && reader.Pos() != endName {
 		err = enc.ErrBufferOverflow

@@ -77,10 +77,18 @@ func (r *BufferReader) ReadWire(l int) (Wire, error) {
 	if r.pos+l > len(r.buf) {
 		return nil, io.ErrUnexpectedEOF
 	}
-	ret := make(Wire, 1)
-	ret[0] = r.buf[r.pos : r.pos+l]
+	p := r.pos
 	r.pos += l
-	return ret, nil
+	return Wire{r.buf[p:r.pos]}, nil
+}
+
+func (r *BufferReader) ReadBuf(l int) (Buffer, error) {
+	if r.pos+l > len(r.buf) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	p := r.pos
+	r.pos += l
+	return r.buf[p:r.pos], nil
 }
 
 func (r *BufferReader) Pos() int {
@@ -182,6 +190,38 @@ func (r *WireReader) ReadWire(l int) (Wire, error) {
 		}
 	}
 	return ret, nil
+}
+
+func (r *WireReader) ReadBuf(l int) (Buffer, error) {
+	if !r.nextSeg() && l > 0 {
+		return nil, io.ErrUnexpectedEOF
+	}
+	if r.pos+l <= len(r.wire[r.seg]) {
+		p := r.pos
+		r.pos += l
+		return r.wire[r.seg][p:r.pos], nil
+	} else {
+		ret := make(Buffer, l)
+		cur := 0
+		for l > 0 {
+			if r.seg >= len(r.wire) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			if r.pos+l > len(r.wire[r.seg]) {
+				copy(ret[cur:], r.wire[r.seg][r.pos:])
+				l -= len(r.wire[r.seg]) - r.pos
+				cur += len(r.wire[r.seg]) - r.pos
+				r.seg++
+				r.pos = 0
+			} else {
+				copy(ret[cur:], r.wire[r.seg][r.pos:r.pos+l])
+				r.pos += l
+				cur -= l
+				l = 0
+			}
+		}
+		return ret, nil
+	}
 }
 
 func (r *WireReader) Pos() int {

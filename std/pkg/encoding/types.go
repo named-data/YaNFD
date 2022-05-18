@@ -57,6 +57,9 @@ type ParseReader interface {
 	// It always tries to read the required length of bytes.
 	ReadWire(l int) (Wire, error)
 
+	// ReadBuf reads a continuous buffer, trying to avoid copy.
+	ReadBuf(l int) (Buffer, error)
+
 	// Range returns a wire that contains the bytes between start and end, without copy.
 	Range(start, end int) Wire
 

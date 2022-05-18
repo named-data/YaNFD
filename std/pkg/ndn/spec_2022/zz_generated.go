@@ -159,15 +159,22 @@ func (context *KeyLocatorParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			case 7:
 				if progress+1 == 0 {
 					handled = true
-					value.Name = make(enc.Name, 0)
+					value.Name = make(enc.Name, l/3)
 					startName := reader.Pos()
 					endName := startName + int(l)
-					for reader.Pos() < endName {
-						c, err := enc.ReadComponent(reader)
-						if err != nil {
+					for j := range value.Name {
+						var err1, err3 error
+						value.Name[j].Typ, err1 = enc.ReadTLNum(reader)
+						l, err2 := enc.ReadTLNum(reader)
+						value.Name[j].Val, err3 = reader.ReadBuf(int(l))
+						if err1 != nil || err2 != nil || err3 != nil {
+							err = io.ErrUnexpectedEOF
 							break
 						}
-						value.Name = append(value.Name, *c)
+						if reader.Pos() >= endName {
+							value.Name = value.Name[:j+1]
+							break
+						}
 					}
 					if err == nil && reader.Pos() != endName {
 						err = enc.ErrBufferOverflow
@@ -408,15 +415,22 @@ func (context *LinksParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 						}{}
 						{
 							value := &pseudoValue
-							value.Names = make(enc.Name, 0)
+							value.Names = make(enc.Name, l/3)
 							startName := reader.Pos()
 							endName := startName + int(l)
-							for reader.Pos() < endName {
-								c, err := enc.ReadComponent(reader)
-								if err != nil {
+							for j := range value.Names {
+								var err1, err3 error
+								value.Names[j].Typ, err1 = enc.ReadTLNum(reader)
+								l, err2 := enc.ReadTLNum(reader)
+								value.Names[j].Val, err3 = reader.ReadBuf(int(l))
+								if err1 != nil || err2 != nil || err3 != nil {
+									err = io.ErrUnexpectedEOF
 									break
 								}
-								value.Names = append(value.Names, *c)
+								if reader.Pos() >= endName {
+									value.Names = value.Names[:j+1]
+									break
+								}
 							}
 							if err == nil && reader.Pos() != endName {
 								err = enc.ErrBufferOverflow
@@ -3920,17 +3934,25 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				if progress+1 == 1 {
 					handled = true
 					{
-						value.NameV = make(enc.Name, 0)
+						value.NameV = make(enc.Name, l/3)
 						startName := reader.Pos()
 						endName := startName + int(l)
 						sigCoverEnd := endName
-						for startComponent := startName; startComponent < endName; startComponent = reader.Pos() {
-							c, err := enc.ReadComponent(reader)
-							if err != nil {
+						for j := range value.NameV {
+							var err1, err3 error
+							startComponent := reader.Pos()
+							if startComponent >= endName {
+								value.NameV = value.NameV[:j]
 								break
 							}
-							value.NameV = append(value.NameV, *c)
-							if c.Typ == enc.TypeParametersSha256DigestComponent {
+							value.NameV[j].Typ, err1 = enc.ReadTLNum(reader)
+							l, err2 := enc.ReadTLNum(reader)
+							value.NameV[j].Val, err3 = reader.ReadBuf(int(l))
+							if err1 != nil || err2 != nil || err3 != nil {
+								err = io.ErrUnexpectedEOF
+								break
+							}
+							if value.NameV[j].Typ == enc.TypeParametersSha256DigestComponent {
 								sigCoverEnd = startComponent
 							}
 						}
@@ -4578,15 +4600,22 @@ func (context *DataParsingContext) Parse(reader enc.ParseReader, ignoreCritical 
 			case 7:
 				if progress+1 == 2 {
 					handled = true
-					value.NameV = make(enc.Name, 0)
+					value.NameV = make(enc.Name, l/3)
 					startName := reader.Pos()
 					endName := startName + int(l)
-					for reader.Pos() < endName {
-						c, err := enc.ReadComponent(reader)
-						if err != nil {
+					for j := range value.NameV {
+						var err1, err3 error
+						value.NameV[j].Typ, err1 = enc.ReadTLNum(reader)
+						l, err2 := enc.ReadTLNum(reader)
+						value.NameV[j].Val, err3 = reader.ReadBuf(int(l))
+						if err1 != nil || err2 != nil || err3 != nil {
+							err = io.ErrUnexpectedEOF
 							break
 						}
-						value.NameV = append(value.NameV, *c)
+						if reader.Pos() >= endName {
+							value.NameV = value.NameV[:j+1]
+							break
+						}
 					}
 					if err == nil && reader.Pos() != endName {
 						err = enc.ErrBufferOverflow

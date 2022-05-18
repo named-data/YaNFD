@@ -65,10 +65,10 @@ func (n Name) EncodingLength() int {
 // ReadName reads a Name from a Wire **excluding** the TL prefix.
 func ReadName(r ParseReader) (Name, error) {
 	var err error
-	var c *Component
+	var c Component
 	ret := make(Name, 0)
 	for c, err = ReadComponent(r); err == nil; c, err = ReadComponent(r) {
-		ret = append(ret, *c)
+		ret = append(ret, c)
 	}
 	if err != io.EOF {
 		return nil, err

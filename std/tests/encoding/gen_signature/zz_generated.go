@@ -845,17 +845,25 @@ func (context *T2ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 				if progress+1 == 0 {
 					handled = true
 					{
-						value.Name = make(enc.Name, 0)
+						value.Name = make(enc.Name, l/3)
 						startName := reader.Pos()
 						endName := startName + int(l)
 						sigCoverEnd := endName
-						for startComponent := startName; startComponent < endName; startComponent = reader.Pos() {
-							c, err := enc.ReadComponent(reader)
-							if err != nil {
+						for j := range value.Name {
+							var err1, err3 error
+							startComponent := reader.Pos()
+							if startComponent >= endName {
+								value.Name = value.Name[:j]
 								break
 							}
-							value.Name = append(value.Name, *c)
-							if c.Typ == enc.TypeParametersSha256DigestComponent {
+							value.Name[j].Typ, err1 = enc.ReadTLNum(reader)
+							l, err2 := enc.ReadTLNum(reader)
+							value.Name[j].Val, err3 = reader.ReadBuf(int(l))
+							if err1 != nil || err2 != nil || err3 != nil {
+								err = io.ErrUnexpectedEOF
+								break
+							}
+							if value.Name[j].Typ == enc.TypeParametersSha256DigestComponent {
 								sigCoverEnd = startComponent
 							}
 						}

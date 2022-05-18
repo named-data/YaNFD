@@ -178,8 +178,12 @@ func (d *Data) Freshness() *time.Duration {
 
 func (d *Data) FinalBlockID() *enc.Component {
 	if d.MetaInfo != nil && d.MetaInfo.FinalBlockID != nil {
-		ret, _ := enc.ReadComponent(enc.NewBufferReader(d.MetaInfo.FinalBlockID))
-		return ret
+		ret, err := enc.ReadComponent(enc.NewBufferReader(d.MetaInfo.FinalBlockID))
+		if err == nil {
+			return &ret
+		} else {
+			return nil
+		}
 	} else {
 		return nil
 	}
