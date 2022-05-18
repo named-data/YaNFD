@@ -62,7 +62,7 @@ type Signature interface {
 }
 
 type Signer interface {
-	SigInfo(Data) (*SigConfig, error)
+	SigInfo() (*SigConfig, error)
 	EstimateSize() uint
 	ComputeSigValue(enc.Wire) ([]byte, error)
 }
@@ -108,7 +108,9 @@ type Interest interface {
 // Spec represents an NDN packet specification.
 type Spec interface {
 	MakeData(name enc.Name, config *DataConfig, content enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
-	MakeInterest(name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
+	MakeInterest(
+		name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer,
+	) (enc.Wire, enc.Wire, enc.Name, error)
 	ReadData(reader enc.ParseReader) (Data, enc.Wire, error)
 	ReadInterest(reader enc.ParseReader) (Interest, enc.Wire, error)
 }

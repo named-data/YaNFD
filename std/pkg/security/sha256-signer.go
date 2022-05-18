@@ -9,7 +9,7 @@ import (
 
 type sha256Signer struct{}
 
-func (_ sha256Signer) SigInfo(ndn.Data) (*ndn.SigConfig, error) {
+func (_ sha256Signer) SigInfo() (*ndn.SigConfig, error) {
 	return &ndn.SigConfig{
 		Type:    ndn.SignatureDigestSha256,
 		KeyName: nil,

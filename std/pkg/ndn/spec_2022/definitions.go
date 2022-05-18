@@ -178,3 +178,9 @@ type Packet struct {
 	//+field:struct:LpPacket:nocopy
 	LpPacket *LpPacket `tlv:"0x64"`
 }
+
+const (
+	TypeInterest = enc.TLNum(0x05)
+	TypeData     = enc.TLNum(0x06)
+	TypeLpPacket = enc.TLNum(0x64)
+)
