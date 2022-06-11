@@ -63,6 +63,17 @@ func (_ compValFmtText) ToString(val []byte) string {
 }
 
 func (_ compValFmtText) FromString(valStr string) ([]byte, error) {
+	hasSpecialChar := false
+	for _, c := range valStr {
+		if c == '%' || c == '=' || c == '/' || c == '\\' {
+			hasSpecialChar = true
+			break
+		}
+	}
+	if !hasSpecialChar {
+		return []byte(valStr), nil
+	}
+
 	val := make([]byte, 0, len(valStr))
 	for i := 0; i < len(valStr); {
 		if isLegalCompText(valStr[i]) {
@@ -344,33 +355,49 @@ func parseCompTypeFromStr(s string) (TLNum, compValFmt, error) {
 	}
 }
 
-func ComponentFromStr(s string) (*Component, error) {
+func componentFromStrInto(s string, ret *Component) error {
 	var err error
-	strs := strings.Split(s, "=")
-	if len(strs) > 2 {
-		return nil, ErrFormat{"too many '=' in component: " + s}
+	hasEq := false
+	typStr := ""
+	valStr := s
+	for i, c := range s {
+		if c == '=' {
+			if !hasEq {
+				typStr = s[:i]
+				valStr = s[i+1:]
+			} else {
+				return ErrFormat{"too many '=' in component: " + s}
+			}
+			hasEq = true
+		}
 	}
-	valStr := strs[len(strs)-1]
-	typ := TypeGenericNameComponent
+	ret.Typ = TypeGenericNameComponent
 	vFmt := compValFmt(compValFmtText{})
-	val := []byte(nil)
-	if len(strs) == 2 {
-		typ, vFmt, err = parseCompTypeFromStr(strs[0])
+	ret.Val = []byte(nil)
+	if hasEq {
+		ret.Typ, vFmt, err = parseCompTypeFromStr(typStr)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if typ <= TypeInvalidComponent || int(typ) > 0xffff {
-			return nil, ErrFormat{"invalid component type: " + valStr}
+		if ret.Typ <= TypeInvalidComponent || int(ret.Typ) > 0xffff {
+			return ErrFormat{"invalid component type: " + valStr}
 		}
 	}
-	val, err = vFmt.FromString(valStr)
+	ret.Val, err = vFmt.FromString(valStr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ComponentFromStr(s string) (*Component, error) {
+	ret := &Component{}
+	err := componentFromStrInto(s, ret)
 	if err != nil {
 		return nil, err
+	} else {
+		return ret, nil
 	}
-	return &Component{
-		Typ: typ,
-		Val: val,
-	}, nil
 }
 
 func ComponentPatternFromStr(s string) (ComponentPattern, error) {

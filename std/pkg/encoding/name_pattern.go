@@ -98,11 +98,10 @@ func NameFromStr(s string) (Name, error) {
 	}
 	ret := make(Name, len(strs))
 	for i, str := range strs {
-		c, err := ComponentFromStr(str)
+		err := componentFromStrInto(str, &ret[i])
 		if err != nil {
 			return nil, err
 		}
-		ret[i] = *c
 	}
 	return ret, nil
 }
