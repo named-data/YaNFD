@@ -936,9 +936,9 @@ func (context *ValidityPeriodParsingContext) Parse(reader enc.ParseReader, ignor
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 254}
+					err = enc.ErrSkipRequired{Name: "NotBefore", TypeNum: 254}
 				case 1 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 255}
+					err = enc.ErrSkipRequired{Name: "NotAfter", TypeNum: 255}
 				}
 			}
 			if err != nil {
@@ -950,9 +950,9 @@ func (context *ValidityPeriodParsingContext) Parse(reader enc.ParseReader, ignor
 	for ; progress < 2; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 254}
+			err = enc.ErrSkipRequired{Name: "NotBefore", TypeNum: 254}
 		case 1 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 255}
+			err = enc.ErrSkipRequired{Name: "NotAfter", TypeNum: 255}
 		}
 	}
 	if err != nil {
@@ -1142,9 +1142,9 @@ func (context *CertDescriptionEntryParsingContext) Parse(reader enc.ParseReader,
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 513}
+					err = enc.ErrSkipRequired{Name: "DescriptionKey", TypeNum: 513}
 				case 1 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 514}
+					err = enc.ErrSkipRequired{Name: "DescriptionValue", TypeNum: 514}
 				}
 			}
 			if err != nil {
@@ -1156,9 +1156,9 @@ func (context *CertDescriptionEntryParsingContext) Parse(reader enc.ParseReader,
 	for ; progress < 2; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 513}
+			err = enc.ErrSkipRequired{Name: "DescriptionKey", TypeNum: 513}
 		case 1 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 514}
+			err = enc.ErrSkipRequired{Name: "DescriptionValue", TypeNum: 514}
 		}
 	}
 	if err != nil {
@@ -1863,7 +1863,7 @@ func (context *SignatureInfoParsingContext) Parse(reader enc.ParseReader, ignore
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 27}
+					err = enc.ErrSkipRequired{Name: "SignatureType", TypeNum: 27}
 				case 1 - 1:
 					value.KeyLocator = nil
 				case 2 - 1:
@@ -1887,7 +1887,7 @@ func (context *SignatureInfoParsingContext) Parse(reader enc.ParseReader, ignore
 	for ; progress < 7; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 27}
+			err = enc.ErrSkipRequired{Name: "SignatureType", TypeNum: 27}
 		case 1 - 1:
 			value.KeyLocator = nil
 		case 2 - 1:
@@ -2045,7 +2045,7 @@ func (context *NetworkNackParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 801}
+					err = enc.ErrSkipRequired{Name: "Reason", TypeNum: 801}
 				}
 			}
 			if err != nil {
@@ -2057,7 +2057,7 @@ func (context *NetworkNackParsingContext) Parse(reader enc.ParseReader, ignoreCr
 	for ; progress < 1; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 801}
+			err = enc.ErrSkipRequired{Name: "Reason", TypeNum: 801}
 		}
 	}
 	if err != nil {
@@ -2203,7 +2203,7 @@ func (context *CachePolicyParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 821}
+					err = enc.ErrSkipRequired{Name: "CachePolicyType", TypeNum: 821}
 				}
 			}
 			if err != nil {
@@ -2215,7 +2215,7 @@ func (context *CachePolicyParsingContext) Parse(reader enc.ParseReader, ignoreCr
 	for ; progress < 1; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 821}
+			err = enc.ErrSkipRequired{Name: "CachePolicyType", TypeNum: 821}
 		}
 	}
 	if err != nil {

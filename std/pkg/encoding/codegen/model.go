@@ -17,6 +17,9 @@ type TlvModel struct {
 	// Enabled by `nocopy` annotation.
 	NoCopy bool
 
+	// GenDict indicates whether to generate ToDict/FromDict for this model.
+	GenDict bool
+
 	// WithParsingContext is true if any field has a non-trivial GenParsingContextStruct()
 	WithParsingContext bool
 
@@ -30,6 +33,8 @@ func (m *TlvModel) ProcessOption(option string) {
 		m.PrivMethods = true
 	case "nocopy":
 		m.NoCopy = true
+	case "dict":
+		m.GenDict = true
 	}
 }
 
@@ -303,5 +308,47 @@ func (m *TlvModel) Generate(buf *bytes.Buffer) error {
 			buf.WriteRune('\n')
 		}
 	}
+	if m.GenDict {
+		err = m.GenToDict(buf)
+		if err != nil {
+			return err
+		}
+		buf.WriteRune('\n')
+		err = m.GenFromDict(buf)
+		if err != nil {
+			return err
+		}
+		buf.WriteRune('\n')
+	}
 	return nil
+}
+
+func (m *TlvModel) GenToDict(buf *bytes.Buffer) error {
+	const Temp = `func (value *{{.Name}}) ToDict() map[string]any {
+		dict := map[string]any{}
+		{{- range $f := .Fields}}
+		{{$f.GenToDict}}
+		{{- end}}
+		return dict
+	}
+	`
+	t := template.Must(template.New("ModelToDict").Parse(Temp))
+	return t.Execute(buf, m)
+}
+
+func (m *TlvModel) GenFromDict(buf *bytes.Buffer) error {
+	const Temp = `func DictTo{{.Name}}(dict map[string]any) (*{{.Name}}, error) {
+		value := &{{.Name}}{}
+		var err error = nil
+		{{- range $f := .Fields}}
+		{{$f.GenFromDict}}
+		if err != nil {
+			return nil, err
+		}
+		{{- end}}
+		return value, nil
+	}
+	`
+	t := template.Must(template.New("ModelFromDict").Parse(Temp))
+	return t.Execute(buf, m)
 }

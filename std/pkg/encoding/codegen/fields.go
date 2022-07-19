@@ -6,8 +6,6 @@ import (
 	"text/template"
 )
 
-var fieldList map[string]func(string, uint64, string, *TlvModel) (TlvField, error)
-
 // NaturalField represents a natural number field.
 type NaturalField struct {
 	BaseTlvField
@@ -65,7 +63,7 @@ func (f *NaturalField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{Name: \"%s\", TypeNum: %d}", f.name, f.typeNum), nil
 	}
 }
 
@@ -137,7 +135,7 @@ func (f *TimeField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{Name: \"%s\", TypeNum: %d}", f.name, f.typeNum), nil
 	}
 }
 
@@ -790,7 +788,7 @@ func (f *StringField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{Name: \"%s\", TypeNum: %d}", f.name, f.typeNum), nil
 	}
 }
 
@@ -930,7 +928,7 @@ func (f *FixedUintField) GenSkipProcess() (string, error) {
 	if f.opt {
 		return "value." + f.name + " = nil", nil
 	} else {
-		return fmt.Sprintf("err = enc.ErrSkipRequired{TypeNum: %d}", f.typeNum), nil
+		return fmt.Sprintf("err = enc.ErrSkipRequired{Name: \"%s\", TypeNum: %d}", f.name, f.typeNum), nil
 	}
 }
 

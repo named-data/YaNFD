@@ -2,6 +2,8 @@ package codegen
 
 import "strings"
 
+var fieldList map[string]func(string, uint64, string, *TlvModel) (TlvField, error)
+
 func init() {
 	initFields()
 }

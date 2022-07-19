@@ -232,9 +232,9 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 24}
+					err = enc.ErrSkipRequired{Name: "Number", TypeNum: 24}
 				case 1 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 25}
+					err = enc.ErrSkipRequired{Name: "Time", TypeNum: 25}
 				case 2 - 1:
 					value.Binary = nil
 				}
@@ -248,9 +248,9 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 	for ; progress < 3; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 24}
+			err = enc.ErrSkipRequired{Name: "Number", TypeNum: 24}
 		case 1 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 25}
+			err = enc.ErrSkipRequired{Name: "Time", TypeNum: 25}
 		case 2 - 1:
 			value.Binary = nil
 		}
@@ -1394,7 +1394,7 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 				case 0 - 1:
 					value.Wire1 = nil
 				case 1 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 2}
+					err = enc.ErrSkipRequired{Name: "Number", TypeNum: 2}
 				case 2 - 1:
 					value.Wire2 = nil
 				}
@@ -1410,7 +1410,7 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 		case 0 - 1:
 			value.Wire1 = nil
 		case 1 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 2}
+			err = enc.ErrSkipRequired{Name: "Number", TypeNum: 2}
 		case 2 - 1:
 			value.Wire2 = nil
 		}
@@ -1605,7 +1605,7 @@ func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 1}
+					err = enc.ErrSkipRequired{Name: "Str1", TypeNum: 1}
 				case 1 - 1:
 					value.Str2 = nil
 				}
@@ -1619,7 +1619,7 @@ func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 	for ; progress < 2; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 1}
+			err = enc.ErrSkipRequired{Name: "Str1", TypeNum: 1}
 		case 1 - 1:
 			value.Str2 = nil
 		}
@@ -1813,7 +1813,7 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 1}
+					err = enc.ErrSkipRequired{Name: "Byte", TypeNum: 1}
 				case 1 - 1:
 					value.U32 = nil
 				case 2 - 1:
@@ -1829,7 +1829,7 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 	for ; progress < 3; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 1}
+			err = enc.ErrSkipRequired{Name: "Byte", TypeNum: 1}
 		case 1 - 1:
 			value.U32 = nil
 		case 2 - 1:

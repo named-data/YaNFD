@@ -429,7 +429,7 @@ func (context *T1ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 1}
+					err = enc.ErrSkipRequired{Name: "H1", TypeNum: 1}
 				case 1 - 1:
 					context.sigCoverStart = int(startPos)
 				case 2 - 1:
@@ -451,7 +451,7 @@ func (context *T1ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 	for ; progress < 6; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 1}
+			err = enc.ErrSkipRequired{Name: "H1", TypeNum: 1}
 		case 1 - 1:
 			context.sigCoverStart = int(startPos)
 		case 2 - 1:

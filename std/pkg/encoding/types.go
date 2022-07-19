@@ -94,11 +94,12 @@ var ErrBufferOverflow = errors.New("Buffer overflow when parsing. One of the TLV
 var ErrIncorrectDigest = errors.New("The sha256 digest is missing or incorrect")
 
 type ErrSkipRequired struct {
+	Name    string
 	TypeNum TLNum
 }
 
 func (e ErrSkipRequired) Error() string {
-	return fmt.Sprintf("The required field of type %d is missing in the wire", e.TypeNum)
+	return fmt.Sprintf("The required field %s(%d) is missing in the input", e.Name, e.TypeNum)
 }
 
 type ErrFailToParse struct {
@@ -128,3 +129,14 @@ func (e ErrUnexpected) Unwrap() error {
 
 // PlaceHolder is an empty structure that used to give names of procedure arguments.
 type PlaceHolder struct{}
+
+type ErrIncompatibleType struct {
+	Name    string
+	ValType string
+	TypeNum TLNum
+	Value   any
+}
+
+func (e ErrIncompatibleType) Error() string {
+	return fmt.Sprintf("The field %s(%d) expected type %s but got %+v", e.Name, e.TypeNum, e.ValType, e.Value)
+}

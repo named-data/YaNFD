@@ -15,6 +15,8 @@ type TlvField interface {
 	GenInitContext() (string, error)
 	GenReadFrom() (string, error)
 	GenSkipProcess() (string, error)
+	GenToDict() (string, error)
+	GenFromDict() (string, error)
 }
 
 // BaseTlvField is a base class for all TLV fields.
@@ -66,6 +68,14 @@ func (*BaseTlvField) GenReadFrom() (string, error) {
 }
 
 func (*BaseTlvField) GenSkipProcess() (string, error) {
+	return "", nil
+}
+
+func (*BaseTlvField) GenToDict() (string, error) {
+	return "", nil
+}
+
+func (*BaseTlvField) GenFromDict() (string, error) {
 	return "", nil
 }
 

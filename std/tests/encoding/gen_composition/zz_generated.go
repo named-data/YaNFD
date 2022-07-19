@@ -608,7 +608,7 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 1}
+					err = enc.ErrSkipRequired{Name: "Num", TypeNum: 1}
 				}
 			}
 			if err != nil {
@@ -620,7 +620,7 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 	for ; progress < 1; progress++ {
 		switch progress {
 		case 0 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 1}
+			err = enc.ErrSkipRequired{Name: "Num", TypeNum: 1}
 		}
 	}
 	if err != nil {
@@ -1850,7 +1850,7 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 				case 0 - 1:
 					value.W1 = nil
 				case 1 - 1:
-					err = enc.ErrSkipRequired{TypeNum: 5}
+					err = enc.ErrSkipRequired{Name: "N", TypeNum: 5}
 				case 2 - 1:
 					value.W2 = nil
 				}
@@ -1866,7 +1866,7 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 		case 0 - 1:
 			value.W1 = nil
 		case 1 - 1:
-			err = enc.ErrSkipRequired{TypeNum: 5}
+			err = enc.ErrSkipRequired{Name: "N", TypeNum: 5}
 		case 2 - 1:
 			value.W2 = nil
 		}

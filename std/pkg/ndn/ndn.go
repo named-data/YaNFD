@@ -123,7 +123,7 @@ type Interest interface {
 type Spec interface {
 	// MakeData creates a Data packet, returns the encoded Data, signature covered parts, and error.
 	MakeData(name enc.Name, config *DataConfig, content enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
-	// MakeData creates an Interest packet, returns the encoded Data, signature covered parts,
+	// MakeData creates an Interest packet, returns the encoded Interest, signature covered parts,
 	// the final Interest name, and error.
 	MakeInterest(
 		name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer,
@@ -147,6 +147,8 @@ type InterestHandler func(
 )
 
 type Timer interface {
+	// Now returns current time.
+	Now() time.Time
 	// Sleep sleeps for the duration.
 	Sleep(time.Duration)
 	// Schedule schedules the callback function to be called after the duration,

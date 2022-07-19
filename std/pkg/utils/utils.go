@@ -1,6 +1,10 @@
 package utils
 
-import "golang.org/x/exp/constraints"
+import (
+	"time"
+
+	"golang.org/x/exp/constraints"
+)
 
 // IdPtr is the pointer version of id: 'a->'a
 func IdPtr[T any](value T) *T {
@@ -22,4 +26,8 @@ func Min[T constraints.Ordered](a, b T) T {
 		return a
 	}
 	return b
+}
+
+func MakeTimestamp(t time.Time) uint64 {
+	return uint64(t.UnixNano() / int64(time.Millisecond))
 }

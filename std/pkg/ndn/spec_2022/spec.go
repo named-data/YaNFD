@@ -565,3 +565,13 @@ func (_ Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, erro
 
 	return ret, context.sigCovered, nil
 }
+
+func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
+	ret := &SignatureInfo{
+		SignatureType: uint64(config.Type),
+		KeyLocator: &KeyLocator{
+			Name: config.KeyName,
+		},
+	}
+	return ret.Bytes(), nil
+}
