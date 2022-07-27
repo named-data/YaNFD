@@ -1,6 +1,7 @@
 package basic
 
 import (
+	"crypto/rand"
 	"errors"
 	"time"
 
@@ -32,4 +33,10 @@ func (_ Timer) Schedule(d time.Duration, f func()) func() error {
 
 func (_ Timer) Now() time.Time {
 	return time.Now()
+}
+
+func (_ Timer) Nonce() []byte {
+	buf := make([]byte, 8)
+	n, _ := rand.Read(buf) // Should always succeed
+	return buf[:n]
 }

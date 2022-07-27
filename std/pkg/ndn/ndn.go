@@ -154,6 +154,8 @@ type Timer interface {
 	// Schedule schedules the callback function to be called after the duration,
 	// and returns a cancel callback to cancel the scheduled function.
 	Schedule(time.Duration, func()) func() error
+	// Nonce generates a random nonce.
+	Nonce() []byte
 }
 
 // Engine represents a running NDN App low-level engine.

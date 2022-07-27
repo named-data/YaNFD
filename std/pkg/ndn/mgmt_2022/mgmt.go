@@ -1,13 +1,8 @@
 package mgmt_2022
 
 import (
-	"errors"
-	"math/rand"
-
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 type MgmtConfig struct {
@@ -15,20 +10,18 @@ type MgmtConfig struct {
 	local bool
 	// signer is the signer used to sign the command
 	signer ndn.Signer
-	// timer is used to generate timestamp
-	timer ndn.Timer
+	// spec is the NDN spec used to make Interests
+	spec ndn.Spec
 }
 
-// MakeCmd makes a NFD mgmt command Interest Name.
-// Currently NFD does not use AppParam, so it only returns a command name.
-func (mgmt *MgmtConfig) MakeCmd(module string, cmd string, args map[string]any) (enc.Name, error) {
-	// Parse arguments
-	vv, err := DictToControlArgs(args)
-	if err != nil {
-		return nil, err
-	}
+// MakeCmd makes and encodes a NFD mgmt command Interest.
+// Currently NFD and YaNFD supports signed Interest.
+func (mgmt *MgmtConfig) MakeCmd(module string, cmd string, args *ControlArgs,
+	intParam *ndn.InterestConfig) (enc.Name, enc.Wire, error) {
+
+	var err error = nil
 	val := ControlParameters{
-		Val: vv,
+		Val: args,
 	}
 
 	// Make first part of name
@@ -39,47 +32,26 @@ func (mgmt *MgmtConfig) MakeCmd(module string, cmd string, args map[string]any) 
 		name, err = enc.NameFromStr("/localhop/nfd/" + module + "/" + cmd)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	name = append(name, enc.NewBytesComponent(enc.TypeGenericNameComponent, val.Bytes()))
 
-	// Timestamp and nonce
-	tim := utils.MakeTimestamp(mgmt.timer.Now())
-	name = append(name, enc.NewNumberComponent(enc.TypeGenericNameComponent, tim))
-	nonce := rand.Uint64()
-	name = append(name, enc.NewNumberComponent(enc.TypeGenericNameComponent, nonce))
-
-	// SignatureInfo
-	sigInfo, err := mgmt.signer.SigInfo()
+	// Make and sign Interest
+	wire, _, finalName, err := mgmt.spec.MakeInterest(name, intParam, enc.Wire{}, mgmt.signer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	sigInfoBytes, err := spec.Spec{}.EncodeSigInfo(sigInfo)
-	if err != nil {
-		return nil, err
-	}
-	if len(sigInfoBytes) > 253 {
-		return nil, errors.New("SignatureInfo is too long")
-	}
-	siComp := []byte{0x2c, byte(len(sigInfoBytes))}
-	siComp = append(siComp, sigInfoBytes...)
-	name = append(name, enc.NewBytesComponent(enc.TypeGenericNameComponent, siComp))
 
-	// SignatureValue
-	bufToSign := make(enc.Wire, len(name))
-	for i, c := range name {
-		bufToSign[i] = c.Bytes()
-	}
-	sigValue, err := mgmt.signer.ComputeSigValue(bufToSign)
-	if err != nil {
-		return nil, err
-	}
-	if len(sigValue) > 253 {
-		return nil, errors.New("SignatureValue is too long")
-	}
-	svComp := []byte{0x2e, byte(len(sigValue))}
-	svComp = append(svComp, sigValue...)
-	name = append(name, enc.NewBytesComponent(enc.TypeGenericNameComponent, svComp))
+	return finalName, wire, nil
+}
 
-	return name, nil
+// MakeCmdDict is the same as MakeCmd but receives a map[string]any as arguments.
+func (mgmt *MgmtConfig) MakeCmdDict(module string, cmd string, args map[string]any,
+	intParam *ndn.InterestConfig) (enc.Name, enc.Wire, error) {
+	// Parse arguments
+	vv, err := DictToControlArgs(args)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mgmt.MakeCmd(module, cmd, vv, intParam)
 }
