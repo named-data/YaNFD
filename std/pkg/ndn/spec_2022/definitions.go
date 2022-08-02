@@ -118,6 +118,8 @@ type LpPacket struct {
 type Interest struct {
 	//+field:procedureArgument:enc.Wire
 	sigCovered enc.PlaceHolder
+	//+field:procedureArgument:enc.Wire
+	digestCovered enc.PlaceHolder
 
 	//+field:interestName:sigCovered
 	NameV enc.Name `tlv:"0x07"`
@@ -146,7 +148,7 @@ type Interest struct {
 	//+field:signature:sigCoverStart:sigCovered
 	SignatureValue enc.Wire `tlv:"0x2e"`
 
-	//+field:offsetMarker
+	//+field:rangeMarker:digestCoverStart:digestCovered
 	digestCoverEnd enc.PlaceHolder
 }
 

@@ -199,6 +199,11 @@ func (e ErrNotSupported) Error() string {
 	return fmt.Sprintf("Not supported field: %s", e.Item)
 }
 
+// ErrFailedToEncode is returned when encoding fails but the input arguments are valid.
 var ErrFailedToEncode = errors.New("Failed to encode an NDN packet.")
 
+// ErrWrongType is returned when the type of the packet to parse is not expected.
 var ErrWrongType = errors.New("Packet to parse is not of desired type.")
+
+// ErrPrefixPropViolation is returned when the prefix property is violated during handler registration.
+var ErrPrefixPropViolation = errors.New("A prefix or extention of the given handler prefix is already attached.")

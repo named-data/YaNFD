@@ -3311,6 +3311,7 @@ type InterestEncoder struct {
 	wirePlan []uint
 
 	sigCovered       enc.Wire
+	digestCovered    enc.Wire
 	NameV_length     uint
 	NameV_needDigest bool
 	NameV_wireIdx    int
@@ -3338,6 +3339,7 @@ type InterestEncoder struct {
 
 type InterestParsingContext struct {
 	sigCovered    enc.Wire
+	digestCovered enc.Wire
 	NameV_wireIdx int
 	NameV_pos     uint
 
@@ -3931,7 +3933,7 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		for handled := false; !handled; progress++ {
 			switch typ {
 			case 7:
-				if progress+1 == 1 {
+				if progress+1 == 2 {
 					handled = true
 					{
 						value.NameV = make(enc.Name, l/2+1)
@@ -3967,22 +3969,22 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 33:
-				if progress+1 == 2 {
+				if progress+1 == 3 {
 					handled = true
 					value.CanBePrefixV = true
 				}
 			case 18:
-				if progress+1 == 3 {
+				if progress+1 == 4 {
 					handled = true
 					value.MustBeFreshV = true
 				}
 			case 30:
-				if progress+1 == 4 {
+				if progress+1 == 5 {
 					handled = true
 					value.ForwardingHintV, err = context.ForwardingHintV_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 10:
-				if progress+1 == 5 {
+				if progress+1 == 6 {
 					handled = true
 					{
 						tempVal := uint32(0)
@@ -4005,7 +4007,7 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 12:
-				if progress+1 == 6 {
+				if progress+1 == 7 {
 					handled = true
 					{
 						timeInt := uint64(0)
@@ -4029,7 +4031,7 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 34:
-				if progress+1 == 7 {
+				if progress+1 == 8 {
 					handled = true
 					{
 						tempVal := byte(0)
@@ -4046,18 +4048,18 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 36:
-				if progress+1 == 10 {
+				if progress+1 == 11 {
 					handled = true
 					value.ApplicationParameters, err = reader.ReadWire(int(l))
 
 				}
 			case 44:
-				if progress+1 == 11 {
+				if progress+1 == 12 {
 					handled = true
 					value.SignatureInfo, err = context.SignatureInfo_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 46:
-				if progress+1 == 12 {
+				if progress+1 == 13 {
 					handled = true
 					value.SignatureValue, err = reader.ReadWire(int(l))
 					if err == nil {
@@ -4078,31 +4080,35 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				case 0 - 1:
 
 				case 1 - 1:
-					value.NameV = nil
+
 				case 2 - 1:
-					value.CanBePrefixV = false
+					value.NameV = nil
 				case 3 - 1:
-					value.MustBeFreshV = false
+					value.CanBePrefixV = false
 				case 4 - 1:
-					value.ForwardingHintV = nil
+					value.MustBeFreshV = false
 				case 5 - 1:
-					value.NonceV = nil
+					value.ForwardingHintV = nil
 				case 6 - 1:
-					value.InterestLifetimeV = nil
+					value.NonceV = nil
 				case 7 - 1:
-					value.HopLimitV = nil
+					value.InterestLifetimeV = nil
 				case 8 - 1:
-					context.sigCoverStart = int(startPos)
+					value.HopLimitV = nil
 				case 9 - 1:
-					context.digestCoverStart = int(startPos)
+					context.sigCoverStart = int(startPos)
 				case 10 - 1:
-					value.ApplicationParameters = nil
+					context.digestCoverStart = int(startPos)
 				case 11 - 1:
-					value.SignatureInfo = nil
+					value.ApplicationParameters = nil
 				case 12 - 1:
-					value.SignatureValue = nil
+					value.SignatureInfo = nil
 				case 13 - 1:
+					value.SignatureValue = nil
+				case 14 - 1:
 					context.digestCoverEnd = int(startPos)
+					context.digestCovered = reader.Range(context.digestCoverStart, startPos)
+
 				}
 			}
 			if err != nil {
@@ -4111,36 +4117,40 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		}
 	}
 	startPos = reader.Pos()
-	for ; progress < 14; progress++ {
+	for ; progress < 15; progress++ {
 		switch progress {
 		case 0 - 1:
 
 		case 1 - 1:
-			value.NameV = nil
+
 		case 2 - 1:
-			value.CanBePrefixV = false
+			value.NameV = nil
 		case 3 - 1:
-			value.MustBeFreshV = false
+			value.CanBePrefixV = false
 		case 4 - 1:
-			value.ForwardingHintV = nil
+			value.MustBeFreshV = false
 		case 5 - 1:
-			value.NonceV = nil
+			value.ForwardingHintV = nil
 		case 6 - 1:
-			value.InterestLifetimeV = nil
+			value.NonceV = nil
 		case 7 - 1:
-			value.HopLimitV = nil
+			value.InterestLifetimeV = nil
 		case 8 - 1:
-			context.sigCoverStart = int(startPos)
+			value.HopLimitV = nil
 		case 9 - 1:
-			context.digestCoverStart = int(startPos)
+			context.sigCoverStart = int(startPos)
 		case 10 - 1:
-			value.ApplicationParameters = nil
+			context.digestCoverStart = int(startPos)
 		case 11 - 1:
-			value.SignatureInfo = nil
+			value.ApplicationParameters = nil
 		case 12 - 1:
-			value.SignatureValue = nil
+			value.SignatureInfo = nil
 		case 13 - 1:
+			value.SignatureValue = nil
+		case 14 - 1:
 			context.digestCoverEnd = int(startPos)
+			context.digestCovered = reader.Range(context.digestCoverStart, startPos)
+
 		}
 	}
 	if err != nil {

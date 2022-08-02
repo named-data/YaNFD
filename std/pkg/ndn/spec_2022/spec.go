@@ -515,55 +515,52 @@ func (_ Spec) MakeInterest(
 	return wire, sigCovered, finalName, nil
 }
 
-func (_ Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, error) {
-	// To avoid wrong pos, do not use PacketParsingContext
-	typ, err := enc.ReadTLNum(reader)
-	if err != nil {
-		return nil, nil, err
+func checkInterest(val *Interest, context *InterestParsingContext) error {
+	if val.NameV == nil {
+		return ndn.ErrInvalidValue{Item: "Interest.Name", Value: nil}
 	}
-	if typ != TypeInterest {
-		return nil, nil, ndn.ErrWrongType
+	if val.SignatureValue != nil && val.ApplicationParameters == nil {
+		return enc.ErrIncorrectDigest
 	}
-	l, err := enc.ReadTLNum(reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	r := reader.Delegate(int(l))
-
-	context := InterestParsingContext{}
-	context.Init()
-	ret, err := context.Parse(r, false)
-	if ret == nil {
-		// assert err != nil
-		return nil, nil, err
-	}
-	if ret.NameV == nil {
-		return nil, nil, ndn.ErrInvalidValue{Item: "Interest.Name", Value: nil}
-	}
-	if ret.SignatureValue != nil && ret.ApplicationParameters == nil {
-		return nil, nil, enc.ErrIncorrectDigest
-	}
-	if ret.ApplicationParameters != nil {
+	if val.ApplicationParameters != nil {
 		// Check digest
-		name := ret.NameV
+		name := val.NameV
 		if len(name) == 0 || name[len(name)-1].Typ != enc.TypeParametersSha256DigestComponent {
-			return nil, nil, enc.ErrIncorrectDigest
+			return enc.ErrIncorrectDigest
 		}
-		digestCovered := r.Range(context.digestCoverStart, context.digestCoverEnd)
+		digestCovered := context.digestCovered
 		h := sha256.New()
 		for _, buf := range digestCovered {
 			_, err := h.Write(buf)
 			if err != nil {
-				return nil, nil, enc.ErrUnexpected{Err: err}
+				return enc.ErrUnexpected{Err: err}
 			}
 		}
 		digestBuf := h.Sum(nil)
 		if !bytes.Equal(name[len(name)-1].Val, digestBuf) {
-			return nil, nil, enc.ErrIncorrectDigest
+			return enc.ErrIncorrectDigest
 		}
 	}
+	return nil
+}
 
-	return ret, context.sigCovered, nil
+func (_ Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, error) {
+	context := PacketParsingContext{}
+	context.Init()
+	pkt, err := context.Parse(reader, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	if pkt.Interest == nil {
+		return nil, nil, ndn.ErrWrongType
+	}
+
+	err = checkInterest(pkt.Interest, &context.Interest_context)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkt.Interest, context.Interest_context.sigCovered, nil
 }
 
 func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
@@ -574,4 +571,31 @@ func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
 		},
 	}
 	return ret.Bytes(), nil
+}
+
+func ReadPacket(reader enc.ParseReader) (*Packet, *PacketParsingContext, error) {
+	context := &PacketParsingContext{}
+	context.Init()
+	ret, err := context.Parse(reader, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	if ret.Data != nil {
+		if ret.Data.NameV == nil {
+			return nil, nil, ndn.ErrInvalidValue{Item: "Data.Name", Value: nil}
+		}
+	} else if ret.Interest != nil {
+		err = checkInterest(ret.Interest, &context.Interest_context)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else if ret.LpPacket != nil {
+		// As a client we shouldn't receive IDLE packets
+		if ret.LpPacket.Fragment == nil {
+			return nil, nil, ndn.ErrInvalidValue{Item: "LpPacket.Fragment", Value: nil}
+		}
+	} else {
+		return nil, nil, ndn.ErrWrongType
+	}
+	return ret, context, nil
 }

@@ -20,6 +20,7 @@ func initFields() {
 		"bool":              NewBoolField,
 		"procedureArgument": NewProcedureArgument,
 		"offsetMarker":      NewOffsetMarker,
+		"rangeMarker":       NewRangeMarker,
 		"sequence":          NewSequenceField,
 		"struct":            NewStructField,
 		"signature":         NewSignatureField,
