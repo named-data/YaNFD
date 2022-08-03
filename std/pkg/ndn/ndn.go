@@ -138,7 +138,7 @@ type Spec interface {
 type ReplyFunc func(encodedData enc.Wire) error
 
 // ExpressCallbackFunc represents the callback function for Interest expression.
-type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire, sigCovered enc.Wire) error
+type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire, sigCovered enc.Wire, nackReason uint64)
 
 // InterestHandler represents the callback function for an Interest handler.
 type InterestHandler func(

@@ -3,6 +3,8 @@
 package basic
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"errors"
 	"sync"
 	"time"
@@ -28,9 +30,10 @@ type Face interface {
 type fibEntry = ndn.InterestHandler
 
 type pendInt struct {
-	callback      ndn.ExpressCallbackFunc
-	deadline      time.Time
-	canBePrefix   bool
+	callback    ndn.ExpressCallbackFunc
+	deadline    time.Time
+	canBePrefix bool
+	// mustBeFresh is actually not useful, since Freshness is decided by the cache, not us.
 	mustBeFresh   bool
 	impSha256     []byte
 	timeoutCancel func() error
@@ -239,11 +242,68 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 }
 
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
-	// TODO
+	e.pitLock.Lock()
+	defer e.pitLock.Unlock()
+	n := e.pit.ExactMatch(pkt.NameV)
+	if n == nil {
+		e.log.WithField("name", pkt.NameV.String()).Warn("Received Data for an unknown interest. Drop.")
+	}
+	for cur := n; cur != nil; cur = cur.Parent() {
+		curListSize := len(cur.Value())
+		if curListSize <= 0 {
+			continue
+		}
+		newList := make([]*pendInt, 0, curListSize)
+		for _, entry := range cur.Value() {
+			// CanBePrefix
+			if n.Depth() < len(pkt.NameV) && !entry.canBePrefix {
+				newList = append(newList, entry)
+				continue
+			}
+			// We don't check MustBeFresh, as it is the job of the cache/forwarder.
+			// ImplicitDigest256
+			if entry.impSha256 != nil {
+				h := sha256.New()
+				for _, buf := range raw {
+					h.Write(buf)
+				}
+				digest := h.Sum(nil)
+				if !bytes.Equal(entry.impSha256, digest) {
+					newList = append(newList, entry)
+					continue
+				}
+			}
+			// entry satisfied
+			entry.timeoutCancel()
+			if entry.callback == nil {
+				e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
+				continue
+			}
+			entry.callback(ndn.InterestResultData, pkt, raw, sigCovered, spec.NackReasonNone)
+		}
+		cur.SetValue(newList)
+	}
+	n.DeleteIf(func(lst []*pendInt) bool {
+		return len(lst) == 0
+	})
 }
 
 func (e *Engine) onNack(name enc.Name, reason uint64) {
-	// TODO
+	e.pitLock.Lock()
+	defer e.pitLock.Unlock()
+	n := e.pit.ExactMatch(name)
+	if n == nil {
+		e.log.WithField("name", name.String()).Warn("Received Nack for an unknown interest. Drop.")
+	}
+	for _, entry := range n.Value() {
+		entry.timeoutCancel()
+		if entry.callback != nil {
+			entry.callback(ndn.InterestResultNack, nil, nil, nil, reason)
+		} else {
+			e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
+		}
+	}
+	n.Delete()
 }
 
 func (e *Engine) onError(err error) error {

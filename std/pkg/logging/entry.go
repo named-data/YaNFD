@@ -79,6 +79,7 @@ Explanation on logging level:
 		* Fragmentation not supported
 		* Packet dropped
 		* Validation failure
+		* Received Nack or Data for unknown Interests. (Most of the case should be Interest timed out)
 
 	ERROR: some failure that one does not expect to happen actually occured
 		* Unable to parse or wrong packet type

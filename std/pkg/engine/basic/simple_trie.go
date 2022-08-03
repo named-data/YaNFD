@@ -110,6 +110,24 @@ func (n *NameTrie[V]) Delete() {
 	}
 }
 
+// DeleteIf deletes the node and its ancestors if they are empty.
+// Whether empty or not is defined by a given function.
+func (n *NameTrie[V]) DeleteIf(pred func(V) bool) {
+	if !pred(n.val) {
+		return
+	}
+	if n.par != nil {
+		n.chd = nil
+		delete(n.par.chd, n.key)
+		if len(n.par.chd) == 0 {
+			n.par.DeleteIf(pred)
+		}
+	} else {
+		// Root node cannot be deleted.
+		n.chd = map[string]*NameTrie[V]{}
+	}
+}
+
 // Depth returns the depth of a node in the tree.
 func (n *NameTrie[V]) Depth() int {
 	return n.dep

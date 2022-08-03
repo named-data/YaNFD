@@ -70,3 +70,39 @@ func TestBasicMatch(t *testing.T) {
 	n.Delete()
 	require.False(t, trie.HasChildren())
 }
+
+func TestDeleteIf(t *testing.T) {
+	utils.SetTestingT(t)
+
+	var name enc.Name
+	var n *basic_engine.NameTrie[int]
+	trie := basic_engine.NewNameTrie[int]()
+
+	// Create /a/b and /a/b/c
+	name = utils.WithoutErr(enc.NameFromStr("/a/b"))
+	n = trie.MatchAlways(name)
+	n.SetValue(10)
+	name = utils.WithoutErr(enc.NameFromStr("/a/b/c"))
+	n = trie.MatchAlways(name)
+	require.Equal(t, 3, n.Depth())
+	require.Equal(t, 10, n.Parent().Value())
+
+	noValue := func(x int) bool {
+		return x == 0
+	}
+
+	// DeleteIf /a/b/c will not remove /a/b
+	name = utils.WithoutErr(enc.NameFromStr("/a/b/c"))
+	n = trie.ExactMatch(name)
+	n.DeleteIf(noValue)
+	require.True(t, nil == trie.ExactMatch(name))
+	name = utils.WithoutErr(enc.NameFromStr("/a/b"))
+	require.Equal(t, 10, trie.ExactMatch(name).Value())
+
+	// Create /a/b/c = 10. Now DeleteIf does nothing
+	name = utils.WithoutErr(enc.NameFromStr("/a/b/c"))
+	n = trie.MatchAlways(name)
+	n.SetValue(10)
+	n.DeleteIf(noValue)
+	require.Equal(t, n, trie.ExactMatch(name))
+}
