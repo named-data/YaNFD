@@ -24,6 +24,9 @@ func (f *StreamFace) Run() {
 	for f.running {
 		t, err := enc.ReadTLNum(r)
 		if err != nil {
+			if !f.running {
+				break
+			}
 			err = f.onError(err)
 			if err != nil {
 				break
@@ -31,6 +34,9 @@ func (f *StreamFace) Run() {
 		}
 		l, err := enc.ReadTLNum(r)
 		if err != nil {
+			if !f.running {
+				break
+			}
 			err = f.onError(err)
 			if err != nil {
 				break
@@ -43,6 +49,9 @@ func (f *StreamFace) Run() {
 		l.EncodeInto(buf[l0:])
 		_, err = io.ReadFull(r, buf[l0+l1:])
 		if err != nil {
+			if !f.running {
+				break
+			}
 			err = f.onError(err)
 			if err != nil {
 				break

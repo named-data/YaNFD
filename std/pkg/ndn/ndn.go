@@ -207,3 +207,9 @@ var ErrWrongType = errors.New("Packet to parse is not of desired type.")
 
 // ErrPrefixPropViolation is returned when the prefix property is violated during handler registration.
 var ErrPrefixPropViolation = errors.New("A prefix or extention of the given handler prefix is already attached.")
+
+// ErrDeadlineExceed is returned when the deadline of the Interest passed.
+var ErrDeadlineExceed = errors.New("Interest deadline exceeded.")
+
+// ErrFaceDown is returned when the face is closed.
+var ErrFaceDown = errors.New("Face is down. Unable to send packet.")

@@ -8,6 +8,7 @@ type NameTrie[V any] struct {
 	val V
 	key string
 	par *NameTrie[V]
+	dep int
 	chd map[string]*NameTrie[V]
 }
 
@@ -23,25 +24,26 @@ func (n *NameTrie[V]) SetValue(value V) {
 
 // ExactMatch returns the node that matches the name exactly. If no node matches, it returns nil.
 func (n *NameTrie[V]) ExactMatch(name enc.Name) *NameTrie[V] {
-	if len(name) == 0 {
+	if len(name) <= n.dep {
 		return n
 	}
-	c := name[0].String()
+	c := name[n.dep].String()
 	if ch, ok := n.chd[c]; ok {
-		return ch.ExactMatch(name[1:])
+		return ch.ExactMatch(name)
 	} else {
 		return nil
 	}
 }
 
-// LongMatch returns the longest prefix match of the name. Always succeeds.
-func (n *NameTrie[V]) LongMatch(name enc.Name) *NameTrie[V] {
-	if len(name) == 0 {
+// PrefixMatch returns the longest prefix match of the name.
+// Always succeeds, but the returned node may be empty.
+func (n *NameTrie[V]) PrefixMatch(name enc.Name) *NameTrie[V] {
+	if len(name) <= n.dep {
 		return n
 	}
-	c := name[0].String()
+	c := name[n.dep].String()
 	if ch, ok := n.chd[c]; ok {
-		return ch.LongMatch(name[1:])
+		return ch.PrefixMatch(name)
 	} else {
 		return n
 	}
@@ -49,39 +51,44 @@ func (n *NameTrie[V]) LongMatch(name enc.Name) *NameTrie[V] {
 
 // newTrieNode creates a new NameTrie node.
 func newTrieNode[V any](key string, parent *NameTrie[V]) *NameTrie[V] {
+	depth := 0
+	if parent != nil {
+		depth = parent.dep + 1
+	}
 	return &NameTrie[V]{
 		par: parent,
 		chd: map[string]*NameTrie[V]{},
 		key: key,
+		dep: depth,
 	}
 }
 
 // MatchAlways finds or creates the node that matches the name exactly.
 func (n *NameTrie[V]) MatchAlways(name enc.Name) *NameTrie[V] {
-	if len(name) == 0 {
+	if len(name) <= n.dep {
 		return n
 	}
-	c := name[0].String()
+	c := name[n.dep].String()
 	ch, ok := n.chd[c]
 	if !ok {
 		ch = newTrieNode(c, n)
 		n.chd[c] = ch
 	}
-	return ch.MatchAlways(name[1:])
+	return ch.MatchAlways(name)
 }
 
 // FirstSatisfyOrNew finds or creates the first node along the path that satisfies the predicate.
 func (n *NameTrie[V]) FirstSatisfyOrNew(name enc.Name, pred func(V) bool) *NameTrie[V] {
-	if len(name) == 0 || pred(n.val) {
+	if len(name) <= n.dep || pred(n.val) {
 		return n
 	}
-	c := name[0].String()
+	c := name[n.dep].String()
 	ch, ok := n.chd[c]
 	if !ok {
 		ch = newTrieNode(c, n)
 		n.chd[c] = ch
 	}
-	return ch.FirstSatisfyOrNew(name[1:], pred)
+	return ch.FirstSatisfyOrNew(name, pred)
 }
 
 // HasChildren returns whether the node has children.
@@ -101,6 +108,16 @@ func (n *NameTrie[V]) Delete() {
 		// Root node cannot be deleted.
 		n.chd = map[string]*NameTrie[V]{}
 	}
+}
+
+// Depth returns the depth of a node in the tree.
+func (n *NameTrie[V]) Depth() int {
+	return n.dep
+}
+
+// Parent returns its parent node.
+func (n *NameTrie[V]) Parent() *NameTrie[V] {
+	return n.par
 }
 
 // NewNameTrie creates a new NameTrie and returns the root node.

@@ -3,6 +3,7 @@
 package basic
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
+
+const DefaultInterestLife = 4 * time.Second
 
 type Face interface {
 	Open() error
@@ -38,8 +41,12 @@ type pitEntry = []*pendInt
 type Engine struct {
 	face  Face
 	timer ndn.Timer
-	fib   NameTrie[fibEntry]
-	pit   NameTrie[pitEntry]
+
+	// fib contains the registered Interest handlers.
+	fib NameTrie[fibEntry]
+
+	// pit contains pending outgoing Interests.
+	pit NameTrie[pitEntry]
 
 	// Since there is only one main coroutine, no need for RW locks.
 	fibLock sync.Mutex
@@ -90,7 +97,11 @@ func (e *Engine) DetachHandler(prefix enc.Name) error {
 }
 
 func (e *Engine) onPacket(reader enc.ParseReader) error {
-	pkt, pc, err := spec.ReadPacket(reader)
+	var nackReason uint64 = spec.NackReasonNone
+	var pitToken []byte = nil
+	var raw enc.Wire = nil
+
+	pkt, ctx, err := spec.ReadPacket(reader)
 	if err != nil {
 		e.log.Errorf("Failed to parse packet: %v", err)
 		if e.log.Level <= log.DebugLevel {
@@ -101,34 +112,178 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 		return nil
 	}
 	// Now, exactly one of Interest, Data, LpPacket is not nil
+	// First check LpPacket, and do further parse.
+	if pkt.LpPacket != nil {
+		lpPkt := pkt.LpPacket
+		if lpPkt.FragIndex != nil || lpPkt.FragCount != nil {
+			e.log.Warnf("Fragmented LpPackets are not supported. Drop.")
+			return nil
+		}
+		// Parse the inner packet.
+		raw = pkt.LpPacket.Fragment
+		if len(raw) == 1 {
+			pkt, ctx, err = spec.ReadPacket(enc.NewBufferReader(raw[0]))
+		} else {
+			pkt, ctx, err = spec.ReadPacket(enc.NewWireReader(raw))
+		}
+		if err != nil || (pkt.Data == nil) == (pkt.Interest == nil) {
+			e.log.Errorf("Failed to parse packet in LpPacket: %v", err)
+			if e.log.Level <= log.DebugLevel {
+				wire := reader.Range(0, reader.Length())
+				e.log.Debugf("Failed packet bytes: %v", wire.Join())
+			}
+			// Recoverable error. Should continue.
+			return nil
+		}
+		// Set parameters
+		if lpPkt.Nack != nil {
+			nackReason = lpPkt.Nack.Reason
+		}
+		pitToken = lpPkt.PitToken
+	} else {
+		raw = reader.Range(0, reader.Length())
+	}
+	// Now pkt is either Data or Interest (including Nack).
+	if nackReason != spec.NackReasonNone {
+		if pkt.Interest == nil {
+			e.log.Errorf("Received nack for an Data")
+			return nil
+		}
+		if e.log.Level <= log.InfoLevel {
+			nameStr := pkt.Interest.NameV.String()
+			e.log.WithField("name", nameStr).Infof("Nack received for %v", nackReason)
+		}
+		e.onNack(pkt.Interest.NameV, nackReason)
+	} else if pkt.Interest != nil {
+		if e.log.Level <= log.InfoLevel {
+			nameStr := pkt.Interest.NameV.String()
+			e.log.WithField("name", nameStr).Info("Interest received.")
+		}
+		e.onInterest(pkt.Interest, ctx.Interest_context.SigCovered(), raw, pitToken)
+	} else if pkt.Data != nil {
+		if e.log.Level <= log.InfoLevel {
+			nameStr := pkt.Data.NameV.String()
+			e.log.WithField("name", nameStr).Info("Data received.")
+		}
+		// PitToken is not used for now
+		e.onData(pkt.Data, ctx.Data_context.SigCovered(), raw, pitToken)
+	} else {
+		log.Fatalf("Unreachable. Check spec implementation.")
+	}
+	return nil
+}
+
+func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
+	// Compute deadline
+	deadline := e.timer.Now()
+	if pkt.InterestLifetimeV != nil {
+		deadline = deadline.Add(*pkt.InterestLifetimeV)
+	} else {
+		deadline = deadline.Add(DefaultInterestLife)
+	}
+
+	// Match node
+	handler := func() ndn.InterestHandler {
+		e.fibLock.Lock()
+		defer e.fibLock.Unlock()
+		n := e.fib.PrefixMatch(pkt.NameV)
+		// We can directly return because of the prefix-free condition
+		return n.Value()
+		// If it does not hold, us the following:
+		// for n != nil && n.Value() == nil {
+		// 	n = n.Parent()
+		// }
+		// if n == nil {
+		// 	return nil
+		// } else {
+		// 	return n.Value()
+		// }
+	}()
+	if handler == nil {
+		e.log.WithField("name", pkt.NameV.String()).Warn("No handler. Drop.")
+		return
+	}
+
+	// The reply callback function
+	reply := func(encodedData enc.Wire) error {
+		now := e.timer.Now()
+		if deadline.Before(now) {
+			e.log.WithField("name", pkt.NameV.String()).Warn("Deadline exceeded. Drop.")
+			return ndn.ErrDeadlineExceed
+		}
+		if !e.face.IsRunning() {
+			e.log.WithField("name", pkt.NameV.String()).Error("Cannot send through a closed face. Drop.")
+			return ndn.ErrFaceDown
+		}
+		if pitToken != nil {
+			lpPkt := &spec.Packet{
+				LpPacket: &spec.LpPacket{
+					PitToken: pitToken,
+					Fragment: encodedData,
+				},
+			}
+			encoder := spec.PacketEncoder{}
+			encoder.Init(lpPkt)
+			wire := encoder.Encode(lpPkt)
+			if wire == nil {
+				return ndn.ErrFailedToEncode
+			}
+			return e.face.Send(wire)
+		} else {
+			return e.face.Send(encodedData)
+		}
+	}
+
+	// Call the handler. Create goroutine to avoid blocking.
+	go handler(pkt, raw, sigCovered, reply, deadline)
+}
+
+func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
+	// TODO
+}
+
+func (e *Engine) onNack(name enc.Name, reason uint64) {
 	// TODO
 }
 
 func (e *Engine) onError(err error) error {
-	// TODO
+	e.log.Errorf("Error on face, quit: %v", err)
+	return err
 }
 
-func (e *Engine) mainLoop() error {
-	e.log.Info("Default engine started.")
+func (e *Engine) Start() error {
+	if e.face.IsRunning() {
+		return errors.New("Face is already running")
+	}
+	e.log.Info("Default engine start.")
 	e.face.SetCallback(e.onPacket, e.onError)
 	err := e.face.Open()
 	if err != nil {
 		e.log.Errorf("Face failed to open: %v", err)
 		return err
 	}
-	// TODO
+	return nil
+}
+
+func (e *Engine) Shutdown() error {
+	if !e.face.IsRunning() {
+		return errors.New("Face is not running")
+	}
+	e.log.Info("Default engine shutdown.")
+	return e.face.Close()
 }
 
 func (e *Engine) Express(finalName enc.Name, config *ndn.InterestConfig,
 	rawInterest enc.Wire, callback ndn.ExpressCallbackFunc) error {
-
+	return nil // TODO
 }
 
 func (e *Engine) RegisterRoute(prefix enc.Name) error {
+	return nil // TODO
 }
 
 func (e *Engine) UnregisterRoute(prefix enc.Name) error {
-
+	return nil // TODO
 }
 
 // Command validator is delayed to future work. For localhost, check local key. For localhop, user provide public key.

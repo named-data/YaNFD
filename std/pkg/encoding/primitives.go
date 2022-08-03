@@ -150,10 +150,10 @@ func ParseNat(buf Buffer) (val Nat, pos int) {
 }
 
 // Shrink length reduce the L by `shrink`` in a TLV encoded buffer `buf`
-// Precondition:
-//   `buf` starts with proper Type and Length numbers.
-//   Length > `shrink`.
-//   May crash otherwise.
+//   Precondition:
+//     `buf` starts with proper Type and Length numbers.
+//     Length > `shrink`.
+//     May crash otherwise.
 // Returns the new buffer containing reduced TL header.
 // May start from the middle of original buffer, but always goes to the end.
 func ShrinkLength(buf Buffer, shrink int) Buffer {

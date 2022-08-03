@@ -63,3 +63,32 @@ func (e *Entry) UnmarshalJSON(text []byte) error {
 	e.Msg = je.Msg
 	return nil
 }
+
+/*
+Explanation on logging level:
+
+	DEBUG: detailed informatoin with raw bytes
+		* Packet raw bytes
+
+	INFO: general information on traffic, with name only
+		* Packet received
+		* Interest expressed
+
+	WARN: some failure that one consider it may happen actually occured
+		* No route
+		* Fragmentation not supported
+		* Packet dropped
+		* Validation failure
+
+	ERROR: some failure that one does not expect to happen actually occured
+		* Unable to parse or wrong packet type
+		* Face disconnection
+
+	FATAL: some failure that is unable to recover happened.
+		* Unreachable code branch reached
+
+Explanation on apex/log fields:
+
+	module: the code module that generates the log entry
+	name: the packate name associated to the log entry. Maybe empty.
+*/

@@ -573,6 +573,10 @@ func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
 	return ret.Bytes(), nil
 }
 
+// ReadPacket parses a packet from the reader.
+//   Precondition: reader contains only one TLV.
+//   Postcondition: exactly one of Interest, Data, or LpPacket is returned.
+// If precondition is not met, then postcondition is not required to hold. But the call won't crash.
 func ReadPacket(reader enc.ParseReader) (*Packet, *PacketParsingContext, error) {
 	context := &PacketParsingContext{}
 	context.Init()
@@ -598,4 +602,12 @@ func ReadPacket(reader enc.ParseReader) (*Packet, *PacketParsingContext, error) 
 		return nil, nil, ndn.ErrWrongType
 	}
 	return ret, context, nil
+}
+
+func (c InterestParsingContext) SigCovered() enc.Wire {
+	return c.sigCovered
+}
+
+func (c DataParsingContext) SigCovered() enc.Wire {
+	return c.sigCovered
 }
