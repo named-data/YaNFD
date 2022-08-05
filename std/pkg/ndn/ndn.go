@@ -40,10 +40,16 @@ const (
 type InterestResult int
 
 const (
+	// Empty result
 	InterestResultNone InterestResult = iota
+	// Data is fetched
 	InterestResultData
+	// NetworkNack is received
 	InterestResultNack
+	// Timeout
 	InterestResultTimeout
+	// Cancelled due to disconnection
+	InterestCancelled
 )
 
 // SigConfig represents the configuration of signature used in signing.
@@ -138,13 +144,23 @@ type Spec interface {
 type ReplyFunc func(encodedData enc.Wire) error
 
 // ExpressCallbackFunc represents the callback function for Interest expression.
-type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire, sigCovered enc.Wire, nackReason uint64)
+type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire,
+	sigCovered enc.Wire, nackReason uint64)
 
 // InterestHandler represents the callback function for an Interest handler.
+// It should create a go routine to avoid blocking the main thread, if either
+// 1) Data is not ready to send; or
+// 2) Validation is required.
 type InterestHandler func(
 	interest Interest, rawInterest enc.Wire, sigCovered enc.Wire,
 	reply ReplyFunc, deadline time.Time,
 )
+
+// SigChecker is a basic function to check the signature of a packet.
+// In NTSchema, policies&sub-trees are supposed to be used for validation;
+// SigChecker is only designed for low-level engine.
+// Create a go routine for time consuming jobs.
+type SigChecker func(name enc.Name, sigCovered enc.Wire, sig Signature) bool
 
 type Timer interface {
 	// Now returns current time.
@@ -179,6 +195,7 @@ type Engine interface {
 	UnregisterRoute(prefix enc.Name) error
 	// Express expresses an Interest, with callback called when there is result.
 	// To simplify the implementation, finalName needs to be the final Interest name given by MakeInterest.
+	// The callback should create go routine or channel back to another routine to avoid blocking the main thread.
 	Express(finalName enc.Name, config *InterestConfig, rawInterest enc.Wire, callback ExpressCallbackFunc) error
 }
 

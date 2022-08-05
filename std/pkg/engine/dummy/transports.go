@@ -31,7 +31,7 @@ func (f *DummyFace) Open() error {
 	if f.onError == nil || f.onPkt == nil {
 		return errors.New("Face callbacks are not set")
 	}
-	if !f.running {
+	if f.running {
 		return errors.New("Face is already running")
 	}
 	f.sendPkts = make([]enc.Buffer, 0)
@@ -47,13 +47,15 @@ func (f *DummyFace) Close() error {
 	return nil
 }
 
-func (f *DummyFace) RecvPacket(pkt enc.Buffer) error {
+// FeedPacket feeds a packet for the engine to consume
+func (f *DummyFace) FeedPacket(pkt enc.Buffer) error {
 	if !f.running {
 		return errors.New("Face is not running")
 	}
 	return f.onPkt(enc.NewBufferReader(pkt))
 }
 
+// Consume consumes a packet from the engine
 func (f *DummyFace) Consume() (enc.Buffer, error) {
 	if !f.running {
 		return nil, errors.New("Face is not running")

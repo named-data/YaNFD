@@ -31,3 +31,11 @@ func Min[T constraints.Ordered](a, b T) T {
 func MakeTimestamp(t time.Time) uint64 {
 	return uint64(t.UnixNano() / int64(time.Millisecond))
 }
+
+func ConvertNonce(nonce []byte) *uint64 {
+	ret := uint64(0)
+	for _, v := range nonce {
+		ret = ret*256 + uint64(v)
+	}
+	return &ret
+}

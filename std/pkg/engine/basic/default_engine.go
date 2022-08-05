@@ -6,16 +6,20 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 const DefaultInterestLife = 4 * time.Second
+const TimeoutMargin = 10 * time.Millisecond
 
 type Face interface {
 	Open() error
@@ -58,6 +62,12 @@ type Engine struct {
 	// log is used to log events, with "module=DefaultEngine". Need apex/log initialized.
 	// Use WithField to set "name=".
 	log log.Entry
+
+	// mgmtConf is the configuration for the management protocol.
+	mgmtConf mgmt.MgmtConfig
+
+	// cmdChecker is used to validate NFD management packets.
+	cmdChecker ndn.SigChecker
 }
 
 func (e *Engine) EngineTrait() ndn.Engine {
@@ -104,13 +114,14 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 	var pitToken []byte = nil
 	var raw enc.Wire = nil
 
+	if e.log.Level <= log.DebugLevel {
+		wire := reader.Range(0, reader.Length())
+		e.log.Debugf("Received packet bytes: %v", wire.Join())
+	}
+
 	pkt, ctx, err := spec.ReadPacket(reader)
 	if err != nil {
 		e.log.Errorf("Failed to parse packet: %v", err)
-		if e.log.Level <= log.DebugLevel {
-			wire := reader.Range(0, reader.Length())
-			e.log.Debugf("Failed packet bytes: %v", wire.Join())
-		}
 		// Recoverable error. Should continue.
 		return nil
 	}
@@ -237,8 +248,9 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 		}
 	}
 
-	// Call the handler. Create goroutine to avoid blocking.
-	go handler(pkt, raw, sigCovered, reply, deadline)
+	// Call the handler. The handler should create goroutine to avoid blocking.
+	// Do not `go` here because if Data is ready at hand, creating a go routine may be slower. Not tested though.
+	handler(pkt, raw, sigCovered, reply, deadline)
 }
 
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
@@ -308,6 +320,7 @@ func (e *Engine) onNack(name enc.Name, reason uint64) {
 
 func (e *Engine) onError(err error) error {
 	e.log.Errorf("Error on face, quit: %v", err)
+	// TODO: Handle Interest cancellation
 	return err
 }
 
@@ -333,17 +346,142 @@ func (e *Engine) Shutdown() error {
 	return e.face.Close()
 }
 
-func (e *Engine) Express(finalName enc.Name, config *ndn.InterestConfig,
-	rawInterest enc.Wire, callback ndn.ExpressCallbackFunc) error {
-	return nil // TODO
+func (e *Engine) Express(
+	finalName enc.Name, config *ndn.InterestConfig, rawInterest enc.Wire, callback ndn.ExpressCallbackFunc,
+) error {
+	var impSha256 []byte = nil
+	var nodeName enc.Name = finalName
+
+	if callback == nil {
+		callback = func(ndn.InterestResult, ndn.Data, enc.Wire, enc.Wire, uint64) {}
+	}
+
+	// Handle implicit digest
+	if len(finalName) <= 0 {
+		return ndn.ErrInvalidValue{Item: "finalName", Value: finalName}
+	}
+	lastComp := finalName[len(finalName)-1]
+	if lastComp.Typ == enc.TypeImplicitSha256DigestComponent {
+		impSha256 = lastComp.Val
+		nodeName = finalName[:len(finalName)-1]
+	}
+
+	// Handle deadline
+	lifetime := DefaultInterestLife
+	if config.Lifetime != nil {
+		lifetime = *config.Lifetime
+	}
+	deadline := e.timer.Now().Add(lifetime)
+
+	// Inject interest into PIT
+	func() {
+		e.pitLock.Lock()
+		defer e.pitLock.Unlock()
+
+		n := e.pit.MatchAlways(nodeName)
+		timeoutFunc := func() {
+			e.pitLock.Lock()
+			defer e.pitLock.Unlock()
+			now := e.timer.Now()
+			lst := n.Value()
+			newLst := make([]*pendInt, 0, len(lst))
+			for _, entry := range lst {
+				if entry.deadline.After(now) {
+					newLst = append(newLst, entry)
+				} else {
+					if entry.callback != nil {
+						entry.callback(ndn.InterestResultTimeout, nil, nil, nil, spec.NackReasonNone)
+					} else {
+						e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
+					}
+				}
+			}
+			n.SetValue(newLst)
+			n.DeleteIf(func(lst []*pendInt) bool {
+				return len(lst) == 0
+			})
+		}
+		entry := &pendInt{
+			callback:      callback,
+			deadline:      deadline,
+			canBePrefix:   config.CanBePrefix,
+			mustBeFresh:   config.MustBeFresh,
+			impSha256:     impSha256,
+			timeoutCancel: e.timer.Schedule(lifetime+TimeoutMargin, timeoutFunc),
+		}
+		n.SetValue(append(n.Value(), entry))
+	}()
+
+	// Send interest
+	err := e.face.Send(rawInterest)
+	if err != nil {
+		e.log.Errorf("Failed to send Interest: %v", err)
+	} else if e.log.Level <= log.InfoLevel {
+		e.log.WithField("name", finalName.String()).Info("Interest sent.")
+	}
+
+	return err
 }
 
 func (e *Engine) RegisterRoute(prefix enc.Name) error {
-	return nil // TODO
+	intCfg := &ndn.InterestConfig{
+		Lifetime: utils.IdPtr(1 * time.Second),
+		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
+	}
+	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	if err != nil {
+		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
+		return err
+	}
+	ch := make(chan error)
+	err = e.Express(name, intCfg, cmdWire,
+		func(result ndn.InterestResult, data ndn.Data, rawData enc.Wire, sigCovered enc.Wire, nackReason uint64) {
+			if result == ndn.InterestResultNack {
+				ch <- fmt.Errorf("Nack received: %v", nackReason)
+			} else if result == ndn.InterestResultTimeout {
+				ch <- ndn.ErrDeadlineExceed
+			} else if result == ndn.InterestResultData {
+				valid := e.cmdChecker(data.Name(), sigCovered, data.Signature())
+				if !valid {
+					ch <- fmt.Errorf("Command signature is not valid.")
+				} else {
+					ch <- nil
+				}
+			} else {
+				ch <- fmt.Errorf("Unknown result: %v", result)
+			}
+			close(ch)
+		})
+	if err != nil {
+		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
+		return err
+	}
+	err = <-ch
+	if err != nil {
+		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
+		return err
+	} else {
+		e.log.WithField("name", prefix.String()).Info("Prefix registered.")
+	}
+	return nil
 }
 
 func (e *Engine) UnregisterRoute(prefix enc.Name) error {
-	return nil // TODO
+	intCfg := &ndn.InterestConfig{
+		Lifetime: utils.IdPtr(1 * time.Second),
+		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
+	}
+	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	if err != nil {
+		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
+		return err
+	}
+	err = e.Express(name, intCfg, cmdWire, nil)
+	if err != nil {
+		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
+		return err
+	} else {
+		e.log.WithField("name", prefix.String()).Info("Prefix unregistered.")
+	}
+	return nil
 }
-
-// Command validator is delayed to future work. For localhost, check local key. For localhop, user provide public key.
