@@ -1929,6 +1929,163 @@ func ParseControlParameters(reader enc.ParseReader, ignoreCritical bool) (*Contr
 	return context.Parse(reader, ignoreCritical)
 }
 
+type ControlResponseEncoder struct {
+	length uint
+
+	Val_encoder ControlArgsEncoder
+}
+
+type ControlResponseParsingContext struct {
+	Val_context ControlArgsParsingContext
+}
+
+func (encoder *ControlResponseEncoder) Init(value *ControlResponse) {
+	if value.Val != nil {
+		encoder.Val_encoder.Init(value.Val)
+	}
+	l := uint(0)
+	if value.Val != nil {
+		l += 1
+		switch x := encoder.Val_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.Val_encoder.length
+	}
+
+	encoder.length = l
+
+}
+
+func (context *ControlResponseParsingContext) Init() {
+	context.Val_context.Init()
+}
+
+func (encoder *ControlResponseEncoder) EncodeInto(value *ControlResponse, buf []byte) {
+
+	pos := uint(0)
+	if value.Val != nil {
+		buf[pos] = byte(101)
+		pos += 1
+		switch x := encoder.Val_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.Val_encoder.length > 0 {
+			encoder.Val_encoder.EncodeInto(value.Val, buf[pos:])
+			pos += encoder.Val_encoder.length
+		}
+	}
+
+}
+
+func (encoder *ControlResponseEncoder) Encode(value *ControlResponse) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
+	return wire
+}
+
+func (context *ControlResponseParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*ControlResponse, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &ControlResponse{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 101:
+				if progress+1 == 0 {
+					handled = true
+					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+					value.Val = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 1; progress++ {
+		switch progress {
+		case 0 - 1:
+			value.Val = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (value *ControlResponse) Encode() enc.Wire {
+	encoder := ControlResponseEncoder{}
+	encoder.Init(value)
+	return encoder.Encode(value)
+}
+
+func (value *ControlResponse) Bytes() []byte {
+	return value.Encode().Join()
+}
+
+func ParseControlResponse(reader enc.ParseReader, ignoreCritical bool) (*ControlResponse, error) {
+	context := ControlResponseParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
 type FaceEventNotificationValueEncoder struct {
 	length uint
 }

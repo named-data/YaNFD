@@ -48,13 +48,13 @@ const (
 	CsEnableServe = uint64(2)
 )
 
-//+tlv-model:dict
+// +tlv-model:dict
 type Strategy struct {
 	//+field:name
 	Name enc.Name `tlv:"0x07"`
 }
 
-//+tlv-model:dict
+// +tlv-model:dict
 type ControlArgs struct {
 	// Note: go-ndn generator does not support inheritance yet.
 
@@ -100,6 +100,11 @@ type ControlArgs struct {
 type ControlParameters struct {
 	//+field:struct:ControlArgs
 	Val *ControlArgs `tlv:"0x68"`
+}
+
+type ControlResponse struct {
+	//+field:struct:ControlArgs
+	Val *ControlArgs `tlv:"0x65"`
 }
 
 type FaceEventNotificationValue struct {

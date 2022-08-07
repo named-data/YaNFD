@@ -47,10 +47,14 @@ func (g *Generator) parseDoc(doc *ast.CommentGroup, indicator string) string {
 	if doc == nil {
 		return ""
 	}
-	var Prefix = "//+" + indicator + ":"
+	var Prefix1 = "//+" + indicator + ":"
+	var Prefix2 = "// +" + indicator + ":"
 	for _, c := range doc.List {
-		if c != nil && strings.HasPrefix(c.Text, Prefix) {
-			return c.Text[len(Prefix):]
+		if c != nil && strings.HasPrefix(c.Text, Prefix1) {
+			return c.Text[len(Prefix1):]
+		}
+		if c != nil && strings.HasPrefix(c.Text, Prefix2) {
+			return c.Text[len(Prefix2):]
 		}
 	}
 	return ""

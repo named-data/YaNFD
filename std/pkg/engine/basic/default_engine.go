@@ -447,7 +447,24 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 				if !valid {
 					ch <- fmt.Errorf("command signature is not valid")
 				} else {
-					ch <- nil
+					ret, err := mgmt.ParseControlResponse(enc.NewWireReader(data.Content()), true)
+					if err != nil {
+						ch <- err
+					} else {
+						if ret.Val != nil && ret.Val.StatusCode != nil {
+							if *ret.Val.StatusCode == 200 {
+								ch <- nil
+							} else {
+								errText := ""
+								if ret.Val.StatusText != nil {
+									errText = *ret.Val.StatusText
+								}
+								ch <- fmt.Errorf("registration failed due to error %d: %s", *ret.Val.StatusCode, errText)
+							}
+						} else {
+							ch <- fmt.Errorf("improper response")
+						}
+					}
 				}
 			} else {
 				ch <- fmt.Errorf("unknown result: %v", result)

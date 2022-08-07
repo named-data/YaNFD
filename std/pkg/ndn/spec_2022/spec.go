@@ -427,7 +427,11 @@ func (_ Spec) MakeInterest(
 					},
 				}
 			} else {
-				interest.SignatureInfo = &SignatureInfo{SignatureType: uint64(sigConfig.Type)}
+				interest.SignatureInfo = &SignatureInfo{
+					SignatureType:   uint64(sigConfig.Type),
+					SignatureNonce:  sigConfig.Nonce,
+					SignatureSeqNum: sigConfig.SeqNum,
+				}
 			}
 			if sigConfig.SigTime != nil {
 				t := time.Duration(sigConfig.SigTime.UnixMilli()) * time.Millisecond
