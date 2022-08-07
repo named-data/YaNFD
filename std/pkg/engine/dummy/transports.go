@@ -29,10 +29,10 @@ func (f *DummyFace) SetCallback(onPkt func(r enc.ParseReader) error,
 
 func (f *DummyFace) Open() error {
 	if f.onError == nil || f.onPkt == nil {
-		return errors.New("Face callbacks are not set")
+		return errors.New("face callbacks are not set")
 	}
 	if f.running {
-		return errors.New("Face is already running")
+		return errors.New("face is already running")
 	}
 	f.sendPkts = make([]enc.Buffer, 0)
 	f.running = true
@@ -41,7 +41,7 @@ func (f *DummyFace) Open() error {
 
 func (f *DummyFace) Close() error {
 	if !f.running {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
 	f.running = false
 	return nil
@@ -50,7 +50,7 @@ func (f *DummyFace) Close() error {
 // FeedPacket feeds a packet for the engine to consume
 func (f *DummyFace) FeedPacket(pkt enc.Buffer) error {
 	if !f.running {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
 	return f.onPkt(enc.NewBufferReader(pkt))
 }
@@ -58,10 +58,10 @@ func (f *DummyFace) FeedPacket(pkt enc.Buffer) error {
 // Consume consumes a packet from the engine
 func (f *DummyFace) Consume() (enc.Buffer, error) {
 	if !f.running {
-		return nil, errors.New("Face is not running")
+		return nil, errors.New("face is not running")
 	}
 	if len(f.sendPkts) == 0 {
-		return nil, errors.New("No packet to consume")
+		return nil, errors.New("no packet to consume")
 	}
 	pkt := f.sendPkts[0]
 	f.sendPkts = f.sendPkts[1:]
@@ -70,7 +70,7 @@ func (f *DummyFace) Consume() (enc.Buffer, error) {
 
 func (f *DummyFace) Send(pkt enc.Wire) error {
 	if !f.running {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
 	if len(pkt) == 1 {
 		f.sendPkts = append(f.sendPkts, pkt[0])

@@ -70,10 +70,10 @@ func (f *StreamFace) Run() {
 
 func (f *StreamFace) Open() error {
 	if f.onError == nil || f.onPkt == nil {
-		return errors.New("Face callbacks are not set")
+		return errors.New("face callbacks are not set")
 	}
 	if f.conn != nil {
-		return errors.New("Face is already running")
+		return errors.New("face is already running")
 	}
 	c, err := net.Dial(f.network, f.addr)
 	if err != nil {
@@ -87,7 +87,7 @@ func (f *StreamFace) Open() error {
 
 func (f *StreamFace) Close() error {
 	if f.conn == nil {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
 	f.running = false
 	err := f.conn.Close()
@@ -97,7 +97,7 @@ func (f *StreamFace) Close() error {
 
 func (f *StreamFace) Send(pkt enc.Wire) error {
 	if !f.running {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
 	for _, buf := range pkt {
 		_, err := f.conn.Write(buf)

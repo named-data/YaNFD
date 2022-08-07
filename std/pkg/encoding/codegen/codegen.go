@@ -70,10 +70,7 @@ func (g *Generator) ProcessDecl(node ast.Node) bool {
 	if g.pkgName == "" {
 		pkg, ok := node.(*ast.Ident)
 		if ok {
-			g.pkgName = pkg.Name
-			if strings.HasSuffix(g.pkgName, "_test") {
-				g.pkgName = g.pkgName[:len(g.pkgName)-5]
-			}
+			g.pkgName = strings.TrimSuffix(pkg.Name, "_test")
 			return true
 		}
 	}

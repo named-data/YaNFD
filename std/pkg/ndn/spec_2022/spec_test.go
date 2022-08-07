@@ -109,7 +109,7 @@ func TestMakeDataMetaInfo(t *testing.T) {
 
 type testSigner struct{}
 
-func (_ testSigner) SigInfo() (*ndn.SigConfig, error) {
+func (testSigner) SigInfo() (*ndn.SigConfig, error) {
 	name, _ := enc.NameFromStr("/KEY")
 	return &ndn.SigConfig{
 		Type:    ndn.SigType(200),
@@ -117,11 +117,11 @@ func (_ testSigner) SigInfo() (*ndn.SigConfig, error) {
 	}, nil
 }
 
-func (_ testSigner) EstimateSize() uint {
+func (testSigner) EstimateSize() uint {
 	return 10
 }
 
-func (_ testSigner) ComputeSigValue(enc.Wire) ([]byte, error) {
+func (testSigner) ComputeSigValue(enc.Wire) ([]byte, error) {
 	return []byte{0, 0, 0, 0, 0}, nil
 }
 

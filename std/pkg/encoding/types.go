@@ -89,9 +89,9 @@ func (e ErrUnrecognizedField) Error() string {
 	return fmt.Sprintf("There exists an unrecognized field that has a critical type number: %d", e.TypeNum)
 }
 
-var ErrBufferOverflow = errors.New("Buffer overflow when parsing. One of the TLV Length is wrong")
+var ErrBufferOverflow = errors.New("buffer overflow when parsing. One of the TLV Length is wrong")
 
-var ErrIncorrectDigest = errors.New("The sha256 digest is missing or incorrect")
+var ErrIncorrectDigest = errors.New("the sha256 digest is missing or incorrect")
 
 type ErrSkipRequired struct {
 	Name    string

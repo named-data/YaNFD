@@ -50,10 +50,10 @@ type Engine struct {
 	timer ndn.Timer
 
 	// fib contains the registered Interest handlers.
-	fib NameTrie[fibEntry]
+	fib *NameTrie[fibEntry]
 
 	// pit contains pending outgoing Interests.
-	pit NameTrie[pitEntry]
+	pit *NameTrie[pitEntry]
 
 	// Since there is only one main coroutine, no need for RW locks.
 	fibLock sync.Mutex
@@ -61,10 +61,10 @@ type Engine struct {
 
 	// log is used to log events, with "module=DefaultEngine". Need apex/log initialized.
 	// Use WithField to set "name=".
-	log log.Entry
+	log *log.Entry
 
 	// mgmtConf is the configuration for the management protocol.
-	mgmtConf mgmt.MgmtConfig
+	mgmtConf *mgmt.MgmtConfig
 
 	// cmdChecker is used to validate NFD management packets.
 	cmdChecker ndn.SigChecker
@@ -74,7 +74,7 @@ func (e *Engine) EngineTrait() ndn.Engine {
 	return e
 }
 
-func (_ *Engine) Spec() ndn.Spec {
+func (*Engine) Spec() ndn.Spec {
 	return spec.Spec{}
 }
 
@@ -259,6 +259,7 @@ func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitTo
 	n := e.pit.ExactMatch(pkt.NameV)
 	if n == nil {
 		e.log.WithField("name", pkt.NameV.String()).Warn("Received Data for an unknown interest. Drop.")
+		return
 	}
 	for cur := n; cur != nil; cur = cur.Parent() {
 		curListSize := len(cur.Value())
@@ -268,7 +269,7 @@ func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitTo
 		newList := make([]*pendInt, 0, curListSize)
 		for _, entry := range cur.Value() {
 			// CanBePrefix
-			if n.Depth() < len(pkt.NameV) && !entry.canBePrefix {
+			if cur.Depth() < len(pkt.NameV) && !entry.canBePrefix {
 				newList = append(newList, entry)
 				continue
 			}
@@ -306,6 +307,7 @@ func (e *Engine) onNack(name enc.Name, reason uint64) {
 	n := e.pit.ExactMatch(name)
 	if n == nil {
 		e.log.WithField("name", name.String()).Warn("Received Nack for an unknown interest. Drop.")
+		return
 	}
 	for _, entry := range n.Value() {
 		entry.timeoutCancel()
@@ -437,18 +439,18 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 	err = e.Express(name, intCfg, cmdWire,
 		func(result ndn.InterestResult, data ndn.Data, rawData enc.Wire, sigCovered enc.Wire, nackReason uint64) {
 			if result == ndn.InterestResultNack {
-				ch <- fmt.Errorf("Nack received: %v", nackReason)
+				ch <- fmt.Errorf("nack received: %v", nackReason)
 			} else if result == ndn.InterestResultTimeout {
 				ch <- ndn.ErrDeadlineExceed
 			} else if result == ndn.InterestResultData {
 				valid := e.cmdChecker(data.Name(), sigCovered, data.Signature())
 				if !valid {
-					ch <- fmt.Errorf("Command signature is not valid.")
+					ch <- fmt.Errorf("command signature is not valid")
 				} else {
 					ch <- nil
 				}
 			} else {
-				ch <- fmt.Errorf("Unknown result: %v", result)
+				ch <- fmt.Errorf("unknown result: %v", result)
 			}
 			close(ch)
 		})
@@ -484,4 +486,23 @@ func (e *Engine) UnregisterRoute(prefix enc.Name) error {
 		e.log.WithField("name", prefix.String()).Info("Prefix unregistered.")
 	}
 	return nil
+}
+
+func NewEngine(face Face, timer ndn.Timer, cmdSigner ndn.Signer, cmdChecker ndn.SigChecker) *Engine {
+	if face == nil || timer == nil || cmdSigner == nil || cmdChecker == nil {
+		return nil
+	}
+	logger := log.WithField("module", "basic_engine")
+	mgmtCfg := mgmt.NewConfig(face.IsLocal(), cmdSigner, spec.Spec{})
+	return &Engine{
+		face:       face,
+		timer:      timer,
+		mgmtConf:   mgmtCfg,
+		cmdChecker: cmdChecker,
+		log:        logger,
+		fib:        NewNameTrie[fibEntry](),
+		pit:        NewNameTrie[pitEntry](),
+		fibLock:    sync.Mutex{},
+		pitLock:    sync.Mutex{},
+	}
 }

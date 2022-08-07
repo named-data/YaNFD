@@ -11,18 +11,18 @@ import (
 // sha256Signer is a Data signer that uses DigestSha256.
 type sha256Signer struct{}
 
-func (_ sha256Signer) SigInfo() (*ndn.SigConfig, error) {
+func (sha256Signer) SigInfo() (*ndn.SigConfig, error) {
 	return &ndn.SigConfig{
 		Type:    ndn.SignatureDigestSha256,
 		KeyName: nil,
 	}, nil
 }
 
-func (_ sha256Signer) EstimateSize() uint {
+func (sha256Signer) EstimateSize() uint {
 	return 32
 }
 
-func (_ sha256Signer) ComputeSigValue(covered enc.Wire) ([]byte, error) {
+func (sha256Signer) ComputeSigValue(covered enc.Wire) ([]byte, error) {
 	h := sha256.New()
 	for _, buf := range covered {
 		_, err := h.Write(buf)
@@ -55,11 +55,11 @@ func (s *sha256IntSigner) SigInfo() (*ndn.SigConfig, error) {
 	}, nil
 }
 
-func (_ *sha256IntSigner) EstimateSize() uint {
+func (*sha256IntSigner) EstimateSize() uint {
 	return 32
 }
 
-func (_ *sha256IntSigner) ComputeSigValue(covered enc.Wire) ([]byte, error) {
+func (*sha256IntSigner) ComputeSigValue(covered enc.Wire) ([]byte, error) {
 	return sha256Signer{}.ComputeSigValue(covered)
 }
 

@@ -279,10 +279,10 @@ func (_ Spec) MakeData(
 			if sigConfig.SigTime != nil {
 				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureTime"}
 			}
-			if sigConfig.Type != ndn.SignatureDigestSha256 {
-				if sigConfig.KeyName == nil {
-					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.KeyLocator", Value: nil}
-				}
+			// if sigConfig.KeyName == nil {
+			// 	return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.KeyLocator", Value: nil}
+			// }
+			if sigConfig.KeyName != nil {
 				data.SignatureInfo = &SignatureInfo{
 					SignatureType: uint64(sigConfig.Type),
 					KeyLocator: &KeyLocator{
@@ -347,7 +347,7 @@ func (_ Spec) MakeData(
 	return wire, sigCovered, nil
 }
 
-func (_ Spec) ReadData(reader enc.ParseReader) (ndn.Data, enc.Wire, error) {
+func (Spec) ReadData(reader enc.ParseReader) (ndn.Data, enc.Wire, error) {
 	context := PacketParsingContext{}
 	context.Init()
 	ret, err := context.Parse(reader, false)
@@ -574,8 +574,10 @@ func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
 }
 
 // ReadPacket parses a packet from the reader.
-//   Precondition: reader contains only one TLV.
-//   Postcondition: exactly one of Interest, Data, or LpPacket is returned.
+//
+//	Precondition: reader contains only one TLV.
+//	Postcondition: exactly one of Interest, Data, or LpPacket is returned.
+//
 // If precondition is not met, then postcondition is not required to hold. But the call won't crash.
 func ReadPacket(reader enc.ParseReader) (*Packet, *PacketParsingContext, error) {
 	context := &PacketParsingContext{}

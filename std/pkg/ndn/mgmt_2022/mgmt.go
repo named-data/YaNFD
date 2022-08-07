@@ -55,3 +55,14 @@ func (mgmt *MgmtConfig) MakeCmdDict(module string, cmd string, args map[string]a
 	}
 	return mgmt.MakeCmd(module, cmd, vv, intParam)
 }
+
+func NewConfig(local bool, signer ndn.Signer, spec ndn.Spec) *MgmtConfig {
+	if signer == nil || spec == nil {
+		return nil
+	}
+	return &MgmtConfig{
+		local:  local,
+		signer: signer,
+		spec:   spec,
+	}
+}

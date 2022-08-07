@@ -22,6 +22,7 @@ const (
 	SignatureSha256WithEcdsa SigType = 3
 	SignatureHmacWithSha256  SigType = 4
 	SignatureEd25519         SigType = 5
+	SignatureEmptyTest       SigType = 200
 )
 
 // ContentType represents the type of Data content in MetaInfo.

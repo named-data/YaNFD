@@ -79,6 +79,6 @@ func (*BaseTlvField) GenFromDict() (string, error) {
 	return "", nil
 }
 
-var ErrInvalidField = errors.New("Invalid TlvField. Please check the annotation (including type and arguments)")
+var ErrInvalidField = errors.New("invalid TlvField. Please check the annotation (including type and arguments)")
 
-var ErrWrongTypeNumber = errors.New("Invalid type number")
+var ErrWrongTypeNumber = errors.New("invalid type number")

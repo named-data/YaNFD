@@ -96,7 +96,7 @@ func (tm *Timer) Schedule(d time.Duration, f func()) func() error {
 			tm.events[idx].f = nil
 			return nil
 		} else {
-			return errors.New("Event has already been canceled")
+			return errors.New("event has already been canceled")
 		}
 	}
 }
@@ -110,6 +110,6 @@ func (tm *Timer) Sleep(d time.Duration) {
 	<-ch
 }
 
-func (_ *Timer) Nonce() []byte {
+func (*Timer) Nonce() []byte {
 	return []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 }

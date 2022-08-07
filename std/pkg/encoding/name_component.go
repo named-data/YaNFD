@@ -34,23 +34,23 @@ type compValFmtText struct{}
 type compValFmtDec struct{}
 type compValFmtHex struct{}
 
-func (_ compValFmtInvalid) ToString(val []byte) string {
+func (compValFmtInvalid) ToString(val []byte) string {
 	return ""
 }
 
-func (_ compValFmtInvalid) FromString(s string) ([]byte, error) {
+func (compValFmtInvalid) FromString(s string) ([]byte, error) {
 	return nil, ErrFormat{"Invalid component format"}
 }
 
-func (_ compValFmtInvalid) ToMatching(val []byte) any {
+func (compValFmtInvalid) ToMatching(val []byte) any {
 	return nil
 }
 
-func (_ compValFmtInvalid) FromMatching(m any) ([]byte, error) {
+func (compValFmtInvalid) FromMatching(m any) ([]byte, error) {
 	return nil, ErrFormat{"Invalid component format"}
 }
 
-func (_ compValFmtText) ToString(val []byte) string {
+func (compValFmtText) ToString(val []byte) string {
 	vText := ""
 	for _, b := range val {
 		if isLegalCompText(b) {
@@ -62,7 +62,7 @@ func (_ compValFmtText) ToString(val []byte) string {
 	return vText
 }
 
-func (_ compValFmtText) FromString(valStr string) ([]byte, error) {
+func (compValFmtText) FromString(valStr string) ([]byte, error) {
 	hasSpecialChar := false
 	for _, c := range valStr {
 		if c == '%' || c == '=' || c == '/' || c == '\\' {
@@ -99,11 +99,11 @@ func (_ compValFmtText) FromString(valStr string) ([]byte, error) {
 	return val, nil
 }
 
-func (_ compValFmtText) ToMatching(val []byte) any {
+func (compValFmtText) ToMatching(val []byte) any {
 	return val
 }
 
-func (_ compValFmtText) FromMatching(m any) ([]byte, error) {
+func (compValFmtText) FromMatching(m any) ([]byte, error) {
 	ret, ok := m.([]byte)
 	if !ok {
 		return nil, ErrFormat{"invalid text component value: " + fmt.Sprintf("%v", m)}
@@ -112,7 +112,7 @@ func (_ compValFmtText) FromMatching(m any) ([]byte, error) {
 	}
 }
 
-func (_ compValFmtDec) ToString(val []byte) string {
+func (compValFmtDec) ToString(val []byte) string {
 	x := uint64(0)
 	for _, b := range val {
 		x = (x << 8) | uint64(b)
@@ -120,7 +120,7 @@ func (_ compValFmtDec) ToString(val []byte) string {
 	return strconv.FormatUint(x, 10)
 }
 
-func (_ compValFmtDec) FromString(s string) ([]byte, error) {
+func (compValFmtDec) FromString(s string) ([]byte, error) {
 	x, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		return nil, ErrFormat{"invalid decimal component value: " + s}
@@ -130,7 +130,7 @@ func (_ compValFmtDec) FromString(s string) ([]byte, error) {
 	return ret, nil
 }
 
-func (_ compValFmtDec) ToMatching(val []byte) any {
+func (compValFmtDec) ToMatching(val []byte) any {
 	x := uint64(0)
 	for _, b := range val {
 		x = (x << 8) | uint64(b)
@@ -138,7 +138,7 @@ func (_ compValFmtDec) ToMatching(val []byte) any {
 	return x
 }
 
-func (_ compValFmtDec) FromMatching(m any) ([]byte, error) {
+func (compValFmtDec) FromMatching(m any) ([]byte, error) {
 	x, ok := m.(uint64)
 	if !ok {
 		return nil, ErrFormat{"invalid decimal component value: " + fmt.Sprintf("%v", m)}
@@ -148,7 +148,7 @@ func (_ compValFmtDec) FromMatching(m any) ([]byte, error) {
 	return ret, nil
 }
 
-func (_ compValFmtHex) ToString(val []byte) string {
+func (compValFmtHex) ToString(val []byte) string {
 	vText := ""
 	for _, b := range val {
 		vText = vText + fmt.Sprintf("%02x", b)
@@ -156,7 +156,7 @@ func (_ compValFmtHex) ToString(val []byte) string {
 	return vText
 }
 
-func (_ compValFmtHex) FromString(s string) ([]byte, error) {
+func (compValFmtHex) FromString(s string) ([]byte, error) {
 	if len(s)%2 != 0 {
 		return nil, ErrFormat{"invalid hexadecimal component value: " + s}
 	}
@@ -172,11 +172,11 @@ func (_ compValFmtHex) FromString(s string) ([]byte, error) {
 	return val, nil
 }
 
-func (_ compValFmtHex) ToMatching(val []byte) any {
+func (compValFmtHex) ToMatching(val []byte) any {
 	return val
 }
 
-func (_ compValFmtHex) FromMatching(m any) ([]byte, error) {
+func (compValFmtHex) FromMatching(m any) ([]byte, error) {
 	ret, ok := m.([]byte)
 	if !ok {
 		return nil, ErrFormat{"invalid text component value: " + fmt.Sprintf("%v", m)}
@@ -548,7 +548,7 @@ func NewStringComponent(typ TLNum, val string) Component {
 	}
 }
 
-func (_ Component) Match(value Component, m Matching) {}
+func (Component) Match(value Component, m Matching) {}
 
 func (p Pattern) Match(value Component, m Matching) {
 	vFmt := compValFmt(compValFmtText{})
