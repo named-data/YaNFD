@@ -22,7 +22,7 @@ import (
 // URIType represents the type of the URI.
 type URIType int
 
-//const uriPattern = `^([0-9A-Za-z]+)://([0-9A-Za-z:-\[\]%\.]+)(:([0-9]+))?$``
+// const uriPattern = `^([0-9A-Za-z]+)://([0-9A-Za-z:-\[\]%\.]+)(:([0-9]+))?$“
 const devPattern = `^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\-]+)$`
 const ethernetPattern = `^(?P<scheme>ether)://\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\%[A-Za-z0-9])*)\]$`
 const fdPattern = `^(?P<scheme>fd)://(?P<fd>[0-9]+)$`
@@ -410,7 +410,7 @@ func (u *URI) Canonize() error {
 		u.scheme = "ether"
 		u.path = mac.String()
 		u.port = 0
-	case udpURI:
+	case udpURI, tcpURI:
 		path := u.path
 		zone := ""
 		if strings.Contains(u.path, "%") {
@@ -432,10 +432,18 @@ func (u *URI) Canonize() error {
 		}
 
 		if ip.To4() != nil {
-			u.scheme = "udp4"
+			if u.uriType == udpURI {
+				u.scheme = "udp4"
+			} else {
+				u.scheme = "tcp4"
+			}
 			u.path = ip.String() + zone
 		} else if ip.To16() != nil {
-			u.scheme = "udp6"
+			if u.uriType == udpURI {
+				u.scheme = "udp6"
+			} else {
+				u.scheme = "tcp6"
+			}
 			u.path = ip.String() + zone
 		} else {
 			return core.ErrNotCanonical
