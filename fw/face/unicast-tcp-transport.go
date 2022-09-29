@@ -99,7 +99,7 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persisten
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
 		return nil, err
 	}
-	remoteURI = ndn.MakeUDPFaceURI(4, host, uint16(portInt))
+	remoteURI = ndn.MakeTCPFaceURI(4, host, uint16(portInt))
 	remoteURI.Canonize()
 	if !remoteURI.IsCanonical() {
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteURI, ": remote URI is not canonical")
