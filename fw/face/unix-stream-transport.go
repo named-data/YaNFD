@@ -117,20 +117,30 @@ func (t *UnixStreamTransport) runReceive() {
 		}
 
 		// Determine whether valid packet received
-		for startPos > 0 {
-			_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf)
+		tlvPos := 0
+		for {
+			if tlvPos >= startPos {
+				startPos = 0
+				break
+			}
+
+			_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[tlvPos:])
 			if err != nil {
 				core.LogInfo(t, "Unable to process received packet: ", err)
 				startPos = 0
 				break
-			} else if startPos >= tlvSize {
+			} else if startPos >= tlvPos+tlvSize {
 				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
-				startPos -= tlvSize
-				if startPos > 0 {
-					copy(recvBuf, recvBuf[tlvSize:])
-				}
+				t.linkService.handleIncomingFrame(recvBuf[tlvPos : tlvPos+tlvSize])
+				tlvPos += tlvSize
 			} else {
+				if tlvPos > 0 {
+					if startPos > tlvPos {
+						// Move remaining data to beginning of buffer
+						copy(recvBuf, recvBuf[tlvPos:startPos])
+					}
+					startPos -= tlvPos
+				}
 				core.LogTrace(t, "Received packet is incomplete")
 				break
 			}
