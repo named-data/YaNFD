@@ -33,10 +33,11 @@ type UnicastTCPTransport struct {
 func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
 	// Validate URIs.
 	if !remoteURI.IsCanonical() ||
-		(remoteURI.Scheme() != "tcp4" && remoteURI.Scheme() != "tcp6") ||
-		(localURI != nil && !localURI.IsCanonical()) ||
-		(localURI != nil && remoteURI.Scheme() != localURI.Scheme()) {
+		(remoteURI.Scheme() != "tcp4" && remoteURI.Scheme() != "tcp6") {
 		return nil, core.ErrNotCanonical
+	}
+	if localURI != nil {
+		return nil, errors.New("Do not specify localURI for TCP.")
 	}
 
 	t := new(UnicastTCPTransport)
@@ -66,7 +67,9 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	// Attempt to "dial" remote URI
 	var err error
 	// Configure dialer so we can allow address reuse
-	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
+	// Fix: for TCP we shouldn't specify the local address. Instead, we should obtain it from system.
+	// Though it succeeds in Windows and MacOS, Linux does not allow this.
+	t.dialer = &net.Dialer{Control: impl.SyscallReuseAddr}
 	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
