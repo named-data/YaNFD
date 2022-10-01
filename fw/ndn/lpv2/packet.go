@@ -43,8 +43,10 @@ type Packet struct {
 
 // NewPacket returns an NDNLPv2 frame containing a copy of the provided network-layer packet.
 func NewPacket(fragment []byte) *Packet {
+	fragmentCopy := make([]byte, len(fragment))
+	copy(fragmentCopy, fragment)
 	return &Packet{
-		fragment: append([]byte{}, fragment...),
+		fragment: fragmentCopy,
 	}
 }
 
@@ -67,7 +69,9 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 		if err != nil {
 			return nil, errors.New("unable to encode bare fragment: " + err.Error())
 		}
-		p.fragment = append([]byte{}, encodedFragment...)
+		// copy encoded fragment
+		p.fragment = make([]byte, len(encodedFragment))
+		copy(p.fragment, encodedFragment)
 		return p, nil
 	}
 
@@ -78,7 +82,9 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 	for _, elem := range p.wire.Subelements() {
 		switch elem.Type() {
 		case Fragment:
-			p.fragment = append([]byte{}, elem.Value()...)
+			val := elem.Value()
+			p.fragment = make([]byte, len(val))
+			copy(p.fragment, val)
 		case Sequence:
 			v, e := tlv.DecodeNNIBlock(elem)
 			if e != nil {
@@ -98,7 +104,9 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 			}
 			p.fragCount = &v
 		case PitToken:
-			p.pitToken = append([]byte{}, elem.Value()...)
+			val := elem.Value()
+			p.pitToken = make([]byte, len(val))
+			copy(p.pitToken, val)
 		case IncomingFaceID:
 			v, e := tlv.DecodeNNIBlock(elem)
 			if e != nil {
@@ -214,12 +222,15 @@ func (p *Packet) SetFragCount(fragCount uint64) {
 
 // PitToken returns the PitToken set in the LpPacket or an empty slice if it is unset.
 func (p *Packet) PitToken() []byte {
-	return append([]byte{}, p.pitToken...)
+	pitToken := make([]byte, len(p.pitToken))
+	copy(pitToken, p.pitToken)
+	return pitToken
 }
 
 // SetPitToken sets the PitToken of the LpPacket.
 func (p *Packet) SetPitToken(pitToken []byte) {
-	p.pitToken = append([]byte{}, pitToken...)
+	p.pitToken = make([]byte, len(pitToken))
+	copy(p.pitToken, pitToken)
 	p.wire = nil
 }
 
@@ -280,7 +291,9 @@ func (p *Packet) SetTxSequence(txSequence uint64) {
 
 // Acks returns the Ack field(s) set in the LpPacket (if any).
 func (p *Packet) Acks() []uint64 {
-	return append([]uint64{}, p.acks...)
+	acks := make([]uint64, len(p.acks))
+	copy(acks, p.acks)
+	return acks
 }
 
 // AppendAck appends an Ack to the LpPacket.
@@ -319,12 +332,15 @@ func (p *Packet) SetPrefixAnnouncement(prefixAnnouncement *ndn.Data) {
 
 // Fragment returns the Fragment field of the LpPacket or nil if it is unset.
 func (p *Packet) Fragment() []byte {
-	return append([]byte{}, p.fragment...)
+	fragment := make([]byte, len(p.fragment))
+	copy(fragment, p.fragment)
+	return fragment
 }
 
 // SetFragment sets the Fragment field of the LpPacket.
 func (p *Packet) SetFragment(fragment []byte) {
-	p.fragment = append([]byte{}, fragment...)
+	p.fragment = make([]byte, len(fragment))
+	copy(p.fragment, fragment)
 	p.wire = nil
 }
 
