@@ -138,10 +138,8 @@ func (t *UnixStreamTransport) runReceive() {
 					if startPos > tlvPos {
 						// Move remaining data to beginning of buffer
 						copy(recvBuf, recvBuf[tlvPos:startPos])
-						startPos -= tlvPos
-					} else {
-						startPos = 0
 					}
+					startPos -= tlvPos
 				}
 				core.LogTrace(t, "Received packet is incomplete")
 				break
