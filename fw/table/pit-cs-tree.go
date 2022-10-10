@@ -354,7 +354,7 @@ func (p *PitCsTree) FindMatchingDataFromCS(interest *ndn.Interest) CsEntry {
 	node := p.root.findExactMatchEntry(interest.Name())
 	if node != nil {
 		if !interest.CanBePrefix() {
-			if node.csEntry != nil {
+			if node.csEntry != nil && (!interest.MustBeFresh() || time.Now().Before(node.csEntry.staleTime)) {
 				p.csReplacement.BeforeUse(node.csEntry.index, node.csEntry.data)
 				return node.csEntry
 			}
@@ -371,25 +371,33 @@ func (p *PitCsTree) FindMatchingDataFromCS(interest *ndn.Interest) CsEntry {
 func (p *PitCsTree) InsertData(data *ndn.Data) {
 	index := p.hashCsName(data.Name())
 
+	staleTime := time.Now()
+	if data.MetaInfo() != nil && data.MetaInfo().FreshnessPeriod() != nil {
+		staleTime = staleTime.Add(*data.MetaInfo().FreshnessPeriod())
+	}
+
 	if entry, ok := p.csMap[index]; ok {
 		// Replace existing entry
 		entry.data = data
-
-		if data.MetaInfo() == nil || data.MetaInfo().FinalBlockID() == nil {
-			entry.staleTime = time.Now()
-		} else {
-			entry.staleTime = time.Now().Add(*data.MetaInfo().FreshnessPeriod())
-		}
+		entry.staleTime = staleTime
 
 		p.csReplacement.AfterRefresh(index, data)
 	} else {
 		// New entry
 		p.nCsEntries++
 		node := p.root.fillTreeToPrefix(data.Name())
-		node.csEntry = new(nameTreeCsEntry)
+		node.csEntry = &nameTreeCsEntry{
+			node: node,
+			baseCsEntry: baseCsEntry{
+				index:     index,
+				data:      data,
+				staleTime: staleTime,
+			},
+		}
 		node.csEntry.node = node
 		node.csEntry.index = index
 		node.csEntry.data = data
+
 		p.csMap[index] = node.csEntry
 		p.csReplacement.AfterInsert(index, data)
 
