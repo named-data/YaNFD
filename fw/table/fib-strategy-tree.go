@@ -105,6 +105,7 @@ func (f *fibStrategyTreeEntry) pruneIfEmpty() {
 // FindNextHops returns the longest-prefix matching nexthop(s) matching the specified name.
 func (f *FibStrategyTree) FindNextHops(name *ndn.Name) []*FibNextHopEntry {
 	f.fibStrategyRWMutex.RLock()
+	defer f.fibStrategyRWMutex.RUnlock()
 
 	// Find longest prefix matching entry
 	curNode := f.root.findLongestPrefixEntry(name)
@@ -115,20 +116,18 @@ func (f *FibStrategyTree) FindNextHops(name *ndn.Name) []*FibNextHopEntry {
 	for ; curNode != nil; curNode = curNode.parent {
 		if len(curNode.nexthops) > 0 {
 			nexthops = make([]*FibNextHopEntry, len(curNode.nexthops))
-			for i, nexthop := range curNode.nexthops {
-				nexthops[i] = nexthop
-			}
+			copy(nexthops, curNode.nexthops)
 			break
 		}
 	}
 
-	f.fibStrategyRWMutex.RUnlock()
 	return nexthops
 }
 
 // FindStrategy returns the longest-prefix matching strategy choice entry for the specified name.
 func (f *FibStrategyTree) FindStrategy(name *ndn.Name) *ndn.Name {
 	f.fibStrategyRWMutex.RLock()
+	defer f.fibStrategyRWMutex.RUnlock()
 
 	// Find longest prefix matching entry
 	curNode := f.root.findLongestPrefixEntry(name)
@@ -143,13 +142,14 @@ func (f *FibStrategyTree) FindStrategy(name *ndn.Name) *ndn.Name {
 		}
 	}
 
-	f.fibStrategyRWMutex.RUnlock()
 	return strategy
 }
 
 // InsertNextHop adds or updates a nexthop entry for the specified prefix.
 func (f *FibStrategyTree) InsertNextHop(name *ndn.Name, nexthop uint64, cost uint64) {
 	f.fibStrategyRWMutex.Lock()
+	defer f.fibStrategyRWMutex.Unlock()
+
 	entry := f.fillTreeToPrefix(name)
 	if entry.name == nil {
 		entry.name = name
@@ -157,7 +157,6 @@ func (f *FibStrategyTree) InsertNextHop(name *ndn.Name, nexthop uint64, cost uin
 	for _, existingNexthop := range entry.nexthops {
 		if existingNexthop.Nexthop == nexthop {
 			existingNexthop.Cost = cost
-			f.fibStrategyRWMutex.Unlock()
 			return
 		}
 	}
@@ -167,22 +166,26 @@ func (f *FibStrategyTree) InsertNextHop(name *ndn.Name, nexthop uint64, cost uin
 	newEntry.Cost = cost
 	entry.nexthops = append(entry.nexthops, newEntry)
 	f.fibPrefixes[name.String()] = entry
-	f.fibStrategyRWMutex.Unlock()
 }
 
 // ClearNextHops clears all nexthops for the specified prefix.
 func (f *FibStrategyTree) ClearNextHops(name *ndn.Name) {
 	f.fibStrategyRWMutex.Lock()
+	defer f.fibStrategyRWMutex.Unlock()
+
+	if name == nil {
+		return // In some wierd case, when RibEntry.updateNexthops() is called, the name becomes nil.
+	}
 	node := f.root.findExactMatchEntry(name)
 	if node != nil {
 		node.nexthops = make([]*FibNextHopEntry, 0)
 	}
-	f.fibStrategyRWMutex.Unlock()
 }
 
 // RemoveNextHop removes the specified nexthop entry from the specified prefix.
 func (f *FibStrategyTree) RemoveNextHop(name *ndn.Name, nexthop uint64) {
 	f.fibStrategyRWMutex.Lock()
+	defer f.fibStrategyRWMutex.Unlock()
 	entry := f.root.findExactMatchEntry(name)
 	if entry != nil {
 		for i, existingNexthop := range entry.nexthops {
@@ -199,12 +202,13 @@ func (f *FibStrategyTree) RemoveNextHop(name *ndn.Name, nexthop uint64) {
 		}
 		entry.pruneIfEmpty()
 	}
-	f.fibStrategyRWMutex.Unlock()
 }
 
 // GetAllFIBEntries returns all nexthop entries in the FIB.
 func (f *FibStrategyTree) GetAllFIBEntries() []FibStrategyEntry {
 	f.fibStrategyRWMutex.RLock()
+	defer f.fibStrategyRWMutex.RUnlock()
+
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
@@ -222,35 +226,36 @@ func (f *FibStrategyTree) GetAllFIBEntries() []FibStrategyEntry {
 			entries = append(entries, fsEntry)
 		}
 	}
-	f.fibStrategyRWMutex.RUnlock()
 	return entries
 }
 
 // SetStrategy sets the strategy for the specified prefix.
 func (f *FibStrategyTree) SetStrategy(name *ndn.Name, strategy *ndn.Name) {
 	f.fibStrategyRWMutex.Lock()
+	defer f.fibStrategyRWMutex.Unlock()
 	entry := f.fillTreeToPrefix(name)
 	if entry.name == nil {
 		entry.name = name
 	}
 	entry.strategy = strategy
-	f.fibStrategyRWMutex.Unlock()
 }
 
 // UnsetStrategy unsets the strategy for the specified prefix.
 func (f *FibStrategyTree) UnsetStrategy(name *ndn.Name) {
 	f.fibStrategyRWMutex.Lock()
+	defer f.fibStrategyRWMutex.Unlock()
 	entry := f.root.findExactMatchEntry(name)
 	if entry != nil {
 		entry.strategy = nil
 		entry.pruneIfEmpty()
 	}
-	f.fibStrategyRWMutex.Unlock()
 }
 
 // GetAllForwardingStrategies returns all strategy choice entries in the Strategy Table.
 func (f *FibStrategyTree) GetAllForwardingStrategies() []FibStrategyEntry {
 	f.fibStrategyRWMutex.RLock()
+	defer f.fibStrategyRWMutex.RUnlock()
+
 	entries := make([]FibStrategyEntry, 0)
 	// Walk tree in-order
 	queue := list.New()
@@ -268,6 +273,5 @@ func (f *FibStrategyTree) GetAllForwardingStrategies() []FibStrategyEntry {
 			entries = append(entries, fsEntry)
 		}
 	}
-	f.fibStrategyRWMutex.RUnlock()
 	return entries
 }
