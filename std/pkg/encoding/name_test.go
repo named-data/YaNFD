@@ -175,13 +175,13 @@ func TestComponentCompare(t *testing.T) {
 
 	for i := 0; i < len(comps); i++ {
 		for j := 0; j < len(comps); j++ {
-			require.Equal(t, i == j, comps[i].Equal(comps[j]))
+			require.Equal(t, i == j, comps[i].Equal(*comps[j]))
 			if i < j {
-				require.Equal(t, -1, comps[i].Compare(comps[j]))
+				require.Equal(t, -1, comps[i].Compare(*comps[j]))
 			} else if i == j {
-				require.Equal(t, 0, comps[i].Compare(comps[j]))
+				require.Equal(t, 0, comps[i].Compare(*comps[j]))
 			} else {
-				require.Equal(t, 1, comps[i].Compare(comps[j]))
+				require.Equal(t, 1, comps[i].Compare(*comps[j]))
 			}
 		}
 	}
@@ -291,18 +291,18 @@ func TestNameCompare(t *testing.T) {
 	}
 }
 
-func TestNameHasPrefix(t *testing.T) {
+func TestNameIsPrefix(t *testing.T) {
 	utils.SetTestingT(t)
 
 	testTrue := func(s1, s2 string) {
 		n1 := utils.WithoutErr(enc.NameFromStr(s1))
 		n2 := utils.WithoutErr(enc.NameFromStr(s2))
-		require.True(t, n1.HasPrefix(n2))
+		require.True(t, n1.IsPrefix(n2))
 	}
 	testFalse := func(s1, s2 string) {
 		n1 := utils.WithoutErr(enc.NameFromStr(s1))
 		n2 := utils.WithoutErr(enc.NameFromStr(s2))
-		require.False(t, n1.HasPrefix(n2))
+		require.False(t, n1.IsPrefix(n2))
 	}
 
 	testTrue("/", "/")

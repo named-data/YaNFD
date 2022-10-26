@@ -41,7 +41,8 @@ const (
 type InterestResult int
 
 const (
-	// Empty result
+	// Empty result. Not used by the engine.
+	// Used by high-level part if the setting to construct an Interest is incorrect.
 	InterestResultNone InterestResult = iota
 	// Data is fetched
 	InterestResultData
@@ -51,6 +52,8 @@ const (
 	InterestResultTimeout
 	// Cancelled due to disconnection
 	InterestCancelled
+	// Failed of validation. Not used by the engine itself.
+	InterestResultUnverified
 )
 
 // SigConfig represents the configuration of signature used in signing.

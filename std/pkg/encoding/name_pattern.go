@@ -153,7 +153,7 @@ func NameFromBytes(buf []byte) (Name, error) {
 
 func (n Name) Compare(rhs Name) int {
 	for i := 0; i < utils.Min(len(n), len(rhs)); i++ {
-		if ret := n[i].Compare(&rhs[i]); ret != 0 {
+		if ret := n[i].Compare(rhs[i]); ret != 0 {
 			return ret
 		}
 	}
@@ -188,7 +188,7 @@ func (n Name) Equal(rhs Name) bool {
 		return false
 	}
 	for i := 0; i < len(n); i++ {
-		if !n[i].Equal(&rhs[i]) {
+		if !n[i].Equal(rhs[i]) {
 			return false
 		}
 	}
@@ -207,19 +207,19 @@ func (n NamePattern) Equal(rhs NamePattern) bool {
 	return true
 }
 
-func (n Name) HasPrefix(rhs Name) bool {
+func (n Name) IsPrefix(rhs Name) bool {
 	if len(n) > len(rhs) {
 		return false
 	}
 	for i := 0; i < len(n); i++ {
-		if !n[i].Equal(&rhs[i]) {
+		if !n[i].Equal(rhs[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func (n NamePattern) HasPrefix(rhs NamePattern) bool {
+func (n NamePattern) IsPrefix(rhs NamePattern) bool {
 	if len(n) > len(rhs) {
 		return false
 	}

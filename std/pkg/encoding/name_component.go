@@ -244,6 +244,8 @@ type ComponentPattern interface {
 
 	Equal(ComponentPattern) bool
 
+	IsMatch(value Component) bool
+
 	Match(value Component, m Matching)
 
 	FromMatching(m Matching) (*Component, error)
@@ -401,7 +403,7 @@ func ComponentFromStr(s string) (*Component, error) {
 }
 
 func ComponentPatternFromStr(s string) (ComponentPattern, error) {
-	if len(s) <= 0 || s[0] == '<' {
+	if len(s) <= 0 || s[0] != '<' {
 		return ComponentFromStr(s)
 	}
 	if s[len(s)-1] != '>' {
@@ -452,7 +454,7 @@ func ComponentFromBytes(buf []byte) (*Component, error) {
 }
 
 func (c Component) Compare(rhs ComponentPattern) int {
-	rc, ok := rhs.(*Component)
+	rc, ok := rhs.(Component)
 	if !ok {
 		return -1
 	}
@@ -474,7 +476,7 @@ func (c Component) Compare(rhs ComponentPattern) int {
 }
 
 func (c Component) Equal(rhs ComponentPattern) bool {
-	rc, ok := rhs.(*Component)
+	rc, ok := rhs.(Component)
 	if !ok {
 		return false
 	}
@@ -485,7 +487,7 @@ func (c Component) Equal(rhs ComponentPattern) bool {
 }
 
 func (p Pattern) Compare(rhs ComponentPattern) int {
-	rp, ok := rhs.(*Pattern)
+	rp, ok := rhs.(Pattern)
 	if !ok {
 		return 1
 	}
@@ -500,7 +502,7 @@ func (p Pattern) Compare(rhs ComponentPattern) int {
 }
 
 func (p Pattern) Equal(rhs ComponentPattern) bool {
-	rp, ok := rhs.(*Pattern)
+	rp, ok := rhs.(Pattern)
 	if !ok {
 		return false
 	}
@@ -583,4 +585,12 @@ func (p Pattern) FromMatching(m Matching) (*Component, error) {
 		Typ: p.Typ,
 		Val: cVal,
 	}, nil
+}
+
+func (c Component) IsMatch(value Component) bool {
+	return c.Equal(value)
+}
+
+func (p Pattern) IsMatch(value Component) bool {
+	return p.Typ == value.Typ
 }

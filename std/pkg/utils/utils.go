@@ -28,6 +28,13 @@ func Min[T constraints.Ordered](a, b T) T {
 	return b
 }
 
+func Max[T constraints.Ordered](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func MakeTimestamp(t time.Time) uint64 {
 	return uint64(t.UnixNano() / int64(time.Millisecond))
 }
