@@ -142,3 +142,16 @@ func (n *NameTrie[V]) Parent() *NameTrie[V] {
 func NewNameTrie[V any]() *NameTrie[V] {
 	return newTrieNode[V]("", nil)
 }
+
+// FirstNodeIf returns the first node that satisfies given condition, in DFS order.
+func (n *NameTrie[V]) FirstNodeIf(pred func(V) bool) *NameTrie[V] {
+	if pred(n.val) {
+		return n
+	}
+	for _, c := range n.chd {
+		if ret := c.FirstNodeIf(pred); ret != nil {
+			return ret
+		}
+	}
+	return nil
+}

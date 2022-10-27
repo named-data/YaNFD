@@ -189,27 +189,6 @@ func (n *BaseNode) At(path enc.NamePattern) NTNode {
 }
 
 // PutNode sets a node/subtree at a given pattern path. The path does not include the attached prefix.
-// func (n *BaseNode) PutNode(path enc.NamePattern, nodeCons NodeConstructor) error {
-// 	if len(path) <= 0 {
-// 		return errors.New("schema node already exists")
-// 	}
-// 	for _, c := range n.Chd {
-// 		if c.UpEdge().Equal(path[0]) {
-// 			return c.PutNode(path[1:], nodeCons)
-// 		}
-// 	}
-// 	nxtChd := NTNode(nil)
-// 	if len(path) > 1 {
-// 		// In this case, node is not our direct child
-// 		nxtChd = NewBaseNode(n, path[0])
-// 	} else {
-// 		nxtChd = nodeCons(n, path[0])
-// 	}
-// 	n.Chd = append(n.Chd, nxtChd)
-// 	return nil
-// }
-
-// PutNode sets a node/subtree at a given pattern path. The path does not include the attached prefix.
 func (n *BaseNode) PutNode(path enc.NamePattern, node NTNode) error {
 	if len(path) <= 0 {
 		return errors.New("schema node already exists")
@@ -258,4 +237,8 @@ func (n *BaseNode) SetAttachedPrefix(prefix enc.Name) error {
 	} else {
 		return errors.New("only root nodes are attachable")
 	}
+}
+
+func (n *BaseNode) Children() []NTNode {
+	return n.Chd
 }

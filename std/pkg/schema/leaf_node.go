@@ -11,12 +11,13 @@ import (
 type LeafNode struct {
 	ExpressPoint
 
-	onSaveStorage *Event[*NodeSaveStorageEvent]
-
 	dataSigner  ndn.Signer
 	contentType ndn.ContentType
 	freshness   time.Duration
+	validDur    time.Duration
 }
+
+// TODO: make sure code handles when context or matching is nil
 
 func (n *LeafNode) Provide(
 	matching enc.Matching, name enc.Name, content enc.Wire, context Context,
@@ -39,6 +40,7 @@ func (n *LeafNode) Provide(
 		Freshness:    utils.IdPtr(n.freshness),
 		FinalBlockID: nil,
 	}
+	validDur := n.validDur
 	if ctxVal, ok := context[CkContentType]; ok {
 		if v, ok := ctxVal.(ndn.ContentType); ok {
 			dataCfg.ContentType = &v
@@ -54,6 +56,9 @@ func (n *LeafNode) Provide(
 			dataCfg.FinalBlockID = v
 		}
 	}
+	if v, ok := context[CkValidDuration].(time.Duration); ok {
+		validDur = v
+	}
 	wire, _, err := spec.MakeData(name, &dataCfg, content, signer)
 	if err != nil {
 		n.Log.Errorf("Unable to encode Data in Provide(): %+v", err)
@@ -62,8 +67,9 @@ func (n *LeafNode) Provide(
 
 	// Store data in the storage
 	context[CkEngine] = n.engine
+	deadline := n.engine.Timer().Now().Add(validDur)
 	for _, evt := range n.onSaveStorage.val {
-		(*evt)(matching, name, wire, context)
+		(*evt)(matching, name, wire, deadline, context)
 	}
 
 	// Return encoded data
@@ -82,6 +88,8 @@ func (n *LeafNode) Get(propName PropKey) any {
 		return n.freshness
 	case PropDataSigner:
 		return n.dataSigner
+	case PropValidDuration:
+		return n.validDur
 	}
 	return nil
 }
@@ -93,18 +101,19 @@ func (n *LeafNode) Set(propName PropKey, value any) error {
 	}
 	switch propName {
 	case PropContentType:
-		return propertySet(&n.contentType, propName, value)
+		return PropertySet(&n.contentType, propName, value)
 	case PropFreshness:
-		return propertySet(&n.freshness, propName, value)
+		return PropertySet(&n.freshness, propName, value)
 	case PropDataSigner:
-		return propertySet(&n.dataSigner, propName, value)
+		return PropertySet(&n.dataSigner, propName, value)
+	case PropValidDuration:
+		return PropertySet(&n.validDur, propName, value)
 	}
 	return ndn.ErrNotSupported{Item: string(propName)}
 }
 
 func (n *LeafNode) Init(parent NTNode, edge enc.ComponentPattern) {
 	n.ExpressPoint.Init(parent, edge)
-	n.onSaveStorage = NewEvent[*NodeSaveStorageEvent]()
 
 	n.dataSigner = nil
 	n.contentType = ndn.ContentTypeBlob

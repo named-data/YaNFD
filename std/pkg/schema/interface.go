@@ -15,6 +15,9 @@ type NTNode interface {
 	// Child of given edge
 	Child(edge enc.ComponentPattern) NTNode
 
+	// Children include all children of a node
+	Children() []NTNode
+
 	// Parent of this node
 	Parent() NTNode
 
@@ -59,8 +62,6 @@ type NTNode interface {
 	// Note: the correct sig of this func should be Put[T NTNode](path), but golang provents this.
 	PutNode(path enc.NamePattern, node NTNode) error
 
-	// PutNode(path enc.NamePattern, nodeCons NodeConstructor) error
-
 	// Init initializes a node with a specified parent and edge
 	Init(parent NTNode, edge enc.ComponentPattern)
 
@@ -72,4 +73,11 @@ type NTNode interface {
 	SetAttachedPrefix(enc.Name) error
 }
 
-type NodeConstructor = func(parent NTNode, edge enc.ComponentPattern) NTNode
+// NTPolicy represents a policy, which is a modifier that sets properties and registers events
+// during the initialization of a schema tree.
+// The execution order is: construct the tree -> apply policies & env setup -> attach to engine
+type NTPolicy interface {
+	PolicyTrait() NTPolicy
+
+	Apply(node NTNode) error
+}

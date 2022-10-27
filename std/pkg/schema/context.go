@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"time"
+
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
@@ -21,7 +23,6 @@ const (
 	CkNackReason      CtxKey = 8
 	CkLastValidResult CtxKey = 10
 	CkEngine          CtxKey = 20
-	CkCachedData      CtxKey = 30
 
 	// The following keys are used to overwrite nodes' properties once
 	// Not valid for incoming Interest or Data packets.
@@ -34,16 +35,19 @@ const (
 	CkContentType    CtxKey = 201
 	CkFreshness      CtxKey = 202
 	CkFinalBlockID   CtxKey = 203
+	CkSelfProduced   CtxKey = 204
+	CkValidDuration  CtxKey = 205
 )
 
 type ValidRes = int
 
 const (
-	VrFail    ValidRes = -2
-	VrTimeout ValidRes = -1
-	VrSilence ValidRes = 0
-	VrPass    ValidRes = 1
-	VrBypass  ValidRes = 2
+	VrFail       ValidRes = -2
+	VrTimeout    ValidRes = -1
+	VrSilence    ValidRes = 0
+	VrPass       ValidRes = 1
+	VrBypass     ValidRes = 2
+	VrCachedData ValidRes = 3
 )
 
 const (
@@ -53,6 +57,7 @@ const (
 	PropOnValidateInt   PropKey = "OnValidateInt"
 	PropOnValidateData  PropKey = "OnValidateData"
 	PropOnSearchStorage PropKey = "OnSearchStorage"
+	PropOnSaveStorage   PropKey = "OnSaveStorage"
 
 	PropCanBePrefix PropKey = "CanBePrefix"
 	PropMustBeFresh PropKey = "MustBeFresh"
@@ -60,9 +65,10 @@ const (
 	PropIntSigner   PropKey = "IntSigner"
 	PropSuppressInt PropKey = "SupressInt"
 
-	PropContentType PropKey = "ContentType"
-	PropFreshness   PropKey = "Freshness"
-	PropDataSigner  PropKey = "DataSigner"
+	PropContentType   PropKey = "ContentType"
+	PropFreshness     PropKey = "Freshness"
+	PropDataSigner    PropKey = "DataSigner"
+	PropValidDuration PropKey = "ValidDuration"
 )
 
 type NodeOnAttachEvent = func(enc.NamePattern, ndn.Engine) error
@@ -70,14 +76,14 @@ type NodeOnDetachEvent = func(ndn.Engine)
 type NodeOnIntEvent = func(enc.Matching, enc.Wire, ndn.ReplyFunc, Context) bool
 type NodeValidateEvent = func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, Context) ValidRes
 type NodeSearchStorageEvent = func(enc.Matching, enc.Name, Context) enc.Wire
-type NodeSaveStorageEvent = func(enc.Matching, enc.Name, enc.Wire, Context)
+type NodeSaveStorageEvent = func(enc.Matching, enc.Name, enc.Wire, time.Time, Context)
 
 // type NodePreSendDataEvent = func(enc.Matching, enc.Wire, Context)
 // type NodePreSendIntEvent = func(enc.Matching, enc.Wire, Context)
 // type NodePreRecvDataEvent = func(enc.Matching, enc.Wire, Context)
 // type NodePreRecvIntEvent = func(enc.Matching, enc.Wire, Context)
 
-func propertySet[T any](ptr *T, propName PropKey, value any) error {
+func PropertySet[T any](ptr *T, propName PropKey, value any) error {
 	if v, ok := value.(T); ok {
 		*ptr = v
 		return nil

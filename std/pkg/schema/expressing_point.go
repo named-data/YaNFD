@@ -15,6 +15,7 @@ type ExpressPoint struct {
 	onValidateInt   *Event[*NodeValidateEvent]
 	onValidateData  *Event[*NodeValidateEvent]
 	onSearchStorage *Event[*NodeSearchStorageEvent]
+	onSaveStorage   *Event[*NodeSaveStorageEvent]
 
 	intSigner   ndn.Signer
 	canBePrefix bool
@@ -33,12 +34,9 @@ type intResult struct {
 
 func (n *ExpressPoint) SearchCache(matching enc.Matching, name enc.Name, context Context) enc.Wire {
 	cachedData := enc.Wire(nil)
-	ok := true
-	context[CkCachedData] = cachedData
 	for _, evt := range n.onSearchStorage.val {
-		(*evt)(matching, name, context)
-		cachedData, ok = context[CkCachedData].(enc.Wire)
-		if ok && len(cachedData) > 0 {
+		cachedData = (*evt)(matching, name, context)
+		if len(cachedData) > 0 {
 			return cachedData
 		}
 	}
@@ -130,21 +128,31 @@ func (n *ExpressPoint) Need(
 
 	// If appParam is empty and not signed, the Interest name is final.
 	// Otherwise, we have to construct the Interest first before searching storage.
-	context[CkEngine] = n.engine
+	engine := n.engine
+	spec := engine.Spec()
+	timer := engine.Timer()
+	context[CkEngine] = engine
 	signer := n.intSigner
 	// storageSearched := false
 	if signer == nil && appParam == nil {
 		cachedData := n.SearchCache(matching, name, context)
 		if cachedData != nil {
-			return ndn.InterestResultData, cachedData
+			data, sigCovered, err := spec.ReadData(enc.NewWireReader(cachedData))
+			if err != nil {
+				context[CkName] = data.Name()
+				context[CkData] = data
+				context[CkRawPacket] = cachedData
+				context[CkSigCovered] = sigCovered
+				context[CkContent] = data.Content()
+				context[CkLastValidResult] = VrCachedData
+				return ndn.InterestResultData, data.Content()
+
+			}
 		}
 		// storageSearched = true
 	}
 
 	// Construst Interest
-	engine := n.engine
-	spec := engine.Spec()
-	timer := engine.Timer()
 	intCfg := ndn.InterestConfig{
 		CanBePrefix:    n.canBePrefix,
 		MustBeFresh:    n.mustBeFresh,
@@ -235,6 +243,7 @@ func (n *ExpressPoint) Need(
 	context[CkRawPacket] = intRet.rawData
 	context[CkSigCovered] = intRet.sigCovered
 	context[CkContent] = data.Content()
+	context[CkSelfProduced] = false
 
 	// Validate data
 	validRes := VrSilence
@@ -257,6 +266,15 @@ func (n *ExpressPoint) Need(
 		return ndn.InterestResultUnverified, nil
 	}
 
+	// Save (cache) the data in the storage
+	deadline := n.engine.Timer().Now()
+	if freshness := data.Freshness(); freshness != nil {
+		deadline = deadline.Add(*freshness)
+	}
+	for _, evt := range n.onSaveStorage.val {
+		(*evt)(matching, data.Name(), intRet.rawData, deadline, context)
+	}
+
 	// Return the result
 	return ndn.InterestResultData, data.Content()
 }
@@ -275,6 +293,8 @@ func (n *ExpressPoint) Get(propName PropKey) any {
 		return n.onValidateData
 	case PropOnSearchStorage:
 		return n.onSearchStorage
+	case PropOnSaveStorage:
+		return n.onSaveStorage
 	case PropCanBePrefix:
 		return n.canBePrefix
 	case PropMustBeFresh:
@@ -296,15 +316,15 @@ func (n *ExpressPoint) Set(propName PropKey, value any) error {
 	}
 	switch propName {
 	case PropCanBePrefix:
-		return propertySet(&n.canBePrefix, propName, value)
+		return PropertySet(&n.canBePrefix, propName, value)
 	case PropMustBeFresh:
-		return propertySet(&n.mustBeFresh, propName, value)
+		return PropertySet(&n.mustBeFresh, propName, value)
 	case PropLifetime:
-		return propertySet(&n.lifetime, propName, value)
+		return PropertySet(&n.lifetime, propName, value)
 	case PropIntSigner:
-		return propertySet(&n.intSigner, propName, value)
+		return PropertySet(&n.intSigner, propName, value)
 	case PropSuppressInt:
-		return propertySet(&n.supressInt, propName, value)
+		return PropertySet(&n.supressInt, propName, value)
 	}
 	return ndn.ErrNotSupported{Item: string(propName)}
 }
@@ -315,6 +335,7 @@ func (n *ExpressPoint) Init(parent NTNode, edge enc.ComponentPattern) {
 	n.onValidateInt = NewEvent[*NodeValidateEvent]()
 	n.onValidateData = NewEvent[*NodeValidateEvent]()
 	n.onSearchStorage = NewEvent[*NodeSearchStorageEvent]()
+	n.onSaveStorage = NewEvent[*NodeSaveStorageEvent]()
 
 	n.intSigner = nil
 	n.canBePrefix = false
