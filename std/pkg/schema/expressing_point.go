@@ -32,10 +32,12 @@ type intResult struct {
 	nackReason uint64
 }
 
-func (n *ExpressPoint) SearchCache(matching enc.Matching, name enc.Name, context Context) enc.Wire {
+func (n *ExpressPoint) SearchCache(
+	matching enc.Matching, name enc.Name, canBePrefix bool, mustBeFresh bool, context Context,
+) enc.Wire {
 	cachedData := enc.Wire(nil)
 	for _, evt := range n.onSearchStorage.val {
-		cachedData = (*evt)(matching, name, context)
+		cachedData = (*evt)(matching, name, canBePrefix, mustBeFresh, context)
 		if len(cachedData) > 0 {
 			return cachedData
 		}
@@ -61,7 +63,7 @@ func (n *ExpressPoint) OnInterest(
 	// Search storage
 	// Reply if there is data (including AppNack). No further callback will be called if hit.
 	// This is the same behavior as a forwarder.
-	cachedData := n.SearchCache(matching, interest.Name(), context)
+	cachedData := n.SearchCache(matching, interest.Name(), interest.CanBePrefix(), interest.MustBeFresh(), context)
 	if len(cachedData) > 0 {
 		err := reply(cachedData)
 		if err != nil {
@@ -134,11 +136,23 @@ func (n *ExpressPoint) Need(
 	context[CkEngine] = engine
 	signer := n.intSigner
 	// storageSearched := false
+	canBePrefix := n.canBePrefix
+	mustBeFresh := n.mustBeFresh
+	if ctxVal, ok := context[CkCanBePrefix]; ok {
+		if v, ok := ctxVal.(bool); ok {
+			canBePrefix = v
+		}
+	}
+	if ctxVal, ok := context[CkMustBeFresh]; ok {
+		if v, ok := ctxVal.(bool); ok {
+			mustBeFresh = v
+		}
+	}
 	if signer == nil && appParam == nil {
-		cachedData := n.SearchCache(matching, name, context)
+		cachedData := n.SearchCache(matching, name, canBePrefix, mustBeFresh, context)
 		if cachedData != nil {
 			data, sigCovered, err := spec.ReadData(enc.NewWireReader(cachedData))
-			if err != nil {
+			if err == nil {
 				context[CkName] = data.Name()
 				context[CkData] = data
 				context[CkRawPacket] = cachedData
@@ -146,7 +160,8 @@ func (n *ExpressPoint) Need(
 				context[CkContent] = data.Content()
 				context[CkLastValidResult] = VrCachedData
 				return ndn.InterestResultData, data.Content()
-
+			} else {
+				n.Log.WithField("name", name.String()).Error("The storage returned an invalid data")
 			}
 		}
 		// storageSearched = true
@@ -154,22 +169,12 @@ func (n *ExpressPoint) Need(
 
 	// Construst Interest
 	intCfg := ndn.InterestConfig{
-		CanBePrefix:    n.canBePrefix,
-		MustBeFresh:    n.mustBeFresh,
+		CanBePrefix:    canBePrefix,
+		MustBeFresh:    mustBeFresh,
 		Lifetime:       utils.IdPtr(n.lifetime),
 		Nonce:          utils.ConvertNonce(timer.Nonce()),
 		HopLimit:       nil,
 		ForwardingHint: nil,
-	}
-	if ctxVal, ok := context[CkCanBePrefix]; ok {
-		if v, ok := ctxVal.(bool); ok {
-			intCfg.CanBePrefix = v
-		}
-	}
-	if ctxVal, ok := context[CkMustBeFresh]; ok {
-		if v, ok := ctxVal.(bool); ok {
-			intCfg.MustBeFresh = v
-		}
 	}
 	if ctxVal, ok := context[CkLifetime]; ok {
 		if v, ok := ctxVal.(time.Duration); ok {
@@ -193,7 +198,7 @@ func (n *ExpressPoint) Need(
 	}
 	wire, _, finalName, err := spec.MakeInterest(name, &intCfg, appParam, signer)
 	if err != nil {
-		n.Log.Errorf("Unable to encode Interest in Need(): %+v", err)
+		n.Log.WithField("name", name.String()).Errorf("Unable to encode Interest in Need(): %+v", err)
 		return ndn.InterestResultNone, nil
 	}
 
@@ -202,6 +207,9 @@ func (n *ExpressPoint) Need(
 	// 	// Since it is not useful generally, skip for now.
 	// }
 	if n.supressInt {
+		return ndn.InterestResultNack, nil
+	}
+	if supress, ok := context[CkSupressInt].(bool); ok && supress {
 		return ndn.InterestResultNack, nil
 	}
 
@@ -338,7 +346,7 @@ func (n *ExpressPoint) Init(parent NTNode, edge enc.ComponentPattern) {
 	n.onSaveStorage = NewEvent[*NodeSaveStorageEvent]()
 
 	n.intSigner = nil
-	n.canBePrefix = false
+	n.canBePrefix = false // TODO: Set this based on the children
 	n.mustBeFresh = true
 	n.lifetime = 4 * time.Second
 	n.supressInt = false

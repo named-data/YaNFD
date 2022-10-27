@@ -32,6 +32,14 @@ func (w Wire) Join() []byte {
 	return b
 }
 
+func (w Wire) Length() uint64 {
+	ret := uint64(0)
+	for _, v := range w {
+		ret += uint64(len(v))
+	}
+	return ret
+}
+
 type ErrFormat struct {
 	Msg string
 }

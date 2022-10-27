@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
+	"strconv"
 	"time"
 
 	"github.com/apex/log"
@@ -13,7 +12,6 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 var app *basic_engine.Engine
@@ -27,11 +25,21 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 	logger := log.WithField("module", "main")
 
+	if len(os.Args) < 2 {
+		logger.Fatal("Insufficient argument")
+		return
+	}
+	ver, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		logger.Fatal("Invalid argument")
+		return
+	}
+
 	// Setup schema tree
 	tree = &schema.Tree{}
 	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
 	node := &schema.LeafNode{}
-	err := tree.PutNode(path, node)
+	err = tree.PutNode(path, node)
 	if err != nil {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
 		return
@@ -45,11 +53,19 @@ func main() {
 	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
 		return schema.VrPass
 	}
-	schema.AddEventListener(node, schema.PropOnValidateData, passAllChecker)
+	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
+	path, _ = enc.NamePatternFromStr("/contentKey")
+	ckNode := &schema.ContentKeyNode{}
+	err = tree.PutNode(path, ckNode)
+	if err != nil {
+		logger.Fatalf("Unable to construst the schema tree: %+v", err)
+		return
+	}
 
 	// Setup policies
-	schema.NewMemStoragePolicy().Apply(node)
-	schema.NewRegisterPolicy().Apply(tree.Root)
+	memStorage := schema.NewMemStoragePolicy()
+	memStorage.Apply(node)
+	memStorage.Apply(ckNode)
 
 	// Start engine
 	timer := basic_engine.NewTimer()
@@ -71,17 +87,23 @@ func main() {
 	}
 	defer tree.Detach()
 
-	// Produce data
-	ver := utils.MakeTimestamp(timer.Now())
-	node.Provide(enc.Matching{
-		"time": ver,
-	}, nil, enc.Wire{[]byte("Hello, world!")}, schema.Context{})
-	fmt.Printf("Generated packet with version= %d\n", ver)
-
-	// Wait for keyboard quit signal
-	sigChannel := make(chan os.Signal, 1)
-	fmt.Print("Start serving ...\n")
-	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
-	receivedSig := <-sigChannel
-	logger.Infof("Received signal %+v - exiting\n", receivedSig)
+	// Fetch the data
+	context := schema.Context{}
+	matching := enc.Matching{"time": uint64(ver)}
+	result, content := node.Need(matching, nil, nil, context)
+	switch result {
+	case ndn.InterestResultNack:
+		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
+	case ndn.InterestResultTimeout:
+		fmt.Printf("Timeout\n")
+	case ndn.InterestCancelled:
+		fmt.Printf("Canceled\n")
+	case ndn.InterestResultData:
+		plainText, err := ckNode.Decrypt(matching, content)
+		if err != nil {
+			logger.Fatalf("Unable to encrypt data: %+v", err)
+			return
+		}
+		fmt.Printf("Received Data: %+v\n", plainText.Join())
+	}
 }

@@ -1,3 +1,4 @@
+// Basic policies for test and demo use
 package schema
 
 import (
@@ -7,7 +8,6 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 type RegisterPolicy struct{}
@@ -29,16 +29,7 @@ func (*RegisterPolicy) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 }
 
 func (p *RegisterPolicy) Apply(node NTNode) error {
-	prop := node.Get(PropOnAttach)
-	if prop == nil {
-		return errors.New("policy Register: specified node does not have OnAttach event")
-	}
-	evt, ok := prop.(*Event[*NodeOnAttachEvent])
-	if !ok || evt == nil {
-		return errors.New("policy Register: specified node does not have OnAttach event")
-	}
-	evt.Add(utils.IdPtr(p.onAttach))
-	return nil
+	return AddEventListener(node, PropOnAttach, p.onAttach)
 }
 
 func NewRegisterPolicy() NTPolicy {
@@ -114,12 +105,10 @@ func (p *MemStoragePolicy) onAttach(path enc.NamePattern, engine ndn.Engine) err
 	return nil
 }
 
-func (p *MemStoragePolicy) onSearch(matching enc.Matching, name enc.Name, context Context) enc.Wire {
-	interest, ok := context[CkInterest].(ndn.Interest)
-	if !ok || interest == nil {
-		return nil
-	}
-	return p.Get(name, interest.CanBePrefix(), interest.MustBeFresh())
+func (p *MemStoragePolicy) onSearch(
+	matching enc.Matching, name enc.Name, canBePrefix bool, mustBeFresh bool, context Context,
+) enc.Wire {
+	return p.Get(name, canBePrefix, mustBeFresh)
 }
 
 func (p *MemStoragePolicy) onSave(
@@ -129,18 +118,9 @@ func (p *MemStoragePolicy) onSave(
 }
 
 func (p *MemStoragePolicy) Apply(node NTNode) error {
-	attachEvt, ok := node.Get(PropOnAttach).(*Event[*NodeOnAttachEvent])
-	if ok && attachEvt != nil {
-		attachEvt.Add(utils.IdPtr(p.onAttach))
-	}
-	searchEvt, ok := node.Get(PropOnSearchStorage).(*Event[*NodeSearchStorageEvent])
-	if ok && searchEvt != nil {
-		searchEvt.Add(utils.IdPtr(p.onSearch))
-	}
-	saveEvt, ok := node.Get(PropOnSaveStorage).(*Event[*NodeSaveStorageEvent])
-	if ok && searchEvt != nil {
-		saveEvt.Add(utils.IdPtr(p.onSave))
-	}
+	AddEventListener(node, PropOnAttach, p.onAttach)
+	AddEventListener(node, PropOnSearchStorage, p.onSearch)
+	AddEventListener(node, PropOnSaveStorage, p.onSave)
 	chd := node.Children()
 	for _, c := range chd {
 		p.Apply(c)

@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"fmt"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -32,6 +33,7 @@ const (
 	CkNonce          CtxKey = 104
 	CkLifetime       CtxKey = 105
 	CkHopLimit       CtxKey = 106
+	CkSupressInt     CtxKey = 107
 	CkContentType    CtxKey = 201
 	CkFreshness      CtxKey = 202
 	CkFinalBlockID   CtxKey = 203
@@ -75,7 +77,7 @@ type NodeOnAttachEvent = func(enc.NamePattern, ndn.Engine) error
 type NodeOnDetachEvent = func(ndn.Engine)
 type NodeOnIntEvent = func(enc.Matching, enc.Wire, ndn.ReplyFunc, Context) bool
 type NodeValidateEvent = func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, Context) ValidRes
-type NodeSearchStorageEvent = func(enc.Matching, enc.Name, Context) enc.Wire
+type NodeSearchStorageEvent = func(enc.Matching, enc.Name, bool, bool, Context) enc.Wire
 type NodeSaveStorageEvent = func(enc.Matching, enc.Name, enc.Wire, time.Time, Context)
 
 // type NodePreSendDataEvent = func(enc.Matching, enc.Wire, Context)
@@ -90,6 +92,15 @@ func PropertySet[T any](ptr *T, propName PropKey, value any) error {
 	} else {
 		return ndn.ErrInvalidValue{Item: string(propName), Value: value}
 	}
+}
+
+func AddEventListener[T any](node NTNode, propName PropKey, callback T) error {
+	evt, ok := node.Get(propName).(*Event[*T])
+	if !ok || evt == nil {
+		return fmt.Errorf("invalid event: %s", propName)
+	}
+	evt.Add(&callback)
+	return nil
 }
 
 // func New[T NTNode](parent NTNode, edge enc.ComponentPattern) NTNode {

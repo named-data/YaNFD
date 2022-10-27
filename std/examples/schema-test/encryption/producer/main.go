@@ -45,10 +45,19 @@ func main() {
 	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
 		return schema.VrPass
 	}
-	schema.AddEventListener(node, schema.PropOnValidateData, passAllChecker)
+	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
+	path, _ = enc.NamePatternFromStr("/contentKey")
+	ckNode := &schema.ContentKeyNode{}
+	err = tree.PutNode(path, ckNode)
+	if err != nil {
+		logger.Fatalf("Unable to construst the schema tree: %+v", err)
+		return
+	}
 
 	// Setup policies
-	schema.NewMemStoragePolicy().Apply(node)
+	memStorage := schema.NewMemStoragePolicy()
+	memStorage.Apply(node)
+	memStorage.Apply(ckNode)
 	schema.NewRegisterPolicy().Apply(tree.Root)
 
 	// Start engine
@@ -73,9 +82,15 @@ func main() {
 
 	// Produce data
 	ver := utils.MakeTimestamp(timer.Now())
+	ckid := ckNode.GenKey(enc.Matching{})
+	cipherText, err := ckNode.Encrypt(enc.Matching{}, ckid, enc.Wire{[]byte("Hello, world!")})
+	if err != nil {
+		logger.Fatalf("Unable to encrypt data: %+v", err)
+		return
+	}
 	node.Provide(enc.Matching{
 		"time": ver,
-	}, nil, enc.Wire{[]byte("Hello, world!")}, schema.Context{})
+	}, nil, cipherText, schema.Context{})
 	fmt.Printf("Generated packet with version= %d\n", ver)
 
 	// Wait for keyboard quit signal
