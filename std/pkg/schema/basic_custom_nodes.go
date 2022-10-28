@@ -1,4 +1,4 @@
-// Basic custom nodes for test and demo use
+// Basic custom nodes for test and demo use. Not secure for production.
 package schema
 
 import (

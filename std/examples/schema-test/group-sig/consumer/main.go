@@ -27,7 +27,7 @@ func main() {
 	logger := log.WithField("module", "main")
 
 	if len(os.Args) < 2 {
-		logger.Fatal("Insufficient argument")
+		logger.Fatal("Insufficient argument. Please input the version number given by the producer.")
 		return
 	}
 	ver, err := strconv.Atoi(os.Args[1])

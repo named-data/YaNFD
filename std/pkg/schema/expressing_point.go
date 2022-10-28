@@ -8,6 +8,11 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
+// ExpressPoint is an expressing point where an Interest is supposed to be expressed.
+// For example, for an RDR protocol w/ metadata name being /prefix/<filename>/32=metadata/<v=version>,
+// The node at "/prefix/<filename>/32=metadata" is an ExpressPoint,
+// as the consumer will express an Interest of this name with CanBePrefix.
+// The node at "/prefix/<filename>/32=metadata/<v=version>" is a LeafNode.
 type ExpressPoint struct {
 	BaseNode
 
@@ -116,6 +121,7 @@ func (n *ExpressPoint) OnInterest(
 }
 
 // Need is the function to obtain the corresponding Data. May express an Interest if the Data is not stored.
+// Name is constructed from matching if nil. If given, name must agree with matching.
 // TODO:
 // 1. Need we make it non-blocking and return future/channel?
 // 2. Need we use a different type than ndn.InterestResult?
@@ -255,7 +261,6 @@ func (n *ExpressPoint) Need(
 	context[CkRawPacket] = intRet.rawData
 	context[CkSigCovered] = intRet.sigCovered
 	context[CkContent] = data.Content()
-	context[CkSelfProduced] = false
 
 	// Validate data
 	validRes := VrSilence

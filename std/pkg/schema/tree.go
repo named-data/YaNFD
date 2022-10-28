@@ -9,6 +9,9 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
+// Tree represents an NTSchema tree.
+// It is supposed to be a static knowledge and shared by all parties in the system at compile time.
+// The execution order: construct the tree -> apply policies & env setup -> attach to engine
 type Tree struct {
 	Root NTNode
 

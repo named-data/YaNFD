@@ -7,7 +7,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
-// NTNode represents a subtree of NTSchema.
+// NTNode represents a node (subtree) of NTSchema.
 type NTNode interface {
 	// NodeTrait is the type trait of NTNode
 	NodeTrait() NTNode
@@ -75,9 +75,15 @@ type NTNode interface {
 
 // NTPolicy represents a policy, which is a modifier that sets properties and registers events
 // during the initialization of a schema tree.
-// The execution order is: construct the tree -> apply policies & env setup -> attach to engine
+// The execution order is: construct the tree -> apply policies & env setup -> attach to engine (see Tree)
+// Though policies are also considered as static knowledge (at compile time),
+// they may be configured differently on different nodes.
+// For example, an storage may access different folders for different instances.
+// TODO: Design for this configuration under different environments.
 type NTPolicy interface {
+	// PolicyTrait is the type trait of NTPolicy
 	PolicyTrait() NTPolicy
 
+	// Apply the policy at a node (subtree). May modify the children of the given node.
 	Apply(node NTNode) error
 }

@@ -1,4 +1,4 @@
-// Basic policies for test and demo use
+// Basic policies for test and demo use. Not secure for production.
 package schema
 
 import (

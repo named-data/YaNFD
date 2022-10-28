@@ -9,6 +9,10 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
+// BaseNode is the base class of NTSchema nodes.
+// TODO: Inheritance from BaseNode is really a bad model of this thing
+// but I cannot come up with a better one in limited time.
+// If possible, a mixin programming model may be better.
 type BaseNode struct {
 	Self NTNode
 	Chd  []NTNode
@@ -25,10 +29,6 @@ type BaseNode struct {
 	onAttachEvt *Event[*NodeOnAttachEvent]
 	onDetachEvt *Event[*NodeOnDetachEvent]
 }
-
-// Note: Inheritance from BaseNode is really a bad model of this thing
-// but I cannot come up with a better one in limited time.
-// If possible, a mixin programming model may be better.
 
 // NodeTrait is the type trait of NTNode
 func (n *BaseNode) NodeTrait() NTNode {
@@ -211,6 +211,7 @@ func (n *BaseNode) PutNode(path enc.NamePattern, node NTNode) error {
 	return nil
 }
 
+// Init the node
 func (n *BaseNode) Init(parent NTNode, edge enc.ComponentPattern) {
 	*n = BaseNode{
 		dep:            0,
@@ -226,10 +227,12 @@ func (n *BaseNode) Init(parent NTNode, edge enc.ComponentPattern) {
 	}
 }
 
+// AttachedPrefix of the root node. Must be nil for all other nodes and before Attach.
 func (n *BaseNode) AttachedPrefix() enc.Name {
 	return n.attachedPrefix
 }
 
+// SetAttachedPrefix sets the attached prefix of the root node.
 func (n *BaseNode) SetAttachedPrefix(prefix enc.Name) error {
 	if n.par == nil {
 		n.attachedPrefix = prefix
@@ -239,6 +242,7 @@ func (n *BaseNode) SetAttachedPrefix(prefix enc.Name) error {
 	}
 }
 
+// Children return the publicly visible children nodes of the node.
 func (n *BaseNode) Children() []NTNode {
 	return n.Chd
 }

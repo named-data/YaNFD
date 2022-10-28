@@ -1,5 +1,7 @@
 package schema
 
+// Event is a chain of callback functions for an event.
+// The execution order is supposed to be the addition order.
 type Event[T comparable] struct {
 	val []T
 }

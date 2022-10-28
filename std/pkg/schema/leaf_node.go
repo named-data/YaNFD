@@ -8,6 +8,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
+// LeafNode is a leaf of the NTSchema tree, a point where Data packets can be named.
 type LeafNode struct {
 	ExpressPoint
 
@@ -17,8 +18,9 @@ type LeafNode struct {
 	validDur    time.Duration
 }
 
-// TODO: make sure code handles when context or matching is nil
-
+// Provide a Data packet with given name and content.
+// Name is constructed from matching if nil. If given, name must agree with matching.
+// TODO: make sure code handles when context or matching is nil.
 func (n *LeafNode) Provide(
 	matching enc.Matching, name enc.Name, content enc.Wire, context Context,
 ) enc.Wire {
@@ -52,8 +54,8 @@ func (n *LeafNode) Provide(
 		}
 	}
 	if ctxVal, ok := context[CkFinalBlockID]; ok {
-		if v, ok := ctxVal.(*enc.Component); ok {
-			dataCfg.FinalBlockID = v
+		if v, ok := ctxVal.(enc.Component); ok {
+			dataCfg.FinalBlockID = &v
 		}
 	}
 	if v, ok := context[CkValidDuration].(time.Duration); ok {
