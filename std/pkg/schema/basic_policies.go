@@ -2,6 +2,8 @@
 package schema
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"errors"
 	"time"
 
@@ -131,5 +133,72 @@ func (p *MemStoragePolicy) Apply(node NTNode) error {
 func NewMemStoragePolicy() NTPolicy {
 	return &MemStoragePolicy{
 		tree: basic_engine.NewNameTrie[CacheEntry](),
+	}
+}
+
+// FixedKeySigner is a demo policy that signs data using provided HMAC key.
+type FixedKeySigner struct {
+	key []byte
+}
+
+func (p *FixedKeySigner) PolicyTrait() NTPolicy {
+	return p
+}
+
+func (*FixedKeySigner) SigInfo() (*ndn.SigConfig, error) {
+	return &ndn.SigConfig{
+		Type:    ndn.SignatureHmacWithSha256,
+		KeyName: nil,
+	}, nil
+}
+
+func (*FixedKeySigner) EstimateSize() uint {
+	return 32
+}
+
+func (p *FixedKeySigner) ComputeSigValue(covered enc.Wire) ([]byte, error) {
+	mac := hmac.New(sha256.New, p.key)
+	for _, buf := range covered {
+		_, err := mac.Write(buf)
+		if err != nil {
+			return nil, enc.ErrUnexpected{Err: err}
+		}
+	}
+	return mac.Sum(nil), nil
+}
+
+func (p *FixedKeySigner) onValidateData(
+	_ enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, _ Context,
+) ValidRes {
+	if sig.SigType() != ndn.SignatureHmacWithSha256 {
+		return VrFail
+	}
+	mac := hmac.New(sha256.New, p.key)
+	for _, buf := range covered {
+		_, err := mac.Write(buf)
+		if err != nil {
+			return VrFail
+		}
+	}
+	if hmac.Equal(mac.Sum(nil), sig.SigValue()) {
+		return VrPass
+	} else {
+		return VrFail
+	}
+}
+
+func (p *FixedKeySigner) Apply(node NTNode) error {
+	AddEventListener(node, PropOnValidateData, p.onValidateData)
+	node.Set(PropDataSigner, ndn.Signer(p))
+	chd := node.Children()
+	for _, c := range chd {
+		p.Apply(c)
+	}
+	return nil
+}
+
+func NewFixedKeySigner(key []byte) NTPolicy {
+	return &FixedKeySigner{
+		key: key,
 	}
 }

@@ -116,6 +116,10 @@ func (n *ExpressPoint) OnInterest(
 }
 
 // Need is the function to obtain the corresponding Data. May express an Interest if the Data is not stored.
+// TODO:
+// 1. Need we make it non-blocking and return future/channel?
+// 2. Need we use a different type than ndn.InterestResult?
+// 3. Need we use []byte instead of enc.Wire, given that the performance is not a big consideration here?
 func (n *ExpressPoint) Need(
 	matching enc.Matching, name enc.Name, appParam enc.Wire, context Context,
 ) (ndn.InterestResult, enc.Wire) {

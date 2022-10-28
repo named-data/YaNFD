@@ -102,9 +102,3 @@ func AddEventListener[T any](node NTNode, propName PropKey, callback T) error {
 	evt.Add(&callback)
 	return nil
 }
-
-// func New[T NTNode](parent NTNode, edge enc.ComponentPattern) NTNode {
-// 	ret := NTNode(new(T))
-// 	ret.Init(parent, edge)
-// 	return ret
-// }

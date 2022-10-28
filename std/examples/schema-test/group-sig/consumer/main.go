@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -13,6 +12,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
+
+const HmacKey = "Hello, World!"
 
 var app *basic_engine.Engine
 var tree *schema.Tree
@@ -34,38 +35,20 @@ func main() {
 		logger.Fatal("Invalid argument")
 		return
 	}
-
 	// Setup schema tree
 	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
-	node := &schema.LeafNode{}
+	path, _ := enc.NamePatternFromStr("/lorem/<v=time>")
+	node := &schema.GroupSigNode{}
 	err = tree.PutNode(path, node)
 	if err != nil {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
 		return
 	}
-	node.Set(schema.PropCanBePrefix, false)
-	node.Set(schema.PropMustBeFresh, true)
-	node.Set(schema.PropLifetime, 6*time.Second)
-	node.Set(schema.PropFreshness, 1*time.Second)
-	node.Set(schema.PropValidDuration, 876000*time.Hour)
-	node.Set(schema.PropDataSigner, sec.NewSha256Signer())
-	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
-		return schema.VrPass
-	}
-	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
-	path, _ = enc.NamePatternFromStr("/contentKey")
-	ckNode := &schema.ContentKeyNode{}
-	err = tree.PutNode(path, ckNode)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
+	node.Set("Threshold", 80)
 
 	// Setup policies
-	memStorage := schema.NewMemStoragePolicy()
-	memStorage.Apply(node)
-	memStorage.Apply(ckNode)
+	schema.NewFixedKeySigner([]byte(HmacKey)).Apply(node) // Only affect the metadata node
+	schema.NewMemStoragePolicy().Apply(node)
 
 	// Start engine
 	timer := basic_engine.NewTimer()
@@ -79,7 +62,7 @@ func main() {
 	defer app.Shutdown()
 
 	// Attach schema
-	prefix, _ := enc.NameFromStr("/example/schema/encryptionApp")
+	prefix, _ := enc.NameFromStr("/example/schema/groupSigApp")
 	err = tree.Attach(prefix, app)
 	if err != nil {
 		logger.Fatalf("Unable to attach the schema to the engine: %+v", err)
@@ -89,9 +72,12 @@ func main() {
 
 	// Fetch the data
 	context := schema.Context{}
-	matching := enc.Matching{"time": uint64(ver)}
-	result, content := node.Need(matching, nil, nil, context)
+	result, content := node.Need(enc.Matching{
+		"time": uint64(ver),
+	}, context)
 	switch result {
+	case ndn.InterestResultNone:
+		fmt.Printf("Fetching failed. Please see log for detailed reason.\n")
 	case ndn.InterestResultNack:
 		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
 	case ndn.InterestResultTimeout:
@@ -99,11 +85,7 @@ func main() {
 	case ndn.InterestCancelled:
 		fmt.Printf("Canceled\n")
 	case ndn.InterestResultData:
-		plainText, err := ckNode.Decrypt(matching, content)
-		if err != nil {
-			logger.Fatalf("Unable to encrypt data: %+v", err)
-			return
-		}
-		fmt.Printf("Received Data: %+v\n", plainText.Join())
+		fmt.Printf("Received Data: \n")
+		fmt.Printf("%s", string(content.Join()))
 	}
 }
