@@ -157,6 +157,10 @@ func (t *MulticastUDPTransport) runReceive() {
 		if readSize > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 		}
+		if readSize <= 0 {
+			core.LogInfo(t, "Socket close.")
+			continue
+		}
 
 		// Determine whether valid packet received
 		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
