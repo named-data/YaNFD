@@ -13,10 +13,24 @@ import (
 // TODO: Inheritance from BaseNode is really a bad model of this thing
 // but I cannot come up with a better one in limited time.
 // If possible, a mixin programming model may be better.
+// TODO: (updated) a better choice may be separate the tree node (that handles Child, Parent, etc.)
+// and the polymorphic functional part (than handles Get, Set, Events, etc.)
+// For WASM use in the future, we may need a list of properties.
+// Also, add ENV for Init.
 type BaseNode struct {
+	// Self is the pointer pointing to Self.
+	// Note: This is needed since golang does not have true OO.
+	// For example, if NodeA inherits BaseNode and calls a BaseNode function,
+	// then the BaseNode function has to access NodeA via this Self pointer.
 	Self NTNode
-	Chd  []NTNode
-	Log  *log.Entry
+
+	// Chd holds all children.
+	// Since a schema tree typically only has <10 branches, an array should not hurt performance.
+	// Change when there found evidences showing this is the bottleneck.
+	Chd []NTNode
+
+	// Log is the logger
+	Log *log.Entry
 
 	dep  uint
 	par  NTNode
@@ -245,4 +259,8 @@ func (n *BaseNode) SetAttachedPrefix(prefix enc.Name) error {
 // Children return the publicly visible children nodes of the node.
 func (n *BaseNode) Children() []NTNode {
 	return n.Chd
+}
+
+func (n *BaseNode) Engine() ndn.Engine {
+	return n.engine
 }

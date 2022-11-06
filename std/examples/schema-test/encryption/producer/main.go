@@ -12,6 +12,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -47,7 +48,7 @@ func main() {
 	}
 	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
 	path, _ = enc.NamePatternFromStr("/contentKey")
-	ckNode := &schema.ContentKeyNode{}
+	ckNode := &demo.ContentKeyNode{}
 	err = tree.PutNode(path, ckNode)
 	if err != nil {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
@@ -55,10 +56,10 @@ func main() {
 	}
 
 	// Setup policies
-	memStorage := schema.NewMemStoragePolicy()
+	memStorage := demo.NewMemStoragePolicy()
 	memStorage.Apply(node)
 	memStorage.Apply(ckNode)
-	schema.NewRegisterPolicy().Apply(tree.Root)
+	demo.NewRegisterPolicy().Apply(tree.Root)
 
 	// Start engine
 	timer := basic_engine.NewTimer()

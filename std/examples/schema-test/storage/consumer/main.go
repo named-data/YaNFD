@@ -11,6 +11,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
@@ -56,7 +57,7 @@ func main() {
 	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
 
 	// Setup policies
-	schema.NewMemStoragePolicy().Apply(node)
+	demo.NewMemStoragePolicy().Apply(node)
 
 	// Start engine
 	timer := basic_engine.NewTimer()

@@ -80,6 +80,7 @@ func (n *ExpressPoint) OnInterest(
 	go func() {
 		// Validate Interest
 		// Only done when there is a signature.
+		// TODO: Validate Sha256 in name
 		if interest.Signature().SigType() != ndn.SignatureNone || interest.AppParam() != nil {
 			validRes := VrSilence
 			context[CkLastValidResult] = validRes

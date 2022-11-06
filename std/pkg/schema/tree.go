@@ -59,13 +59,24 @@ func (t *Tree) intHandler(
 	reply ndn.ReplyFunc, deadline time.Time,
 ) {
 	matchName := interest.Name()
-	if matchName[len(matchName)-1].Typ == enc.TypeParametersSha256DigestComponent {
+	extraComp := enc.Component{}
+	if matchName[len(matchName)-1].Typ == enc.TypeParametersSha256DigestComponent ||
+		matchName[len(matchName)-1].Typ == enc.TypeImplicitSha256DigestComponent {
+		extraComp = matchName[len(matchName)-1]
 		matchName = matchName[:len(matchName)-1]
 	}
 	node, matching := t.Root.Match(matchName)
 	if node == nil {
 		log.WithField("module", "schema").WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 		return
+	}
+	if extraComp.Typ != enc.TypeInvalidComponent {
+		switch extraComp.Typ {
+		case enc.TypeParametersSha256DigestComponent:
+			matching["params-sha256"] = extraComp.Val
+		case enc.TypeImplicitSha256DigestComponent:
+			matching["sha256digest"] = extraComp.Val
+		}
 	}
 	node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
 }

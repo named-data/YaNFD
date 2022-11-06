@@ -416,7 +416,7 @@ func (_ Spec) MakeInterest(
 			}
 			if sigConfig.Type != ndn.SignatureDigestSha256 {
 				if sigConfig.KeyName == nil {
-					return nil, nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.KeyLocator", Value: nil}
+					return nil, nil, nil, ndn.ErrInvalidValue{Item: "Interest.SignatureInfo.KeyLocator", Value: nil}
 				}
 				interest.SignatureInfo = &SignatureInfo{
 					SignatureType:   uint64(sigConfig.Type),

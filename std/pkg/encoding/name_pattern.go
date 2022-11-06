@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"crypto/sha256"
 	"io"
 	"strings"
 
@@ -247,4 +248,20 @@ func (n NamePattern) FromMatching(m Matching) (Name, error) {
 		ret[i] = *comp
 	}
 	return ret, nil
+}
+
+func (n Name) ToFullName(rawData Wire) Name {
+	if n[len(n)-1].Typ == TypeImplicitSha256DigestComponent {
+		return n
+	}
+	h := sha256.New()
+	for _, buf := range rawData {
+		h.Write(buf)
+	}
+	digest := h.Sum(nil)
+	ret := append(n, Component{
+		Typ: TypeImplicitSha256DigestComponent,
+		Val: digest,
+	})
+	return ret
 }

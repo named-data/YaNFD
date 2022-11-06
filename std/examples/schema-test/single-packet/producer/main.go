@@ -12,6 +12,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -66,11 +67,11 @@ func main() {
 	node.Set(schema.PropCanBePrefix, false)
 	node.Set(schema.PropMustBeFresh, true)
 	node.Set(schema.PropLifetime, 6*time.Second)
-	node.Get(schema.PropOnInterest).(*schema.Event[*schema.NodeOnIntEvent]).Add(utils.IdPtr(onInterest))
+	schema.AddEventListener(node, schema.PropOnInterest, onInterest)
 
 	// Setup policies
 	// The prefix registered is at the root
-	schema.NewRegisterPolicy().Apply(tree.Root)
+	demo.NewRegisterPolicy().Apply(tree.Root)
 
 	// Start engine
 	timer := basic_engine.NewTimer()

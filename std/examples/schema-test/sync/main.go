@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -13,15 +15,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-const LoremIpsum = `
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
-aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
-occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-`
 const HmacKey = "Hello, World!"
 
 var app *basic_engine.Engine
@@ -32,24 +27,31 @@ func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 }
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+	// Note: remember to ` nfdc strategy set /example/schema /localhost/nfd/strategy/multicast `
+	log.SetLevel(log.ErrorLevel)
 	logger := log.WithField("module", "main")
+	rand.Seed(time.Now().UnixMicro())
 
 	// Setup schema tree
 	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/lorem/<v=time>")
-	node := &demo.GroupSigNode{}
+	path, _ := enc.NamePatternFromStr("/sync")
+	node := &demo.SvsNode{}
 	err := tree.PutNode(path, node)
 	if err != nil {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
 		return
 	}
-	node.Set("Threshold", 80)
+	nodeId := fmt.Sprintf("node-%d", rand.Int())
+	fmt.Printf("Node ID: %s\n", nodeId)
+	node.Set("SelfNodeId", []byte(nodeId))
+	node.Set("ChannelSize", 1000)
+	node.Set("SyncInterval", 2*time.Second)
 
 	// Setup policies
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node) // Only affect the metadata node
+	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node)
+	demo.NewFixedKeyIntSigner([]byte(HmacKey)).Apply(node)
 	demo.NewMemStoragePolicy().Apply(node)
-	demo.NewRegisterPolicy().Apply(tree.Root)
+	demo.NewRegisterPolicy().Apply(tree.Root) // TODO: This is not good; we shouldn't register for other node's prefix
 
 	// Start engine
 	timer := basic_engine.NewTimer()
@@ -63,7 +65,7 @@ func main() {
 	defer app.Shutdown()
 
 	// Attach schema
-	prefix, _ := enc.NameFromStr("/example/schema/groupSigApp")
+	prefix, _ := enc.NameFromStr("/example/schema/syncApp")
 	err = tree.Attach(prefix, app)
 	if err != nil {
 		logger.Fatalf("Unable to attach the schema to the engine: %+v", err)
@@ -71,12 +73,33 @@ func main() {
 	}
 	defer tree.Detach()
 
-	// Produce data
-	ver := utils.MakeTimestamp(timer.Now())
-	node.Provide(enc.Matching{
-		"time": ver,
-	}, enc.Wire{[]byte(LoremIpsum)}, schema.Context{})
-	fmt.Printf("Generated packet with version= %d\n", ver)
+	// 1. Randomly produce data
+	go func() {
+		val := 0
+		for {
+			val++
+			time.Sleep(5 * time.Second)
+			text := fmt.Sprintf("[%s: TICK %d]\n", nodeId, val)
+			node.NewData(enc.Wire{[]byte(text)}, schema.Context{})
+			fmt.Printf("Produced: %s", text)
+		}
+	}()
+
+	// 2. On data received, print
+	go func() {
+		ch := node.MissingDataChannel()
+		for {
+			missData := <-ch
+			for i := missData.StartSeq; i < missData.EndSeq; i++ {
+				ret, data := node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})
+				if ret != ndn.InterestResultData {
+					fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
+				} else {
+					fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(data.Join()))
+				}
+			}
+		}
+	}()
 
 	// Wait for keyboard quit signal
 	sigChannel := make(chan os.Signal, 1)

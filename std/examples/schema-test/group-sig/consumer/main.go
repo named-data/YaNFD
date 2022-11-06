@@ -10,6 +10,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
@@ -38,7 +39,7 @@ func main() {
 	// Setup schema tree
 	tree = &schema.Tree{}
 	path, _ := enc.NamePatternFromStr("/lorem/<v=time>")
-	node := &schema.GroupSigNode{}
+	node := &demo.GroupSigNode{}
 	err = tree.PutNode(path, node)
 	if err != nil {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
@@ -47,8 +48,8 @@ func main() {
 	node.Set("Threshold", 80)
 
 	// Setup policies
-	schema.NewFixedKeySigner([]byte(HmacKey)).Apply(node) // Only affect the metadata node
-	schema.NewMemStoragePolicy().Apply(node)
+	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node) // Only affect the metadata node
+	demo.NewMemStoragePolicy().Apply(node)
 
 	// Start engine
 	timer := basic_engine.NewTimer()

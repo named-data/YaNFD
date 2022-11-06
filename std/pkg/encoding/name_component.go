@@ -293,6 +293,7 @@ func (c Component) Length() TLNum {
 }
 
 func isLegalCompText(b byte) bool {
+	// TODO: IsLetter does not work properly. Example: "DèØÛíAæ" is considered as a string of all letters.
 	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '-' || b == '_' || b == '.' || b == '~'
 }
 

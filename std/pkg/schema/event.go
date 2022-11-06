@@ -28,3 +28,7 @@ func NewEvent[T comparable]() *Event[T] {
 		val: make([]T, 0),
 	}
 }
+
+func (e *Event[T]) Val() []T {
+	return e.val
+}

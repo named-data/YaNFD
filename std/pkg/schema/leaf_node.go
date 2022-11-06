@@ -63,7 +63,7 @@ func (n *LeafNode) Provide(
 	}
 	wire, _, err := spec.MakeData(name, &dataCfg, content, signer)
 	if err != nil {
-		n.Log.Errorf("Unable to encode Data in Provide(): %+v", err)
+		n.Log.WithField("name", name.String()).Errorf("Unable to encode Data in Provide(): %+v", err)
 		return nil
 	}
 
