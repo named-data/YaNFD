@@ -14,23 +14,23 @@ func TestComponentFromStrBasic(t *testing.T) {
 	utils.SetTestingT(t)
 
 	comp := utils.WithoutErr(enc.ComponentFromStr("aa"))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("aa")}, comp)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("aa")}, comp)
 
 	comp = utils.WithoutErr(enc.ComponentFromStr("a%20a"))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("a a")}, comp)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("a a")}, comp)
 
 	comp = utils.WithoutErr(enc.ComponentFromStr("v=10"))
-	require.Equal(t, &enc.Component{enc.TypeVersionNameComponent, []byte{0x0a}}, comp)
+	require.Equal(t, enc.Component{enc.TypeVersionNameComponent, []byte{0x0a}}, comp)
 
 	comp = utils.WithoutErr(enc.ComponentFromStr("params-sha256=3d319b4802e56af766c0e73d2ced4f1560fba2b7"))
 	require.Equal(t,
-		&enc.Component{enc.TypeParametersSha256DigestComponent,
+		enc.Component{enc.TypeParametersSha256DigestComponent,
 			[]byte{0x3d, 0x31, 0x9b, 0x48, 0x02, 0xe5, 0x6a, 0xf7, 0x66, 0xc0, 0xe7, 0x3d,
 				0x2c, 0xed, 0x4f, 0x15, 0x60, 0xfb, 0xa2, 0xb7}},
 		comp)
 
 	comp = utils.WithoutErr(enc.ComponentFromStr(""))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("")}, comp)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("")}, comp)
 }
 
 func TestGenericComponent(t *testing.T) {
@@ -38,7 +38,7 @@ func TestGenericComponent(t *testing.T) {
 
 	var buf = []byte("\x08\x0andn-python")
 	c := utils.WithoutErr(enc.ComponentFromBytes(buf))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("ndn-python")}, c)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("ndn-python")}, c)
 	c2 := utils.WithoutErr(enc.ComponentFromStr("ndn-python"))
 	require.Equal(t, c, c2)
 	c2 = utils.WithoutErr(enc.ComponentFromStr("8=ndn-python"))
@@ -47,7 +47,7 @@ func TestGenericComponent(t *testing.T) {
 
 	buf = []byte("\x08\x07foo%bar")
 	c = utils.WithoutErr(enc.ComponentFromBytes(buf))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("foo%bar")}, c)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("foo%bar")}, c)
 	require.Equal(t, "foo%25bar", c.String())
 	c2 = utils.WithoutErr(enc.ComponentFromStr("foo%25bar"))
 	require.Equal(t, c, c2)
@@ -57,7 +57,7 @@ func TestGenericComponent(t *testing.T) {
 
 	buf = []byte("\x08\x04-._~")
 	c = utils.WithoutErr(enc.ComponentFromBytes(buf))
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte("-._~")}, c)
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte("-._~")}, c)
 	require.Equal(t, "-._~", c.String())
 	c2 = utils.WithoutErr(enc.ComponentFromStr("-._~"))
 	require.Equal(t, c, c2)
@@ -68,14 +68,14 @@ func TestGenericComponent(t *testing.T) {
 	err := utils.WithErr(enc.ComponentFromStr(":/?#[]@"))
 	require.IsType(t, enc.ErrFormat{}, err)
 	buf = []byte(":/?#[]@")
-	c = &enc.Component{enc.TypeGenericNameComponent, buf}
+	c = enc.Component{enc.TypeGenericNameComponent, buf}
 	require.Equal(t, "%3A%2F%3F%23%5B%5D%40", c.String())
 	c2 = utils.WithoutErr(enc.ComponentFromStr("%3A%2F%3F%23%5B%5D%40"))
 	require.Equal(t, c, c2)
 
 	err = utils.WithErr(enc.ComponentFromStr("/"))
 	require.IsType(t, enc.ErrFormat{}, err)
-	c = &enc.Component{enc.TypeGenericNameComponent, []byte{}}
+	c = enc.Component{enc.TypeGenericNameComponent, []byte{}}
 	require.Equal(t, "", c.String())
 	require.Equal(t, c.Bytes(), []byte("\x08\x00"))
 	c2 = utils.WithoutErr(enc.ComponentFromStr(""))
@@ -93,7 +93,7 @@ func TestComponentTypes(t *testing.T) {
 	buf[1] = 0x20
 	copy(buf[2:], value)
 	c := utils.WithoutErr(enc.ComponentFromBytes(buf))
-	require.Equal(t, &enc.Component{enc.TypeImplicitSha256DigestComponent, value}, c)
+	require.Equal(t, enc.Component{enc.TypeImplicitSha256DigestComponent, value}, c)
 	require.Equal(t, "sha256digest="+hexText, c.String())
 	c2 := utils.WithoutErr(enc.ComponentFromStr("sha256digest=" + hexText))
 	require.Equal(t, c, c2)
@@ -105,7 +105,7 @@ func TestComponentTypes(t *testing.T) {
 	buf[1] = 0x20
 	copy(buf[2:], value)
 	c = utils.WithoutErr(enc.ComponentFromBytes(buf))
-	require.Equal(t, &enc.Component{enc.TypeParametersSha256DigestComponent, value}, c)
+	require.Equal(t, enc.Component{enc.TypeParametersSha256DigestComponent, value}, c)
 	require.Equal(t, "params-sha256="+hexText, c.String())
 	c2 = utils.WithoutErr(enc.ComponentFromStr("params-sha256=" + hexText))
 	require.Equal(t, c, c2)
@@ -152,7 +152,7 @@ func TestComponentTypes(t *testing.T) {
 func TestComponentCompare(t *testing.T) {
 	utils.SetTestingT(t)
 
-	comps := []*enc.Component{
+	comps := []enc.Component{
 		{1, utils.WithoutErr(hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000"))},
 		{1, utils.WithoutErr(hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001"))},
 		{1, utils.WithoutErr(hex.DecodeString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"))},
@@ -175,13 +175,13 @@ func TestComponentCompare(t *testing.T) {
 
 	for i := 0; i < len(comps); i++ {
 		for j := 0; j < len(comps); j++ {
-			require.Equal(t, i == j, comps[i].Equal(*comps[j]))
+			require.Equal(t, i == j, comps[i].Equal(comps[j]))
 			if i < j {
-				require.Equal(t, -1, comps[i].Compare(*comps[j]))
+				require.Equal(t, -1, comps[i].Compare(comps[j]))
 			} else if i == j {
-				require.Equal(t, 0, comps[i].Compare(*comps[j]))
+				require.Equal(t, 0, comps[i].Compare(comps[j]))
 			} else {
-				require.Equal(t, 1, comps[i].Compare(*comps[j]))
+				require.Equal(t, 1, comps[i].Compare(comps[j]))
 			}
 		}
 	}
@@ -193,11 +193,11 @@ func TestNameBasic(t *testing.T) {
 	uri := "/Emid/25042=P3//./%1C%9F/sha256digest=0415e3624a151850ac686c84f155f29808c0dd73819aa4a4c20be73a4d8a874c"
 	name := utils.WithoutErr(enc.NameFromStr(uri))
 	require.Equal(t, 6, len(name))
-	require.Equal(t, utils.WithoutErr(enc.ComponentFromStr("Emid")), &name[0])
-	require.Equal(t, utils.WithoutErr(enc.ComponentFromBytes([]byte("\xfd\x61\xd2\x02\x50\x33"))), &name[1])
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte{}}, &name[2])
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte{'.'}}, &name[3])
-	require.Equal(t, &enc.Component{enc.TypeGenericNameComponent, []byte{'\x1c', '\x9f'}}, &name[4])
+	require.Equal(t, utils.WithoutErr(enc.ComponentFromStr("Emid")), name[0])
+	require.Equal(t, utils.WithoutErr(enc.ComponentFromBytes([]byte("\xfd\x61\xd2\x02\x50\x33"))), name[1])
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte{}}, name[2])
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte{'.'}}, name[3])
+	require.Equal(t, enc.Component{enc.TypeGenericNameComponent, []byte{'\x1c', '\x9f'}}, name[4])
 	require.Equal(t, enc.TypeImplicitSha256DigestComponent, name[5].Typ)
 
 	require.Equal(t, 57-2, name.EncodingLength())

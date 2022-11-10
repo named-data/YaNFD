@@ -320,23 +320,23 @@ func ParseComponent(buf Buffer) (Component, int) {
 	}, end
 }
 
-func ReadComponent(r ParseReader) (*Component, error) {
+func ReadComponent(r ParseReader) (Component, error) {
 	typ, err := ReadTLNum(r)
 	if err != nil {
-		return nil, err
+		return Component{}, err
 	}
 	l, err := ReadTLNum(r)
 	if err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return nil, err
+		return Component{}, err
 	}
 	val, err := r.ReadBuf(int(l))
 	if err != nil {
-		return nil, err
+		return Component{}, err
 	}
-	return &Component{
+	return Component{
 		Typ: typ,
 		Val: val,
 	}, nil
@@ -393,11 +393,11 @@ func componentFromStrInto(s string, ret *Component) error {
 	return nil
 }
 
-func ComponentFromStr(s string) (*Component, error) {
-	ret := &Component{}
-	err := componentFromStrInto(s, ret)
+func ComponentFromStr(s string) (Component, error) {
+	ret := Component{}
+	err := componentFromStrInto(s, &ret)
 	if err != nil {
-		return nil, err
+		return Component{}, err
 	} else {
 		return ret, nil
 	}
@@ -420,12 +420,12 @@ func ComponentPatternFromStr(s string) (ComponentPattern, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Pattern{
+		return Pattern{
 			Typ: typ,
 			Tag: strs[1],
 		}, nil
 	} else {
-		return &Pattern{
+		return Pattern{
 			Typ: TypeGenericNameComponent,
 			Tag: strs[0],
 		}, nil
@@ -450,14 +450,19 @@ func (c Component) Bytes() []byte {
 	return buf
 }
 
-func ComponentFromBytes(buf []byte) (*Component, error) {
+func ComponentFromBytes(buf []byte) (Component, error) {
 	return ReadComponent(NewBufferReader(buf))
 }
 
 func (c Component) Compare(rhs ComponentPattern) int {
 	rc, ok := rhs.(Component)
 	if !ok {
-		return -1
+		p, ok := rhs.(*Component)
+		if !ok {
+			// Component is always less than pattern
+			return -1
+		}
+		rc = *p
 	}
 	if c.Typ != rc.Typ {
 		if c.Typ < rc.Typ {
@@ -477,9 +482,16 @@ func (c Component) Compare(rhs ComponentPattern) int {
 }
 
 func (c Component) Equal(rhs ComponentPattern) bool {
+	// Go's strange design leads the the result that both Component and *Component implements this interface
+	// And it is nearly impossible to predict what is what.
+	// So we have to try to cast twice to get the correct result.
 	rc, ok := rhs.(Component)
 	if !ok {
-		return false
+		p, ok := rhs.(*Component)
+		if !ok {
+			return false
+		}
+		rc = *p
 	}
 	if c.Typ != rc.Typ || len(c.Val) != len(rc.Val) {
 		return false
@@ -490,7 +502,12 @@ func (c Component) Equal(rhs ComponentPattern) bool {
 func (p Pattern) Compare(rhs ComponentPattern) int {
 	rp, ok := rhs.(Pattern)
 	if !ok {
-		return 1
+		p, ok := rhs.(*Pattern)
+		if !ok {
+			// Pattern is always greater than component
+			return 1
+		}
+		rp = *p
 	}
 	if p.Typ != rp.Typ {
 		if p.Typ < rp.Typ {
@@ -505,7 +522,11 @@ func (p Pattern) Compare(rhs ComponentPattern) int {
 func (p Pattern) Equal(rhs ComponentPattern) bool {
 	rp, ok := rhs.(Pattern)
 	if !ok {
-		return false
+		p, ok := rhs.(*Pattern)
+		if !ok {
+			return false
+		}
+		rp = *p
 	}
 	return p.Typ == rp.Typ && p.Tag == rp.Tag
 }
