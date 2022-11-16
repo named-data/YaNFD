@@ -119,6 +119,9 @@ func (n *ContentKeyNode) Decrypt(matching enc.Matching, content enc.Wire) (enc.W
 
 // TODO: Not related but somehow the CK Name string() contains non-alphabet
 
+// GroupSigNode represents a subtree that supports group signature on a segmented node.
+// TODO: Is it a better idea to let the user specify what `seg` is, instead of using fixed LeafNode?
+// That may be way more complicated, and I'm not sure about the use case. (#BLACKBOX)
 type GroupSigNode struct {
 	schema.BaseNode
 

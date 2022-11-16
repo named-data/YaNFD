@@ -18,6 +18,7 @@ type Tree struct {
 	Engine ndn.Engine
 }
 
+// Attach the tree to the engine at prefix
 func (t *Tree) Attach(prefix enc.Name, engine ndn.Engine) error {
 	err := t.Root.SetAttachedPrefix(prefix)
 	if err != nil {
@@ -40,6 +41,7 @@ func (t *Tree) Attach(prefix enc.Name, engine ndn.Engine) error {
 	return nil
 }
 
+// Detach the schema tree from the engine
 func (t *Tree) Detach() {
 	if t.Engine == nil {
 		return
@@ -81,10 +83,12 @@ func (t *Tree) intHandler(
 	node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
 }
 
+// At the path return the node. Path does not include the attached prefix.
 func (t *Tree) At(path enc.NamePattern) NTNode {
 	return t.Root.At(path)
 }
 
+// PutNode puts the specified node at the specified path. Path does not include the attached prefix.
 func (t *Tree) PutNode(path enc.NamePattern, node NTNode) error {
 	if len(path) == 0 {
 		if t.Root == nil {

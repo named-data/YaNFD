@@ -8,6 +8,8 @@ import (
 )
 
 // NTNode represents a node (subtree) of NTSchema.
+// See comments for NTPolicy below for more details
+// TODO: See also BaseNode for TODO points
 type NTNode interface {
 	// NodeTrait is the type trait of NTNode
 	NodeTrait() NTNode
@@ -29,15 +31,19 @@ type NTNode interface {
 	Depth() uint
 
 	// Match an NDN name to a (variable) matching
+	// TODO: do people like the current matching or a simpler version that makes everything into []byte?
 	Match(name enc.Name) (NTNode, enc.Matching)
 
 	// Apply a (variable) matching and obtain the corresponding NDN name
 	Apply(matching enc.Matching) enc.Name
 
 	// Get a property or callback event
+	// TODO: reflection may be better than manual implementation?
 	Get(propName PropKey) any
 
-	// Set a property or callback event
+	// Set a property
+	// Please use Get to set callback event.
+	// To avoid annoying type cast, consider use AddEventListener to help.
 	Set(propName PropKey, value any) error
 
 	// ConstructName is the aux function used by Apply
@@ -63,6 +69,9 @@ type NTNode interface {
 	PutNode(path enc.NamePattern, node NTNode) error
 
 	// Init initializes a node with a specified parent and edge
+	// This is the first part where one can modify the properties of the node.
+	// It acts as the constructor, so the properties set here are the default values, and will be
+	// overwriten by the policies' apply().
 	Init(parent NTNode, edge enc.ComponentPattern)
 
 	// AttachedPrefix returns the attached prefix if this node is the root of a schema tree.
@@ -80,11 +89,18 @@ type NTNode interface {
 // they may be configured differently on different nodes.
 // For example, an storage may access different folders for different instances.
 // TODO: Design for this configuration under different environments.
+// For example, the path to a storage, the name of the self-key, etc are knowledge specific to one instance,
+// and thus dynamically configured.
+// Currently I don't have an idea on the best way to separate the "statically shared part" (NTTree and the nodes)
+// and the "dynamically configure part". (#ENV)
 type NTPolicy interface {
 	// PolicyTrait is the type trait of NTPolicy
 	PolicyTrait() NTPolicy
 
 	// Apply the policy at a node (subtree). May modify the children of the given node.
+	// The execution order is node.Init() -> policy.Apply() -> onAttach()
+	// So the properties set here will overwrite Init()'s default values,
+	// but be overwriten by onAttach().
 	Apply(node NTNode) error
 }
 
@@ -101,7 +117,7 @@ type Context map[CtxKey]any
 type PropKey string
 
 const (
-	// The following keys are used to grab extra information of the incoming packet.
+	// The following keys are used to grab extra information of the incoming packet. [TYPE]
 	CkDeadline        CtxKey = 1  // Deadline is now + InterestLifetime. [time.Time]
 	CkRawPacket       CtxKey = 2  // The raw Interest or Data wire. [enc.Wire]
 	CkSigCovered      CtxKey = 3  // The wire covered by the signature. [enc.Wire]
@@ -196,9 +212,39 @@ const (
 	PropValidDuration PropKey = "ValidDuration"
 )
 
+// NodeOnAttachEvent is the event triggered when attaching to an engine.
+// This is called after the tree is built and policies are attached,
+// so the properties modified here will overwrite the properties set before.
+// Args: the path to this node, the engine to attach
+// Return: a non-nil error to abort attaching. Nil when it can continue.
 type NodeOnAttachEvent = func(enc.NamePattern, ndn.Engine) error
+
+// NodeOnDetachEvent is the event triggered when detaching from the engine.
 type NodeOnDetachEvent = func(ndn.Engine)
+
+// NodeOnIntEvent is the event triggered when an Interest is received.
+// Only used by ExpressingPoint and LeafNode.
+// Args: name matching, app params, reply, context
+// Return: whether to abort processing (ignore events after the current one)
+// Context: CkInterest, CkDeadline, CkRawPacket, CkSigCovered, CkName, CkEngine, CkContent(=AppParam)
 type NodeOnIntEvent = func(enc.Matching, enc.Wire, ndn.ReplyFunc, Context) bool
+
+// NodeValidateEvent is the event triggered when the node needs to validate an Interest or a Data
+// Used by ExpressingPoint and LeafNode.
+// Args: name matching, full name, signature, covered part, context
+// Return: the result of current validation process
+// Context: CkInterest/CkData, CkName, CkDeadline, CkRawPacket, CkSigCovered, CkEngine, CkContent(=Content/AppParam)
+// CkLastValidResult (the VrResult given by the last callback in the chain)
 type NodeValidateEvent = func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, Context) ValidRes
+
+// NodeSearchStorageEvent is the event triggered when the node searches the storage for data.
+// Used by ExpressingPoint and LeafNode.
+// Args: name matching, full name, can be prefix, must be fresh, context
+// Return: the raw wire of Data packet. Nil if not existing
+// Context: CkInterest, CkDeadline, CkRawPacket, CkSigCovered, CkName, CkEngine, CkContent(=AppParam)
 type NodeSearchStorageEvent = func(enc.Matching, enc.Name, bool, bool, Context) enc.Wire
+
+// NodeSaveStorageEvent is the event triggered when the node stores the Data into the storage.
+// Args: name matching, full name, raw data packet, validity time (See CkValidDuration), context
+// Context: CkData, CkRawPacket, CkSigCovered, CkName, CkEngine, CkContent
 type NodeSaveStorageEvent = func(enc.Matching, enc.Name, enc.Wire, time.Time, Context)

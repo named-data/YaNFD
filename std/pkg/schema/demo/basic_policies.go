@@ -1,4 +1,5 @@
 // Basic policies for test and demo use. Not secure for production.
+// The TODO points listed here are all design questions we need to decide before production-ready code.
 package demo
 
 import (
@@ -14,6 +15,9 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
+// RegisterPolicy marks the current node as the prefix to be registered.
+// The current one can only handle fixed prefix.
+// TODO: Handle the path "/prefix/<node-id>" with a given <node-id>. (#ENV)
 type RegisterPolicy struct{}
 
 func (p *RegisterPolicy) PolicyTrait() schema.NTPolicy {
@@ -40,6 +44,8 @@ func NewRegisterPolicy() schema.NTPolicy {
 	return &RegisterPolicy{}
 }
 
+// LocalOnlyPolicy surpress Interest expression.
+// TODO: Is this secure? Do we need to consider the case where PropSuppressInt is overwritten by another policy?
 type LocalOnlyPolicy struct{}
 
 func (p *LocalOnlyPolicy) PolicyTrait() schema.NTPolicy {
@@ -64,6 +70,8 @@ type CacheEntry struct {
 	Validity time.Time
 }
 
+// MemStoragePolicy is a policy that stored data in a memory storage.
+// TODO: If we use on-disk storage, how to specify the path (#ENV)
 type MemStoragePolicy struct {
 	timer ndn.Timer
 	tree  *basic_engine.NameTrie[CacheEntry]
@@ -139,6 +147,11 @@ func NewMemStoragePolicy() schema.NTPolicy {
 }
 
 // FixedKeySigner is a demo policy that signs data using provided HMAC key.
+// TODO: This has a problem with group signature node:
+// The group signature node (subtree) has two leaves: the segmented data, and meta data.
+// The segmented data has its own validation (SHA256 sig), but how to validate the meta data is specified by
+// the trust schema (i.e. user). Then, is it still a good idea to make group sig node a blackbox?
+// If yes, what is the best way to let the user specify how the packet is signed/validated? (#BLACKBOX)
 type FixedKeySigner struct {
 	key []byte
 }

@@ -1,4 +1,4 @@
-// TODO: This does not work. Commit just to record what I did.
+// TODO: This does not work. Abandoned. Commit for archive.
 package main
 
 import (
@@ -121,6 +121,16 @@ func main() {
 		}
 	}()
 
+	// REMARK: Give up this idea. Leave the comments for doc.
+	// The idea does not work because the application goroutines do not signal the timer goroutine for blocking.
+	// For example:
+	// timer.Schedule(10*time.Second, e1)
+	// timer.Schedule(5*time.Second, e2)
+	// <- e1
+	// The timer does not know when and how to move forward:
+	// If it adjusts NOW after e1 is scheduled, it will think the next event is after 10s and miss e2.
+	// If it just waits, the app goroutine will be blocked by <- e1 and the timer does not know how long to wait.
+	// Therefore, it can be very difficult to implement a simulator without modifying the application logic.
 	for i := 0; i < 20; i++ {
 		// First warm up the engine, so we are sure that the rest is executed after attach
 		time.Sleep(10 * time.Millisecond) // leave time for attach to execute

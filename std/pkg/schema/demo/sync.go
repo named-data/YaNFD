@@ -27,6 +27,10 @@ const (
 
 type SvsOnMissingEvent = func([]byte, uint64, uint64)
 
+// SvsNode represents a subtree supports a simplified state-vector-sync protocol.
+// TODO: How to return the missing data to the user? Channel or callback?
+// TODO: How can the user express the trust schema here? The `notif` node mat have different requirements
+// as the `leaf` node. (#BLACKBOX)
 type SvsNode struct {
 	schema.BaseNode
 

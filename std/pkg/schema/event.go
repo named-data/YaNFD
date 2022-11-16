@@ -2,6 +2,7 @@ package schema
 
 // Event is a chain of callback functions for an event.
 // The execution order is supposed to be the addition order.
+// Note: to implement `comparable`, you need to use pointer type, like *func()
 type Event[T comparable] struct {
 	val []T
 }
@@ -12,6 +13,7 @@ func (e *Event[T]) Add(callback T) {
 }
 
 // Remove a callback
+// Seems not useful at all. Do we remove it?
 func (e *Event[T]) Remove(callback T) {
 	newVal := make([]T, 0, len(e.val))
 	for _, v := range e.val {
@@ -29,6 +31,7 @@ func NewEvent[T comparable]() *Event[T] {
 	}
 }
 
+// Val returns the value of the event. Used by nodes only.
 func (e *Event[T]) Val() []T {
 	return e.val
 }

@@ -71,11 +71,14 @@ func (n *BaseNode) UpEdge() enc.ComponentPattern {
 
 // Depth of the node in the tree.
 // It includes the attached prefix, so the root node may have a positive depth
+// For example, if the root is attached at prefix /ndn, then the child of path /<id> from the root
+// will have a depth=2.
 func (n *BaseNode) Depth() uint {
 	return n.dep
 }
 
 // Match an NDN name to a (variable) matching
+// For example, /ndn/aa may match to a node at /ndn/<id> with matching <id> = "aa"
 func (n *BaseNode) Match(name enc.Name) (NTNode, enc.Matching) {
 	if len(n.attachedPrefix) > 0 {
 		// Only happens when n is the root node
@@ -102,6 +105,7 @@ func (n *BaseNode) Match(name enc.Name) (NTNode, enc.Matching) {
 }
 
 // Apply a (variable) matching and obtain the corresponding NDN name
+// For example, apply {"id":[]byte{"aa"}} to a node at /ndn/<id> will get /ndn/aa
 func (n *BaseNode) Apply(matching enc.Matching) enc.Name {
 	ret := make(enc.Name, n.dep)
 	if n.ConstructName(matching, ret) == nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
+// PropertySet is an internal function which sets the property `propName` (stored at `ptr`) to `value`
 func PropertySet[T any](ptr *T, propName PropKey, value any) error {
 	if v, ok := value.(T); ok {
 		*ptr = v
@@ -15,6 +16,7 @@ func PropertySet[T any](ptr *T, propName PropKey, value any) error {
 	}
 }
 
+// AddEventListener add `callback` to the event `propKey` of `node`
 func AddEventListener[T any](node NTNode, propName PropKey, callback T) error {
 	evt, ok := node.Get(propName).(*Event[*T])
 	if !ok || evt == nil {
