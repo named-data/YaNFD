@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync/atomic"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -14,17 +15,17 @@ type StreamFace struct {
 	addr    string
 	local   bool
 	conn    net.Conn
-	running bool
+	running atomic.Bool
 	onPkt   func(r enc.ParseReader) error
 	onError func(err error) error
 }
 
 func (f *StreamFace) Run() {
 	r := bufio.NewReader(f.conn)
-	for f.running {
+	for f.running.Load() {
 		t, err := enc.ReadTLNum(r)
 		if err != nil {
-			if !f.running {
+			if !f.running.Load() {
 				break
 			}
 			err = f.onError(err)
@@ -34,7 +35,7 @@ func (f *StreamFace) Run() {
 		}
 		l, err := enc.ReadTLNum(r)
 		if err != nil {
-			if !f.running {
+			if !f.running.Load() {
 				break
 			}
 			err = f.onError(err)
@@ -49,7 +50,7 @@ func (f *StreamFace) Run() {
 		l.EncodeInto(buf[l0:])
 		_, err = io.ReadFull(r, buf[l0+l1:])
 		if err != nil {
-			if !f.running {
+			if !f.running.Load() {
 				break
 			}
 			err = f.onError(err)
@@ -64,7 +65,7 @@ func (f *StreamFace) Run() {
 			break
 		}
 	}
-	f.running = false
+	f.running.Store(false)
 	f.conn = nil
 }
 
@@ -80,7 +81,7 @@ func (f *StreamFace) Open() error {
 		return err
 	}
 	f.conn = c
-	f.running = true
+	f.running.Store(true)
 	go f.Run()
 	return nil
 }
@@ -89,14 +90,14 @@ func (f *StreamFace) Close() error {
 	if f.conn == nil {
 		return errors.New("face is not running")
 	}
-	f.running = false
+	f.running.Store(false)
 	err := f.conn.Close()
-	f.conn = nil
+	// f.conn = nil // No need to do so, as Run() will set conn = nil
 	return err
 }
 
 func (f *StreamFace) Send(pkt enc.Wire) error {
-	if !f.running {
+	if !f.running.Load() {
 		return errors.New("face is not running")
 	}
 	for _, buf := range pkt {
@@ -109,7 +110,7 @@ func (f *StreamFace) Send(pkt enc.Wire) error {
 }
 
 func (f *StreamFace) IsRunning() bool {
-	return f.running
+	return f.running.Load()
 }
 
 func (f *StreamFace) IsLocal() bool {
@@ -130,6 +131,6 @@ func NewStreamFace(network string, addr string, local bool) *StreamFace {
 		onPkt:   nil,
 		onError: nil,
 		conn:    nil,
-		running: false,
+		running: atomic.Bool{},
 	}
 }

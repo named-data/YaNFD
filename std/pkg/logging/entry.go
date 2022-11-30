@@ -1,4 +1,5 @@
 // Abandoned code. For remark only. Please use apex/log instead.
+// apex/log is quite lightweight, and there is no reason to write ourselves.
 package log
 
 import (
