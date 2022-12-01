@@ -293,8 +293,7 @@ func (c Component) Length() TLNum {
 }
 
 func isLegalCompText(b byte) bool {
-	// TODO: IsLetter does not work properly. Example: "DèØÛíAæ" is considered as a string of all letters.
-	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '-' || b == '_' || b == '.' || b == '~'
+	return IsAlphabet(rune(b)) || unicode.IsDigit(rune(b)) || b == '-' || b == '_' || b == '.' || b == '~'
 }
 
 func (c Component) String() string {
@@ -343,7 +342,7 @@ func ReadComponent(r ParseReader) (Component, error) {
 }
 
 func parseCompTypeFromStr(s string) (TLNum, compValFmt, error) {
-	if unicode.IsLetter(rune(s[0])) {
+	if IsAlphabet(rune(s[0])) {
 		if conv, ok := compConvByStr[s]; ok {
 			return conv.typ, conv.vFmt, nil
 		} else {
