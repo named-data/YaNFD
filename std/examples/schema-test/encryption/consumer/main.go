@@ -91,7 +91,7 @@ func main() {
 	// Fetch the data
 	context := schema.Context{}
 	matching := enc.Matching{"time": uint64(ver)}
-	result, content := node.Need(matching, nil, nil, context)
+	result, content := (<-node.Need(matching, nil, nil, context)).Get()
 	switch result {
 	case ndn.InterestResultNack:
 		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])

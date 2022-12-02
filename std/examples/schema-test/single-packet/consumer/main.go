@@ -63,9 +63,9 @@ func main() {
 
 	// Fetch the data
 	context := schema.Context{}
-	result, content := node.Need(enc.Matching{
+	result, content := (<-node.Need(enc.Matching{
 		"time": utils.MakeTimestamp(timer.Now()),
-	}, nil, nil, context)
+	}, nil, nil, context)).Get()
 	switch result {
 	case ndn.InterestResultNack:
 		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
@@ -74,6 +74,6 @@ func main() {
 	case ndn.InterestCancelled:
 		fmt.Printf("Canceled\n")
 	case ndn.InterestResultData:
-		fmt.Printf("Received Data: %+v\n", content.Join())
+		fmt.Printf("Received Data: %+v\n", string(content.Join()))
 	}
 }

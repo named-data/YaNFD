@@ -80,7 +80,7 @@ func (n *SvsNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 	n.PutNode(pat, n.notif)
 	n.notif.Set(schema.PropCanBePrefix, true)
 	n.notif.Set(schema.PropMustBeFresh, true)
-	n.notif.Set(schema.PropLifetime, 100*time.Millisecond)
+	n.notif.Set(schema.PropLifetime, 1*time.Second)
 	schema.AddEventListener(n.notif, schema.PropOnInterest, n.onSyncInt)
 
 	n.baseMatching = enc.Matching{}
@@ -209,7 +209,6 @@ func (n *SvsNode) onSyncTimer() {
 }
 
 func (n *SvsNode) expressStateVec() {
-	// This is the case that a non-blocking version of Need() is desirable
 	n.notif.Need(n.baseMatching, nil, n.localSv.Encode(), schema.Context{})
 }
 
@@ -347,7 +346,7 @@ func (n *SvsNode) Set(propName schema.PropKey, value any) error {
 
 func (n *SvsNode) Need(
 	nodeId []byte, seq uint64, matching enc.Matching, context schema.Context,
-) (ndn.InterestResult, enc.Wire) {
+) chan schema.NeedResult {
 	matching["nodeId"] = nodeId
 	matching["seqNo"] = seq
 	return n.leaf.Need(matching, nil, nil, context)

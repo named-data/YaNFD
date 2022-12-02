@@ -73,9 +73,9 @@ func main() {
 
 	// Fetch the data
 	context := schema.Context{}
-	result, content := node.Need(enc.Matching{
+	result, content := (<-node.Need(enc.Matching{
 		"time": uint64(ver),
-	}, context)
+	}, context)).Get()
 	switch result {
 	case ndn.InterestResultNone:
 		fmt.Printf("Fetching failed. Please see log for detailed reason.\n")

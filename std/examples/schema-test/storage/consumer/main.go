@@ -81,9 +81,9 @@ func main() {
 
 	// Fetch the data
 	context := schema.Context{}
-	result, content := node.Need(enc.Matching{
+	result, content := (<-node.Need(enc.Matching{
 		"time": uint64(ver),
-	}, nil, nil, context)
+	}, nil, nil, context)).Get()
 	switch result {
 	case ndn.InterestResultNack:
 		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
@@ -97,9 +97,9 @@ func main() {
 
 	// Fetch the data again. No Interest should be sent
 	context = schema.Context{}
-	result, content = node.Need(enc.Matching{
+	result, content = (<-node.Need(enc.Matching{
 		"time": uint64(ver),
-	}, nil, nil, context)
+	}, nil, nil, context)).Get()
 	switch result {
 	case ndn.InterestResultNack:
 		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])

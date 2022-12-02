@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
@@ -24,4 +25,13 @@ func AddEventListener[T any](node NTNode, propName PropKey, callback T) error {
 	}
 	evt.Add(&callback)
 	return nil
+}
+
+type NeedResult struct {
+	Status  ndn.InterestResult
+	Content enc.Wire
+}
+
+func (r NeedResult) Get() (ndn.InterestResult, enc.Wire) {
+	return r.Status, r.Content
 }

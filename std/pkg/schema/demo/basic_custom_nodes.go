@@ -64,7 +64,7 @@ func (n *ContentKeyNode) Encrypt(matching enc.Matching, ckid []byte, content enc
 		return nil, fmt.Errorf("invalid content key id: %v", hex.EncodeToString(ckid))
 	}
 	matching["ckid"] = ckid
-	res, keyWire := n.leaf.Need(matching, nil, nil, schema.Context{schema.CkSupressInt: true})
+	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema.Context{schema.CkSupressInt: true})).Get()
 	if res != ndn.InterestResultData {
 		return nil, fmt.Errorf("unable to get required content key for id: %v", hex.EncodeToString(ckid))
 	}
@@ -97,7 +97,7 @@ func (n *ContentKeyNode) Decrypt(matching enc.Matching, content enc.Wire) (enc.W
 	l := binary.LittleEndian.Uint64(buf[0:8])
 	ckid := buf[8 : 8+8]
 	matching["ckid"] = ckid
-	res, keyWire := n.leaf.Need(matching, nil, nil, schema.Context{})
+	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema.Context{})).Get()
 	if res != ndn.InterestResultData {
 		return nil, fmt.Errorf("unable to get required content key for id: %v", hex.EncodeToString(ckid))
 	}
@@ -199,37 +199,48 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 	n.Self = n
 }
 
-func (n *GroupSigNode) Need(matching enc.Matching, context schema.Context) (ndn.InterestResult, enc.Wire) {
-	// First obtain the metadata
-	intRet, metaWire := n.meta.Need(matching, nil, nil, context)
-	if intRet != ndn.InterestResultData {
-		n.Log.WithField("name", n.Apply(matching)).Warnf("Unable to fetch metadata: %v", intRet)
-		return intRet, nil
-	}
-	metaData := metaWire.Join()
-	if len(metaData)%32 != 0 {
-		n.Log.WithField("name", n.Apply(matching)).Warnf("The metadata is invalid")
-		return ndn.InterestResultNone, nil
-	}
-
-	// Fetch data segments
-	nSegs := len(metaData) / 32
-	ret := make(enc.Wire, 0, nSegs)
-	for i := 0; i < nSegs; i++ {
-		segHash := metaData[i*32 : i*32+32]
-		matching["seghash"] = segHash
-		// Here we don't use original context because:
-		// 1. To avoid pollute from n.meta.Need
-		// 2. Users have no need to override the setting for hashed segments
-		// 3. To avoid race hazard
-		intRet, segData := n.seg.Need(matching, nil, nil, schema.Context{})
+func (n *GroupSigNode) Need(matching enc.Matching, context schema.Context) chan schema.NeedResult {
+	retCh := make(chan schema.NeedResult, 1)
+	go func() {
+		// First obtain the metadata
+		intRet, metaWire := (<-n.meta.Need(matching, nil, nil, context)).Get()
 		if intRet != ndn.InterestResultData {
-			n.Log.WithField("name", n.seg.Apply(matching)).Warnf("Failed to fetch segment")
-			return intRet, nil
+			n.Log.WithField("name", n.Apply(matching)).Warnf("Unable to fetch metadata: %v", intRet)
+			retCh <- schema.NeedResult{Status: intRet, Content: nil}
+			close(retCh)
+			return
 		}
-		ret = append(ret, segData...)
-	}
-	return ndn.InterestResultData, ret
+		metaData := metaWire.Join()
+		if len(metaData)%32 != 0 {
+			n.Log.WithField("name", n.Apply(matching)).Warnf("The metadata is invalid")
+			retCh <- schema.NeedResult{Status: ndn.InterestResultNone, Content: nil}
+			close(retCh)
+			return
+		}
+
+		// Fetch data segments
+		nSegs := len(metaData) / 32
+		ret := make(enc.Wire, 0, nSegs)
+		for i := 0; i < nSegs; i++ {
+			segHash := metaData[i*32 : i*32+32]
+			matching["seghash"] = segHash
+			// Here we don't use original context because:
+			// 1. To avoid pollute from n.meta.Need
+			// 2. Users have no need to override the setting for hashed segments
+			// 3. To avoid race hazard
+			intRet, segData := (<-n.seg.Need(matching, nil, nil, schema.Context{})).Get()
+			if intRet != ndn.InterestResultData {
+				n.Log.WithField("name", n.seg.Apply(matching)).Warnf("Failed to fetch segment")
+				retCh <- schema.NeedResult{Status: intRet, Content: nil}
+				close(retCh)
+				return
+			}
+			ret = append(ret, segData...)
+		}
+		retCh <- schema.NeedResult{Status: ndn.InterestResultData, Content: ret}
+		close(retCh)
+	}()
+	return retCh
 }
 
 func (n *GroupSigNode) Provide(matching enc.Matching, content enc.Wire, context schema.Context) {

@@ -91,7 +91,7 @@ func main() {
 		for {
 			missData := <-ch
 			for i := missData.StartSeq; i < missData.EndSeq; i++ {
-				ret, data := node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})
+				ret, data := (<-node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
 				if ret != ndn.InterestResultData {
 					fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
 				} else {

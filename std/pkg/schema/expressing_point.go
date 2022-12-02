@@ -129,13 +129,16 @@ func (n *ExpressPoint) OnInterest(
 // 3. Need we use []byte instead of enc.Wire, given that the performance is not a big consideration here?
 func (n *ExpressPoint) Need(
 	matching enc.Matching, name enc.Name, appParam enc.Wire, context Context,
-) (ndn.InterestResult, enc.Wire) {
+) chan NeedResult {
+	ret := make(chan NeedResult, 1)
 	// Construct the name (excluding hash) if not yet
 	if name == nil {
 		name = n.Apply(matching)
 		if name == nil {
 			n.Log.Error("Unable to construct Interest Name in Need().")
-			return ndn.InterestResultNone, nil
+			ret <- NeedResult{ndn.InterestResultNone, nil}
+			close(ret)
+			return ret
 		}
 	}
 
@@ -170,7 +173,9 @@ func (n *ExpressPoint) Need(
 				context[CkSigCovered] = sigCovered
 				context[CkContent] = data.Content()
 				context[CkLastValidResult] = VrCachedData
-				return ndn.InterestResultData, data.Content()
+				ret <- NeedResult{ndn.InterestResultData, data.Content()}
+				close(ret)
+				return ret
 			} else {
 				n.Log.WithField("name", name.String()).Error("The storage returned an invalid data")
 			}
@@ -210,7 +215,9 @@ func (n *ExpressPoint) Need(
 	wire, _, finalName, err := spec.MakeInterest(name, &intCfg, appParam, signer)
 	if err != nil {
 		n.Log.WithField("name", name.String()).Errorf("Unable to encode Interest in Need(): %+v", err)
-		return ndn.InterestResultNone, nil
+		ret <- NeedResult{ndn.InterestResultNone, nil}
+		close(ret)
+		return ret
 	}
 
 	// We may search the storage if not yet
@@ -218,10 +225,14 @@ func (n *ExpressPoint) Need(
 	// 	// Since it is not useful generally, skip for now.
 	// }
 	if n.supressInt {
-		return ndn.InterestResultNack, nil
+		ret <- NeedResult{ndn.InterestResultNack, nil}
+		close(ret)
+		return ret
 	}
 	if supress, ok := context[CkSupressInt].(bool); ok && supress {
-		return ndn.InterestResultNack, nil
+		ret <- NeedResult{ndn.InterestResultNack, nil}
+		close(ret)
+		return ret
 	}
 
 	// Set the deadline
@@ -233,68 +244,71 @@ func (n *ExpressPoint) Need(
 
 	// Express the Interest
 	// Note that this function runs on a different go routine than the callback.
-	ch := make(chan intResult)
+	// To avoid clogging the engine, the callback needs to return ASAP, so an inner goroutine is created.
 	err = engine.Express(finalName, &intCfg, wire,
 		func(result ndn.InterestResult, data ndn.Data, rawData, sigCovered enc.Wire, nackReason uint64) {
-			ch <- intResult{
-				result:     result,
-				data:       data,
-				rawData:    rawData,
-				sigCovered: sigCovered,
-				nackReason: nackReason,
+			if result != ndn.InterestResultData {
+				if result == ndn.InterestResultNack {
+					context[CkNackReason] = nackReason
+				}
+				ret <- NeedResult{result, nil}
+				close(ret)
+				return
 			}
-			close(ch)
+
+			go func() {
+				context[CkName] = data.Name()
+				context[CkData] = data
+				context[CkRawPacket] = rawData
+				context[CkSigCovered] = sigCovered
+				context[CkContent] = data.Content()
+
+				// Validate data
+				validRes := VrSilence
+				context[CkLastValidResult] = validRes
+				for _, evt := range n.onValidateData.val {
+					res := (*evt)(matching, data.Name(), data.Signature(), sigCovered, context)
+					if res < VrSilence {
+						n.Log.WithField("name", data.Name().String()).Warn("Verification failed for Data. Drop.")
+						context[CkLastValidResult] = res
+						ret <- NeedResult{ndn.InterestResultUnverified, nil}
+						close(ret)
+						return
+					}
+					validRes = utils.Max(validRes, res)
+					context[CkLastValidResult] = validRes
+					if validRes >= VrBypass {
+						break
+					}
+				}
+				if validRes <= VrSilence {
+					n.Log.WithField("name", data.Name().String()).Warn("Unverified Data. Drop.")
+					ret <- NeedResult{ndn.InterestResultUnverified, nil}
+					close(ret)
+					return
+				}
+
+				// Save (cache) the data in the storage
+				deadline := n.engine.Timer().Now()
+				if freshness := data.Freshness(); freshness != nil {
+					deadline = deadline.Add(*freshness)
+				}
+				for _, evt := range n.onSaveStorage.val {
+					(*evt)(matching, data.Name(), rawData, deadline, context)
+				}
+
+				// Return the result
+				ret <- NeedResult{ndn.InterestResultData, data.Content()}
+				close(ret)
+			}()
 		})
 	if err != nil {
 		n.Log.WithField("name", finalName.String()).Warn("Failed to express Interest.")
-		return ndn.InterestResultNone, nil
+		ret <- NeedResult{ndn.InterestResultNone, nil}
+		close(ret)
+		return ret
 	}
-	intRet := <-ch
-	if intRet.result != ndn.InterestResultData {
-		if intRet.result == ndn.InterestResultNack {
-			context[CkNackReason] = intRet.nackReason
-		}
-		return intRet.result, nil
-	}
-	data := intRet.data
-	context[CkName] = data.Name()
-	context[CkData] = data
-	context[CkRawPacket] = intRet.rawData
-	context[CkSigCovered] = intRet.sigCovered
-	context[CkContent] = data.Content()
-
-	// Validate data
-	validRes := VrSilence
-	context[CkLastValidResult] = validRes
-	for _, evt := range n.onValidateData.val {
-		res := (*evt)(matching, data.Name(), data.Signature(), intRet.sigCovered, context)
-		if res < VrSilence {
-			n.Log.WithField("name", data.Name().String()).Warn("Verification failed for Data. Drop.")
-			context[CkLastValidResult] = res
-			return ndn.InterestResultUnverified, nil
-		}
-		validRes = utils.Max(validRes, res)
-		context[CkLastValidResult] = validRes
-		if validRes >= VrBypass {
-			break
-		}
-	}
-	if validRes <= VrSilence {
-		n.Log.WithField("name", data.Name().String()).Warn("Unverified Data. Drop.")
-		return ndn.InterestResultUnverified, nil
-	}
-
-	// Save (cache) the data in the storage
-	deadline := n.engine.Timer().Now()
-	if freshness := data.Freshness(); freshness != nil {
-		deadline = deadline.Add(*freshness)
-	}
-	for _, evt := range n.onSaveStorage.val {
-		(*evt)(matching, data.Name(), intRet.rawData, deadline, context)
-	}
-
-	// Return the result
-	return ndn.InterestResultData, data.Content()
+	return ret
 }
 
 // Get a property or callback event
