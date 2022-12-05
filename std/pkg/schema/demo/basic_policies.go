@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
+	"sync"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -74,6 +75,7 @@ type CacheEntry struct {
 // TODO: If we use on-disk storage, how to specify the path (#ENV)
 type MemStoragePolicy struct {
 	timer ndn.Timer
+	lock  sync.RWMutex
 	tree  *basic_engine.NameTrie[CacheEntry]
 }
 
@@ -82,6 +84,9 @@ func (p *MemStoragePolicy) PolicyTrait() schema.NTPolicy {
 }
 
 func (p *MemStoragePolicy) Get(name enc.Name, canBePrefix bool, mustBeFresh bool) enc.Wire {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
 	node := p.tree.ExactMatch(name)
 	now := time.Time{}
 	if p.timer != nil {
@@ -105,6 +110,9 @@ func (p *MemStoragePolicy) Get(name enc.Name, canBePrefix bool, mustBeFresh bool
 }
 
 func (p *MemStoragePolicy) Put(name enc.Name, rawData enc.Wire, validity time.Time) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	node := p.tree.MatchAlways(name)
 	node.SetValue(CacheEntry{
 		RawData:  rawData,

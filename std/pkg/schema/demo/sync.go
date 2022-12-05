@@ -258,6 +258,9 @@ func (n *SvsNode) MySequence() uint64 {
 }
 
 func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
+	n.dataLock.Lock()
+	defer n.dataLock.Unlock()
+
 	n.selfSeq++
 	mat := enc.Matching{}
 	for k, v := range n.baseMatching {
@@ -284,12 +287,14 @@ func (n *SvsNode) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 	}
 
 	n.timer = engine.Timer()
+	n.dataLock = sync.Mutex{}
+	n.dataLock.Lock()
+	defer n.dataLock.Unlock()
 
 	n.localSv = StateVec{Entries: make([]*StateVecEntry, 0)}
 	// n.onMiss = schema.NewEvent[*SvsOnMissingEvent]()
 	n.state = SyncSteady
 	n.missChan = make(chan MissingData, n.channelSize)
-	n.dataLock = sync.Mutex{}
 	n.cancelSyncTimer = n.timer.Schedule(n.getSyncIntv(), n.onSyncTimer)
 	// go n.callbackRoutine()
 
@@ -304,6 +309,8 @@ func (n *SvsNode) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 }
 
 func (n *SvsNode) onDetach(engine ndn.Engine) {
+	n.dataLock.Lock()
+	defer n.dataLock.Unlock()
 	n.cancelSyncTimer()
 	close(n.missChan)
 }

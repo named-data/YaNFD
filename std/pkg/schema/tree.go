@@ -2,6 +2,7 @@ package schema
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/apex/log"
@@ -14,12 +15,16 @@ import (
 // The execution order: construct the tree -> apply policies & env setup -> attach to engine
 type Tree struct {
 	Root NTNode
+	lock sync.RWMutex
 
 	Engine ndn.Engine
 }
 
 // Attach the tree to the engine at prefix
 func (t *Tree) Attach(prefix enc.Name, engine ndn.Engine) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	err := t.Root.SetAttachedPrefix(prefix)
 	if err != nil {
 		return err
@@ -46,6 +51,9 @@ func (t *Tree) Detach() {
 	if t.Engine == nil {
 		return
 	}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	log.WithField("module", "schema").Info("Detached from engine")
 	t.Engine.DetachHandler(t.Root.AttachedPrefix())
 	t.Root.OnDetach()
@@ -60,6 +68,9 @@ func (t *Tree) intHandler(
 	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
 	reply ndn.ReplyFunc, deadline time.Time,
 ) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
 	matchName := interest.Name()
 	extraComp := enc.Component{}
 	if matchName[len(matchName)-1].Typ == enc.TypeParametersSha256DigestComponent ||
@@ -90,6 +101,9 @@ func (t *Tree) At(path enc.NamePattern) NTNode {
 
 // PutNode puts the specified node at the specified path. Path does not include the attached prefix.
 func (t *Tree) PutNode(path enc.NamePattern, node NTNode) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	if len(path) == 0 {
 		if t.Root == nil {
 			t.Root = node
@@ -104,4 +118,14 @@ func (t *Tree) PutNode(path enc.NamePattern, node NTNode) error {
 		}
 		return t.Root.PutNode(path, node)
 	}
+}
+
+// RLock locks the tree for read use
+func (t *Tree) RLock() {
+	t.lock.RLock()
+}
+
+// RUnlock unlocks the tree locked by RLock
+func (t *Tree) RUnlock() {
+	t.lock.RUnlock()
 }

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -73,30 +75,42 @@ func main() {
 	}
 	defer tree.Detach()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 	// 1. Randomly produce data
+	ticker := time.Tick(5 * time.Second)
 	go func() {
-		val := 0
-		for {
-			val++
-			time.Sleep(5 * time.Second)
-			text := fmt.Sprintf("[%s: TICK %d]\n", nodeId, val)
-			node.NewData(enc.Wire{[]byte(text)}, schema.Context{})
-			fmt.Printf("Produced: %s", text)
+		defer wg.Done()
+		for val := 0; true; val++ {
+			select {
+			case <-ticker:
+				text := fmt.Sprintf("[%s: TICK %d]\n", nodeId, val)
+				node.NewData(enc.Wire{[]byte(text)}, schema.Context{})
+				fmt.Printf("Produced: %s", text)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
 	// 2. On data received, print
 	go func() {
+		defer wg.Done()
 		ch := node.MissingDataChannel()
 		for {
-			missData := <-ch
-			for i := missData.StartSeq; i < missData.EndSeq; i++ {
-				ret, data := (<-node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
-				if ret != ndn.InterestResultData {
-					fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
-				} else {
-					fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(data.Join()))
+			select {
+			case missData := <-ch:
+				for i := missData.StartSeq; i < missData.EndSeq; i++ {
+					ret, data := (<-node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
+					if ret != ndn.InterestResultData {
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
+					} else {
+						fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(data.Join()))
+					}
 				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -107,4 +121,6 @@ func main() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	receivedSig := <-sigChannel
 	logger.Infof("Received signal %+v - exiting\n", receivedSig)
+	cancel()
+	wg.Wait()
 }

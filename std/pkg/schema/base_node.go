@@ -148,13 +148,7 @@ func (n *BaseNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 	n.engine = engine
 	n.dep = uint(len(path))
 	n.Log = log.WithField("module", "schema").WithField("path", path.String())
-	for _, evt := range n.onAttachEvt.val {
-		err := (*evt)(path, engine)
-		if err != nil {
-			n.Log.Errorf("Attaching failed with error: %+v", err)
-			return err
-		}
-	}
+
 	for _, c := range n.Chd {
 		nxtPath := append(path, c.UpEdge())
 		err := c.OnAttach(nxtPath, engine)
@@ -162,17 +156,28 @@ func (n *BaseNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 			return err
 		}
 	}
+
+	// Some nodes' attach event will assume its children is ready
+	// So we call this after children's onAttach
+	for _, evt := range n.onAttachEvt.val {
+		err := (*evt)(path, engine)
+		if err != nil {
+			n.Log.Errorf("Attaching failed with error: %+v", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
 // OnDetach is called when the node is detached from an engine
 // BaseNode will call the event set by policy
 func (n *BaseNode) OnDetach() {
-	for _, c := range n.Chd {
-		c.OnDetach()
-	}
 	for _, evt := range n.onDetachEvt.val {
 		(*evt)(n.engine)
+	}
+	for _, c := range n.Chd {
+		c.OnDetach()
 	}
 	n.engine = nil
 }
