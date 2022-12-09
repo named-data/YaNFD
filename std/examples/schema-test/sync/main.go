@@ -48,6 +48,7 @@ func main() {
 	node.Set("SelfNodeId", []byte(nodeId))
 	node.Set("ChannelSize", 1000)
 	node.Set("SyncInterval", 2*time.Second)
+	node.Set("AggregateInterval", 100*time.Millisecond)
 
 	// Setup policies
 	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node)

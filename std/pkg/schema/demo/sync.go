@@ -7,9 +7,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 type SyncState int
@@ -38,6 +40,7 @@ type SvsNode struct {
 	leaf  *schema.LeafNode
 
 	localSv StateVec
+	aggSv   StateVec
 	// calledSv StateVec
 	state SyncState
 	// onMiss       *schema.Event[*SvsOnMissingEvent]
@@ -45,6 +48,7 @@ type SvsNode struct {
 	// quitChan     chan struct{}
 	missChan     chan MissingData
 	syncIntv     time.Duration
+	aggIntv      time.Duration
 	baseMatching enc.Matching
 
 	timer           ndn.Timer
@@ -135,6 +139,13 @@ func (n *SvsNode) onSyncInt(
 			n.localSv.Entries[li].SeqNo = cur.SeqNo
 			// needFetch = true
 		} else if n.localSv.Entries[li].SeqNo > cur.SeqNo {
+			log.Infof("Outdated remote on: [%d]: %d < %d", cur.NodeId, cur.SeqNo, n.localSv.Entries[li].SeqNo)
+			needNotif = true
+		}
+	}
+	for _, cur := range n.localSv.Entries {
+		li := remoteSv.findSvsEntry(cur.NodeId)
+		if li == -1 {
 			needNotif = true
 		}
 	}
@@ -163,29 +174,40 @@ func (n *SvsNode) onSyncInt(
 	// Since supression is an optimization that does not affect the demo, ignore for now.
 	// Report this issue to the team when have time.
 
-	// Reset the sync timer (already in lock)
-	n.cancelSyncTimer()
-	if needNotif {
-		n.expressStateVec()
+	if needNotif || n.state == SyncSupression {
+		// Set the aggregation timer
+		if n.state == SyncSteady {
+			n.state = SyncSupression
+			n.aggSv = StateVec{Entries: make([]*StateVecEntry, len(remoteSv.Entries))}
+			copy(n.aggSv.Entries, remoteSv.Entries)
+			n.cancelSyncTimer()
+			n.cancelSyncTimer = n.timer.Schedule(n.getAggIntv(), n.onSyncTimer)
+		} else {
+			// Should aggregate the incoming sv first, and only shoot after sync timer.
+			n.aggregate(remoteSv)
+		}
+	} else {
+		// Reset the sync timer (already in lock)
+		n.cancelSyncTimer()
+		n.cancelSyncTimer = n.timer.Schedule(n.getSyncIntv(), n.onSyncTimer)
 	}
-	n.cancelSyncTimer = n.timer.Schedule(n.getSyncIntv(), n.onSyncTimer)
 
 	return true
 }
 
-// func (n *SvsNode) aggregate(remoteSv *StateVec) {
-// 	for _, cur := range remoteSv.Entries {
-// 		li := n.aggSv.findSvsEntry(cur.NodeId)
-// 		if li == -1 {
-// 			n.aggSv.Entries = append(n.aggSv.Entries, &StateVecEntry{
-// 				NodeId: cur.NodeId,
-// 				SeqNo:  cur.SeqNo,
-// 			})
-// 		} else {
-// 			n.aggSv.Entries[li].SeqNo = utils.Max(n.aggSv.Entries[li].SeqNo, cur.SeqNo)
-// 		}
-// 	}
-// }
+func (n *SvsNode) aggregate(remoteSv *StateVec) {
+	for _, cur := range remoteSv.Entries {
+		li := n.aggSv.findSvsEntry(cur.NodeId)
+		if li == -1 {
+			n.aggSv.Entries = append(n.aggSv.Entries, &StateVecEntry{
+				NodeId: cur.NodeId,
+				SeqNo:  cur.SeqNo,
+			})
+		} else {
+			n.aggSv.Entries[li].SeqNo = utils.Max(n.aggSv.Entries[li].SeqNo, cur.SeqNo)
+		}
+	}
+}
 
 // func (n *SvsNode) transitToSuppress(remoteSv *StateVec) {
 // 	n.state = SyncSupression
@@ -202,7 +224,22 @@ func (n *SvsNode) onSyncInt(
 func (n *SvsNode) onSyncTimer() {
 	n.dataLock.Lock()
 	defer n.dataLock.Unlock()
-	n.expressStateVec()
+	// If in supression state, first test necessity
+	notNecessary := false
+	if n.state == SyncSupression {
+		n.state = SyncSteady
+		notNecessary = true
+		for _, cur := range n.localSv.Entries {
+			li := n.aggSv.findSvsEntry(cur.NodeId)
+			if li == -1 || n.aggSv.Entries[li].SeqNo < cur.SeqNo {
+				notNecessary = false
+				break
+			}
+		}
+	}
+	if !notNecessary {
+		n.expressStateVec()
+	}
 	// In case a new one is just scheduled by the onInterest callback. No-op most of the case.
 	n.cancelSyncTimer()
 	n.cancelSyncTimer = n.timer.Schedule(n.getSyncIntv(), n.onSyncTimer)
@@ -249,6 +286,11 @@ func (n *SvsNode) getSyncIntv() time.Duration {
 	return n.syncIntv + time.Duration(dev)*time.Nanosecond
 }
 
+func (n *SvsNode) getAggIntv() time.Duration {
+	dev := rand.Int63n(n.aggIntv.Nanoseconds()) - n.aggIntv.Nanoseconds()/2
+	return n.aggIntv + time.Duration(dev)*time.Nanosecond
+}
+
 func (n *SvsNode) MissingDataChannel() chan MissingData {
 	return n.missChan
 }
@@ -274,6 +316,7 @@ func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
 		if li >= 0 {
 			n.localSv.Entries[li].SeqNo = n.selfSeq
 		}
+		n.state = SyncSteady
 		n.expressStateVec()
 	} else {
 		n.selfSeq--
@@ -282,7 +325,7 @@ func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
 }
 
 func (n *SvsNode) onAttach(path enc.NamePattern, engine ndn.Engine) error {
-	if n.channelSize == 0 || len(n.selfNodeId) == 0 || n.baseMatching == nil || n.syncIntv <= 0 {
+	if n.channelSize == 0 || len(n.selfNodeId) == 0 || n.baseMatching == nil || n.syncIntv <= 0 || n.aggIntv <= 0 {
 		return errors.New("SvsNode: not configured before Init")
 	}
 
@@ -292,10 +335,12 @@ func (n *SvsNode) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 	defer n.dataLock.Unlock()
 
 	n.localSv = StateVec{Entries: make([]*StateVecEntry, 0)}
+	n.aggSv = StateVec{Entries: make([]*StateVecEntry, 0)}
 	// n.onMiss = schema.NewEvent[*SvsOnMissingEvent]()
 	n.state = SyncSteady
 	n.missChan = make(chan MissingData, n.channelSize)
-	n.cancelSyncTimer = n.timer.Schedule(n.getSyncIntv(), n.onSyncTimer)
+	// The first sync Interest should be sent out ASAP
+	n.cancelSyncTimer = n.timer.Schedule(utils.Min(n.getSyncIntv(), 100*time.Millisecond), n.onSyncTimer)
 	// go n.callbackRoutine()
 
 	// initialize localSv
@@ -329,6 +374,8 @@ func (n *SvsNode) Get(propName schema.PropKey) any {
 		return n.baseMatching
 	case "SyncInterval":
 		return n.syncIntv
+	case "AggregateInterval":
+		return n.aggIntv
 	}
 	return nil
 }
@@ -347,6 +394,8 @@ func (n *SvsNode) Set(propName schema.PropKey, value any) error {
 		return schema.PropertySet(&n.baseMatching, propName, value)
 	case "SyncInterval":
 		return schema.PropertySet(&n.syncIntv, propName, value)
+	case "AggregateInterval":
+		return schema.PropertySet(&n.aggIntv, propName, value)
 	}
 	return ndn.ErrNotSupported{Item: string(propName)}
 }

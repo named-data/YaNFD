@@ -45,6 +45,36 @@ func NewRegisterPolicy() schema.NTPolicy {
 	return &RegisterPolicy{}
 }
 
+// RegisterPolicy2 is a quick patch to RegisterPolicy so that it can be applied to a path with nodeID.
+type RegisterPolicy2 struct {
+	matching enc.Matching
+}
+
+func (p *RegisterPolicy2) PolicyTrait() schema.NTPolicy {
+	return p
+}
+
+func (p *RegisterPolicy2) onAttach(path enc.NamePattern, engine ndn.Engine) error {
+	// TODO: Maybe add the node as a parameter is better?
+	prefix := make(enc.Name, len(path))
+	for i, pc := range path {
+		comp, err := pc.FromMatching(p.matching)
+		if err != nil {
+			return err
+		}
+		prefix[i] = *comp
+	}
+	return engine.RegisterRoute(prefix)
+}
+
+func (p *RegisterPolicy2) Apply(node schema.NTNode) error {
+	return schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
+}
+
+func NewRegisterPolicy2(matching enc.Matching) schema.NTPolicy {
+	return &RegisterPolicy2{matching}
+}
+
 // LocalOnlyPolicy surpress Interest expression.
 // TODO: Is this secure? Do we need to consider the case where PropSuppressInt is overwritten by another policy?
 type LocalOnlyPolicy struct{}
