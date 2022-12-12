@@ -17,6 +17,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/gorilla/websocket"
+	"github.com/zjkmxy/go-ndn/examples/schema-test/shared-doc/crdt"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
@@ -38,7 +39,7 @@ var app *basic_engine.Engine
 var tree *schema.Tree
 var syncNode *demo.SvsNode
 var wsConn *websocket.Conn // 1 ws connection supported
-var msgList []string
+var textDoc crdt.TextDoc
 var dataLock sync.Mutex
 var nodeId string
 
@@ -60,16 +61,37 @@ func wsReader() {
 			wsConn = nil
 			dataLock.Unlock()
 			running = false
-			continue
+			break
 		}
 		// print out that message
+		eventText := string(p)
+		fmt.Printf("Event: %s\n", eventText)
+		args := strings.Split(eventText, ",")
+		validReq := true
 		dataLock.Lock()
-		syncNode.NewData(enc.Wire{p}, schema.Context{})
-		msgText := fmt.Sprintf("%s[%d]: %s", string(nodeId), syncNode.MySequence(), p)
-		fmt.Printf("received: %s\n", msgText)
-		if err := wsConn.WriteMessage(messageType, []byte(msgText)); err != nil {
-			wsConn = nil
-			running = false
+		if len(args) == 3 && (args[2] == "insertText" || args[2] == "deleteContentBackward") {
+			pos, _ := strconv.ParseInt(args[0], 10, 32)
+			var rec *crdt.Record // the new record to send
+			if args[2] == "insertText" {
+				rec = textDoc.Insert(int(pos), args[1])
+			} else {
+				rec = textDoc.Delete(int(pos))
+			}
+			if rec != nil {
+				syncNode.NewData(rec.Encode(), schema.Context{})
+			} else {
+				validReq = false
+			}
+		} else {
+			// Invalid request
+			validReq = false
+		}
+		if !validReq {
+			cur := textDoc.GetText()
+			if err := wsConn.WriteMessage(messageType, []byte(cur)); err != nil {
+				wsConn = nil
+				running = false
+			}
 		}
 		dataLock.Unlock()
 	}
@@ -82,13 +104,10 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	// connection
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf("unable to crate ws endpoint: %+v", err)
 	}
 	// helpful log statement to show connections
 	fmt.Println("Client Connected")
-	if err != nil {
-		fmt.Println(err)
-	}
 
 	if wsConn == nil {
 		wsConn = ws
@@ -97,10 +116,9 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	// Give existing knowledges
 	dataLock.Lock()
-	for _, msg := range msgList {
-		wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
-	}
+	msg := textDoc.GetText()
 	dataLock.Unlock()
+	wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
 	// Fetch messages sent by the client
 	wsReader()
 }
@@ -207,7 +225,7 @@ func main() {
 	}()
 
 	// Routine 2: On data received, send over ws
-	msgList = make([]string, 0)
+	textDoc = *crdt.NewTextDoc(uint64(port)) // Use port number as producer ID
 	go func() {
 		defer wg.Done()
 		ch := syncNode.MissingDataChannel()
@@ -220,11 +238,16 @@ func main() {
 						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
 					} else {
 						dataLock.Lock()
-						fmt.Printf("Fetched (%s, %d): %s\n", string(missData.NodeId), i, string(data.Join()))
-						msg := fmt.Sprintf("%s[%d]: %s", string(missData.NodeId), i, string(data.Join()))
-						msgList = append(msgList, msg)
+						fmt.Printf("Fetched (%s, %d)\n", string(missData.NodeId), i)
+						rec, err := crdt.ParseRecord(enc.NewWireReader(data), false)
+						if err != nil {
+							log.Errorf("unable to parse record: %+v", err)
+							continue
+						}
+						textDoc.HandleRecord(rec)
+						fmt.Printf("Current: %s\n", textDoc.GetText())
 						if wsConn != nil {
-							wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
+							wsConn.WriteMessage(websocket.TextMessage, []byte(textDoc.GetText()))
 						}
 						dataLock.Unlock()
 					}
