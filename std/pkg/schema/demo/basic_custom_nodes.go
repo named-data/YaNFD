@@ -39,7 +39,7 @@ func (n *ContentKeyNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 	n.leaf.Set(schema.PropMustBeFresh, false)
 	n.leaf.Set(schema.PropFreshness, 876000*time.Hour)
 	n.leaf.Set(schema.PropValidDuration, 876000*time.Hour)
-	n.leaf.Set(schema.PropDataSigner, sec.NewSha256Signer())
+	// n.leaf.Set(schema.PropDataSigner, sec.NewSha256Signer())
 	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
 		return schema.VrPass
 	}
@@ -144,7 +144,7 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 	n.seg.Set(schema.PropMustBeFresh, false)
 	n.seg.Set(schema.PropFreshness, 876000*time.Hour)
 	n.seg.Set(schema.PropValidDuration, 876000*time.Hour)
-	n.seg.Set(schema.PropDataSigner, sec.NewSha256Signer())
+	// n.seg.Set(schema.PropDataSigner, sec.NewSha256Signer())
 	passAllChecker := func(
 		matching enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, context schema.Context,
 	) schema.ValidRes {
@@ -302,6 +302,8 @@ func (n *GroupSigNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 	}
 	// Recover the data signer to SHA256
 	// There are also other ways to do it, such as using Context
-	n.seg.Set(schema.PropDataSigner, sec.NewSha256Signer())
+	schema.AddEventListener(n.seg, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+		return sec.NewSha256Signer()
+	})
 	return nil
 }

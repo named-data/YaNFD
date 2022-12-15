@@ -183,6 +183,12 @@ const (
 	// The event called when an ExpressingPoint or LeafNode searches the storage on Need(). [NodeSearchStorageEvent]
 	PropOnSearchStorage PropKey = "OnSearchStorage"
 
+	// The event called to get a signer for an Interest
+	PropOnGetIntSigner PropKey = "OnGetIntSigner"
+
+	// The event called to get a signer for a Data
+	PropOnGetDataSigner PropKey = "OnGetDataSigner"
+
 	// The event called when an ExpressingPoint or LeafNode saves a packet into the storage.
 	// The packet may be produced locally or fetched from the network.
 	// TODO: Add a sign to distinguish them.
@@ -195,8 +201,6 @@ const (
 	PropMustBeFresh PropKey = "MustBeFresh"
 	// Default Lifetime for outgoing Interest. [time.Duration]
 	PropLifetime PropKey = "Lifetime"
-	// Default signer for outgoing Interest. [ndn.Signer]
-	PropIntSigner PropKey = "IntSigner"
 	// If true, only local storage is searched. No Interest will be expressed.
 	// Note: may be overwritten by the Context.
 	// [bool]
@@ -206,8 +210,6 @@ const (
 	PropContentType PropKey = "ContentType"
 	// Default FreshnessPeriod for produced Data. [time.Duration]
 	PropFreshness PropKey = "Freshness"
-	// Default signer for produced Data. [ndn.Signer]
-	PropDataSigner PropKey = "DataSigner"
 	// See CkValidDuration. [time.Duration]
 	PropValidDuration PropKey = "ValidDuration"
 )
@@ -248,3 +250,9 @@ type NodeSearchStorageEvent = func(enc.Matching, enc.Name, bool, bool, Context) 
 // Args: name matching, full name, raw data packet, validity time (See CkValidDuration), context
 // Context: CkData, CkRawPacket, CkSigCovered, CkName, CkEngine, CkContent
 type NodeSaveStorageEvent = func(enc.Matching, enc.Name, enc.Wire, time.Time, Context)
+
+// NodeGetSignerEvent is the event triggered when the node needs a signer for an Interest or a Data.
+// When there are multiple callbacks, the first non-nil signer returned is taken.
+// Args: name matching, full name, context
+// Context: (user defined fields only)
+type NodeGetSignerEvent = func(enc.Matching, enc.Name, Context) ndn.Signer

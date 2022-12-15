@@ -48,7 +48,8 @@ func main() {
 	node.Set("Threshold", 80)
 
 	// Setup policies
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node) // Only affect the metadata node
+	path, _ = enc.NamePatternFromStr("/lorem/<v=time>/32=meta")
+	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(tree.At(path)) // Only set the metadata node
 	demo.NewMemStoragePolicy().Apply(node)
 
 	// Start engine

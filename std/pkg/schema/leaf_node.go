@@ -12,7 +12,9 @@ import (
 type LeafNode struct {
 	ExpressPoint
 
-	dataSigner  ndn.Signer
+	onGetDataSigner *Event[*NodeGetSignerEvent]
+
+	// dataSigner  ndn.Signer
 	contentType ndn.ContentType
 	freshness   time.Duration
 	validDur    time.Duration
@@ -36,7 +38,6 @@ func (n *LeafNode) Provide(
 	// Construst the Data
 	engine := n.engine
 	spec := engine.Spec()
-	signer := n.dataSigner
 	dataCfg := ndn.DataConfig{
 		ContentType:  utils.IdPtr(n.contentType),
 		Freshness:    utils.IdPtr(n.freshness),
@@ -61,6 +62,16 @@ func (n *LeafNode) Provide(
 	if v, ok := context[CkValidDuration].(time.Duration); ok {
 		validDur = v
 	}
+
+	// Get a signer for Data.
+	signer := ndn.Signer(nil)
+	for _, e := range n.onGetDataSigner.Val() {
+		signer = (*e)(matching, name, context)
+		if signer != nil {
+			break
+		}
+	}
+
 	wire, _, err := spec.MakeData(name, &dataCfg, content, signer)
 	if err != nil {
 		n.Log.WithField("name", name.String()).Errorf("Unable to encode Data in Provide(): %+v", err)
@@ -88,8 +99,8 @@ func (n *LeafNode) Get(propName PropKey) any {
 		return n.contentType
 	case PropFreshness:
 		return n.freshness
-	case PropDataSigner:
-		return n.dataSigner
+	case PropOnGetDataSigner:
+		return n.onGetDataSigner
 	case PropValidDuration:
 		return n.validDur
 	}
@@ -106,8 +117,6 @@ func (n *LeafNode) Set(propName PropKey, value any) error {
 		return PropertySet(&n.contentType, propName, value)
 	case PropFreshness:
 		return PropertySet(&n.freshness, propName, value)
-	case PropDataSigner:
-		return PropertySet(&n.dataSigner, propName, value)
 	case PropValidDuration:
 		return PropertySet(&n.validDur, propName, value)
 	}
@@ -117,7 +126,7 @@ func (n *LeafNode) Set(propName PropKey, value any) error {
 func (n *LeafNode) Init(parent NTNode, edge enc.ComponentPattern) {
 	n.ExpressPoint.Init(parent, edge)
 
-	n.dataSigner = nil
+	n.onGetDataSigner = NewEvent[*NodeGetSignerEvent]()
 	n.contentType = ndn.ContentTypeBlob
 	n.freshness = 0
 

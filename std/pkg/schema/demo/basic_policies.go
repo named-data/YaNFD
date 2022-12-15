@@ -242,7 +242,9 @@ func (p *FixedKeySigner) onValidateData(
 
 func (p *FixedKeySigner) Apply(node schema.NTNode) error {
 	schema.AddEventListener(node, schema.PropOnValidateData, p.onValidateData)
-	node.Set(schema.PropDataSigner, ndn.Signer(p))
+	schema.AddEventListener(node, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+		return ndn.Signer(p)
+	})
 	chd := node.Children()
 	for _, c := range chd {
 		p.Apply(c)
@@ -320,7 +322,9 @@ func (p *FixedKeyIntSigner) Apply(node schema.NTNode) error {
 		return nil
 	}
 	schema.AddEventListener(node, schema.PropOnValidateInt, p.onValidateInt)
-	node.Set(schema.PropIntSigner, ndn.Signer(p))
+	schema.AddEventListener(node, schema.PropOnGetIntSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+		return ndn.Signer(p)
+	})
 	schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
 	chd := node.Children()
 	for _, c := range chd {

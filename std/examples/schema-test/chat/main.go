@@ -118,7 +118,7 @@ func main() {
 
 	// Parse port number
 	if len(os.Args) < 2 {
-		logger.Fatal("Insufficient argument. Please input the version number given by the producer.")
+		logger.Fatal("Insufficient argument. Please input a port number uniquely used by this instance.")
 		return
 	}
 	port, err := strconv.Atoi(os.Args[1])

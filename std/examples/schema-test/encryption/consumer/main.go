@@ -18,6 +18,8 @@ import (
 var app *basic_engine.Engine
 var tree *schema.Tree
 
+const HmacKey = "Hello, World!"
+
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
@@ -50,7 +52,9 @@ func main() {
 	node.Set(schema.PropLifetime, 6*time.Second)
 	node.Set(schema.PropFreshness, 1*time.Second)
 	node.Set(schema.PropValidDuration, 876000*time.Hour)
-	node.Set(schema.PropDataSigner, sec.NewSha256Signer())
+	schema.AddEventListener(node, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+		return sec.NewSha256Signer()
+	})
 	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
 		return schema.VrPass
 	}
@@ -62,6 +66,7 @@ func main() {
 		logger.Fatalf("Unable to construst the schema tree: %+v", err)
 		return
 	}
+	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(ckNode)
 
 	// Setup policies
 	memStorage := demo.NewMemStoragePolicy()

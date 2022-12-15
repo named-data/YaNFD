@@ -21,8 +21,9 @@ type ExpressPoint struct {
 	onValidateData  *Event[*NodeValidateEvent]
 	onSearchStorage *Event[*NodeSearchStorageEvent]
 	onSaveStorage   *Event[*NodeSaveStorageEvent]
+	onGetIntSigner  *Event[*NodeGetSignerEvent]
 
-	intSigner   ndn.Signer
+	// intSigner   ndn.Signer
 	canBePrefix bool
 	mustBeFresh bool
 	lifetime    time.Duration
@@ -148,7 +149,6 @@ func (n *ExpressPoint) Need(
 	spec := engine.Spec()
 	timer := engine.Timer()
 	context[CkEngine] = engine
-	signer := n.intSigner
 	// storageSearched := false
 	canBePrefix := n.canBePrefix
 	mustBeFresh := n.mustBeFresh
@@ -160,6 +160,14 @@ func (n *ExpressPoint) Need(
 	if ctxVal, ok := context[CkMustBeFresh]; ok {
 		if v, ok := ctxVal.(bool); ok {
 			mustBeFresh = v
+		}
+	}
+	// Get a signer for Interest.
+	signer := ndn.Signer(nil)
+	for _, e := range n.onGetIntSigner.Val() {
+		signer = (*e)(matching, name, context)
+		if signer != nil {
+			break
 		}
 	}
 	if signer == nil && appParam == nil {
@@ -333,8 +341,8 @@ func (n *ExpressPoint) Get(propName PropKey) any {
 		return n.mustBeFresh
 	case PropLifetime:
 		return n.lifetime
-	case PropIntSigner:
-		return n.intSigner
+	case PropOnGetIntSigner:
+		return n.onGetIntSigner
 	case PropSuppressInt:
 		return n.supressInt
 	}
@@ -353,8 +361,6 @@ func (n *ExpressPoint) Set(propName PropKey, value any) error {
 		return PropertySet(&n.mustBeFresh, propName, value)
 	case PropLifetime:
 		return PropertySet(&n.lifetime, propName, value)
-	case PropIntSigner:
-		return PropertySet(&n.intSigner, propName, value)
 	case PropSuppressInt:
 		return PropertySet(&n.supressInt, propName, value)
 	}
@@ -368,8 +374,8 @@ func (n *ExpressPoint) Init(parent NTNode, edge enc.ComponentPattern) {
 	n.onValidateData = NewEvent[*NodeValidateEvent]()
 	n.onSearchStorage = NewEvent[*NodeSearchStorageEvent]()
 	n.onSaveStorage = NewEvent[*NodeSaveStorageEvent]()
+	n.onGetIntSigner = NewEvent[*NodeGetSignerEvent]()
 
-	n.intSigner = nil
 	n.canBePrefix = false // TODO: Set this based on the children
 	n.mustBeFresh = true
 	n.lifetime = 4 * time.Second
