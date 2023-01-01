@@ -50,6 +50,7 @@ func onInterest(
 
 func main() {
 	timer := basic_engine.NewTimer()
+	// face := basic_engine.NewWebSocketFace("ws", "localhost:9696", true)
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
 	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	log.SetLevel(log.InfoLevel)

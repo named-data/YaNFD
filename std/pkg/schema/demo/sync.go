@@ -131,6 +131,7 @@ func (n *SvsNode) onSyncInt(
 				EndSeq:   cur.SeqNo + 1,
 			}
 		} else if n.localSv.Entries[li].SeqNo < cur.SeqNo {
+			log.Debugf("Missing data for: [%d]: %d < %d", cur.NodeId, n.localSv.Entries[li].SeqNo, cur.SeqNo)
 			n.missChan <- MissingData{
 				NodeId:   cur.NodeId,
 				StartSeq: n.localSv.Entries[li].SeqNo + 1,
@@ -139,7 +140,7 @@ func (n *SvsNode) onSyncInt(
 			n.localSv.Entries[li].SeqNo = cur.SeqNo
 			// needFetch = true
 		} else if n.localSv.Entries[li].SeqNo > cur.SeqNo {
-			log.Infof("Outdated remote on: [%d]: %d < %d", cur.NodeId, cur.SeqNo, n.localSv.Entries[li].SeqNo)
+			log.Debugf("Outdated remote on: [%d]: %d < %d", cur.NodeId, cur.SeqNo, n.localSv.Entries[li].SeqNo)
 			needNotif = true
 		}
 	}
@@ -317,8 +318,10 @@ func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
 			n.localSv.Entries[li].SeqNo = n.selfSeq
 		}
 		n.state = SyncSteady
+		n.Log.Debugf("NewData generated w/ seq=%d", n.selfSeq)
 		n.expressStateVec()
 	} else {
+		n.Log.Errorf("Failed to provide seq=%d", n.selfSeq)
 		n.selfSeq--
 	}
 	return ret
