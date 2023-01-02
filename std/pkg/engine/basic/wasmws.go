@@ -73,9 +73,9 @@ func (f *WasmWsFace) Open() error {
 		return nil
 	}))
 	f.conn.Call("addEventListener", "message", js.FuncOf(f.onMessage))
-	log.WithField("module", "main").Info("Waiting for WebSocket connection ...")
+	log.WithField("module", "WasmWsFace").Info("Waiting for WebSocket connection ...")
 	<-ch
-	log.WithField("module", "main").Info("WebSocket connected ...")
+	log.WithField("module", "WasmWsFace").Info("WebSocket connected ...")
 	f.running.Store(true)
 	return nil
 }
