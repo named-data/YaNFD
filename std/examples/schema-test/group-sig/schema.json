@@ -1,0 +1,31 @@
+{
+  "nodes": {
+    "/lorem/<v=time>": {
+      "type": "GroupSigNode",
+      "attrs": {
+        "Threshold": 80
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "FixedHmacKeySigner",
+      "path": "/lorem/<v=time>/32=meta",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}

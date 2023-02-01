@@ -9,20 +9,22 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 const SchemaJson = `{
   "nodes": {
-    "/randomData/<v=time>": {
-      "type": "LeafNode",
+    "/": {
+      "type": "RdrNode",
       "attrs": {
-        "CanBePrefix": false,
-        "MustBeFresh": true,
-        "Lifetime": 6000
-      },
-      "events": {
-        "OnInterest": ["$onInterest"]
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "MetaLifetime": 6000,
+        "Lifetime": 6000,
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
       }
     }
   },
@@ -36,7 +38,19 @@ const SchemaJson = `{
     },
     {
       "type": "Sha256Signer",
-      "path": "/randomData/<v=time>",
+      "path": "/32=metadata/<v=versionNumber>/seg=0"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/32=metadata"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/<v=versionNumber>/<seg=segmentNumber>"
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
       "attrs": {}
     }
   ]
@@ -47,12 +61,11 @@ func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 }
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
 	tree := schema.CreateFromJson(SchemaJson, map[string]any{
-		"$onInterest": func(event *schema.Event) any { return nil },
 		"$isProducer": false,
 	})
 
@@ -68,7 +81,7 @@ func main() {
 	defer app.Shutdown()
 
 	// Attach the schema
-	prefix, _ := enc.NameFromStr("/example/testApp")
+	prefix, _ := enc.NameFromStr("/example/schema/rdr")
 	err = tree.Attach(prefix, app)
 	if err != nil {
 		logger.Fatalf("Unable to attach the schema to the engine: %+v", err)
@@ -77,11 +90,7 @@ func main() {
 	defer tree.Detach()
 
 	// Fetch the data
-	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
-	node := tree.At(path)
-	mNode := node.Apply(enc.Matching{
-		"time": enc.Nat(utils.MakeTimestamp(timer.Now())).Bytes(),
-	})
+	mNode := tree.Root().Apply(enc.Matching{})
 	result := <-mNode.Call("NeedChan").(chan schema.NeedResult)
 	switch result.Status {
 	case ndn.InterestResultNack:

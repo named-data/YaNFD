@@ -151,7 +151,7 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 		if sig.SigType() != ndn.SignatureDigestSha256 {
 			return schema.VrFail
 		}
-		seghash, ok := matching["seghash"].([]byte)
+		seghash, ok := matching["seghash"]
 		if !ok || seghash == nil {
 			return schema.VrFail
 		}

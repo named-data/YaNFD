@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -8,72 +10,100 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-// ExpressPoint is an expressing point where an Interest is supposed to be expressed.
-// For example, for an RDR protocol w/ metadata name being /prefix/<filename>/32=metadata/<v=version>,
-// The node at "/prefix/<filename>/32=metadata" is an ExpressPoint,
-// as the consumer will express an Interest of this name with CanBePrefix.
-// The node at "/prefix/<filename>/32=metadata/<v=version>" is a LeafNode.
+type NeedResult struct {
+	// Status is the result of Need (data, NACKed, timed out, validation failure)
+	Status ndn.InterestResult
+	// Content is the needed data object
+	Content enc.Wire
+	// Data packet if available. Note that this may be nil if the node aggregates multiple packets.
+	// Please use Extra to obtain extra info in that case.
+	Data ndn.Data
+	// ValidResult is the result of validation of this data object
+	ValidResult *ValidRes
+	// NackReason is the reason for NACK
+	NackReason *uint64
+	// Extra info used by application
+	Extra map[string]any
+}
+
+func (r NeedResult) Get() (ndn.InterestResult, enc.Wire) {
+	return r.Status, r.Content
+}
+
 type ExpressPoint struct {
-	BaseNode
+	BaseNodeImpl
 
-	onInt           *Event[*NodeOnIntEvent]
-	onValidateInt   *Event[*NodeValidateEvent]
-	onValidateData  *Event[*NodeValidateEvent]
-	onSearchStorage *Event[*NodeSearchStorageEvent]
-	onSaveStorage   *Event[*NodeSaveStorageEvent]
-	onGetIntSigner  *Event[*NodeGetSignerEvent]
+	OnInt           *EventTarget
+	OnValidateInt   *EventTarget
+	OnValidateData  *EventTarget
+	OnSearchStorage *EventTarget
+	OnSaveStorage   *EventTarget
+	OnGetIntSigner  *EventTarget
 
-	// intSigner   ndn.Signer
-	canBePrefix bool
-	mustBeFresh bool
-	lifetime    time.Duration
-	supressInt  bool
+	CanBePrefix bool
+	MustBeFresh bool
+	Lifetime    time.Duration
+	SupressInt  bool
 }
 
-type intResult struct {
-	result     ndn.InterestResult
-	data       ndn.Data
-	rawData    enc.Wire
-	sigCovered enc.Wire
-	nackReason uint64
+func (n *ExpressPoint) NodeImplTrait() NodeImpl {
+	return n
 }
 
-func (n *ExpressPoint) SearchCache(
-	matching enc.Matching, name enc.Name, canBePrefix bool, mustBeFresh bool, context Context,
-) enc.Wire {
-	cachedData := enc.Wire(nil)
-	for _, evt := range n.onSearchStorage.val {
-		cachedData = (*evt)(matching, name, canBePrefix, mustBeFresh, context)
-		if len(cachedData) > 0 {
-			return cachedData
+func (n *ExpressPoint) SearchCache(event *Event) enc.Wire {
+	// SearchCache can be triggered by both incoming Interest and outgoing Interest.
+	// To make the input unified, we set mustBeFresh and CanBePrefix here.
+	setIntCfg := event.IntConfig == nil
+	if setIntCfg {
+		event.IntConfig = &ndn.InterestConfig{
+			CanBePrefix: event.Interest.CanBePrefix(),
+			MustBeFresh: event.Interest.MustBeFresh(),
 		}
 	}
-	return nil
+	ret := n.OnSearchStorage.DispatchUntil(event, func(a any) bool {
+		wire, ok := a.(enc.Wire)
+		return ok && len(wire) > 0
+	})
+	cachedData, ok := ret.(enc.Wire)
+	if setIntCfg {
+		event.IntConfig = nil
+	}
+	if ok {
+		return cachedData
+	} else {
+		return nil
+	}
 }
 
-// OnInterest is the function called when an Interest comes.
 func (n *ExpressPoint) OnInterest(
 	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
 	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
 ) {
-	context := Context{
-		CkInterest:   interest,
-		CkDeadline:   deadline,
-		CkRawPacket:  rawInterest,
-		CkSigCovered: sigCovered,
-		CkName:       interest.Name(),
-		CkEngine:     n.engine,
-		CkContent:    interest.AppParam(),
+	node := n.Node
+	event := &Event{
+		TargetNode: node,
+		Target: &MatchedNode{
+			Node:     node,
+			Matching: matching,
+			Name:     interest.Name(),
+		},
+		RawPacket:  rawInterest,
+		SigCovered: sigCovered,
+		Interest:   interest,
+		Signature:  interest.Signature(),
+		Reply:      reply,
+		Deadline:   &deadline,
 	}
+	logger := event.Target.Logger("ExpressPoint")
 
 	// Search storage
 	// Reply if there is data (including AppNack). No further callback will be called if hit.
 	// This is the same behavior as a forwarder.
-	cachedData := n.SearchCache(matching, interest.Name(), interest.CanBePrefix(), interest.MustBeFresh(), context)
+	cachedData := n.SearchCache(event)
 	if len(cachedData) > 0 {
 		err := reply(cachedData)
 		if err != nil {
-			n.Log.WithField("name", interest.Name().String()).Error("Unable to reply Interest. Drop.")
+			logger.Error("Unable to reply Interest. Drop.")
 		}
 		return
 	}
@@ -84,21 +114,19 @@ func (n *ExpressPoint) OnInterest(
 		// TODO: Validate Sha256 in name
 		if interest.Signature().SigType() != ndn.SignatureNone || interest.AppParam() != nil {
 			validRes := VrSilence
-			context[CkLastValidResult] = validRes
-			for _, evt := range n.onValidateInt.val {
-				res := (*evt)(matching, interest.Name(), interest.Signature(), sigCovered, context)
-				if res < VrSilence {
-					n.Log.WithField("name", interest.Name().String()).Warn("Verification failed for Interest. Drop.")
-					return
-				}
-				validRes = utils.Max(validRes, res)
-				context[CkLastValidResult] = validRes
-				if validRes >= VrBypass {
-					break
-				}
+			event.ValidResult = &validRes
+			ret := n.OnValidateInt.DispatchUntil(event, func(a any) bool {
+				res, ok := a.(ValidRes)
+				event.ValidResult = &res
+				return !ok || res < VrSilence || res >= VrBypass
+			})
+			res, ok := ret.(ValidRes)
+			if !ok || res < VrSilence {
+				logger.Warnf("Verification failed (%d) for Interest. Drop.", res)
+				return
 			}
-			if validRes <= VrSilence {
-				n.Log.WithField("name", interest.Name().String()).Warn("Unverified Interest. Drop.")
+			if validRes == VrSilence {
+				logger.Warn("Unverified Interest. Drop.")
 				return
 			}
 		}
@@ -108,13 +136,10 @@ func (n *ExpressPoint) OnInterest(
 		// Do we need them? Hold for now.
 
 		// OnInt
-		isDone := false
-		for _, evt := range n.onInt.val {
-			isDone = (*evt)(matching, interest.AppParam(), reply, context)
-			if isDone {
-				break
-			}
-		}
+		n.OnInt.DispatchUntil(event, func(a any) bool {
+			isDone, ok := a.(bool)
+			return ok && isDone
+		})
 
 		// PreSendData
 		// Used to encrypt Data or handle after onInterest hits, if applicable.
@@ -122,264 +147,338 @@ func (n *ExpressPoint) OnInterest(
 	}()
 }
 
-// Need is the function to obtain the corresponding Data. May express an Interest if the Data is not stored.
-// Name is constructed from matching if nil. If given, name must agree with matching.
-// TODO:
-// 1. Need we make it non-blocking and return future/channel?
-// 2. Need we use a different type than ndn.InterestResult?
-// 3. Need we use []byte instead of enc.Wire, given that the performance is not a big consideration here?
-func (n *ExpressPoint) Need(
-	matching enc.Matching, name enc.Name, appParam enc.Wire, context Context,
-) chan NeedResult {
-	ret := make(chan NeedResult, 1)
-	// Construct the name (excluding hash) if not yet
-	if name == nil {
-		name = n.Apply(matching)
-		if name == nil {
-			n.Log.Error("Unable to construct Interest Name in Need().")
-			ret <- NeedResult{ndn.InterestResultNone, nil}
-			close(ret)
-			return ret
+// NeedCallback is callback version of Need().
+// The Need() function to obtain the corresponding Data. May express an Interest if the Data is not stored.
+// `intConfig` is optional and if given, will overwrite the default setting.
+// The callback function will be called in another goroutine no matter what the result is.
+// So if `callback` can handle errors, it is safe to ignore the return value.
+func (n *ExpressPoint) NeedCallback(
+	mNode MatchedNode, callback Callback, appParam enc.Wire, intConfig *ndn.InterestConfig, supress bool,
+) error {
+	if mNode.Node != n.Node {
+		panic("NTSchema tree compromised.")
+	}
+	// ret := make(chan NeedResult, 1)
+	node := n.Node
+	engine := n.Node.engine
+	spec := engine.Spec()
+	logger := mNode.Logger("ExpressPoint")
+	if intConfig == nil {
+		intConfig = &ndn.InterestConfig{
+			CanBePrefix:    n.CanBePrefix,
+			MustBeFresh:    n.MustBeFresh,
+			Lifetime:       utils.IdPtr(n.Lifetime),
+			Nonce:          utils.ConvertNonce(engine.Timer().Nonce()),
+			HopLimit:       nil,
+			ForwardingHint: nil,
 		}
+	}
+	event := &Event{
+		TargetNode: node,
+		Target:     &mNode,
+		IntConfig:  intConfig,
+		Content:    appParam,
 	}
 
 	// If appParam is empty and not signed, the Interest name is final.
 	// Otherwise, we have to construct the Interest first before searching storage.
-	engine := n.engine
-	spec := engine.Spec()
-	timer := engine.Timer()
-	context[CkEngine] = engine
-	// storageSearched := false
-	canBePrefix := n.canBePrefix
-	mustBeFresh := n.mustBeFresh
-	if ctxVal, ok := context[CkCanBePrefix]; ok {
-		if v, ok := ctxVal.(bool); ok {
-			canBePrefix = v
-		}
-	}
-	if ctxVal, ok := context[CkMustBeFresh]; ok {
-		if v, ok := ctxVal.(bool); ok {
-			mustBeFresh = v
-		}
-	}
 	// Get a signer for Interest.
-	signer := ndn.Signer(nil)
-	for _, e := range n.onGetIntSigner.Val() {
-		signer = (*e)(matching, name, context)
-		if signer != nil {
-			break
-		}
-	}
-	if signer == nil && appParam == nil {
-		cachedData := n.SearchCache(matching, name, canBePrefix, mustBeFresh, context)
+	evtRet := n.OnGetIntSigner.DispatchUntil(event, func(a any) bool {
+		ret, ok := a.(ndn.Signer)
+		return ok && ret != nil
+	})
+	signer, ok := evtRet.(ndn.Signer)
+	if (!ok || signer == nil) && appParam == nil {
+		cachedData := n.SearchCache(event)
 		if cachedData != nil {
 			data, sigCovered, err := spec.ReadData(enc.NewWireReader(cachedData))
 			if err == nil {
-				context[CkName] = data.Name()
-				context[CkData] = data
-				context[CkRawPacket] = cachedData
-				context[CkSigCovered] = sigCovered
-				context[CkContent] = data.Content()
-				context[CkLastValidResult] = VrCachedData
-				ret <- NeedResult{ndn.InterestResultData, data.Content()}
-				close(ret)
-				return ret
+				dataMatch := mNode.Refine(data.Name())
+				cbEvt := &Event{
+					TargetNode:   node,
+					Target:       dataMatch,
+					RawPacket:    cachedData,
+					SigCovered:   sigCovered,
+					Signature:    data.Signature(),
+					Data:         data,
+					Content:      data.Content(),
+					ValidResult:  utils.IdPtr(VrCachedData),
+					NeedStatus:   utils.IdPtr(ndn.InterestResultData),
+					SelfProduced: utils.IdPtr(true),
+				}
+				go callback(cbEvt)
+				// ret <- NeedResult{ndn.InterestResultData, data.Content(), data, cachedData, VrCachedData}
+				// close(ret)
+				// return ret
+				return nil
 			} else {
-				n.Log.WithField("name", name.String()).Error("The storage returned an invalid data")
+				logger.Error("The storage returned an invalid data")
 			}
 		}
 		// storageSearched = true
 	}
 
 	// Construst Interest
-	intCfg := ndn.InterestConfig{
-		CanBePrefix:    canBePrefix,
-		MustBeFresh:    mustBeFresh,
-		Lifetime:       utils.IdPtr(n.lifetime),
-		Nonce:          utils.ConvertNonce(timer.Nonce()),
-		HopLimit:       nil,
-		ForwardingHint: nil,
-	}
-	if ctxVal, ok := context[CkLifetime]; ok {
-		if v, ok := ctxVal.(time.Duration); ok {
-			intCfg.Lifetime = &v
-		}
-	}
-	if ctxVal, ok := context[CkNonce]; ok {
-		if v, ok := ctxVal.(uint64); ok {
-			intCfg.Nonce = &v
-		}
-	}
-	if ctxVal, ok := context[CkHopLimit]; ok {
-		if v, ok := ctxVal.(uint); ok {
-			intCfg.HopLimit = utils.IdPtr(utils.Min(v, 255))
-		}
-	}
-	if ctxVal, ok := context[CkForwardingHint]; ok {
-		if v, ok := ctxVal.([]enc.Name); ok {
-			intCfg.ForwardingHint = v
-		}
-	}
-	wire, _, finalName, err := spec.MakeInterest(name, &intCfg, appParam, signer)
+	wire, _, finalName, err := spec.MakeInterest(mNode.Name, intConfig, appParam, signer)
 	if err != nil {
-		n.Log.WithField("name", name.String()).Errorf("Unable to encode Interest in Need(): %+v", err)
-		ret <- NeedResult{ndn.InterestResultNone, nil}
-		close(ret)
-		return ret
+		logger.Errorf("Unable to encode Interest in Need(): %+v", err)
+		go callback(&Event{
+			TargetNode: node,
+			NeedStatus: utils.IdPtr(ndn.InterestResultNone),
+		})
+		return errors.New("unable to construct Interest")
 	}
 
 	// We may search the storage if not yet
 	// if !storageSearched {
 	// 	// Since it is not useful generally, skip for now.
 	// }
-	if n.supressInt {
-		ret <- NeedResult{ndn.InterestResultNack, nil}
-		close(ret)
-		return ret
-	}
-	if supress, ok := context[CkSupressInt].(bool); ok && supress {
-		ret <- NeedResult{ndn.InterestResultNack, nil}
-		close(ret)
-		return ret
+	if n.SupressInt || supress {
+		go callback(&Event{
+			TargetNode: node,
+			NeedStatus: utils.IdPtr(ndn.InterestResultNack),
+		})
+		return nil
 	}
 
 	// Set the deadline
 	// assert(intCfg.Lifetime != nil)
-	if _, ok := context[CkDeadline]; !ok {
-		deadline := timer.Now().Add(*intCfg.Lifetime)
-		context[CkDeadline] = deadline
+	var deadline *time.Time
+	if intConfig.Lifetime != nil {
+		deadline = utils.IdPtr(engine.Timer().Now().Add(*intConfig.Lifetime))
+	} else {
+		deadline = nil
+	}
+	cbEvt := &Event{
+		TargetNode:   node,
+		Target:       &mNode,
+		Deadline:     deadline,
+		SelfProduced: utils.IdPtr(false),
 	}
 
 	// Express the Interest
 	// Note that this function runs on a different go routine than the callback.
 	// To avoid clogging the engine, the callback needs to return ASAP, so an inner goroutine is created.
-	err = engine.Express(finalName, &intCfg, wire,
+	err = engine.Express(finalName, intConfig, wire,
 		func(result ndn.InterestResult, data ndn.Data, rawData, sigCovered enc.Wire, nackReason uint64) {
 			if result != ndn.InterestResultData {
 				if result == ndn.InterestResultNack {
-					context[CkNackReason] = nackReason
+					cbEvt.NackReason = &nackReason
 				}
-				ret <- NeedResult{result, nil}
-				close(ret)
+				cbEvt.NeedStatus = utils.IdPtr(result)
+				go callback(cbEvt)
 				return
 			}
 
 			go func() {
-				context[CkName] = data.Name()
-				context[CkData] = data
-				context[CkRawPacket] = rawData
-				context[CkSigCovered] = sigCovered
-				context[CkContent] = data.Content()
+				dataMatch := mNode.Refine(data.Name())
+				cbEvt.Target = dataMatch
+				cbEvt.Data = data
+				cbEvt.RawPacket = rawData
+				cbEvt.SelfProduced = utils.IdPtr(false)
+				cbEvt.SigCovered = sigCovered
+				cbEvt.Content = data.Content()
+				cbEvt.Signature = data.Signature()
 
 				// Validate data
 				validRes := VrSilence
-				context[CkLastValidResult] = validRes
-				for _, evt := range n.onValidateData.val {
-					res := (*evt)(matching, data.Name(), data.Signature(), sigCovered, context)
-					if res < VrSilence {
-						n.Log.WithField("name", data.Name().String()).Warn("Verification failed for Data. Drop.")
-						context[CkLastValidResult] = res
-						ret <- NeedResult{ndn.InterestResultUnverified, nil}
-						close(ret)
-						return
-					}
-					validRes = utils.Max(validRes, res)
-					context[CkLastValidResult] = validRes
-					if validRes >= VrBypass {
-						break
-					}
+				cbEvt.ValidResult = &validRes
+				ret := n.OnValidateData.DispatchUntil(cbEvt, func(a any) bool {
+					res, ok := a.(ValidRes)
+					cbEvt.ValidResult = &res
+					return !ok || res < VrSilence || res >= VrBypass
+				})
+				res, ok := ret.(ValidRes)
+				if ok {
+					cbEvt.ValidResult = &res
 				}
-				if validRes <= VrSilence {
-					n.Log.WithField("name", data.Name().String()).Warn("Unverified Data. Drop.")
-					ret <- NeedResult{ndn.InterestResultUnverified, nil}
-					close(ret)
+				if !ok || res < VrSilence {
+					logger.Warnf("Verification failed (%d) for Data. Drop.", res)
+					cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
+					cbEvt.Content = nil
+					callback(cbEvt)
 					return
 				}
+				if res == VrSilence {
+					logger.Warn("Unverified Data. Drop.")
+					cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
+					cbEvt.Content = nil
+					callback(cbEvt)
+					return
+				}
+				cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultData)
 
 				// Save (cache) the data in the storage
-				deadline := n.engine.Timer().Now()
-				if freshness := data.Freshness(); freshness != nil {
-					deadline = deadline.Add(*freshness)
-				}
-				for _, evt := range n.onSaveStorage.val {
-					(*evt)(matching, data.Name(), rawData, deadline, context)
-				}
+				cbEvt.ValidDuration = data.Freshness()
+				n.OnSaveStorage.Dispatch(cbEvt)
 
 				// Return the result
-				ret <- NeedResult{ndn.InterestResultData, data.Content()}
-				close(ret)
+				callback(cbEvt)
 			}()
 		})
 	if err != nil {
-		n.Log.WithField("name", finalName.String()).Warn("Failed to express Interest.")
-		ret <- NeedResult{ndn.InterestResultNone, nil}
-		close(ret)
-		return ret
+		logger.Warn("Failed to express Interest.")
+		go callback(&Event{
+			TargetNode: node,
+			NeedStatus: utils.IdPtr(ndn.InterestResultNone),
+		})
 	}
+	return err
+}
+
+// NeedChan is the channel version of Need()
+func (n *ExpressPoint) NeedChan(
+	mNode MatchedNode, appParam enc.Wire, intConfig *ndn.InterestConfig, supress bool,
+) chan NeedResult {
+	ret := make(chan NeedResult, 1)
+	callback := func(event *Event) any {
+		result := NeedResult{
+			Status:      *event.NeedStatus,
+			Content:     event.Content,
+			Data:        event.Data,
+			ValidResult: event.ValidResult,
+			NackReason:  event.NackReason,
+		}
+		ret <- result
+		close(ret)
+		return nil
+	}
+	n.NeedCallback(mNode, callback, appParam, intConfig, supress)
 	return ret
 }
 
-// Get a property or callback event
-func (n *ExpressPoint) Get(propName PropKey) any {
-	if ret := n.BaseNode.Get(propName); ret != nil {
-		return ret
+func CreateExpressPoint(node *Node) NodeImpl {
+	return &ExpressPoint{
+		BaseNodeImpl: BaseNodeImpl{
+			Node:        node,
+			OnAttachEvt: &EventTarget{},
+			OnDetachEvt: &EventTarget{},
+		},
+		CanBePrefix:     true,
+		MustBeFresh:     true,
+		Lifetime:        4 * time.Second,
+		SupressInt:      false,
+		OnInt:           &EventTarget{},
+		OnValidateInt:   &EventTarget{},
+		OnValidateData:  &EventTarget{},
+		OnSearchStorage: &EventTarget{},
+		OnSaveStorage:   &EventTarget{},
+		OnGetIntSigner:  &EventTarget{},
 	}
-	switch propName {
-	case PropOnInterest:
-		return n.onInt
-	case PropOnValidateInt:
-		return n.onValidateInt
-	case PropOnValidateData:
-		return n.onValidateData
-	case PropOnSearchStorage:
-		return n.onSearchStorage
-	case PropOnSaveStorage:
-		return n.onSaveStorage
-	case PropCanBePrefix:
-		return n.canBePrefix
-	case PropMustBeFresh:
-		return n.mustBeFresh
-	case PropLifetime:
-		return n.lifetime
-	case PropOnGetIntSigner:
-		return n.onGetIntSigner
-	case PropSuppressInt:
-		return n.supressInt
-	}
-	return nil
 }
 
-// Set a property. Use Get() to update callback events.
-func (n *ExpressPoint) Set(propName PropKey, value any) error {
-	if ret := n.BaseNode.Set(propName, value); ret == nil {
-		return ret
+var ExpressPointDesc *NodeImplDesc
+
+func initExpressPointDesc() {
+	ExpressPointDesc = &NodeImplDesc{
+		ClassName: "ExpressPoint",
+		Properties: map[PropKey]PropertyDesc{
+			PropCanBePrefix: DefaultPropertyDesc(PropCanBePrefix),
+			PropMustBeFresh: DefaultPropertyDesc(PropMustBeFresh),
+			PropLifetime:    TimePropertyDesc(PropLifetime),
+			PropSuppressInt: DefaultPropertyDesc(PropSuppressInt),
+		},
+		Events: map[PropKey]EventGetter{
+			PropOnAttach:        DefaultEventTarget(PropOnAttach),   // Inherited from base
+			PropOnDetach:        DefaultEventTarget(PropOnDetach),   // Inherited from base
+			"OnInterest":        DefaultEventTarget(PropOnInterest), // This has a name conflict problem
+			PropOnValidateInt:   DefaultEventTarget(PropOnValidateInt),
+			PropOnValidateData:  DefaultEventTarget(PropOnValidateData),
+			PropOnSearchStorage: DefaultEventTarget(PropOnSearchStorage),
+			PropOnSaveStorage:   DefaultEventTarget(PropOnSaveStorage),
+			PropOnGetIntSigner:  DefaultEventTarget(PropOnGetIntSigner),
+		},
+		Functions: map[string]NodeFunc{
+			"Need": func(mNode MatchedNode, args ...any) any {
+				if len(args) < 1 || len(args) > 4 {
+					err := fmt.Errorf("ExpressPoint.Need requires 1~4 arguments but got %d", len(args))
+					mNode.Logger("ExpressPoint").Error(err.Error())
+					return err
+				}
+				callback, ok := args[0].(Callback)
+				if !ok {
+					err := ndn.ErrInvalidValue{Item: "callback", Value: args[0]}
+					mNode.Logger("ExpressPoint").Error(err.Error())
+					return err
+				}
+				var appParam enc.Wire = nil
+				if len(args) >= 2 {
+					appParam, ok = args[1].(enc.Wire)
+					if !ok && args[1] != nil {
+						err := ndn.ErrInvalidValue{Item: "appParam", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				var intConfig (*ndn.InterestConfig)
+				if len(args) >= 3 {
+					intConfig, ok = args[2].(*ndn.InterestConfig)
+					if !ok && args[2] != nil {
+						err := ndn.ErrInvalidValue{Item: "intConfig", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				var supress bool = false
+				if len(args) >= 4 {
+					supress, ok = args[3].(bool)
+					if !ok {
+						err := ndn.ErrInvalidValue{Item: "supress", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				return QueryInterface[*ExpressPoint](mNode.Node).NeedCallback(mNode, callback, appParam, intConfig, supress)
+			},
+			"NeedChan": func(mNode MatchedNode, args ...any) any {
+				if len(args) > 3 {
+					err := fmt.Errorf("ExpressPoint.NeedChan requires 0~3 arguments but got %d", len(args))
+					mNode.Logger("ExpressPoint").Error(err.Error())
+					return err
+				}
+				var appParam enc.Wire = nil
+				var ok bool = true
+				if len(args) >= 1 {
+					appParam, ok = args[0].(enc.Wire)
+					if !ok && args[0] != nil {
+						err := ndn.ErrInvalidValue{Item: "appParam", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				var intConfig (*ndn.InterestConfig)
+				if len(args) >= 2 {
+					intConfig, ok = args[1].(*ndn.InterestConfig)
+					if !ok && args[1] != nil {
+						err := ndn.ErrInvalidValue{Item: "intConfig", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				var supress bool = false
+				if len(args) >= 3 {
+					supress, ok = args[2].(bool)
+					if !ok {
+						err := ndn.ErrInvalidValue{Item: "supress", Value: args[0]}
+						mNode.Logger("ExpressPoint").Error(err.Error())
+						return err
+					}
+				}
+				return QueryInterface[*ExpressPoint](mNode.Node).NeedChan(mNode, appParam, intConfig, supress)
+			},
+		},
+		Create: CreateExpressPoint,
 	}
-	switch propName {
-	case PropCanBePrefix:
-		return PropertySet(&n.canBePrefix, propName, value)
-	case PropMustBeFresh:
-		return PropertySet(&n.mustBeFresh, propName, value)
-	case PropLifetime:
-		return PropertySet(&n.lifetime, propName, value)
-	case PropSuppressInt:
-		return PropertySet(&n.supressInt, propName, value)
-	}
-	return ndn.ErrNotSupported{Item: string(propName)}
+	RegisterNodeImpl(ExpressPointDesc)
 }
 
-func (n *ExpressPoint) Init(parent NTNode, edge enc.ComponentPattern) {
-	n.BaseNode.Init(parent, edge)
-	n.onInt = NewEvent[*NodeOnIntEvent]()
-	n.onValidateInt = NewEvent[*NodeValidateEvent]()
-	n.onValidateData = NewEvent[*NodeValidateEvent]()
-	n.onSearchStorage = NewEvent[*NodeSearchStorageEvent]()
-	n.onSaveStorage = NewEvent[*NodeSaveStorageEvent]()
-	n.onGetIntSigner = NewEvent[*NodeGetSignerEvent]()
-
-	n.canBePrefix = false // TODO: Set this based on the children
-	n.mustBeFresh = true
-	n.lifetime = 4 * time.Second
-	n.supressInt = false
-
-	n.Self = n
+func (n *ExpressPoint) CastTo(ptr any) any {
+	switch ptr.(type) {
+	case (*ExpressPoint):
+		return n
+	case (*BaseNodeImpl):
+		return &(n.BaseNodeImpl)
+	default:
+		return nil
+	}
 }

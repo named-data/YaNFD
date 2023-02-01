@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"fmt"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -12,123 +13,140 @@ import (
 type LeafNode struct {
 	ExpressPoint
 
-	onGetDataSigner *Event[*NodeGetSignerEvent]
+	OnGetDataSigner *EventTarget
 
-	// dataSigner  ndn.Signer
-	contentType ndn.ContentType
-	freshness   time.Duration
-	validDur    time.Duration
+	ContentType ndn.ContentType
+	Freshness   time.Duration
+	ValidDur    time.Duration
+}
+
+func (n *LeafNode) NodeImplTrait() NodeImpl {
+	return n
 }
 
 // Provide a Data packet with given name and content.
 // Name is constructed from matching if nil. If given, name must agree with matching.
-// TODO: make sure code handles when context or matching is nil.
 func (n *LeafNode) Provide(
-	matching enc.Matching, name enc.Name, content enc.Wire, context Context,
+	mNode MatchedNode, content enc.Wire, dataCfg *ndn.DataConfig,
 ) enc.Wire {
-	// Construct the name if not yet
-	if name == nil {
-		name = n.Apply(matching)
-		if name == nil {
-			n.Log.Error("Unable to construct Data Name in Provide().")
-			return nil
-		}
+	if mNode.Node != n.Node {
+		panic("NTSchema tree compromised.")
 	}
 
 	// Construst the Data
-	engine := n.engine
+	node := n.Node
+	engine := n.Node.engine
 	spec := engine.Spec()
-	dataCfg := ndn.DataConfig{
-		ContentType:  utils.IdPtr(n.contentType),
-		Freshness:    utils.IdPtr(n.freshness),
-		FinalBlockID: nil,
-	}
-	validDur := n.validDur
-	if ctxVal, ok := context[CkContentType]; ok {
-		if v, ok := ctxVal.(ndn.ContentType); ok {
-			dataCfg.ContentType = &v
+	logger := mNode.Logger("LeafNode")
+	if dataCfg == nil {
+		dataCfg = &ndn.DataConfig{
+			ContentType:  utils.IdPtr(n.ContentType),
+			Freshness:    utils.IdPtr(n.Freshness),
+			FinalBlockID: nil,
 		}
 	}
-	if ctxVal, ok := context[CkFreshness]; ok {
-		if v, ok := ctxVal.(time.Duration); ok {
-			dataCfg.Freshness = &v
-		}
-	}
-	if ctxVal, ok := context[CkFinalBlockID]; ok {
-		if v, ok := ctxVal.(enc.Component); ok {
-			dataCfg.FinalBlockID = &v
-		}
-	}
-	if v, ok := context[CkValidDuration].(time.Duration); ok {
-		validDur = v
+	validDur := n.ValidDur
+
+	event := &Event{
+		TargetNode: node,
+		Target:     &mNode,
+		DataConfig: dataCfg,
+		Content:    content,
 	}
 
 	// Get a signer for Data.
-	signer := ndn.Signer(nil)
-	for _, e := range n.onGetDataSigner.Val() {
-		signer = (*e)(matching, name, context)
-		if signer != nil {
-			break
-		}
-	}
+	evtRet := n.OnGetDataSigner.DispatchUntil(event, func(a any) bool {
+		ret, ok := a.(ndn.Signer)
+		return ok && ret != nil
+	})
+	signer, _ := evtRet.(ndn.Signer)
 
-	wire, _, err := spec.MakeData(name, &dataCfg, content, signer)
+	wire, _, err := spec.MakeData(mNode.Name, dataCfg, content, signer)
 	if err != nil {
-		n.Log.WithField("name", name.String()).Errorf("Unable to encode Data in Provide(): %+v", err)
+		logger.Errorf("Unable to encode Data in Provide(): %+v", err)
 		return nil
 	}
 
 	// Store data in the storage
-	context[CkEngine] = n.engine
-	deadline := n.engine.Timer().Now().Add(validDur)
-	for _, evt := range n.onSaveStorage.val {
-		(*evt)(matching, name, wire, deadline, context)
-	}
+	event.RawPacket = wire
+	event.SelfProduced = utils.IdPtr(true)
+	event.ValidDuration = &validDur
+	event.Deadline = utils.IdPtr(engine.Timer().Now().Add(validDur))
+	n.OnSaveStorage.Dispatch(event)
 
 	// Return encoded data
 	return wire
 }
 
-// Get a property or callback event
-func (n *LeafNode) Get(propName PropKey) any {
-	if ret := n.ExpressPoint.Get(propName); ret != nil {
-		return ret
+func CreateLeafNode(node *Node) NodeImpl {
+	return &LeafNode{
+		ExpressPoint:    *CreateExpressPoint(node).(*ExpressPoint),
+		ContentType:     ndn.ContentTypeBlob,
+		Freshness:       1 * time.Minute,
+		ValidDur:        876000 * time.Hour,
+		OnGetDataSigner: &EventTarget{},
 	}
-	switch propName {
-	case PropContentType:
-		return n.contentType
-	case PropFreshness:
-		return n.freshness
-	case PropOnGetDataSigner:
-		return n.onGetDataSigner
-	case PropValidDuration:
-		return n.validDur
-	}
-	return nil
 }
 
-// Set a property. Use Get() to update callback events.
-func (n *LeafNode) Set(propName PropKey, value any) error {
-	if ret := n.ExpressPoint.Set(propName, value); ret == nil {
-		return ret
+var LeafNodeDesc *NodeImplDesc
+
+func initLeafNodeDesc() {
+	LeafNodeDesc = &NodeImplDesc{
+		ClassName:  "LeafNode",
+		Properties: make(map[PropKey]PropertyDesc, len(ExpressPointDesc.Properties)+3),
+		Events:     make(map[PropKey]EventGetter, len(ExpressPointDesc.Events)+1),
+		Functions:  make(map[string]NodeFunc, len(ExpressPointDesc.Functions)+1),
+		Create:     CreateLeafNode,
 	}
-	switch propName {
-	case PropContentType:
-		return PropertySet(&n.contentType, propName, value)
-	case PropFreshness:
-		return PropertySet(&n.freshness, propName, value)
-	case PropValidDuration:
-		return PropertySet(&n.validDur, propName, value)
+	for k, v := range ExpressPointDesc.Properties {
+		LeafNodeDesc.Properties[k] = v
 	}
-	return ndn.ErrNotSupported{Item: string(propName)}
+	LeafNodeDesc.Properties[PropContentType] = DefaultPropertyDesc(PropContentType)
+	LeafNodeDesc.Properties[PropFreshness] = TimePropertyDesc(PropFreshness)
+	LeafNodeDesc.Properties["ValidDuration"] = TimePropertyDesc(PropValidDuration)
+	for k, v := range ExpressPointDesc.Events {
+		LeafNodeDesc.Events[k] = v
+	}
+	LeafNodeDesc.Events[PropOnGetDataSigner] = DefaultEventTarget(PropOnGetDataSigner)
+	for k, v := range ExpressPointDesc.Functions {
+		LeafNodeDesc.Functions[k] = v
+	}
+	LeafNodeDesc.Functions["Provide"] = func(mNode MatchedNode, args ...any) any {
+		if len(args) < 1 || len(args) > 2 {
+			err := fmt.Errorf("LeafNode.Provide requires 1~2 arguments but got %d", len(args))
+			mNode.Logger("LeafNode").Error(err.Error())
+			return err
+		}
+		// content enc.Wire, dataCfg *ndn.DataConfig,
+		content, ok := args[0].(enc.Wire)
+		if !ok && args[0] != nil {
+			err := ndn.ErrInvalidValue{Item: "content", Value: args[0]}
+			mNode.Logger("LeafNode").Error(err.Error())
+			return err
+		}
+		var dataCfg *ndn.DataConfig
+		if len(args) >= 2 {
+			dataCfg, ok = args[1].(*ndn.DataConfig)
+			if !ok && args[1] != nil {
+				err := ndn.ErrInvalidValue{Item: "dataCfg", Value: args[0]}
+				mNode.Logger("LeafNode").Error(err.Error())
+				return err
+			}
+		}
+		return QueryInterface[*LeafNode](mNode.Node).Provide(mNode, content, dataCfg)
+	}
+	RegisterNodeImpl(LeafNodeDesc)
 }
 
-func (n *LeafNode) Init(parent NTNode, edge enc.ComponentPattern) {
-	n.ExpressPoint.Init(parent, edge)
-
-	n.onGetDataSigner = NewEvent[*NodeGetSignerEvent]()
-	n.contentType = ndn.ContentTypeBlob
-	n.freshness = 0
-
-	n.Self = n
+func (n *LeafNode) CastTo(ptr any) any {
+	switch ptr.(type) {
+	case (*LeafNode):
+		return n
+	case (*ExpressPoint):
+		return &(n.ExpressPoint)
+	case (*BaseNodeImpl):
+		return &(n.BaseNodeImpl)
+	default:
+		return nil
+	}
 }

@@ -256,7 +256,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
 	e.pitLock.Lock()
 	defer e.pitLock.Unlock()
-	n := e.pit.ExactMatch(pkt.NameV)
+	n := e.pit.PrefixMatch(pkt.NameV)
 	if n == nil {
 		e.log.WithField("name", pkt.NameV.String()).Warn("Received Data for an unknown interest. Drop.")
 		return

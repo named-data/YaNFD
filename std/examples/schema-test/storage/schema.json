@@ -1,0 +1,33 @@
+{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}

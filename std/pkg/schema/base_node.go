@@ -2,6 +2,7 @@ package schema
 
 import (
 	"errors"
+	"reflect"
 	"time"
 
 	"github.com/apex/log"
@@ -9,7 +10,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
-// BaseNode is the base class of NTSchema nodes.
+// Node is the class for a NTSchema node, the container of NodeImpl.
 // TODO: Inheritance from BaseNode is really a bad model of this thing
 // but I cannot come up with a better one in limited time.
 // If possible, a mixin programming model may be better.
@@ -17,41 +18,37 @@ import (
 // and the polymorphic functional part (than handles Get, Set, Events, etc.)
 // For WASM use in the future, we may need a list of properties.
 // Also, add ENV for Init.
-type BaseNode struct {
-	// Self is the pointer pointing to Self.
-	// Note: This is needed since golang does not have true OO.
-	// For example, if NodeA inherits BaseNode and calls a BaseNode function,
-	// then the BaseNode function has to access NodeA via this Self pointer.
-	Self NTNode
+type Node struct {
+	// Impl is the pointer pointing to NodeImpl.
+	impl NodeImpl
 
 	// Chd holds all children.
 	// Since a schema tree typically only has <10 branches, an array should not hurt performance.
 	// Change when there found evidences showing this is the bottleneck.
-	Chd []NTNode
+	chd []*Node
 
 	// Log is the logger
-	Log *log.Entry
+	log *log.Entry
 
 	dep  uint
-	par  NTNode
+	par  *Node
 	edge enc.ComponentPattern
+	path enc.NamePattern
+	desc *NodeImplDesc
 
 	attachedPrefix enc.Name
 
 	engine ndn.Engine
-
-	onAttachEvt *Event[*NodeOnAttachEvent]
-	onDetachEvt *Event[*NodeOnDetachEvent]
 }
 
-// NodeTrait is the type trait of NTNode
-func (n *BaseNode) NodeTrait() NTNode {
-	return n
+// Children of the node
+func (n *Node) Children() []*Node {
+	return n.chd
 }
 
 // Child of given edge
-func (n *BaseNode) Child(edge enc.ComponentPattern) NTNode {
-	for _, c := range n.Chd {
+func (n *Node) Child(edge enc.ComponentPattern) *Node {
+	for _, c := range n.chd {
 		if c.UpEdge().Equal(edge) {
 			return c
 		}
@@ -60,12 +57,12 @@ func (n *BaseNode) Child(edge enc.ComponentPattern) NTNode {
 }
 
 // Parent of this node
-func (n *BaseNode) Parent() NTNode {
+func (n *Node) Parent() *Node {
 	return n.par
 }
 
 // UpEdge is the edge value from its parent to itself
-func (n *BaseNode) UpEdge() enc.ComponentPattern {
+func (n *Node) UpEdge() enc.ComponentPattern {
 	return n.edge
 }
 
@@ -73,50 +70,84 @@ func (n *BaseNode) UpEdge() enc.ComponentPattern {
 // It includes the attached prefix, so the root node may have a positive depth
 // For example, if the root is attached at prefix /ndn, then the child of path /<id> from the root
 // will have a depth=2.
-func (n *BaseNode) Depth() uint {
+func (n *Node) Depth() uint {
 	return n.dep
+}
+
+// Log returns the log entry of this node
+func (n *Node) Log() *log.Entry {
+	return n.log
+}
+
+// Impl returns the actual functional part of the node
+func (n *Node) Impl() NodeImpl {
+	return n.impl
 }
 
 // Match an NDN name to a (variable) matching
 // For example, /ndn/aa may match to a node at /ndn/<id> with matching <id> = "aa"
-func (n *BaseNode) Match(name enc.Name) (NTNode, enc.Matching) {
+func (n *Node) Match(name enc.Name) *MatchedNode {
+	subName := name
 	if len(n.attachedPrefix) > 0 {
 		// Only happens when n is the root node
-		if !n.attachedPrefix.IsPrefix(name) {
-			return nil, nil
+		if !n.attachedPrefix.IsPrefix(subName) {
+			return nil
 		}
-		name = name[n.dep:]
+		subName = subName[n.dep:]
 	}
-	if len(name) <= 0 {
-		return n.Self, make(enc.Matching)
-	}
-	for _, c := range n.Chd {
-		if c.UpEdge().IsMatch(name[0]) {
-			dst, mat := c.Match(name[1:])
-			if dst == nil {
-				return nil, nil
-			} else {
-				c.UpEdge().Match(name[0], mat)
-				return dst, mat
-			}
+	match := make(enc.Matching)
+	node := n.ContinueMatch(subName, match)
+	if node == nil {
+		return nil
+	} else {
+		return &MatchedNode{
+			Node:     node,
+			Name:     name,
+			Matching: match,
 		}
 	}
-	return nil, nil
+}
+
+// ContinueMatch is a sub-function used by Match
+func (n *Node) ContinueMatch(remainingName enc.Name, curMatching enc.Matching) *Node {
+	if len(remainingName) <= 0 {
+		return n
+	}
+	for _, c := range n.chd {
+		if c.UpEdge().IsMatch(remainingName[0]) {
+			c.UpEdge().Match(remainingName[0], curMatching)
+			return c.ContinueMatch(remainingName[1:], curMatching)
+		}
+	}
+	return nil
+}
+
+// RootNode returns the root node in a tree
+func (n *Node) RootNode() *Node {
+	if n.par == nil {
+		return n
+	} else {
+		return n.par.RootNode()
+	}
 }
 
 // Apply a (variable) matching and obtain the corresponding NDN name
 // For example, apply {"id":[]byte{"aa"}} to a node at /ndn/<id> will get /ndn/aa
-func (n *BaseNode) Apply(matching enc.Matching) enc.Name {
+func (n *Node) Apply(matching enc.Matching) *MatchedNode {
 	ret := make(enc.Name, n.dep)
 	if n.ConstructName(matching, ret) == nil {
-		return ret
+		return &MatchedNode{
+			Node:     n,
+			Name:     ret,
+			Matching: matching,
+		}
 	} else {
 		return nil
 	}
 }
 
 // ConstructName is the aux function used by Apply
-func (n *BaseNode) ConstructName(matching enc.Matching, ret enc.Name) error {
+func (n *Node) ConstructName(matching enc.Matching, ret enc.Name) error {
 	if n.par == nil {
 		if len(ret) < int(n.dep) {
 			return errors.New("insufficient name length") // This error won't be returned to the user
@@ -135,21 +166,27 @@ func (n *BaseNode) ConstructName(matching enc.Matching, ret enc.Name) error {
 
 // OnInterest is the function called when an Interest comes.
 // A base node shouldn't receive any Interest, so drops it.
-func (n *BaseNode) OnInterest(
+func (n *Node) OnInterest(
 	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
 	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
 ) {
-	n.Log.WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+	if n.impl == nil {
+		n.log.WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+	} else {
+		n.impl.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
+	}
 }
 
 // OnAttach is called when the node is attached to an engine
-// BaseNode will call the event set by policy
-func (n *BaseNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
+// Node will call the event set by policy
+func (n *Node) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 	n.engine = engine
 	n.dep = uint(len(path))
-	n.Log = log.WithField("module", "schema").WithField("path", path.String())
+	n.log = log.WithField("module", "schema").WithField("path", path.String())
+	n.path = make(enc.NamePattern, len(path))
+	copy(n.path, path)
 
-	for _, c := range n.Chd {
+	for _, c := range n.chd {
 		nxtPath := append(path, c.UpEdge())
 		err := c.OnAttach(nxtPath, engine)
 		if err != nil {
@@ -159,12 +196,8 @@ func (n *BaseNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 
 	// Some nodes' attach event will assume its children is ready
 	// So we call this after children's onAttach
-	for _, evt := range n.onAttachEvt.val {
-		err := (*evt)(path, engine)
-		if err != nil {
-			n.Log.Errorf("Attaching failed with error: %+v", err)
-			return err
-		}
+	if n.impl != nil {
+		n.impl.OnAttach()
 	}
 
 	return nil
@@ -172,38 +205,52 @@ func (n *BaseNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 
 // OnDetach is called when the node is detached from an engine
 // BaseNode will call the event set by policy
-func (n *BaseNode) OnDetach() {
-	for _, evt := range n.onDetachEvt.val {
-		(*evt)(n.engine)
+func (n *Node) OnDetach() {
+	if n.impl != nil {
+		n.impl.OnDetach()
 	}
-	for _, c := range n.Chd {
+	for _, c := range n.chd {
 		c.OnDetach()
 	}
 	n.engine = nil
 }
 
 // Get a property or callback event
-func (n *BaseNode) Get(propName PropKey) any {
-	switch propName {
-	case PropOnAttach:
-		return n.onAttachEvt
-	case PropOnDetach:
-		return n.onDetachEvt
-	}
-	return nil
+func (n *Node) Get(propName PropKey) any {
+	return n.desc.Properties[propName].Get(n.impl)
 }
 
 // Set a property. Use Get() to update callback events.
-func (n *BaseNode) Set(propName PropKey, value any) error {
-	return ndn.ErrNotSupported{Item: string(propName)}
+func (n *Node) Set(propName PropKey, value any) error {
+	return n.desc.Properties[propName].Set(n.impl, value)
+}
+
+// GetEvent returns an event with a given event name. Return nil if not exists.
+func (n *Node) GetEvent(eventName PropKey) *EventTarget {
+	defer func() { recover() }()
+	val := reflect.ValueOf(n.impl).Elem()
+	target := val.FieldByName(string(eventName)).Interface().(*EventTarget)
+	return target
+}
+
+// AddEventListener adds `callback` to the event `eventName`
+// Note that callback is a function pointer (so it's comparable)
+func (n *Node) AddEventListener(eventName PropKey, callback *Callback) {
+	n.GetEvent(eventName).Add(callback)
+}
+
+// RemoveEventListener removes `callback` from the event `eventName`
+// Note that callback is a function pointer (so it's comparable)
+func (n *Node) RemoveEventListener(eventName PropKey, callback *Callback) {
+	n.GetEvent(eventName).Remove(callback)
 }
 
 // At gets a node/subtree at a given pattern path. The path does not include the attached prefix.
-func (n *BaseNode) At(path enc.NamePattern) NTNode {
+func (n *Node) At(path enc.NamePattern) *Node {
 	if len(path) <= 0 {
-		return n.Self
+		return n
 	}
-	for _, c := range n.Chd {
+	for _, c := range n.chd {
 		if c.UpEdge().Equal(path[0]) {
 			return c.At(path[1:])
 		}
@@ -211,65 +258,136 @@ func (n *BaseNode) At(path enc.NamePattern) NTNode {
 	return nil
 }
 
-// PutNode sets a node/subtree at a given pattern path. The path does not include the attached prefix.
-func (n *BaseNode) PutNode(path enc.NamePattern, node NTNode) error {
+// Engine returns the engine attached
+func (n *Node) Engine() ndn.Engine {
+	return n.engine
+}
+
+// PutNode creates a node/subtree at a given pattern path. The path does not include the attached prefix.
+// Returns the new node.
+func (n *Node) PutNode(path enc.NamePattern, desc *NodeImplDesc) *Node {
 	if len(path) <= 0 {
-		return errors.New("schema node already exists")
+		panic("schema node already exists")
 	}
-	for _, c := range n.Chd {
+	for _, c := range n.chd {
 		if c.UpEdge().Equal(path[0]) {
-			return c.PutNode(path[1:], node)
+			return c.PutNode(path[1:], desc)
 		}
+	}
+	nxtChd := &Node{
+		dep:  0,
+		par:  n,
+		edge: path[0],
+		desc: nil,
 	}
 	if len(path) > 1 {
 		// In this case, node is not our direct child
-		nxtChd := &BaseNode{}
-		nxtChd.Init(n.Self, path[0])
-		n.Chd = append(n.Chd, nxtChd)
-		return nxtChd.PutNode(path[1:], node)
+		nxtChd.desc = BaseNodeDesc
+		nxtChd.impl = CreateBaseNode(nxtChd)
+		n.chd = append(n.chd, nxtChd)
+		return nxtChd.PutNode(path[1:], desc)
 	} else {
-		n.Chd = append(n.Chd, node)
-		node.Init(n.Self, path[0])
-	}
-	return nil
-}
-
-// Init the node
-func (n *BaseNode) Init(parent NTNode, edge enc.ComponentPattern) {
-	*n = BaseNode{
-		dep:            0,
-		par:            parent,
-		edge:           edge,
-		attachedPrefix: nil,
-		Chd:            make([]NTNode, 0),
-		Log:            nil,
-		engine:         nil,
-		onAttachEvt:    NewEvent[*NodeOnAttachEvent](),
-		onDetachEvt:    NewEvent[*NodeOnDetachEvent](),
-		Self:           n,
+		nxtChd.desc = desc
+		nxtChd.impl = desc.Create(nxtChd)
+		n.chd = append(n.chd, nxtChd)
+		return nxtChd
 	}
 }
 
 // AttachedPrefix of the root node. Must be nil for all other nodes and before Attach.
-func (n *BaseNode) AttachedPrefix() enc.Name {
+func (n *Node) AttachedPrefix() enc.Name {
 	return n.attachedPrefix
 }
 
 // SetAttachedPrefix sets the attached prefix of the root node.
-func (n *BaseNode) SetAttachedPrefix(prefix enc.Name) error {
+func (n *Node) SetAttachedPrefix(prefix enc.Name) {
 	if n.par == nil {
 		n.attachedPrefix = prefix
-		return nil
 	} else {
-		return errors.New("only root nodes are attachable")
+		panic("only root nodes are attachable")
 	}
 }
 
-// Children return the publicly visible children nodes of the node.
-func (n *BaseNode) Children() []NTNode {
-	return n.Chd
+// BaseNodeImpl is the default implementation of NodeImpl
+type BaseNodeImpl struct {
+	Node        *Node
+	OnAttachEvt *EventTarget
+	OnDetachEvt *EventTarget
 }
 
-func (n *BaseNode) Engine() ndn.Engine {
-	return n.engine
+func (n *BaseNodeImpl) NodeImplTrait() NodeImpl {
+	return n
+}
+
+// OnInterest is the callback function when there is an incoming Interest.
+func (n *BaseNodeImpl) OnInterest(
+	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
+	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+) {
+	n.Node.Log().WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+}
+
+// OnAttach is called when the node is attached to an engine
+func (n *BaseNodeImpl) OnAttach() error {
+	event := &Event{
+		TargetNode: n.Node,
+		Target:     nil,
+	}
+	ret := n.OnAttachEvt.DispatchUntil(event, func(a any) bool {
+		return n != nil
+	})
+	if ret == nil {
+		return nil
+	}
+	err, ok := ret.(error)
+	if ok {
+		return err
+	} else {
+		panic("unrecognized error happens in onAttach")
+	}
+}
+
+// OnDetach is called when the node is detached from an engine
+func (n *BaseNodeImpl) OnDetach() {
+	n.OnDetachEvt.Dispatch(&Event{
+		TargetNode: n.Node,
+		Target:     nil,
+	})
+}
+
+func (n *BaseNodeImpl) CastTo(ptr any) any {
+	switch ptr.(type) {
+	case (*BaseNodeImpl):
+		return n
+	default:
+		return nil
+	}
+}
+
+func (n *BaseNodeImpl) TreeNode() *Node {
+	return n.Node
+}
+
+func CreateBaseNode(node *Node) NodeImpl {
+	return &BaseNodeImpl{
+		Node:        node,
+		OnAttachEvt: &EventTarget{},
+		OnDetachEvt: &EventTarget{},
+	}
+}
+
+var BaseNodeDesc *NodeImplDesc
+
+func initBaseNodeImplDesc() {
+	BaseNodeDesc = &NodeImplDesc{
+		ClassName:  "Base",
+		Properties: map[PropKey]PropertyDesc{},
+		Events: map[PropKey]EventGetter{
+			PropOnAttach: DefaultEventTarget(PropOnAttach),
+			PropOnDetach: DefaultEventTarget(PropOnDetach),
+		},
+		Functions: map[string]NodeFunc{},
+		Create:    CreateBaseNode,
+	}
+	RegisterNodeImpl(BaseNodeDesc)
 }

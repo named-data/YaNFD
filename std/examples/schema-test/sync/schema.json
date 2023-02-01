@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "/sync": {
+      "type": "SvsNode",
+      "attrs": {
+        "ChannelSize": 1000,
+        "SyncInterval": 2000,
+        "AggregateInterval": 100,
+        "SelfNodeId": "$nodeId"
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/sync/32=notif",
+      "attrs": {}
+    },
+    {
+      "type": "RegisterPolicy",
+      "path": "/sync/<8=nodeId>",
+      "attrs": {
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "FixedHmacKeySigner",
+      "path": "/sync/<8=nodeId>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacKeyIntSigner",
+      "path": "/sync/32=notif",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/sync",
+      "attrs": {}
+    }
+  ]
+}

@@ -12,19 +12,22 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 const SchemaJson = `{
   "nodes": {
-    "/randomData/<v=time>": {
-      "type": "LeafNode",
+    "/": {
+      "type": "RdrNode",
       "attrs": {
-        "CanBePrefix": false,
-        "MustBeFresh": true,
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "MetaLifetime": 6000,
         "Lifetime": 6000,
-        "Freshness": 1000,
-        "ValidDuration": 3153600000000.0
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
       }
     }
   },
@@ -38,8 +41,15 @@ const SchemaJson = `{
     },
     {
       "type": "Sha256Signer",
-      "path": "/randomData/<v=time>",
-      "attrs": {}
+      "path": "/32=metadata/<v=versionNumber>/seg=0"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/32=metadata"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/<v=versionNumber>/<seg=segmentNumber>"
     },
     {
       "type": "MemStorage",
@@ -49,12 +59,19 @@ const SchemaJson = `{
   ]
 }`
 
+const LoremIpsum = `
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
+occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+`
+
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
@@ -74,7 +91,7 @@ func main() {
 	defer app.Shutdown()
 
 	// Attach schema
-	prefix, _ := enc.NameFromStr("/example/schema/storageApp")
+	prefix, _ := enc.NameFromStr("/example/schema/rdr")
 	err = tree.Attach(prefix, app)
 	if err != nil {
 		logger.Fatalf("Unable to attach the schema to the engine: %+v", err)
@@ -83,13 +100,8 @@ func main() {
 	defer tree.Detach()
 
 	// Produce data
-	ver := utils.MakeTimestamp(timer.Now())
-	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
-	node := tree.At(path)
-	mNode := node.Apply(enc.Matching{
-		"time": enc.Nat(ver).Bytes(),
-	})
-	mNode.Call("Provide", enc.Wire{[]byte("Hello, world!")})
+	mNode := tree.Root().Apply(enc.Matching{})
+	ver := mNode.Call("Provide", enc.Wire{[]byte(LoremIpsum)})
 	fmt.Printf("Generated packet with version= %d\n", ver)
 
 	// Wait for keyboard quit signal

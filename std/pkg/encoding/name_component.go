@@ -251,7 +251,7 @@ type ComponentPattern interface {
 	FromMatching(m Matching) (*Component, error)
 }
 
-type Matching map[string]any
+type Matching map[string][]byte
 
 type Pattern struct {
 	Typ TLNum
@@ -574,13 +574,14 @@ func NewStringComponent(typ TLNum, val string) Component {
 func (Component) Match(value Component, m Matching) {}
 
 func (p Pattern) Match(value Component, m Matching) {
-	vFmt := compValFmt(compValFmtText{})
-	if p.Typ != TypeGenericNameComponent {
-		if conv, ok := compConvByType[p.Typ]; ok {
-			vFmt = conv.vFmt
-		}
-	}
-	m[p.Tag] = vFmt.ToMatching(value.Val)
+	// vFmt := compValFmt(compValFmtText{})
+	// if p.Typ != TypeGenericNameComponent {
+	// 	if conv, ok := compConvByType[p.Typ]; ok {
+	// 		vFmt = conv.vFmt
+	// 	}
+	// }
+	m[p.Tag] = make([]byte, len(value.Val))
+	copy(m[p.Tag], value.Val)
 }
 
 func (c Component) FromMatching(m Matching) (*Component, error) {
@@ -592,19 +593,19 @@ func (p Pattern) FromMatching(m Matching) (*Component, error) {
 	if !ok {
 		return nil, ErrNotFound{p.Tag}
 	}
-	vFmt := compValFmt(compValFmtText{})
-	if p.Typ != TypeGenericNameComponent {
-		if conv, ok := compConvByType[p.Typ]; ok {
-			vFmt = conv.vFmt
-		}
-	}
-	cVal, err := vFmt.FromMatching(val)
-	if err != nil {
-		return nil, err
-	}
+	// vFmt := compValFmt(compValFmtText{})
+	// if p.Typ != TypeGenericNameComponent {
+	// 	if conv, ok := compConvByType[p.Typ]; ok {
+	// 		vFmt = conv.vFmt
+	// 	}
+	// }
+	// cVal, err := vFmt.FromMatching(val)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return &Component{
 		Typ: p.Typ,
-		Val: cVal,
+		Val: []byte(val),
 	}, nil
 }
 

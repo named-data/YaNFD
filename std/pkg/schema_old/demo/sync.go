@@ -310,7 +310,7 @@ func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
 		mat[k] = v
 	}
 	mat["nodeId"] = n.selfNodeId
-	mat["seqNo"] = uint64(n.selfSeq)
+	mat["seqNo"] = enc.Nat(n.selfSeq).Bytes()
 	ret := n.leaf.Provide(mat, nil, content, context)
 	if len(ret) > 0 {
 		li := n.localSv.findSvsEntry(n.selfNodeId)
@@ -407,6 +407,6 @@ func (n *SvsNode) Need(
 	nodeId []byte, seq uint64, matching enc.Matching, context schema.Context,
 ) chan schema.NeedResult {
 	matching["nodeId"] = nodeId
-	matching["seqNo"] = seq
+	matching["seqNo"] = enc.Nat(n.selfSeq).Bytes()
 	return n.leaf.Need(matching, nil, nil, context)
 }

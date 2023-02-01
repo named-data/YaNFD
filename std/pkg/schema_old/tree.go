@@ -14,18 +14,10 @@ import (
 // It is supposed to be a static knowledge and shared by all parties in the system at compile time.
 // The execution order: construct the tree -> apply policies & env setup -> attach to engine
 type Tree struct {
-	root *Node
+	Root NTNode
 	lock sync.RWMutex
 
-	engine ndn.Engine
-}
-
-func (t *Tree) Engine() ndn.Engine {
-	return t.engine
-}
-
-func (t *Tree) Root() *Node {
-	return t.root
+	Engine ndn.Engine
 }
 
 // Attach the tree to the engine at prefix
@@ -33,15 +25,15 @@ func (t *Tree) Attach(prefix enc.Name, engine ndn.Engine) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	if t.root == nil {
-		return errors.New("cannot attach an empty tree")
+	err := t.Root.SetAttachedPrefix(prefix)
+	if err != nil {
+		return err
 	}
-	t.root.SetAttachedPrefix(prefix)
 	path := make(enc.NamePattern, len(prefix))
 	for i, c := range prefix {
 		path[i] = c
 	}
-	err := t.root.OnAttach(path, engine)
+	err = t.Root.OnAttach(path, engine)
 	if err != nil {
 		return err
 	}
@@ -50,29 +42,28 @@ func (t *Tree) Attach(prefix enc.Name, engine ndn.Engine) error {
 		return err
 	}
 	log.WithField("module", "schema").Info("Attached to engine.")
-	t.engine = engine
+	t.Engine = engine
 	return nil
 }
 
 // Detach the schema tree from the engine
 func (t *Tree) Detach() {
-	if t.engine == nil {
+	if t.Engine == nil {
 		return
 	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
 	log.WithField("module", "schema").Info("Detached from engine")
-	t.engine.DetachHandler(t.root.AttachedPrefix())
-	t.root.OnDetach()
+	t.Engine.DetachHandler(t.Root.AttachedPrefix())
+	t.Root.OnDetach()
 }
 
 // Match an NDN name to a (variable) matching
-func (t *Tree) Match(name enc.Name) *MatchedNode {
-	return t.root.Match(name)
+func (t *Tree) Match(name enc.Name) (NTNode, enc.Matching) {
+	return t.Root.Match(name)
 }
 
-// intHandler is the callback called by the engine that handles an incoming Interest.
 func (t *Tree) intHandler(
 	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
 	reply ndn.ReplyFunc, deadline time.Time,
@@ -87,48 +78,45 @@ func (t *Tree) intHandler(
 		extraComp = matchName[len(matchName)-1]
 		matchName = matchName[:len(matchName)-1]
 	}
-	mNode := t.root.Match(matchName)
-	if mNode == nil {
+	node, matching := t.Root.Match(matchName)
+	if node == nil {
 		log.WithField("module", "schema").WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 		return
 	}
 	if extraComp.Typ != enc.TypeInvalidComponent {
 		switch extraComp.Typ {
 		case enc.TypeParametersSha256DigestComponent:
-			mNode.Matching["params-sha256"] = extraComp.Val
+			matching["params-sha256"] = extraComp.Val
 		case enc.TypeImplicitSha256DigestComponent:
-			mNode.Matching["sha256digest"] = extraComp.Val
+			matching["sha256digest"] = extraComp.Val
 		}
 	}
-	mNode.Node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, mNode.Matching)
+	node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
 }
 
 // At the path return the node. Path does not include the attached prefix.
-func (t *Tree) At(path enc.NamePattern) *Node {
-	return t.root.At(path)
+func (t *Tree) At(path enc.NamePattern) NTNode {
+	return t.Root.At(path)
 }
 
 // PutNode puts the specified node at the specified path. Path does not include the attached prefix.
-func (t *Tree) PutNode(path enc.NamePattern, desc *NodeImplDesc) *Node {
+func (t *Tree) PutNode(path enc.NamePattern, node NTNode) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
 	if len(path) == 0 {
-		if t.root == nil {
-			t.root = &Node{}
-			t.root.desc = desc
-			t.root.impl = desc.Create(t.root)
-			return t.root
+		if t.Root == nil {
+			t.Root = node
+			return nil
 		} else {
-			panic("schema node already exists")
+			return errors.New("schema node already exists")
 		}
 	} else {
-		if t.root == nil {
-			t.root = &Node{}
-			t.root.desc = BaseNodeDesc
-			t.root.impl = CreateBaseNode(t.root)
+		if t.Root == nil {
+			t.Root = &BaseNode{}
+			t.Root.Init(nil, nil)
 		}
-		return t.root.PutNode(path, desc)
+		return t.Root.PutNode(path, node)
 	}
 }
 

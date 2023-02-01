@@ -5,50 +5,64 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-var app *basic_engine.Engine
-var tree *schema.Tree
+const SchemaJson = `{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000
+      },
+      "events": {
+        "OnInterest": ["$onInterest"]
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    }
+  ]
+}`
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
 
-func onInterest(matching enc.Matching, appParam enc.Wire, reply ndn.ReplyFunc, context schema.Context) bool {
-	fmt.Printf(">> I: timestamp: %d\n", matching["time"].(uint64))
+func onInterest(event *schema.Event) any {
+	mNode := event.Target
+	timestamp, _ := enc.ParseNat(mNode.Matching["time"])
+	fmt.Printf(">> I: timestamp: %d\n", timestamp)
 	content := []byte("Hello, world!")
-	name := context[schema.CkName].(enc.Name)
-	wire, _, err := app.Spec().MakeData(
-		name,
-		&ndn.DataConfig{
-			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
-			Freshness:   utils.IdPtr(10 * time.Second),
-		},
-		enc.Wire{content},
-		sec.NewSha256Signer())
-	if err != nil {
-		log.WithField("module", "main").Errorf("unable to encode data: %+v", err)
-		return true
-	}
-	err = reply(wire)
+	dataWire := mNode.Call("Provide", enc.Wire{content}).(enc.Wire)
+	err := event.Reply(dataWire)
 	if err != nil {
 		log.WithField("module", "main").Errorf("unable to reply with data: %+v", err)
 		return true
 	}
-	fmt.Printf("<< D: %s\n", name.String())
-	fmt.Printf("ontent: (size: %d)\n", len(content))
+	fmt.Printf("<< D: %s\n", mNode.Name.String())
+	fmt.Printf("Content: (size: %d)\n", len(content))
 	fmt.Printf("\n")
-	return true
+	return nil
 }
 
 func main() {
@@ -56,28 +70,16 @@ func main() {
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/randomData/<t=time>")
-	node := &schema.ExpressPoint{}
-	err := tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to setup node: %+v", err)
-		return
-	}
-	node.Set(schema.PropCanBePrefix, false)
-	node.Set(schema.PropMustBeFresh, true)
-	node.Set(schema.PropLifetime, 6*time.Second)
-	schema.AddEventListener(node, schema.PropOnInterest, onInterest)
-
-	// Setup policies
-	// The prefix registered is at the root
-	demo.NewRegisterPolicy().Apply(tree.Root)
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$onInterest": onInterest,
+		"$isProducer": true,
+	})
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return

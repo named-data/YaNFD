@@ -1,0 +1,29 @@
+{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "ExpressPoint",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000
+      },
+      "events": {
+        "OnInterest": ["$onInterest"]
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    }
+  ]
+}

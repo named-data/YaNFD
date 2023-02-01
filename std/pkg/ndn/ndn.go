@@ -54,6 +54,8 @@ const (
 	InterestCancelled
 	// Failed of validation. Not used by the engine itself.
 	InterestResultUnverified
+	// Other error happens during handling the fetched data. Not used by the engine itself.
+	InterestResultError
 )
 
 // SigConfig represents the configuration of signature used in signing.

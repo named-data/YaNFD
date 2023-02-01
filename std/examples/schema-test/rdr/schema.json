@@ -1,0 +1,44 @@
+{
+  "nodes": {
+    "/": {
+      "type": "RdrNode",
+      "attrs": {
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "MetaLifetime": 6000,
+        "Lifetime": 6000,
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/32=metadata/<v=versionNumber>/seg=0"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/32=metadata"
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/<v=versionNumber>/<seg=segmentNumber>"
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}

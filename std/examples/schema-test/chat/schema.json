@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "/chat": {
+      "type": "SvsNode",
+      "attrs": {
+        "ChannelSize": 1000,
+        "SyncInterval": 15000,
+        "AggregateInterval": 100,
+        "SelfNodeId": "$nodeId"
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/chat/32=notif",
+      "attrs": {}
+    },
+    {
+      "type": "RegisterPolicy",
+      "path": "/chat/<8=nodeId>",
+      "attrs": {
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "FixedHmacKeySigner",
+      "path": "/chat/<8=nodeId>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacKeyIntSigner",
+      "path": "/chat/32=notif",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/chat",
+      "attrs": {}
+    }
+  ]
+}
