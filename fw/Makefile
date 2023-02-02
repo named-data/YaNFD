@@ -1,5 +1,5 @@
 PACKAGE = github.com/named-data/YaNFD
-VERSION = 1.1.1.0
+VERSION = 1.2.0.0
 # COMMIT = git rev-parse --short HEAD
 # DATE != date
 
