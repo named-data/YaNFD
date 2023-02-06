@@ -16,15 +16,63 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
 const HmacKey = "Hello, World!"
 
-var app *basic_engine.Engine
-var tree *schema.Tree
-var syncNode *demo.SvsNode
+const SchemaJson = `{
+  "nodes": {
+    "/": {
+      "type": "SvsNode",
+      "attrs": {
+        "ChannelSize": 1000,
+        "SyncInterval": 15000,
+        "SuppressionInterval": 100,
+        "SelfNodeId": "$nodeId",
+        "BaseMatching": {}
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/32=notif",
+      "attrs": {}
+    },
+    {
+      "type": "RegisterPolicy",
+      "path": "/<8=nodeId>",
+      "attrs": {
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<8=nodeId>/<seq=seqNo>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacIntSigner",
+      "path": "/32=notif",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}`
+
+var syncNode *schema.MatchedNode
 var textDoc crdt.TextDoc
 var dataLock sync.Mutex
 var nodeId string
@@ -51,7 +99,7 @@ func onBeforeInput(this js.Value, args []js.Value) any {
 			rec = textDoc.Delete(int(pos))
 		}
 		if rec != nil {
-			syncNode.NewData(rec.Encode(), schema.Context{})
+			syncNode.Call("NewData", rec.Encode())
 		}
 	}
 
@@ -72,52 +120,33 @@ func main() {
 	// Obtain HTML element
 	inputEle = js.Global().Get("document").Call("getElementById", "msgrecv")
 
-	// Step 1 - Setup schema tree (supposed to be shared knowledge of all nodes)
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/chat")
-	syncNode = &demo.SvsNode{}
-	err := tree.PutNode(path, syncNode)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	syncNode.Set("ChannelSize", 1000)
-	syncNode.Set("SyncInterval", 15*time.Second)
-	syncNode.Set("AggregateInterval", 100*time.Millisecond)
+	// Setup schema tree
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$hmacKey": HmacKey,
+		"$nodeId":  nodeId,
+	})
 
-	// Step 2 - Setup policies (part is shared by all nodes)
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(syncNode)
-	demo.NewFixedKeyIntSigner([]byte(HmacKey)).Apply(syncNode)
-	demo.NewMemStoragePolicy().Apply(syncNode)
-	path, _ = enc.NamePatternFromStr("/32=notif")
-	demo.NewRegisterPolicy().Apply(syncNode.At(path))
-	path, _ = enc.NamePatternFromStr("/<8=nodeId>")
-	fmt.Printf("Node ID: %s\n", nodeId)
-	demo.NewRegisterPolicy2(enc.Matching{
-		"nodeId": []byte(nodeId),
-	}).Apply(syncNode.At(path))
-	syncNode.Set("SelfNodeId", []byte(nodeId)) // Should belong to step 4
-
-	// Step 3 - Start engine
+	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewWasmWsFace("ws", "127.0.0.1:9696", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
 	}
 	defer app.Shutdown()
 
-	// Step 4 & 5 - Configuration and attach schema
+	// Configuration and attach schema
 	// The configuration part has not been designed now.
-	prefix, _ := enc.NameFromStr("/example/schema/chatApp")
+	prefix, _ := enc.NameFromStr("/example/schema/sharedDocWasm")
 	err = tree.Attach(prefix, app)
 	if err != nil {
 		logger.Fatalf("Unable to attach the schema to the engine: %+v", err)
 		return
 	}
 	defer tree.Detach()
+	syncNode = tree.At(enc.NamePattern{}).Apply(enc.Matching{})
 
 	// Set callback and start serving
 	inputEle.Call("addEventListener", "beforeinput", js.FuncOf(onBeforeInput))
@@ -130,18 +159,20 @@ func main() {
 	textDoc = *crdt.NewTextDoc(uint64(pid))
 	go func() {
 		defer wg.Done()
-		ch := syncNode.MissingDataChannel()
+		ch := syncNode.Call("MissingDataChannel").(chan svs.MissingData)
 		for {
 			select {
 			case missData := <-ch:
 				for i := missData.StartSeq; i < missData.EndSeq; i++ {
-					ret, data := (<-syncNode.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
-					if ret != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
+					dataName := syncNode.Call("GetDataName", missData.NodeId, i).(enc.Name)
+					mLeafNode := tree.Match(dataName)
+					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
+					if result.Status != ndn.InterestResultData {
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
 					} else {
 						dataLock.Lock()
 						fmt.Printf("Fetched (%s, %d)\n", string(missData.NodeId), i)
-						rec, err := crdt.ParseRecord(enc.NewWireReader(data), false)
+						rec, err := crdt.ParseRecord(enc.NewWireReader(result.Content), false)
 						if err != nil {
 							log.Errorf("unable to parse record: %+v", err)
 							continue

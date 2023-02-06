@@ -87,6 +87,9 @@ func (n *Node) Impl() NodeImpl {
 // Match an NDN name to a (variable) matching
 // For example, /ndn/aa may match to a node at /ndn/<id> with matching <id> = "aa"
 func (n *Node) Match(name enc.Name) *MatchedNode {
+	if n.engine == nil {
+		panic("called Node.Match() before attaching to an engine")
+	}
 	subName := name
 	if len(n.attachedPrefix) > 0 {
 		// Only happens when n is the root node
@@ -143,6 +146,9 @@ func (n *Node) RootNode() *Node {
 // For example, apply {"id":[]byte{"aa"}} to a node at /ndn/<id> will get /ndn/aa
 // Will attach "params-sha256" and "sha256digest" to the end of the name if exists.
 func (n *Node) Apply(matching enc.Matching) *MatchedNode {
+	if n.engine == nil {
+		panic("called Node.Apply() before attaching to an engine")
+	}
 	nameLen := n.dep
 	var paramSha, digestSha []byte
 	if paramSha = matching[enc.ParamShaNameConvention]; paramSha != nil {

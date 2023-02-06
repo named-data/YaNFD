@@ -31,6 +31,8 @@ const (
 // SvsNode implements the StateVectorSync but works for only one instance.
 // Similar is RegisterPolicy. A better implementation is needed if there is
 // a need that multiple producers under the same name pattern that runs on the same application instance.
+// It would also be more natural if we make 1-1 mapping between MatchedNodes and SVS instances,
+// instead of the Node and the SVS instance, which is against the philosophy of matching.
 // Also, this sample always starts from sequence number 0.
 type SvsNode struct {
 	schema.BaseNodeImpl

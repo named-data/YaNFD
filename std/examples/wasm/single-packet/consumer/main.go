@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -15,8 +14,35 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-var app *basic_engine.Engine
-var tree *schema.Tree
+const SchemaJson = `{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000
+      },
+      "events": {
+        "OnInterest": ["$onInterest"]
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    }
+  ]
+}`
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
@@ -27,28 +53,17 @@ func main() {
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/randomData/<t=time>")
-	node := &schema.ExpressPoint{}
-	err := tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to set the node: %+v", err)
-		return
-	}
-	node.Set(schema.PropCanBePrefix, false)
-	node.Set(schema.PropMustBeFresh, true)
-	node.Set(schema.PropLifetime, 6*time.Second)
-	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
-		return schema.VrPass
-	}
-	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$onInterest": func(event *schema.Event) any { return nil },
+		"$isProducer": false,
+	})
 
 	// Setup engine
 	timer := basic_engine.NewTimer()
 	// face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
 	face := basic_engine.NewWasmWsFace("ws", "127.0.0.1:9696", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
@@ -65,18 +80,20 @@ func main() {
 	defer tree.Detach()
 
 	// Fetch the data
-	context := schema.Context{}
-	result, content := (<-node.Need(enc.Matching{
-		"time": utils.MakeTimestamp(timer.Now()),
-	}, nil, nil, context)).Get()
-	switch result {
+	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{
+		"time": enc.Nat(utils.MakeTimestamp(timer.Now())).Bytes(),
+	})
+	result := <-mNode.Call("NeedChan").(chan schema.NeedResult)
+	switch result.Status {
 	case ndn.InterestResultNack:
-		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
+		fmt.Printf("Nacked with reason=%d\n", *result.NackReason)
 	case ndn.InterestResultTimeout:
 		fmt.Printf("Timeout\n")
 	case ndn.InterestCancelled:
 		fmt.Printf("Canceled\n")
 	case ndn.InterestResultData:
-		fmt.Printf("Received Data: %+v\n", string(content.Join()))
+		fmt.Printf("Received Data: %+v\n", string(result.Content.Join()))
 	}
 }

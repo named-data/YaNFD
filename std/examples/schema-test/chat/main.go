@@ -22,7 +22,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
@@ -34,10 +34,57 @@ var upgrader = websocket.Upgrader{
 }
 
 const HmacKey = "Hello, World!"
+const SchemaJson = `{
+  "nodes": {
+    "/chat": {
+      "type": "SvsNode",
+      "attrs": {
+        "ChannelSize": 1000,
+        "SyncInterval": 15000,
+        "SuppressionInterval": 100,
+        "SelfNodeId": "$nodeId",
+        "BaseMatching": {}
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/chat/32=notif",
+      "attrs": {}
+    },
+    {
+      "type": "RegisterPolicy",
+      "path": "/chat/<8=nodeId>",
+      "attrs": {
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/chat/<8=nodeId>/<seq=seqNo>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacIntSigner",
+      "path": "/chat/32=notif",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/chat",
+      "attrs": {}
+    }
+  ]
+}`
 
-var app *basic_engine.Engine
-var tree *schema.Tree
-var syncNode *demo.SvsNode
+var syncNode *schema.MatchedNode
 var wsConn *websocket.Conn // 1 ws connection supported
 var msgList []string
 var dataLock sync.Mutex
@@ -65,8 +112,9 @@ func wsReader() {
 		}
 		// print out that message
 		dataLock.Lock()
-		syncNode.NewData(enc.Wire{p}, schema.Context{})
-		msgText := fmt.Sprintf("%s[%d]: %s", string(nodeId), syncNode.MySequence(), p)
+		syncNode.Call("NewData", enc.Wire{p})
+		mySeq := syncNode.Call("MySequence").(uint64)
+		msgText := fmt.Sprintf("%s[%d]: %s", string(nodeId), mySeq, p)
 		fmt.Printf("received: %s\n", msgText)
 		if err := wsConn.WriteMessage(messageType, []byte(msgText)); err != nil {
 			wsConn = nil
@@ -127,6 +175,7 @@ func main() {
 		logger.Fatal("Invalid argument")
 		return
 	}
+	nodeId = fmt.Sprintf("node-%d", port)
 
 	// Load HTML UI file to serve
 	file, err := os.Open("home.html")
@@ -146,37 +195,16 @@ func main() {
 	temp.Execute(&strBuilder, port)
 	homeHtml = strBuilder.String()
 
-	// Step 1 - Setup schema tree (supposed to be shared knowledge of all nodes)
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/chat")
-	syncNode = &demo.SvsNode{}
-	err = tree.PutNode(path, syncNode)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	syncNode.Set("ChannelSize", 1000)
-	syncNode.Set("SyncInterval", 15*time.Second)
-	syncNode.Set("AggregateInterval", 100*time.Millisecond)
+	// Setup schema tree (supposed to be shared knowledge of all nodes)
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$hmacKey": HmacKey,
+		"$nodeId":  nodeId,
+	})
 
-	// Step 2 - Setup policies (part is shared by all nodes)
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(syncNode)
-	demo.NewFixedKeyIntSigner([]byte(HmacKey)).Apply(syncNode)
-	demo.NewMemStoragePolicy().Apply(syncNode)
-	path, _ = enc.NamePatternFromStr("/32=notif")
-	demo.NewRegisterPolicy().Apply(syncNode.At(path))
-	path, _ = enc.NamePatternFromStr("/<8=nodeId>")
-	nodeId = fmt.Sprintf("node-%d", port)
-	fmt.Printf("Node ID: %s\n", nodeId)
-	demo.NewRegisterPolicy2(enc.Matching{
-		"nodeId": []byte(nodeId),
-	}).Apply(syncNode.At(path))
-	syncNode.Set("SelfNodeId", []byte(nodeId)) // Should belong to step 4
-
-	// Step 3 - Start engine
+	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	err = app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
@@ -184,8 +212,7 @@ func main() {
 	}
 	defer app.Shutdown()
 
-	// Step 4 & 5 - Configuration and attach schema
-	// The configuration part has not been designed now.
+	// Attach schema
 	prefix, _ := enc.NameFromStr("/example/schema/chatApp")
 	err = tree.Attach(prefix, app)
 	if err != nil {
@@ -193,6 +220,8 @@ func main() {
 		return
 	}
 	defer tree.Detach()
+	path, _ := enc.NamePatternFromStr("/chat")
+	syncNode = tree.At(path).Apply(enc.Matching{})
 
 	// Start serving HTTP routes
 	setupRoutes()
@@ -211,18 +240,20 @@ func main() {
 	msgList = make([]string, 0)
 	go func() {
 		defer wg.Done()
-		ch := syncNode.MissingDataChannel()
+		ch := syncNode.Call("MissingDataChannel").(chan svs.MissingData)
 		for {
 			select {
 			case missData := <-ch:
 				for i := missData.StartSeq; i < missData.EndSeq; i++ {
-					ret, data := (<-syncNode.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
-					if ret != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
+					dataName := syncNode.Call("GetDataName", missData.NodeId, i).(enc.Name)
+					mLeafNode := tree.Match(dataName)
+					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
+					if result.Status != ndn.InterestResultData {
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
 					} else {
 						dataLock.Lock()
-						fmt.Printf("Fetched (%s, %d): %s\n", string(missData.NodeId), i, string(data.Join()))
-						msg := fmt.Sprintf("%s[%d]: %s", string(missData.NodeId), i, string(data.Join()))
+						fmt.Printf("Fetched (%s, %d): %s\n", string(missData.NodeId), i, string(result.Content.Join()))
+						msg := fmt.Sprintf("%s[%d]: %s", string(missData.NodeId), i, string(result.Content.Join()))
 						msgList = append(msgList, msg)
 						if wsConn != nil {
 							wsConn.WriteMessage(websocket.TextMessage, []byte(msg))

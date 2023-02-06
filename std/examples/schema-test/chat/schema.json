@@ -5,8 +5,9 @@
       "attrs": {
         "ChannelSize": 1000,
         "SyncInterval": 15000,
-        "AggregateInterval": 100,
-        "SelfNodeId": "$nodeId"
+        "SuppressionInterval": 100,
+        "SelfNodeId": "$nodeId",
+        "BaseMatching": {}
       }
     }
   },
@@ -26,14 +27,14 @@
       }
     },
     {
-      "type": "FixedHmacKeySigner",
-      "path": "/chat/<8=nodeId>",
+      "type": "FixedHmacSigner",
+      "path": "/chat/<8=nodeId>/<seq=seqNo>",
       "attrs": {
         "KeyValue": "$hmacKey"
       }
     },
     {
-      "type": "FixedHmacKeyIntSigner",
+      "type": "FixedHmacIntSigner",
       "path": "/chat/32=notif",
       "attrs": {
         "KeyValue": "$hmacKey"
