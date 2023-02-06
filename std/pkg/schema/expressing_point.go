@@ -93,6 +93,7 @@ func (n *ExpressPoint) OnInterest(
 		Signature:  interest.Signature(),
 		Reply:      reply,
 		Deadline:   &deadline,
+		Content:    interest.AppParam(),
 	}
 	logger := event.Target.Logger("ExpressPoint")
 
@@ -125,7 +126,7 @@ func (n *ExpressPoint) OnInterest(
 				logger.Warnf("Verification failed (%d) for Interest. Drop.", res)
 				return
 			}
-			if validRes == VrSilence {
+			if res == VrSilence {
 				logger.Warn("Unverified Interest. Drop.")
 				return
 			}

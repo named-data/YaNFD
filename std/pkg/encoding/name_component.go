@@ -22,6 +22,11 @@ const (
 	TypeSequenceNumNameComponent        TLNum = 0x3a
 )
 
+const (
+	ParamShaNameConvention  = "params-sha256"
+	DigestShaNameConvention = "sha256digest"
+)
+
 type compValFmt interface {
 	ToString(val []byte) string
 	FromString(s string) ([]byte, error)
@@ -195,12 +200,12 @@ var (
 	compConvByType = map[TLNum]*componentConvention{
 		TypeImplicitSha256DigestComponent: {
 			typ:  TypeImplicitSha256DigestComponent,
-			name: "sha256digest",
+			name: DigestShaNameConvention,
 			vFmt: compValFmtHex{},
 		},
 		TypeParametersSha256DigestComponent: {
 			typ:  TypeParametersSha256DigestComponent,
-			name: "params-sha256",
+			name: ParamShaNameConvention,
 			vFmt: compValFmtHex{},
 		},
 		TypeSegmentNameComponent: {

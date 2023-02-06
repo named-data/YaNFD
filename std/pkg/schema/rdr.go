@@ -101,7 +101,7 @@ func (n *SegmentedNode) Provide(mNode MatchedNode, content enc.Wire, needManifes
 	return ret
 }
 
-func (n *SegmentedNode) NeedCallback(mNode MatchedNode, callback Callback, manifest []enc.Name) error {
+func (n *SegmentedNode) NeedCallback(mNode MatchedNode, callback Callback, manifest []enc.Buffer) error {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
 	}
@@ -114,7 +114,7 @@ func (n *SegmentedNode) NeedCallback(mNode MatchedNode, callback Callback, manif
 	return fmt.Errorf("unrecognized pipeline: %s", n.Pipeline)
 }
 
-func (n *SegmentedNode) NeedChan(mNode MatchedNode, manifest []enc.Name) chan NeedResult {
+func (n *SegmentedNode) NeedChan(mNode MatchedNode, manifest []enc.Buffer) chan NeedResult {
 	ret := make(chan NeedResult, 1)
 	callback := func(event *Event) any {
 		result := NeedResult{
@@ -132,21 +132,27 @@ func (n *SegmentedNode) NeedChan(mNode MatchedNode, manifest []enc.Name) chan Ne
 	return ret
 }
 
-func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callback, manifest []enc.Name) {
-	if len(manifest) > 0 {
-		panic("TODO: manifest not supported")
-	}
+func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callback, manifest []enc.Buffer) {
 	fragments := enc.Wire{}
 	var lastData ndn.Data
 	var lastNackReason *uint64
 	var lastValidationRes *ValidRes
 	var lastNeedStatus ndn.InterestResult
 	logger := mNode.Logger("SegmentedNode")
-	newName := make(enc.Name, len(mNode.Name)+1)
+	nameLen := len(mNode.Name)
+	var newName enc.Name
+	if len(manifest) > 0 {
+		newName = make(enc.Name, nameLen+2)
+	} else {
+		newName = make(enc.Name, nameLen+1)
+	}
 	copy(newName, mNode.Name)
 	succeeded := true
 	for i := uint64(0); succeeded; i++ {
-		newName[len(mNode.Name)] = enc.NewSegmentComponent(i)
+		newName[nameLen] = enc.NewSegmentComponent(i)
+		if len(manifest) > 0 {
+			newName[nameLen+1] = enc.Component{Typ: enc.TypeImplicitSha256DigestComponent, Val: manifest[i]}
+		}
 		newMNode := mNode.Refine(newName)
 		succeeded = false
 		for j := 0; !succeeded && j < int(n.MaxRetriesOnFailure); j++ {
@@ -162,9 +168,16 @@ func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callbac
 				succeeded = true
 			}
 		}
-		if succeeded && lastData.FinalBlockID().Compare(newName[len(mNode.Name)]) == 0 {
-			// In the last segment, finalBlockId equals the last name component
-			break
+		if len(manifest) > 0 {
+			// If there is a manifest, we ignore the FinalBlockID
+			if int(i) == len(manifest)-1 {
+				break
+			}
+		} else {
+			if succeeded && lastData.FinalBlockID().Compare(newName[nameLen]) == 0 {
+				// In the last segment, finalBlockId equals the last name component
+				break
+			}
 		}
 	}
 
@@ -356,8 +369,10 @@ func (n *RdrNode) CastTo(ptr any) any {
 	}
 }
 
-type GeneralObjNode struct {
-}
+// TODO: GeneralObject in CNL
+// type GeneralObjNode struct {
+// 	BaseNodeImpl
+// }
 
 var (
 	RdrNodeDesc       *NodeImplDesc
@@ -417,9 +432,9 @@ func initRdrNodes() {
 					mNode.Logger("SegmentedNode").Error(err.Error())
 					return err
 				}
-				var manifest []enc.Name = nil
+				var manifest []enc.Buffer = nil
 				if len(args) >= 2 {
-					manifest, ok = args[1].([]enc.Name)
+					manifest, ok = args[1].([]enc.Buffer)
 					if !ok && args[1] != nil {
 						err := ndn.ErrInvalidValue{Item: "manifest", Value: args[0]}
 						mNode.Logger("SegmentedNode").Error(err.Error())
@@ -434,10 +449,10 @@ func initRdrNodes() {
 					mNode.Logger("SegmentedNode").Error(err.Error())
 					return err
 				}
-				var manifest []enc.Name = nil
+				var manifest []enc.Buffer = nil
 				var ok bool = true
 				if len(args) >= 1 {
-					manifest, ok = args[0].([]enc.Name)
+					manifest, ok = args[0].([]enc.Buffer)
 					if !ok && args[0] != nil {
 						err := ndn.ErrInvalidValue{Item: "manifest", Value: args[0]}
 						mNode.Logger("SegmentedNode").Error(err.Error())

@@ -2,6 +2,8 @@ package schema
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"fmt"
 	"sync"
 	"time"
@@ -9,6 +11,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	schema "github.com/zjkmxy/go-ndn/pkg/schema_old"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -185,6 +188,124 @@ func NewMemStoragePolicy() Policy {
 	}
 }
 
+type FixedHmacSignerPolicy struct {
+	Key string
+}
+
+func (p *FixedHmacSignerPolicy) PolicyTrait() Policy {
+	return p
+}
+
+func NewFixedHmacSignerPolicy() Policy {
+	return &FixedHmacSignerPolicy{}
+}
+
+func (p *FixedHmacSignerPolicy) onGetDataSigner(*Event) any {
+	return sec.NewHmacSigner([]byte(p.Key))
+}
+
+func (p *FixedHmacSignerPolicy) onValidateData(event *Event) any {
+	sigCovered := event.SigCovered
+	signature := event.Signature
+	if sigCovered == nil || signature == nil || signature.SigType() != ndn.SignatureHmacWithSha256 {
+		return VrSilence
+	}
+	mac := hmac.New(sha256.New, []byte(p.Key))
+	for _, buf := range sigCovered {
+		_, err := mac.Write(buf)
+		if err != nil {
+			return schema.VrFail
+		}
+	}
+	if hmac.Equal(mac.Sum(nil), signature.SigValue()) {
+		return schema.VrPass
+	} else {
+		return schema.VrFail
+	}
+}
+
+func (p *FixedHmacSignerPolicy) Apply(node *Node) {
+	// key must present
+	if len(p.Key) == 0 {
+		panic("FixedHmacSignerPolicy requires key to present before apply.")
+	}
+	// IdPtr must be used
+	evt := node.GetEvent(PropOnGetDataSigner)
+	if evt != nil {
+		evt.Add(utils.IdPtr(p.onGetDataSigner))
+	}
+	// PropOnValidateData must exist. Otherwise it is at an invalid path.
+	evt = node.GetEvent(PropOnValidateData)
+	if evt != nil {
+		evt.Add(utils.IdPtr(p.onValidateData))
+	} else {
+		panic("applying FixedHmacSignerPolicy to a node that does not need to validate Data. What is the use?")
+	}
+}
+
+type FixedHmacIntSignerPolicy struct {
+	Key    string
+	signer ndn.Signer
+}
+
+func (p *FixedHmacIntSignerPolicy) PolicyTrait() Policy {
+	return p
+}
+
+func NewFixedHmacIntSignerPolicy() Policy {
+	return &FixedHmacIntSignerPolicy{}
+}
+
+func (p *FixedHmacIntSignerPolicy) onGetIntSigner(*Event) any {
+	return p.signer
+}
+
+func (p *FixedHmacIntSignerPolicy) onValidateInt(event *Event) any {
+	sigCovered := event.SigCovered
+	signature := event.Signature
+	if sigCovered == nil || signature == nil || signature.SigType() != ndn.SignatureHmacWithSha256 {
+		return VrSilence
+	}
+	mac := hmac.New(sha256.New, []byte(p.Key))
+	for _, buf := range sigCovered {
+		_, err := mac.Write(buf)
+		if err != nil {
+			return schema.VrFail
+		}
+	}
+	if hmac.Equal(mac.Sum(nil), signature.SigValue()) {
+		return schema.VrPass
+	} else {
+		return schema.VrFail
+	}
+}
+
+func (p *FixedHmacIntSignerPolicy) onAttach(event *Event) any {
+	p.signer = sec.NewHmacIntSigner([]byte(p.Key), event.TargetNode.Engine().Timer())
+	return nil
+}
+
+func (p *FixedHmacIntSignerPolicy) Apply(node *Node) {
+	// key must present
+	if len(p.Key) == 0 {
+		panic("FixedHmacSignerPolicy requires key to present before apply.")
+	}
+	// IdPtr must be used
+	evt := node.GetEvent(PropOnGetIntSigner)
+	if evt != nil {
+		evt.Add(utils.IdPtr(p.onGetIntSigner))
+	}
+	// PropOnValidateInt must exist. Otherwise it is at an invalid path.
+	evt = node.GetEvent(PropOnValidateInt)
+	if evt != nil {
+		evt.Add(utils.IdPtr(p.onValidateInt))
+	} else {
+		panic("applying FixedHmacSignerPolicy to a node that does not need to validate Interest. What is the use?")
+	}
+
+	node.AddEventListener(PropOnAttach, utils.IdPtr(p.onAttach))
+}
+
 func initPolicies() {
 	registerPolicyDesc := &PolicyImplDesc{
 		ClassName: "RegisterPolicy",
@@ -205,4 +326,22 @@ func initPolicies() {
 		Create:    NewMemStoragePolicy,
 	}
 	RegisterPolicyImpl(memoryStoragePolicyDesc)
+
+	fixedHmacSignerPolicyDesc := &PolicyImplDesc{
+		ClassName: "FixedHmacSigner",
+		Create:    NewFixedHmacSignerPolicy,
+		Properties: map[PropKey]PropertyDesc{
+			"KeyValue": DefaultPropertyDesc("Key"),
+		},
+	}
+	RegisterPolicyImpl(fixedHmacSignerPolicyDesc)
+
+	fixedHmacIntSignerPolicyDesc := &PolicyImplDesc{
+		ClassName: "FixedHmacIntSigner",
+		Create:    NewFixedHmacIntSignerPolicy,
+		Properties: map[PropKey]PropertyDesc{
+			"KeyValue": DefaultPropertyDesc("Key"),
+		},
+	}
+	RegisterPolicyImpl(fixedHmacIntSignerPolicyDesc)
 }

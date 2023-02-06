@@ -110,6 +110,14 @@ func (n *Node) Match(name enc.Name) *MatchedNode {
 
 // ContinueMatch is a sub-function used by Match
 func (n *Node) ContinueMatch(remainingName enc.Name, curMatching enc.Matching) *Node {
+	if len(remainingName) > 0 && remainingName[0].Typ == enc.TypeParametersSha256DigestComponent {
+		curMatching[enc.ParamShaNameConvention] = remainingName[0].Val
+		remainingName = remainingName[1:]
+	}
+	if len(remainingName) > 0 && remainingName[0].Typ == enc.TypeImplicitSha256DigestComponent {
+		curMatching[enc.DigestShaNameConvention] = remainingName[0].Val
+		remainingName = remainingName[1:]
+	}
 	if len(remainingName) <= 0 {
 		return n
 	}
@@ -133,9 +141,24 @@ func (n *Node) RootNode() *Node {
 
 // Apply a (variable) matching and obtain the corresponding NDN name
 // For example, apply {"id":[]byte{"aa"}} to a node at /ndn/<id> will get /ndn/aa
+// Will attach "params-sha256" and "sha256digest" to the end of the name if exists.
 func (n *Node) Apply(matching enc.Matching) *MatchedNode {
-	ret := make(enc.Name, n.dep)
+	nameLen := n.dep
+	var paramSha, digestSha []byte
+	if paramSha = matching[enc.ParamShaNameConvention]; paramSha != nil {
+		nameLen += 1
+	}
+	if digestSha = matching[enc.DigestShaNameConvention]; digestSha != nil {
+		nameLen += 1
+	}
+	ret := make(enc.Name, n.dep, nameLen)
 	if n.ConstructName(matching, ret) == nil {
+		if paramSha != nil {
+			ret = append(ret, enc.Component{Typ: enc.TypeParametersSha256DigestComponent, Val: paramSha})
+		}
+		if digestSha != nil {
+			ret = append(ret, enc.Component{Typ: enc.TypeImplicitSha256DigestComponent, Val: digestSha})
+		}
 		return &MatchedNode{
 			Node:     n,
 			Name:     ret,
@@ -334,7 +357,7 @@ func (n *BaseNodeImpl) OnAttach() error {
 		Target:     nil,
 	}
 	ret := n.OnAttachEvt.DispatchUntil(event, func(a any) bool {
-		return n != nil
+		return a != nil
 	})
 	if ret == nil {
 		return nil

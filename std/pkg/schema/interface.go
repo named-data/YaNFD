@@ -180,6 +180,14 @@ func DefaultPropertyDesc(prop PropKey) PropertyDesc {
 				default:
 					field.Set(reflect.ValueOf(value))
 				}
+			} else if field.Type() == reflect.TypeOf([]byte{}) {
+				// Cast string to bytes
+				switch v := value.(type) {
+				case string:
+					field.Set(reflect.ValueOf([]byte(v)))
+				default:
+					field.Set(reflect.ValueOf(value))
+				}
 			} else {
 				field.Set(reflect.ValueOf(value))
 			}

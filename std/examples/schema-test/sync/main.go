@@ -15,14 +15,61 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
 const HmacKey = "Hello, World!"
 
-var app *basic_engine.Engine
-var tree *schema.Tree
+const SchemaJson = `{
+  "nodes": {
+    "/sync": {
+      "type": "SvsNode",
+      "attrs": {
+        "ChannelSize": 1000,
+        "SyncInterval": 2000,
+        "SuppressionInterval": 100,
+        "SelfNodeId": "$nodeId",
+        "BaseMatching": {}
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/sync/32=notif",
+      "attrs": {}
+    },
+    {
+      "type": "RegisterPolicy",
+      "path": "/sync/<8=nodeId>",
+      "attrs": {
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/sync/<8=nodeId>/<seq=seqNo>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacIntSigner",
+      "path": "/sync/32=notif",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/sync",
+      "attrs": {}
+    }
+  ]
+}`
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
@@ -33,34 +80,19 @@ func main() {
 	log.SetLevel(log.ErrorLevel)
 	logger := log.WithField("module", "main")
 	rand.Seed(time.Now().UnixMicro())
+	nodeId := fmt.Sprintf("node-%d", rand.Int())
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/sync")
-	node := &demo.SvsNode{}
-	err := tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	nodeId := fmt.Sprintf("node-%d", rand.Int())
-	fmt.Printf("Node ID: %s\n", nodeId)
-	node.Set("SelfNodeId", []byte(nodeId))
-	node.Set("ChannelSize", 1000)
-	node.Set("SyncInterval", 2*time.Second)
-	node.Set("AggregateInterval", 100*time.Millisecond)
-
-	// Setup policies
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(node)
-	demo.NewFixedKeyIntSigner([]byte(HmacKey)).Apply(node)
-	demo.NewMemStoragePolicy().Apply(node)
-	demo.NewRegisterPolicy().Apply(tree.Root) // TODO: This is not good; we shouldn't register for other node's prefix
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$hmacKey": HmacKey,
+		"$nodeId":  nodeId,
+	})
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
@@ -76,6 +108,10 @@ func main() {
 	}
 	defer tree.Detach()
 
+	path, _ := enc.NamePatternFromStr("/sync")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{})
+
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -87,7 +123,7 @@ func main() {
 			select {
 			case <-ticker:
 				text := fmt.Sprintf("[%s: TICK %d]\n", nodeId, val)
-				node.NewData(enc.Wire{[]byte(text)}, schema.Context{})
+				mNode.Call("NewData", enc.Wire{[]byte(text)})
 				fmt.Printf("Produced: %s", text)
 			case <-ctx.Done():
 				return
@@ -98,16 +134,18 @@ func main() {
 	// 2. On data received, print
 	go func() {
 		defer wg.Done()
-		ch := node.MissingDataChannel()
+		ch := mNode.Call("MissingDataChannel").(chan svs.MissingData)
 		for {
 			select {
 			case missData := <-ch:
 				for i := missData.StartSeq; i < missData.EndSeq; i++ {
-					ret, data := (<-node.Need(missData.NodeId, i, enc.Matching{}, schema.Context{})).Get()
-					if ret != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, ret)
+					dataName := mNode.Call("GetDataName", missData.NodeId, i).(enc.Name)
+					mLeafNode := tree.Match(dataName)
+					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
+					if result.Status != ndn.InterestResultData {
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
 					} else {
-						fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(data.Join()))
+						fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(result.Content.Join()))
 					}
 				}
 			case <-ctx.Done():

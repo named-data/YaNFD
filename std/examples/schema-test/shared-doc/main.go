@@ -1,3 +1,4 @@
+// This example uses the old schema implemementation and does not work
 package main
 
 import (
