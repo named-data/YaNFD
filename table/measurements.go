@@ -12,7 +12,7 @@ import (
 )
 
 type measurements struct {
-	table hashmap.HashMap
+	table hashmap.Map[string, any]
 }
 
 // Measurements contains the global measurements table,
@@ -24,7 +24,7 @@ func init() {
 
 // Get returns the measurement table value at the specified key or nil if it does not exist.
 func (m *measurements) Get(key string) interface{} {
-	value, isOk := m.table.GetStringKey(key)
+	value, isOk := m.table.Get(key)
 	if !isOk {
 		return nil
 	}
@@ -33,7 +33,12 @@ func (m *measurements) Get(key string) interface{} {
 
 // Set atomically sets the value of the specified measurement table key only if it is equal to the expected value, returning whether the operation was successful.
 func (m *measurements) Set(key string, expected interface{}, value interface{}) bool {
-	return m.table.Cas(key, expected, value)
+	if v, ok := m.table.Get(key); ok && v == expected {
+		m.table.Set(key, value)
+		return true
+	} else {
+		return false
+	}
 }
 
 // AddToInt adds the specified value to the given measurement key, setting as value if unitialized.

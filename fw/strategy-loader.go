@@ -15,7 +15,7 @@ import (
 
 //const strategyDir = "strategy"
 
-//var strategyPlugins []*plugin.Plugin
+// var strategyPlugins []*plugin.Plugin
 var strategyTypes []reflect.Type
 
 // StrategyVersions contains a list of strategies mapping to a list of their versions
