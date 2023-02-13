@@ -2,8 +2,6 @@ package schema
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
 	"fmt"
 	"sync"
 	"time"
@@ -106,7 +104,9 @@ type CacheEntry struct {
 type MemStoragePolicy struct {
 	timer ndn.Timer
 	lock  sync.RWMutex
-	tree  *basic_engine.NameTrie[CacheEntry]
+	// TODO: A better implementation would be MemStoragePolicy refers to an external storage
+	// but not implement one itself.
+	tree *basic_engine.NameTrie[CacheEntry]
 }
 
 func (p *MemStoragePolicy) PolicyTrait() Policy {
@@ -167,6 +167,8 @@ func (p *MemStoragePolicy) onSave(event *Event) any {
 }
 
 func (p *MemStoragePolicy) Apply(node *Node) {
+	// TODO: onAttach does not need to be called on every child...
+	// But I don't have enough time to fix this
 	if event := node.GetEvent(PropOnAttach); event != nil {
 		event.Add(utils.IdPtr(p.onAttach))
 	}
@@ -189,7 +191,10 @@ func NewMemStoragePolicy() Policy {
 }
 
 type FixedHmacSignerPolicy struct {
-	Key string
+	Key         string
+	KeyName     enc.Name
+	SignForCert bool
+	ExpireTime  time.Duration
 }
 
 func (p *FixedHmacSignerPolicy) PolicyTrait() Policy {
@@ -197,11 +202,13 @@ func (p *FixedHmacSignerPolicy) PolicyTrait() Policy {
 }
 
 func NewFixedHmacSignerPolicy() Policy {
-	return &FixedHmacSignerPolicy{}
+	return &FixedHmacSignerPolicy{
+		SignForCert: false,
+	}
 }
 
 func (p *FixedHmacSignerPolicy) onGetDataSigner(*Event) any {
-	return sec.NewHmacSigner([]byte(p.Key))
+	return sec.NewHmacSigner(p.KeyName, []byte(p.Key), p.SignForCert, p.ExpireTime)
 }
 
 func (p *FixedHmacSignerPolicy) onValidateData(event *Event) any {
@@ -210,14 +217,7 @@ func (p *FixedHmacSignerPolicy) onValidateData(event *Event) any {
 	if sigCovered == nil || signature == nil || signature.SigType() != ndn.SignatureHmacWithSha256 {
 		return VrSilence
 	}
-	mac := hmac.New(sha256.New, []byte(p.Key))
-	for _, buf := range sigCovered {
-		_, err := mac.Write(buf)
-		if err != nil {
-			return schema.VrFail
-		}
-	}
-	if hmac.Equal(mac.Sum(nil), signature.SigValue()) {
+	if sec.CheckHmacSig(sigCovered, signature.SigValue(), []byte(p.Key)) {
 		return schema.VrPass
 	} else {
 		return schema.VrFail
@@ -266,14 +266,7 @@ func (p *FixedHmacIntSignerPolicy) onValidateInt(event *Event) any {
 	if sigCovered == nil || signature == nil || signature.SigType() != ndn.SignatureHmacWithSha256 {
 		return VrSilence
 	}
-	mac := hmac.New(sha256.New, []byte(p.Key))
-	for _, buf := range sigCovered {
-		_, err := mac.Write(buf)
-		if err != nil {
-			return schema.VrFail
-		}
-	}
-	if hmac.Equal(mac.Sum(nil), signature.SigValue()) {
+	if sec.CheckHmacSig(sigCovered, signature.SigValue(), []byte(p.Key)) {
 		return schema.VrPass
 	} else {
 		return schema.VrFail
@@ -331,7 +324,10 @@ func initPolicies() {
 		ClassName: "FixedHmacSigner",
 		Create:    NewFixedHmacSignerPolicy,
 		Properties: map[PropKey]PropertyDesc{
-			"KeyValue": DefaultPropertyDesc("Key"),
+			"KeyValue":    DefaultPropertyDesc("Key"),
+			"KeyName":     NamePropertyDesc("KeyName"),
+			"SignForCert": DefaultPropertyDesc("SignForCert"),
+			"ExpireTime":  TimePropertyDesc("ExpireTime"),
 		},
 	}
 	RegisterPolicyImpl(fixedHmacSignerPolicyDesc)

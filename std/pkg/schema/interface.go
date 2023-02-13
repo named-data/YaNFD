@@ -173,6 +173,9 @@ func DefaultPropertyDesc(prop PropKey) PropertyDesc {
 			objval := reflect.ValueOf(owner)
 			// Need to handle a special case: if field is uint64, then it must accept float64 value
 			field := objval.Elem().FieldByName(string(prop))
+			if !field.CanSet() {
+				ret = ndn.ErrNotSupported{Item: string(prop)}
+			}
 			if field.Kind() == reflect.Uint64 {
 				switch v := value.(type) {
 				case float64:
@@ -301,6 +304,37 @@ func SubNodePropertyDesc(pathStr string, prop PropKey) PropertyDesc {
 			defer func() { recover() }() // Return error
 			subNode := owner.(NodeImpl).TreeNode().At(path)
 			return subNode.Set(prop, value)
+		},
+	}
+}
+
+// NamePropertyDesc returns the descriptor of a enc.Name property, which gives an NDN Name in string.
+// Note: Get/Set functions are less used by the go program, as Go can access the field directly.
+func NamePropertyDesc(prop PropKey) PropertyDesc {
+	return PropertyDesc{
+		Get: func(owner any) any {
+			defer func() { recover() }() // Return nil for not existing field
+			objval := reflect.ValueOf(owner)
+			val := objval.Elem().FieldByName(string(prop)).Interface()
+			return val.(enc.Name).String()
+		},
+		Set: func(owner any, value any) (ret error) {
+			ret = ndn.ErrInvalidValue{Item: string(prop), Value: value}
+			defer func() { recover() }() // Return error
+			objval := reflect.ValueOf(owner)
+			field := objval.Elem().FieldByName(string(prop))
+			switch v := value.(type) {
+			case enc.Name:
+				field.Set(reflect.ValueOf(v))
+				ret = nil
+			case string:
+				name, err := enc.NameFromStr(v)
+				if err != nil {
+					field.Set(reflect.ValueOf(name))
+					ret = nil
+				}
+			}
+			return
 		},
 	}
 }

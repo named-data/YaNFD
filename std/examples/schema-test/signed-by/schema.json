@@ -1,0 +1,84 @@
+{
+  "nodes": {
+    "/<nodeId>/data": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    },
+    "/<nodeId>/key": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000,
+        "Freshness": 3600000
+      }
+    },
+    "/trustAnchor": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": false,
+        "SupressInt": true
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/<nodeId>",
+      "attrs": {
+        "RegisterIf": "$isProducer",
+        "Patterns": {
+          "nodeId": "$nodeId"
+        }
+      }
+    },
+    {
+      "type": "SignedBy",
+      "path": "/<nodeId>/data",
+      "attrs": {
+        "KeyNodePath": "/<nodeId>/key",
+        "Mapping": {
+          "nodeId": "$nodeId"
+        },
+        "KeyStore": "$keyStore"
+      }
+    },
+    {
+      "type": "SignedBy",
+      "path": "/<nodeId>/key",
+      "attrs": {
+        "KeyNodePath": "/trustAnchor",
+        "Mapping": {
+          "nodeId": "$nodeId"
+        },
+        "KeyStore": "$keyStore"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/<nodeId>/data",
+      "attrs": {}
+    },
+    {
+      "type": "KeyStoragePolicy",
+      "path": "/<nodeId>/key",
+      "attrs": {
+        "KeyStore": "$keyStore"
+      }
+    },
+    {
+      "type": "KeyStoragePolicy",
+      "path": "/trustAnchor",
+      "attrs": {
+        "KeyStore": "$keyStore"
+      }
+    }
+  ]
+}

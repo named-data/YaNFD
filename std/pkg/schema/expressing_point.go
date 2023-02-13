@@ -153,6 +153,8 @@ func (n *ExpressPoint) OnInterest(
 // `intConfig` is optional and if given, will overwrite the default setting.
 // The callback function will be called in another goroutine no matter what the result is.
 // So if `callback` can handle errors, it is safe to ignore the return value.
+// TODO: (Urgent) NeedXXX needs a way for the user to optionally specify the deadline of the Interest
+// without touching anything else in intConfig
 func (n *ExpressPoint) NeedCallback(
 	mNode MatchedNode, callback Callback, appParam enc.Wire, intConfig *ndn.InterestConfig, supress bool,
 ) error {
