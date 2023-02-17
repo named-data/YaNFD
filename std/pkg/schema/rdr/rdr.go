@@ -1,4 +1,4 @@
-package schema
+package rdr
 
 import (
 	"crypto/sha256"
@@ -7,12 +7,13 @@ import (
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 // SegmentedNode handles the segmentation and reassembly
 type SegmentedNode struct {
-	BaseNodeImpl
+	schema.BaseNodeImpl
 
 	ContentType         ndn.ContentType
 	Freshness           time.Duration
@@ -24,16 +25,16 @@ type SegmentedNode struct {
 	Pipeline            string
 }
 
-func (n *SegmentedNode) NodeImplTrait() NodeImpl {
+func (n *SegmentedNode) NodeImplTrait() schema.NodeImpl {
 	return n
 }
 
-func CreateSegmentedNode(node *Node) NodeImpl {
+func CreateSegmentedNode(node *schema.Node) schema.NodeImpl {
 	ret := &SegmentedNode{
-		BaseNodeImpl: BaseNodeImpl{
+		BaseNodeImpl: schema.BaseNodeImpl{
 			Node:        node,
-			OnAttachEvt: &EventTarget{},
-			OnDetachEvt: &EventTarget{},
+			OnAttachEvt: &schema.EventTarget{},
+			OnDetachEvt: &schema.EventTarget{},
 		},
 		ContentType:         ndn.ContentTypeBlob,
 		MustBeFresh:         true,
@@ -45,11 +46,11 @@ func CreateSegmentedNode(node *Node) NodeImpl {
 		Pipeline:            "SinglePacket",
 	}
 	path, _ := enc.NamePatternFromStr("<seg=segmentNumber>")
-	node.PutNode(path, LeafNodeDesc)
+	node.PutNode(path, schema.LeafNodeDesc)
 	return ret
 }
 
-func (n *SegmentedNode) Provide(mNode MatchedNode, content enc.Wire, needManifest bool) []enc.Buffer {
+func (n *SegmentedNode) Provide(mNode schema.MatchedNode, content enc.Wire, needManifest bool) any {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
 	}
@@ -98,10 +99,15 @@ func (n *SegmentedNode) Provide(mNode MatchedNode, content enc.Wire, needManifes
 		}
 	}
 	mNode.Logger("SegmentedNode").Debugf("Segmented into %d segments \n", segCnt)
-	return ret
+	if needManifest {
+		return ret
+	} else {
+		return segCnt
+	}
 }
 
-func (n *SegmentedNode) NeedCallback(mNode MatchedNode, callback Callback, manifest []enc.Buffer) error {
+func (n *SegmentedNode) NeedCallback(
+	mNode schema.MatchedNode, callback schema.Callback, manifest []enc.Buffer) error {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
 	}
@@ -114,10 +120,10 @@ func (n *SegmentedNode) NeedCallback(mNode MatchedNode, callback Callback, manif
 	return fmt.Errorf("unrecognized pipeline: %s", n.Pipeline)
 }
 
-func (n *SegmentedNode) NeedChan(mNode MatchedNode, manifest []enc.Buffer) chan NeedResult {
-	ret := make(chan NeedResult, 1)
-	callback := func(event *Event) any {
-		result := NeedResult{
+func (n *SegmentedNode) NeedChan(mNode schema.MatchedNode, manifest []enc.Buffer) chan schema.NeedResult {
+	ret := make(chan schema.NeedResult, 1)
+	callback := func(event *schema.Event) any {
+		result := schema.NeedResult{
 			Status:      *event.NeedStatus,
 			Content:     event.Content,
 			Data:        event.Data,
@@ -132,11 +138,13 @@ func (n *SegmentedNode) NeedChan(mNode MatchedNode, manifest []enc.Buffer) chan 
 	return ret
 }
 
-func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callback, manifest []enc.Buffer) {
+func (n *SegmentedNode) SinglePacketPipeline(
+	mNode schema.MatchedNode, callback schema.Callback, manifest []enc.Buffer,
+) {
 	fragments := enc.Wire{}
 	var lastData ndn.Data
 	var lastNackReason *uint64
-	var lastValidationRes *ValidRes
+	var lastValidationRes *schema.ValidRes
 	var lastNeedStatus ndn.InterestResult
 	logger := mNode.Logger("SegmentedNode")
 	nameLen := len(mNode.Name)
@@ -157,7 +165,7 @@ func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callbac
 		succeeded = false
 		for j := 0; !succeeded && j < int(n.MaxRetriesOnFailure); j++ {
 			logger.Debugf("Fetching the %d fragment [the %d trial]", i, j)
-			result := <-newMNode.Call("NeedChan").(chan NeedResult)
+			result := <-newMNode.Call("NeedChan").(chan schema.NeedResult)
 			lastData = result.Data
 			lastNackReason = result.NackReason
 			lastValidationRes = result.ValidResult
@@ -181,7 +189,7 @@ func (n *SegmentedNode) SinglePacketPipeline(mNode MatchedNode, callback Callbac
 		}
 	}
 
-	event := &Event{
+	event := &schema.Event{
 		TargetNode:  n.Node,
 		Target:      &mNode,
 		Content:     fragments,
@@ -201,7 +209,7 @@ func (n *SegmentedNode) CastTo(ptr any) any {
 	switch ptr.(type) {
 	case (*SegmentedNode):
 		return n
-	case (*BaseNodeImpl):
+	case (*schema.BaseNodeImpl):
 		return &(n.BaseNodeImpl)
 	default:
 		return nil
@@ -210,22 +218,22 @@ func (n *SegmentedNode) CastTo(ptr any) any {
 
 // RdrNode handles the version discovery
 type RdrNode struct {
-	BaseNodeImpl
+	schema.BaseNodeImpl
 
 	MetaFreshness     time.Duration
 	MaxRetriesForMeta uint64
 }
 
-func (n *RdrNode) NodeImplTrait() NodeImpl {
+func (n *RdrNode) NodeImplTrait() schema.NodeImpl {
 	return n
 }
 
-func CreateRdrNode(node *Node) NodeImpl {
+func CreateRdrNode(node *schema.Node) schema.NodeImpl {
 	ret := &RdrNode{
-		BaseNodeImpl: BaseNodeImpl{
+		BaseNodeImpl: schema.BaseNodeImpl{
 			Node:        node,
-			OnAttachEvt: &EventTarget{},
-			OnDetachEvt: &EventTarget{},
+			OnAttachEvt: &schema.EventTarget{},
+			OnDetachEvt: &schema.EventTarget{},
 		},
 		MetaFreshness:     10 * time.Millisecond,
 		MaxRetriesForMeta: 15,
@@ -233,13 +241,13 @@ func CreateRdrNode(node *Node) NodeImpl {
 	path, _ := enc.NamePatternFromStr("<v=versionNumber>")
 	node.PutNode(path, SegmentedNodeDesc)
 	path, _ = enc.NamePatternFromStr("32=metadata")
-	node.PutNode(path, ExpressPointDesc)
+	node.PutNode(path, schema.ExpressPointDesc)
 	path, _ = enc.NamePatternFromStr("32=metadata/<v=versionNumber>/seg=0")
-	node.PutNode(path, LeafNodeDesc)
+	node.PutNode(path, schema.LeafNodeDesc)
 	return ret
 }
 
-func (n *RdrNode) Provide(mNode MatchedNode, content enc.Wire) uint64 {
+func (n *RdrNode) Provide(mNode schema.MatchedNode, content enc.Wire) uint64 {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
 	}
@@ -264,21 +272,26 @@ func (n *RdrNode) Provide(mNode MatchedNode, content enc.Wire) uint64 {
 	dataName[nameLen] = enc.NewVersionComponent(ver)
 	dataMNode := mNode.Refine(dataName)
 
+	// generate segmented data
+	segCnt := dataMNode.Call("Provide", content).(uint64)
+
 	// generate metadata
 	metaDataCfg := &ndn.DataConfig{
 		ContentType:  utils.IdPtr(ndn.ContentTypeBlob),
 		Freshness:    utils.IdPtr(n.MetaFreshness),
 		FinalBlockID: utils.IdPtr(enc.NewSegmentComponent(0)),
 	}
-	metaMNode.Call("Provide", enc.Wire{dataName.Bytes()}, metaDataCfg)
-
-	// generate segmented data
-	dataMNode.Call("Provide", content)
+	metaData := &MetaData{
+		Name:         dataName,
+		FinalBlockID: enc.NewSegmentComponent(segCnt).Bytes(),
+		Size:         utils.IdPtr(content.Length()),
+	}
+	metaMNode.Call("Provide", metaData.Encode(), metaDataCfg)
 
 	return ver
 }
 
-func (n *RdrNode) NeedCallback(mNode MatchedNode, callback Callback, version *uint64) {
+func (n *RdrNode) NeedCallback(mNode schema.MatchedNode, callback schema.Callback, version *uint64) {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
 	}
@@ -288,7 +301,8 @@ func (n *RdrNode) NeedCallback(mNode MatchedNode, callback Callback, version *ui
 		logger := mNode.Logger("RdrNode")
 		var err error = nil
 		var fullName enc.Name
-		var lastResult NeedResult
+		var metadata *MetaData
+		var lastResult schema.NeedResult
 
 		if version == nil {
 			// Fetch the version
@@ -300,20 +314,21 @@ func (n *RdrNode) NeedCallback(mNode MatchedNode, callback Callback, version *ui
 			succeeded := false
 			for j := 0; !succeeded && j < int(n.MaxRetriesForMeta); j++ {
 				logger.Debugf("Fetching the metadata packet [the %d trial]", j)
-				lastResult = <-epMNode.Call("NeedChan").(chan NeedResult)
+				lastResult = <-epMNode.Call("NeedChan").(chan schema.NeedResult)
 				switch lastResult.Status {
 				case ndn.InterestResultData:
 					succeeded = true
-					fullName, err = enc.NameFromBytes(lastResult.Content.Join())
+					metadata, err = ParseMetaData(enc.NewWireReader(lastResult.Content), true)
 					if err != nil {
-						logger.Errorf("Unable to extract name from the metadata packet: %v\n", err)
+						logger.Errorf("Unable to parse and extract name from the metadata packet: %v\n", err)
 						lastResult.Status = ndn.InterestResultError
 					}
+					fullName = metadata.Name
 				}
 			}
 
 			if !succeeded || lastResult.Status == ndn.InterestResultError || !mNode.Name.IsPrefix(fullName) {
-				event := &Event{
+				event := &schema.Event{
 					TargetNode:  n.Node,
 					Target:      &mNode,
 					Data:        lastResult.Data,
@@ -340,10 +355,10 @@ func (n *RdrNode) NeedCallback(mNode MatchedNode, callback Callback, version *ui
 	}()
 }
 
-func (n *RdrNode) NeedChan(mNode MatchedNode, version *uint64) chan NeedResult {
-	ret := make(chan NeedResult, 1)
-	callback := func(event *Event) any {
-		result := NeedResult{
+func (n *RdrNode) NeedChan(mNode schema.MatchedNode, version *uint64) chan schema.NeedResult {
+	ret := make(chan schema.NeedResult, 1)
+	callback := func(event *schema.Event) any {
+		result := schema.NeedResult{
 			Status:      *event.NeedStatus,
 			Content:     event.Content,
 			Data:        event.Data,
@@ -362,42 +377,42 @@ func (n *RdrNode) CastTo(ptr any) any {
 	switch ptr.(type) {
 	case (*RdrNode):
 		return n
-	case (*BaseNodeImpl):
+	case (*schema.BaseNodeImpl):
 		return &(n.BaseNodeImpl)
 	default:
 		return nil
 	}
 }
 
-// TODO: GeneralObject in CNL
-// type GeneralObjNode struct {
-// 	BaseNodeImpl
-// }
+// GeneralObject in CNL
+type GeneralObjNode struct {
+	schema.BaseNodeImpl
+}
 
 var (
-	RdrNodeDesc       *NodeImplDesc
-	SegmentedNodeDesc *NodeImplDesc
+	RdrNodeDesc       *schema.NodeImplDesc
+	SegmentedNodeDesc *schema.NodeImplDesc
 )
 
 func initRdrNodes() {
-	SegmentedNodeDesc = &NodeImplDesc{
+	SegmentedNodeDesc = &schema.NodeImplDesc{
 		ClassName: "SegmentedNode",
-		Properties: map[PropKey]PropertyDesc{
-			"ContentType":         DefaultPropertyDesc("ContentType"),
-			"Lifetime":            TimePropertyDesc("Lifetime"),
-			"Freshness":           TimePropertyDesc("Freshness"),
-			"ValidDuration":       TimePropertyDesc("ValidDur"),
-			"MustBeFresh":         DefaultPropertyDesc("MustBeFresh"),
-			"SegmentSize":         DefaultPropertyDesc("SegmentSize"),
-			"MaxRetriesOnFailure": DefaultPropertyDesc("MaxRetriesOnFailure"),
-			"Pipeline":            DefaultPropertyDesc("Pipeline"),
+		Properties: map[schema.PropKey]schema.PropertyDesc{
+			"ContentType":         schema.DefaultPropertyDesc("ContentType"),
+			"Lifetime":            schema.TimePropertyDesc("Lifetime"),
+			"Freshness":           schema.TimePropertyDesc("Freshness"),
+			"ValidDuration":       schema.TimePropertyDesc("ValidDur"),
+			"MustBeFresh":         schema.DefaultPropertyDesc("MustBeFresh"),
+			"SegmentSize":         schema.DefaultPropertyDesc("SegmentSize"),
+			"MaxRetriesOnFailure": schema.DefaultPropertyDesc("MaxRetriesOnFailure"),
+			"Pipeline":            schema.DefaultPropertyDesc("Pipeline"),
 		},
-		Events: map[PropKey]EventGetter{
-			PropOnAttach: DefaultEventTarget(PropOnAttach), // Inherited from base
-			PropOnDetach: DefaultEventTarget(PropOnDetach), // Inherited from base
+		Events: map[schema.PropKey]schema.EventGetter{
+			schema.PropOnAttach: schema.DefaultEventTarget(schema.PropOnAttach), // Inherited from base
+			schema.PropOnDetach: schema.DefaultEventTarget(schema.PropOnDetach), // Inherited from base
 		},
-		Functions: map[string]NodeFunc{
-			"Provide": func(mNode MatchedNode, args ...any) any {
+		Functions: map[string]schema.NodeFunc{
+			"Provide": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) < 1 || len(args) > 2 {
 					err := fmt.Errorf("SegmentedNode.Provide requires 1~2 arguments but got %d", len(args))
 					mNode.Logger("SegmentedNode").Error(err.Error())
@@ -418,15 +433,15 @@ func initRdrNodes() {
 						return err
 					}
 				}
-				return QueryInterface[*SegmentedNode](mNode.Node).Provide(mNode, content, needManifest)
+				return schema.QueryInterface[*SegmentedNode](mNode.Node).Provide(mNode, content, needManifest)
 			},
-			"Need": func(mNode MatchedNode, args ...any) any {
+			"Need": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) < 1 || len(args) > 2 {
 					err := fmt.Errorf("SegmentedNode.Need requires 1~2 arguments but got %d", len(args))
 					mNode.Logger("SegmentedNode").Error(err.Error())
 					return err
 				}
-				callback, ok := args[0].(Callback)
+				callback, ok := args[0].(schema.Callback)
 				if !ok {
 					err := ndn.ErrInvalidValue{Item: "callback", Value: args[0]}
 					mNode.Logger("SegmentedNode").Error(err.Error())
@@ -441,9 +456,9 @@ func initRdrNodes() {
 						return err
 					}
 				}
-				return QueryInterface[*SegmentedNode](mNode.Node).NeedCallback(mNode, callback, manifest)
+				return schema.QueryInterface[*SegmentedNode](mNode.Node).NeedCallback(mNode, callback, manifest)
 			},
-			"NeedChan": func(mNode MatchedNode, args ...any) any {
+			"NeedChan": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) > 1 {
 					err := fmt.Errorf("SegmentedNode.NeedChan requires 0~1 arguments but got %d", len(args))
 					mNode.Logger("SegmentedNode").Error(err.Error())
@@ -459,34 +474,34 @@ func initRdrNodes() {
 						return err
 					}
 				}
-				return QueryInterface[*SegmentedNode](mNode.Node).NeedChan(mNode, manifest)
+				return schema.QueryInterface[*SegmentedNode](mNode.Node).NeedChan(mNode, manifest)
 			},
 		},
 		Create: CreateSegmentedNode,
 	}
-	RegisterNodeImpl(SegmentedNodeDesc)
+	schema.RegisterNodeImpl(SegmentedNodeDesc)
 
-	RdrNodeDesc = &NodeImplDesc{
+	RdrNodeDesc = &schema.NodeImplDesc{
 		ClassName: "RdrNode",
-		Properties: map[PropKey]PropertyDesc{
-			"MetaFreshness":       TimePropertyDesc("MetaFreshness"),
-			"MaxRetriesForMeta":   DefaultPropertyDesc("MaxRetriesForMeta"),
-			"MetaLifetime":        SubNodePropertyDesc("32=metadata", PropLifetime),
-			"ContentType":         SubNodePropertyDesc("<v=versionNumber>", "ContentType"),
-			"Lifetime":            SubNodePropertyDesc("<v=versionNumber>", "Lifetime"),
-			"Freshness":           SubNodePropertyDesc("<v=versionNumber>", "Freshness"),
-			"ValidDuration":       SubNodePropertyDesc("<v=versionNumber>", "ValidDuration"),
-			"MustBeFresh":         SubNodePropertyDesc("<v=versionNumber>", "MustBeFresh"),
-			"SegmentSize":         SubNodePropertyDesc("<v=versionNumber>", "SegmentSize"),
-			"MaxRetriesOnFailure": SubNodePropertyDesc("<v=versionNumber>", "MaxRetriesOnFailure"),
-			"Pipeline":            SubNodePropertyDesc("<v=versionNumber>", "Pipeline"),
+		Properties: map[schema.PropKey]schema.PropertyDesc{
+			"MetaFreshness":       schema.TimePropertyDesc("MetaFreshness"),
+			"MaxRetriesForMeta":   schema.DefaultPropertyDesc("MaxRetriesForMeta"),
+			"MetaLifetime":        schema.SubNodePropertyDesc("32=metadata", schema.PropLifetime),
+			"ContentType":         schema.SubNodePropertyDesc("<v=versionNumber>", "ContentType"),
+			"Lifetime":            schema.SubNodePropertyDesc("<v=versionNumber>", "Lifetime"),
+			"Freshness":           schema.SubNodePropertyDesc("<v=versionNumber>", "Freshness"),
+			"ValidDuration":       schema.SubNodePropertyDesc("<v=versionNumber>", "ValidDuration"),
+			"MustBeFresh":         schema.SubNodePropertyDesc("<v=versionNumber>", "MustBeFresh"),
+			"SegmentSize":         schema.SubNodePropertyDesc("<v=versionNumber>", "SegmentSize"),
+			"MaxRetriesOnFailure": schema.SubNodePropertyDesc("<v=versionNumber>", "MaxRetriesOnFailure"),
+			"Pipeline":            schema.SubNodePropertyDesc("<v=versionNumber>", "Pipeline"),
 		},
-		Events: map[PropKey]EventGetter{
-			PropOnAttach: DefaultEventTarget(PropOnAttach), // Inherited from base
-			PropOnDetach: DefaultEventTarget(PropOnDetach), // Inherited from base
+		Events: map[schema.PropKey]schema.EventGetter{
+			schema.PropOnAttach: schema.DefaultEventTarget(schema.PropOnAttach), // Inherited from base
+			schema.PropOnDetach: schema.DefaultEventTarget(schema.PropOnDetach), // Inherited from base
 		},
-		Functions: map[string]NodeFunc{
-			"Provide": func(mNode MatchedNode, args ...any) any {
+		Functions: map[string]schema.NodeFunc{
+			"Provide": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) != 1 {
 					err := fmt.Errorf("RdrNode.Provide requires 1 arguments but got %d", len(args))
 					mNode.Logger("RdrNode").Error(err.Error())
@@ -498,15 +513,15 @@ func initRdrNodes() {
 					mNode.Logger("RdrNode").Error(err.Error())
 					return err
 				}
-				return QueryInterface[*RdrNode](mNode.Node).Provide(mNode, content)
+				return schema.QueryInterface[*RdrNode](mNode.Node).Provide(mNode, content)
 			},
-			"Need": func(mNode MatchedNode, args ...any) any {
+			"Need": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) < 1 || len(args) > 2 {
 					err := fmt.Errorf("RdrNode.Need requires 1~2 arguments but got %d", len(args))
 					mNode.Logger("RdrNode").Error(err.Error())
 					return err
 				}
-				callback, ok := args[0].(Callback)
+				callback, ok := args[0].(schema.Callback)
 				if !ok {
 					err := ndn.ErrInvalidValue{Item: "callback", Value: args[0]}
 					mNode.Logger("RdrNode").Error(err.Error())
@@ -521,10 +536,10 @@ func initRdrNodes() {
 						return err
 					}
 				}
-				QueryInterface[*RdrNode](mNode.Node).NeedCallback(mNode, callback, version)
+				schema.QueryInterface[*RdrNode](mNode.Node).NeedCallback(mNode, callback, version)
 				return nil
 			},
-			"NeedChan": func(mNode MatchedNode, args ...any) any {
+			"NeedChan": func(mNode schema.MatchedNode, args ...any) any {
 				if len(args) > 1 {
 					err := fmt.Errorf("RdrNode.NeedChan requires 0~1 arguments but got %d", len(args))
 					mNode.Logger("RdrNode").Error(err.Error())
@@ -540,10 +555,14 @@ func initRdrNodes() {
 						return err
 					}
 				}
-				return QueryInterface[*RdrNode](mNode.Node).NeedChan(mNode, version)
+				return schema.QueryInterface[*RdrNode](mNode.Node).NeedChan(mNode, version)
 			},
 		},
 		Create: CreateRdrNode,
 	}
-	RegisterNodeImpl(RdrNodeDesc)
+	schema.RegisterNodeImpl(RdrNodeDesc)
+}
+
+func init() {
+	initRdrNodes()
 }

@@ -8,6 +8,7 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	_ "github.com/zjkmxy/go-ndn/pkg/schema/rdr"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 

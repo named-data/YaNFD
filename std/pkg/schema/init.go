@@ -7,5 +7,4 @@ func init() {
 	initExpressPointDesc()
 	initLeafNodeDesc()
 	initPolicies()
-	initRdrNodes()
 }
