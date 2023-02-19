@@ -1,24 +1,67 @@
-// This example uses the old schema implemementation and does not work
 package main
 
 import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	_ "github.com/zjkmxy/go-ndn/pkg/schema/demosec"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
-var app *basic_engine.Engine
-var tree *schema.Tree
-
+const SchemaJson = `{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    },
+    "/contentKey": {
+      "type": "ContentKeyNode",
+      "attrs": {
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/contentKey/<contentKeyID>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}`
 const HmacKey = "Hello, World!"
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
@@ -40,44 +83,15 @@ func main() {
 	}
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
-	node := &schema.LeafNode{}
-	err = tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	node.Set(schema.PropCanBePrefix, false)
-	node.Set(schema.PropMustBeFresh, true)
-	node.Set(schema.PropLifetime, 6*time.Second)
-	node.Set(schema.PropFreshness, 1*time.Second)
-	node.Set(schema.PropValidDuration, 876000*time.Hour)
-	schema.AddEventListener(node, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
-		return sec.NewSha256Signer()
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$isProducer": false,
+		"$hmacKey":    HmacKey,
 	})
-	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
-		return schema.VrPass
-	}
-	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
-	path, _ = enc.NamePatternFromStr("/contentKey")
-	ckNode := &demo.ContentKeyNode{}
-	err = tree.PutNode(path, ckNode)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(ckNode)
-
-	// Setup policies
-	memStorage := demo.NewMemStoragePolicy()
-	memStorage.Apply(node)
-	memStorage.Apply(ckNode)
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	err = app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
@@ -95,22 +109,32 @@ func main() {
 	defer tree.Detach()
 
 	// Fetch the data
-	context := schema.Context{}
-	matching := enc.Matching{"time": uint64(ver)}
-	result, content := (<-node.Need(matching, nil, nil, context)).Get()
-	switch result {
+	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{
+		"time": enc.Nat(ver).Bytes(),
+	})
+	result := <-mNode.Call("NeedChan").(chan schema.NeedResult)
+	switch result.Status {
 	case ndn.InterestResultNack:
-		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
+		fmt.Printf("Nacked with reason=%d\n", *result.NackReason)
 	case ndn.InterestResultTimeout:
 		fmt.Printf("Timeout\n")
 	case ndn.InterestCancelled:
 		fmt.Printf("Canceled\n")
 	case ndn.InterestResultData:
-		plainText, err := ckNode.Decrypt(matching, content)
-		if err != nil {
-			logger.Fatalf("Unable to encrypt data: %+v", err)
-			return
-		}
-		fmt.Printf("Received Data: %+v\n", plainText.Join())
+		fmt.Printf("Data received\n")
+	}
+	if result.Status != ndn.InterestResultData {
+		return
+	}
+
+	path, _ = enc.NamePatternFromStr("/contentKey")
+	ckMNode := tree.At(path).Apply(enc.Matching{})
+	plainText, ok := ckMNode.Call("Decrypt", result.Content).(enc.Wire)
+	if !ok || plainText == nil {
+		fmt.Printf("Unable to decrypt data\n")
+	} else {
+		fmt.Printf("Data: %s\n", string(plainText.Join()))
 	}
 }

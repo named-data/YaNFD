@@ -12,7 +12,11 @@
     },
     "/contentKey": {
       "type": "ContentKeyNode",
-      "attrs": {}
+      "attrs": {
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
     }
   },
   "policies": [
@@ -29,8 +33,8 @@
       "attrs": {}
     },
     {
-      "type": "FixedHmacKeySigner",
-      "path": "/contentKey",
+      "type": "FixedHmacSigner",
+      "path": "/contentKey/<contentKeyID>",
       "attrs": {
         "KeyValue": "$hmacKey"
       }

@@ -1,4 +1,3 @@
-// This example uses the old schema implemementation and does not work
 package main
 
 import (
@@ -6,21 +5,65 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	_ "github.com/zjkmxy/go-ndn/pkg/schema/demosec"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-var app *basic_engine.Engine
-var tree *schema.Tree
-
+const SchemaJson = `{
+  "nodes": {
+    "/randomData/<v=time>": {
+      "type": "LeafNode",
+      "attrs": {
+        "CanBePrefix": false,
+        "MustBeFresh": true,
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    },
+    "/contentKey": {
+      "type": "ContentKeyNode",
+      "attrs": {
+        "Lifetime": 6000,
+        "Freshness": 1000,
+        "ValidDuration": 3153600000000.0
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/randomData/<v=time>",
+      "attrs": {}
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/contentKey/<contentKeyID>",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}`
 const HmacKey = "Hello, World!"
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
@@ -32,46 +75,16 @@ func main() {
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/randomData/<v=time>")
-	node := &schema.LeafNode{}
-	err := tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	node.Set(schema.PropCanBePrefix, false)
-	node.Set(schema.PropMustBeFresh, true)
-	node.Set(schema.PropLifetime, 6*time.Second)
-	node.Set(schema.PropFreshness, 1*time.Second)
-	node.Set(schema.PropValidDuration, 876000*time.Hour)
-	schema.AddEventListener(node, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
-		return sec.NewSha256Signer()
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$isProducer": true,
+		"$hmacKey":    HmacKey,
 	})
-	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
-		return schema.VrPass
-	}
-	node.Get(schema.PropOnValidateData).(*schema.Event[*schema.NodeValidateEvent]).Add(&passAllChecker)
-	path, _ = enc.NamePatternFromStr("/contentKey")
-	ckNode := &demo.ContentKeyNode{}
-	err = tree.PutNode(path, ckNode)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(ckNode)
-
-	// Setup policies
-	memStorage := demo.NewMemStoragePolicy()
-	memStorage.Apply(node)
-	memStorage.Apply(ckNode)
-	demo.NewRegisterPolicy().Apply(tree.Root)
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
@@ -87,17 +100,20 @@ func main() {
 	}
 	defer tree.Detach()
 
+	// Produce key and encrypt
+	path, _ := enc.NamePatternFromStr("/contentKey")
+	ckMNode := tree.At(path).Apply(enc.Matching{})
+	ck := ckMNode.Call("GenKey")
+	cipherText := ckMNode.Call("Encrypt", ck, enc.Wire{[]byte("Hello, world!")}).(enc.Wire)
+
 	// Produce data
 	ver := utils.MakeTimestamp(timer.Now())
-	ckid := ckNode.GenKey(enc.Matching{})
-	cipherText, err := ckNode.Encrypt(enc.Matching{}, ckid, enc.Wire{[]byte("Hello, world!")})
-	if err != nil {
-		logger.Fatalf("Unable to encrypt data: %+v", err)
-		return
-	}
-	node.Provide(enc.Matching{
-		"time": ver,
-	}, nil, cipherText, schema.Context{})
+	path, _ = enc.NamePatternFromStr("/randomData/<v=time>")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{
+		"time": enc.Nat(ver).Bytes(),
+	})
+	mNode.Call("Provide", cipherText)
 	fmt.Printf("Generated packet with version= %d\n", ver)
 
 	// Wait for keyboard quit signal
