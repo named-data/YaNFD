@@ -73,7 +73,7 @@ func instantiateAttrs(attrs map[string]any, env map[string]any) map[string]any {
 			if attr, ok := env[v]; ok {
 				return attr
 			} else {
-				panic(fmt.Errorf("missing callback event %s in the environment", v))
+				panic(fmt.Errorf("missing attributes %s in the environment", v))
 			}
 			// Recursive if ret is a list or another map
 		case map[string]any:

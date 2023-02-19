@@ -97,6 +97,13 @@ func (n *ExpressPoint) OnInterest(
 	}
 	logger := event.Target.Logger("ExpressPoint")
 
+	// Handle FullName: the implicit sha256 component should be removed from data name
+	if event.Target.Name[len(event.Target.Name)-1].Typ == enc.TypeImplicitSha256DigestComponent {
+		event.Target.Name = event.Target.Name[:len(event.Target.Name)-1]
+	}
+	// The info is stored in Target.Matching
+	// Even without this info, the data packet is supposed to be unique.
+
 	// Search storage
 	// Reply if there is data (including AppNack). No further callback will be called if hit.
 	// This is the same behavior as a forwarder.
@@ -104,7 +111,7 @@ func (n *ExpressPoint) OnInterest(
 	if len(cachedData) > 0 {
 		err := reply(cachedData)
 		if err != nil {
-			logger.Error("Unable to reply Interest. Drop.")
+			logger.Errorf("Unable to reply Interest. Drop: %+v", err)
 		}
 		return
 	}

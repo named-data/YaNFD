@@ -1,9 +1,19 @@
 {
   "nodes": {
-    "/lorem/<v=time>": {
-      "type": "GroupSigNode",
+    "/<v=time>": {
+      "type": "GeneralObjNode",
       "attrs": {
-        "Threshold": 80
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "ManifestFreshness": 10,
+        "MaxRetriesForManifest": 2,
+        "MetaLifetime": 6000,
+        "Lifetime": 6000,
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
       }
     }
   },
@@ -16,8 +26,19 @@
       }
     },
     {
-      "type": "FixedHmacKeySigner",
-      "path": "/lorem/<v=time>/32=meta",
+      "type": "Sha256Signer",
+      "path": "/<v=time>/32=data/<seg=segmentNumber>"
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=manifest",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=metadata",
       "attrs": {
         "KeyValue": "$hmacKey"
       }

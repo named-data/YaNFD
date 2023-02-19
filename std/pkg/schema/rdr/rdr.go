@@ -283,7 +283,7 @@ func (n *RdrNode) Provide(mNode schema.MatchedNode, content enc.Wire) uint64 {
 	}
 	metaData := &MetaData{
 		Name:         dataName,
-		FinalBlockID: enc.NewSegmentComponent(segCnt).Bytes(),
+		FinalBlockID: enc.NewSegmentComponent(segCnt - 1).Bytes(),
 		Size:         utils.IdPtr(content.Length()),
 	}
 	metaMNode.Call("Provide", metaData.Encode(), metaDataCfg)
@@ -387,11 +387,192 @@ func (n *RdrNode) CastTo(ptr any) any {
 // GeneralObject in CNL
 type GeneralObjNode struct {
 	schema.BaseNodeImpl
+
+	MetaFreshness         time.Duration
+	MaxRetriesForMeta     uint64
+	ManifestFreshness     time.Duration
+	MaxRetriesForManifest uint64
+}
+
+func (n *GeneralObjNode) NodeImplTrait() schema.NodeImpl {
+	return n
+}
+
+func (n *GeneralObjNode) CastTo(ptr any) any {
+	switch ptr.(type) {
+	case (*GeneralObjNode):
+		return n
+	case (*schema.BaseNodeImpl):
+		return &(n.BaseNodeImpl)
+	default:
+		return nil
+	}
+}
+
+func CreateGeneralObjNode(node *schema.Node) schema.NodeImpl {
+	ret := &GeneralObjNode{
+		BaseNodeImpl: schema.BaseNodeImpl{
+			Node:        node,
+			OnAttachEvt: &schema.EventTarget{},
+			OnDetachEvt: &schema.EventTarget{},
+		},
+		MetaFreshness:         10 * time.Millisecond,
+		MaxRetriesForMeta:     15,
+		ManifestFreshness:     10 * time.Millisecond,
+		MaxRetriesForManifest: 15,
+	}
+	path, _ := enc.NamePatternFromStr("32=data")
+	node.PutNode(path, SegmentedNodeDesc)
+	path, _ = enc.NamePatternFromStr("32=metadata")
+	node.PutNode(path, schema.LeafNodeDesc)
+	path, _ = enc.NamePatternFromStr("32=manifest")
+	node.PutNode(path, schema.LeafNodeDesc)
+	// Note: I don't think manifest needs to be segmented here.
+	// If it is that large (> 1MB), it is improper to hold the whole object in memory.
+	return ret
+}
+
+func (n *GeneralObjNode) Provide(mNode schema.MatchedNode, content enc.Wire) uint64 {
+	if mNode.Node != n.Node {
+		panic("NTSchema tree compromised.")
+	}
+
+	// generate segmented data
+	nameLen := len(mNode.Name)
+	dataName := make(enc.Name, nameLen+1)
+	copy(dataName, mNode.Name)
+	dataName[nameLen] = enc.NewStringComponent(32, "data")
+	dataMNode := mNode.Refine(dataName)
+	manifest := dataMNode.Call("Provide", content, true).([]enc.Buffer)
+	segCnt := uint64(len(manifest))
+
+	// generate metadata
+	metaName := make(enc.Name, nameLen+1)
+	copy(metaName, mNode.Name) // Note this does not actually copies the component values
+	metaName[nameLen] = enc.NewStringComponent(32, "metadata")
+	metaMNode := mNode.Refine(metaName)
+	metaDataCfg := &ndn.DataConfig{
+		ContentType: utils.IdPtr(ndn.ContentTypeBlob),
+		Freshness:   utils.IdPtr(n.MetaFreshness),
+	}
+	metaData := &MetaData{
+		Name:         dataName,
+		FinalBlockID: enc.NewSegmentComponent(segCnt - 1).Bytes(),
+		Size:         utils.IdPtr(content.Length()),
+	}
+	metaMNode.Call("Provide", metaData.Encode(), metaDataCfg)
+
+	// generate manifest
+	manifestName := make(enc.Name, nameLen+1)
+	copy(manifestName, mNode.Name)
+	manifestName[nameLen] = enc.NewStringComponent(32, "manifest")
+	manifestMNode := mNode.Refine(manifestName)
+	manifestDataCfg := &ndn.DataConfig{
+		ContentType: utils.IdPtr(ndn.ContentTypeBlob),
+		Freshness:   utils.IdPtr(n.ManifestFreshness),
+	}
+	manifestData := &ManifestData{
+		Entries: make([]*ManifestDigest, segCnt),
+	}
+	for i, v := range manifest {
+		manifestData.Entries[i] = &ManifestDigest{
+			SegNo:  uint64(i),
+			Digest: v,
+		}
+	}
+	manifestMNode.Call("Provide", manifestData.Encode(), manifestDataCfg)
+
+	return segCnt
+}
+
+func (n *GeneralObjNode) NeedCallback(mNode schema.MatchedNode, callback schema.Callback) {
+	if mNode.Node != n.Node {
+		panic("NTSchema tree compromised.")
+	}
+
+	go func() {
+		nameLen := len(mNode.Name)
+		logger := mNode.Logger("GeneralObjNode")
+		var err error = nil
+		var manifest *ManifestData
+		var lastResult schema.NeedResult
+
+		// fetch the manifest
+		manifestName := make(enc.Name, nameLen+1)
+		copy(manifestName, mNode.Name)
+		manifestName[nameLen] = enc.NewStringComponent(32, "manifest")
+		manifestMNode := mNode.Refine(manifestName)
+
+		succeeded := false
+		for j := 0; !succeeded && j < int(n.MaxRetriesForManifest); j++ {
+			logger.Debugf("Fetching the manifest packet [the %d trial]", j)
+			lastResult = <-manifestMNode.Call("NeedChan").(chan schema.NeedResult)
+			switch lastResult.Status {
+			case ndn.InterestResultData:
+				succeeded = true
+				manifest, err = ParseManifestData(enc.NewWireReader(lastResult.Content), true)
+				if err != nil {
+					logger.Errorf("Unable to parse the manifest packet: %v\n", err)
+					lastResult.Status = ndn.InterestResultError
+				}
+			}
+		}
+
+		if !succeeded || lastResult.Status == ndn.InterestResultError {
+			event := &schema.Event{
+				TargetNode:  n.Node,
+				Target:      &mNode,
+				Data:        lastResult.Data,
+				NackReason:  lastResult.NackReason,
+				ValidResult: lastResult.ValidResult,
+				NeedStatus:  utils.IdPtr(lastResult.Status),
+				Content:     nil,
+			}
+			if succeeded {
+				event.Error = fmt.Errorf("the manifest packet is malformed: %v", err)
+			} else {
+				event.Error = fmt.Errorf("unable to fetch the manifest packet")
+			}
+			callback(event)
+			return
+		}
+
+		manifestBuf := make([]enc.Buffer, len(manifest.Entries))
+		for i, v := range manifest.Entries {
+			manifestBuf[i] = v.Digest
+		}
+
+		// fetch the segments
+		dataName := make(enc.Name, nameLen+1)
+		copy(dataName, mNode.Name)
+		dataName[nameLen] = enc.NewStringComponent(32, "data")
+		segMNode := mNode.Refine(dataName)
+		segMNode.Call("Need", callback, manifestBuf)
+	}()
+}
+
+func (n *GeneralObjNode) NeedChan(mNode schema.MatchedNode) chan schema.NeedResult {
+	ret := make(chan schema.NeedResult, 1)
+	callback := func(event *schema.Event) any {
+		result := schema.NeedResult{
+			Status:      *event.NeedStatus,
+			Content:     event.Content,
+			Data:        event.Data,
+			ValidResult: event.ValidResult,
+			NackReason:  event.NackReason,
+		}
+		ret <- result
+		close(ret)
+		return nil
+	}
+	n.NeedCallback(mNode, callback)
+	return ret
 }
 
 var (
-	RdrNodeDesc       *schema.NodeImplDesc
-	SegmentedNodeDesc *schema.NodeImplDesc
+	RdrNodeDesc        *schema.NodeImplDesc
+	SegmentedNodeDesc  *schema.NodeImplDesc
+	GeneralObjNodeDesc *schema.NodeImplDesc
 )
 
 func initRdrNodes() {
@@ -561,6 +742,71 @@ func initRdrNodes() {
 		Create: CreateRdrNode,
 	}
 	schema.RegisterNodeImpl(RdrNodeDesc)
+
+	GeneralObjNodeDesc = &schema.NodeImplDesc{
+		ClassName: "GeneralObjNode",
+		Properties: map[schema.PropKey]schema.PropertyDesc{
+			"MetaFreshness":         schema.TimePropertyDesc("MetaFreshness"),
+			"MaxRetriesForMeta":     schema.DefaultPropertyDesc("MaxRetriesForMeta"),
+			"ManifestFreshness":     schema.TimePropertyDesc("ManifestFreshness"),
+			"MaxRetriesForManifest": schema.DefaultPropertyDesc("MaxRetriesForManifest"),
+			"MetaLifetime":          schema.SubNodePropertyDesc("32=metadata", schema.PropLifetime),
+			"ManifestLifetime":      schema.SubNodePropertyDesc("32=manifest", schema.PropLifetime),
+			"ContentType":           schema.SubNodePropertyDesc("32=data", "ContentType"),
+			"Lifetime":              schema.SubNodePropertyDesc("32=data", "Lifetime"),
+			"Freshness":             schema.SubNodePropertyDesc("32=data", "Freshness"),
+			"ValidDuration":         schema.SubNodePropertyDesc("32=data", "ValidDuration"),
+			"MustBeFresh":           schema.SubNodePropertyDesc("32=data", "MustBeFresh"),
+			"SegmentSize":           schema.SubNodePropertyDesc("32=data", "SegmentSize"),
+			"MaxRetriesOnFailure":   schema.SubNodePropertyDesc("32=data", "MaxRetriesOnFailure"),
+			"Pipeline":              schema.SubNodePropertyDesc("32=data", "Pipeline"),
+		},
+		Events: map[schema.PropKey]schema.EventGetter{
+			schema.PropOnAttach: schema.DefaultEventTarget(schema.PropOnAttach), // Inherited from base
+			schema.PropOnDetach: schema.DefaultEventTarget(schema.PropOnDetach), // Inherited from base
+		},
+		Functions: map[string]schema.NodeFunc{
+			"Provide": func(mNode schema.MatchedNode, args ...any) any {
+				if len(args) != 1 {
+					err := fmt.Errorf("GeneralObjNode.Provide requires 1 arguments but got %d", len(args))
+					mNode.Logger("GeneralObjNode").Error(err.Error())
+					return err
+				}
+				content, ok := args[0].(enc.Wire)
+				if !ok && args[0] != nil {
+					err := ndn.ErrInvalidValue{Item: "content", Value: args[0]}
+					mNode.Logger("GeneralObjNode").Error(err.Error())
+					return err
+				}
+				return schema.QueryInterface[*GeneralObjNode](mNode.Node).Provide(mNode, content)
+			},
+			"Need": func(mNode schema.MatchedNode, args ...any) any {
+				if len(args) != 1 {
+					err := fmt.Errorf("GeneralObjNode.Need requires 1 arguments but got %d", len(args))
+					mNode.Logger("GeneralObjNode").Error(err.Error())
+					return err
+				}
+				callback, ok := args[0].(schema.Callback)
+				if !ok {
+					err := ndn.ErrInvalidValue{Item: "callback", Value: args[0]}
+					mNode.Logger("GeneralObjNode").Error(err.Error())
+					return err
+				}
+				schema.QueryInterface[*GeneralObjNode](mNode.Node).NeedCallback(mNode, callback)
+				return nil
+			},
+			"NeedChan": func(mNode schema.MatchedNode, args ...any) any {
+				if len(args) > 0 {
+					err := fmt.Errorf("GeneralObjNode.NeedChan requires 0 arguments but got %d", len(args))
+					mNode.Logger("GeneralObjNode").Error(err.Error())
+					return err
+				}
+				return schema.QueryInterface[*GeneralObjNode](mNode.Node).NeedChan(mNode)
+			},
+		},
+		Create: CreateGeneralObjNode,
+	}
+	schema.RegisterNodeImpl(GeneralObjNodeDesc)
 }
 
 func init() {

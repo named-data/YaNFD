@@ -7,7 +7,7 @@ type ManifestDigest struct {
 	//+field:natural
 	SegNo uint64 `tlv:"0xcc"`
 	//+field:binary
-	Digest []byte
+	Digest []byte `tlv:"0xce"`
 }
 
 type ManifestData struct {

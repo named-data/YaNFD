@@ -1,4 +1,3 @@
-// This example uses the old schema implemementation and does not work
 package main
 
 import (
@@ -11,9 +10,62 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	_ "github.com/zjkmxy/go-ndn/pkg/schema/rdr"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
+
+const SchemaJson = `{
+  "nodes": {
+    "/<v=time>": {
+      "type": "GeneralObjNode",
+      "attrs": {
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "ManifestFreshness": 10,
+        "MaxRetriesForManifest": 2,
+        "MetaLifetime": 6000,
+        "Lifetime": 6000,
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/<v=time>/32=data/<seg=segmentNumber>"
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=manifest",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=metadata",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}`
 
 const HmacKey = "Hello, World!"
 
@@ -37,26 +89,17 @@ func main() {
 		logger.Fatal("Invalid argument")
 		return
 	}
-	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/lorem/<v=time>")
-	node := &demo.GroupSigNode{}
-	err = tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	node.Set("Threshold", 80)
 
-	// Setup policies
-	path, _ = enc.NamePatternFromStr("/lorem/<v=time>/32=meta")
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(tree.At(path)) // Only set the metadata node
-	demo.NewMemStoragePolicy().Apply(node)
+	// Setup schema tree
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$isProducer": false,
+		"$hmacKey":    HmacKey,
+	})
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	err = app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
@@ -74,21 +117,23 @@ func main() {
 	defer tree.Detach()
 
 	// Fetch the data
-	context := schema.Context{}
-	result, content := (<-node.Need(enc.Matching{
-		"time": uint64(ver),
-	}, context)).Get()
-	switch result {
+	path, _ := enc.NamePatternFromStr("/<v=time>")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{
+		"time": enc.Nat(ver).Bytes(),
+	})
+	result := <-mNode.Call("NeedChan").(chan schema.NeedResult)
+	switch result.Status {
 	case ndn.InterestResultNone:
 		fmt.Printf("Fetching failed. Please see log for detailed reason.\n")
 	case ndn.InterestResultNack:
-		fmt.Printf("Nacked with reason=%d\n", context[schema.CkNackReason])
+		fmt.Printf("Nacked with reason=%d\n", *result.NackReason)
 	case ndn.InterestResultTimeout:
 		fmt.Printf("Timeout\n")
 	case ndn.InterestCancelled:
 		fmt.Printf("Canceled\n")
 	case ndn.InterestResultData:
 		fmt.Printf("Received Data: \n")
-		fmt.Printf("%s", string(content.Join()))
+		fmt.Printf("%s", string(result.Content.Join()))
 	}
 }

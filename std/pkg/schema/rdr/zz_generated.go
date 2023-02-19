@@ -79,7 +79,7 @@ func (encoder *ManifestDigestEncoder) EncodeInto(value *ManifestDigest, buf []by
 	}
 
 	if value.Digest != nil {
-		buf[pos] = byte(0)
+		buf[pos] = byte(206)
 		pos += 1
 		switch x := len(value.Digest); {
 		case x <= 0xfc:
@@ -157,6 +157,13 @@ func (context *ManifestDigestParsingContext) Parse(reader enc.ParseReader, ignor
 							value.SegNo = uint64(value.SegNo<<8) | uint64(x)
 						}
 					}
+				}
+			case 206:
+				if progress+1 == 1 {
+					handled = true
+					value.Digest = make([]byte, l)
+					_, err = io.ReadFull(reader, value.Digest)
+
 				}
 			default:
 				handled = true

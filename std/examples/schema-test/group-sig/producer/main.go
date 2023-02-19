@@ -1,4 +1,3 @@
-// This example uses the old schema implemementation and does not work
 package main
 
 import (
@@ -12,10 +11,63 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demo"
+	_ "github.com/zjkmxy/go-ndn/pkg/schema/rdr"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
+
+const SchemaJson = `{
+  "nodes": {
+    "/<v=time>": {
+      "type": "GeneralObjNode",
+      "attrs": {
+        "MetaFreshness": 10,
+        "MaxRetriesForMeta": 2,
+        "ManifestFreshness": 10,
+        "MaxRetriesForManifest": 2,
+        "MetaLifetime": 6000,
+        "Lifetime": 6000,
+        "Freshness": 3153600000000,
+        "ValidDuration": 3153600000000,
+        "SegmentSize": 80,
+        "MaxRetriesOnFailure": 3,
+        "Pipeline": "SinglePacket"
+      }
+    }
+  },
+  "policies": [
+    {
+      "type": "RegisterPolicy",
+      "path": "/",
+      "attrs": {
+        "RegisterIf": "$isProducer"
+      }
+    },
+    {
+      "type": "Sha256Signer",
+      "path": "/<v=time>/32=data/<seg=segmentNumber>"
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=manifest",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "FixedHmacSigner",
+      "path": "/<v=time>/32=metadata",
+      "attrs": {
+        "KeyValue": "$hmacKey"
+      }
+    },
+    {
+      "type": "MemStorage",
+      "path": "/",
+      "attrs": {}
+    }
+  ]
+}`
 
 const LoremIpsum = `
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
@@ -24,9 +76,6 @@ Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
 occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 `
 const HmacKey = "Hello, World!"
-
-var app *basic_engine.Engine
-var tree *schema.Tree
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
@@ -37,27 +86,16 @@ func main() {
 	logger := log.WithField("module", "main")
 
 	// Setup schema tree
-	tree = &schema.Tree{}
-	path, _ := enc.NamePatternFromStr("/lorem/<v=time>")
-	node := &demo.GroupSigNode{}
-	err := tree.PutNode(path, node)
-	if err != nil {
-		logger.Fatalf("Unable to construst the schema tree: %+v", err)
-		return
-	}
-	node.Set("Threshold", 80)
-
-	// Setup policies
-	path, _ = enc.NamePatternFromStr("/lorem/<v=time>/32=meta")
-	demo.NewFixedKeySigner([]byte(HmacKey)).Apply(tree.At(path)) // Only set the metadata node
-	demo.NewMemStoragePolicy().Apply(node)
-	demo.NewRegisterPolicy().Apply(tree.Root)
+	tree := schema.CreateFromJson(SchemaJson, map[string]any{
+		"$isProducer": true,
+		"$hmacKey":    HmacKey,
+	})
 
 	// Start engine
 	timer := basic_engine.NewTimer()
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
@@ -75,9 +113,12 @@ func main() {
 
 	// Produce data
 	ver := utils.MakeTimestamp(timer.Now())
-	node.Provide(enc.Matching{
-		"time": ver,
-	}, enc.Wire{[]byte(LoremIpsum)}, schema.Context{})
+	path, _ := enc.NamePatternFromStr("/<v=time>")
+	node := tree.At(path)
+	mNode := node.Apply(enc.Matching{
+		"time": enc.Nat(ver).Bytes(),
+	})
+	mNode.Call("Provide", enc.Wire{[]byte(LoremIpsum)})
 	fmt.Printf("Generated packet with version= %d\n", ver)
 
 	// Wait for keyboard quit signal

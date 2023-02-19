@@ -155,7 +155,13 @@ const (
 	PropContentType PropKey = "ContentType"
 	// Default FreshnessPeriod for produced Data. [time.Duration]
 	PropFreshness PropKey = "Freshness"
-	// See CkValidDuration. [time.Duration]
+	// How long the data is supposed to be stored in the storage. [time.Duration]
+	// The validity period of a data in the storage produced by this node,
+	// i.e. how long the local storage will serve it.
+	// Should be larger than FreshnessPeriod. Not affected data fetched remotely.
+	// This is only the rough way to express the life period of some temporary data.
+	// For long durable data stored in databases, etc., the users should use the ways
+	// specified by the storage developers to express the lifetime.
 	PropValidDuration PropKey = "ValidDur"
 )
 
@@ -359,7 +365,13 @@ func QueryInterface[T NodeImpl](node *Node) T {
 // Refine a matching with a longer name. `name` must include current name as a prefix.
 func (mNode MatchedNode) Refine(name enc.Name) *MatchedNode {
 	if !mNode.Name.IsPrefix(name) {
-		return nil
+		if mNode.Name[len(mNode.Name)-1].Typ != enc.TypeImplicitSha256DigestComponent ||
+			!mNode.Name[:len(mNode.Name)-1].Equal(name) {
+			return nil
+		} else {
+			mNode.Name = name
+			return &mNode
+		}
 	}
 	match := make(enc.Matching, len(mNode.Matching))
 	for k, v := range mNode.Matching {
