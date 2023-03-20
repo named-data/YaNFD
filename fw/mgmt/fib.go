@@ -13,6 +13,7 @@ import (
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // FIBModule is the module that handles FIB Management.
@@ -96,8 +97,8 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 	if params.Cost != nil {
 		cost = *params.Cost
 	}
-
-	table.FibStrategyTable.InsertNextHop(params.Name, faceID, cost)
+	convert, _ := enc.NameFromStr(params.Name.String())
+	table.FibStrategyTable.InsertNextHopEnc(&convert, faceID, cost)
 
 	core.LogInfo(f, "Created nexthop for ", params.Name, " to FaceID=", faceID, "with Cost=", cost)
 	responseParams := mgmt.MakeControlParameters()
@@ -145,8 +146,8 @@ func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint6
 	if params.FaceID != nil && *params.FaceID != 0 {
 		faceID = *params.FaceID
 	}
-
-	table.FibStrategyTable.RemoveNextHop(params.Name, faceID)
+	convert, _ := enc.NameFromStr(params.Name.String())
+	table.FibStrategyTable.RemoveNextHopEnc(&convert, faceID)
 
 	core.LogInfo(f, "Removed nexthop for ", params.Name, " to FaceID=", faceID)
 	responseParams := mgmt.MakeControlParameters()
@@ -174,7 +175,8 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	entries := table.FibStrategyTable.GetAllFIBEntries()
 	dataset := make([]byte, 0)
 	for _, fsEntry := range entries {
-		fibEntry := mgmt.MakeFibEntry(fsEntry.Name())
+		convert, _ := ndn.NameFromString(fsEntry.EncName().String())
+		fibEntry := mgmt.MakeFibEntry(convert)
 		for _, nexthop := range fsEntry.GetNextHops() {
 			var record mgmt.NextHopRecord
 			record.FaceID = nexthop.Nexthop

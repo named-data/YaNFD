@@ -12,6 +12,7 @@ import (
 
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // StrategyPrefix is the prefix of all strategy names for YaNFD
@@ -22,11 +23,12 @@ type Strategy interface {
 	Instantiate(fwThread *Thread)
 	String() string
 	GetName() *ndn.Name
+	GetEncName() *enc.Name
 
-	AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry)
-	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
+	AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
+	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64)
 }
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
@@ -34,6 +36,7 @@ type StrategyBase struct {
 	thread          *Thread
 	threadID        int
 	name            *ndn.Name
+	encName         *enc.Name
 	strategyName    *ndn.GenericNameComponent
 	version         uint64
 	strategyLogName string
@@ -59,17 +62,21 @@ func (s *StrategyBase) GetName() *ndn.Name {
 	return s.name
 }
 
+func (s *StrategyBase) GetEncName() *enc.Name {
+	return s.encName
+}
+
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry table.PitEntry, nexthop uint64, inFace uint64) bool {
-	return s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
+func (s *StrategyBase) SendInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64) bool {
+	return s.thread.processOutgoingInterest(pendingPacket, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(data *ndn.Data, pitEntry table.PitEntry, nexthop uint64, inFace uint64) {
+func (s *StrategyBase) SendData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64) {
 	var pitToken []byte
 	if inRecord, ok := pitEntry.InRecords()[nexthop]; ok {
 		pitToken = inRecord.PitToken
 		delete(pitEntry.InRecords(), nexthop)
 	}
-	s.thread.processOutgoingData(data, nexthop, pitToken, inFace)
+	s.thread.processOutgoingData(pendingPacket, nexthop, pitToken, inFace)
 }
