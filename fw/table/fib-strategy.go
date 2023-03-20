@@ -9,22 +9,28 @@ package table
 
 import (
 	"github.com/named-data/YaNFD/ndn"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // FibStrategyEntry represents an entry in the FIB-Strategy table.
 type FibStrategyEntry interface {
 	Name() *ndn.Name
+	EncName() *enc.Name
 	GetStrategy() *ndn.Name
+	GetEncStrategy() *enc.Name
 	GetNextHops() []*FibNextHopEntry
 }
 
 // baseFibStrategyEntry represents information that all
 // FibStrategyEntry implementations should include.
 type baseFibStrategyEntry struct {
-	component ndn.NameComponent
-	name      *ndn.Name
-	nexthops  []*FibNextHopEntry
-	strategy  *ndn.Name
+	component    ndn.NameComponent
+	encComponent enc.Component
+	name         *ndn.Name
+	encname      *enc.Name
+	nexthops     []*FibNextHopEntry
+	strategy     *ndn.Name
+	ppstrategy   *enc.Name
 }
 
 // FibNextHopEntry represents a nexthop in a FIB entry.
@@ -35,16 +41,14 @@ type FibNextHopEntry struct {
 
 // FibStrategy represents the functionality that a FIB-strategy table should implement.
 type FibStrategy interface {
-	FindNextHops(name *ndn.Name) []*FibNextHopEntry
-	FindStrategy(name *ndn.Name) *ndn.Name
-	InsertNextHop(name *ndn.Name, nextHop uint64, cost uint64)
-	ClearNextHops(name *ndn.Name)
-	RemoveNextHop(name *ndn.Name, nextHop uint64)
-
+	FindNextHopsEnc(name *enc.Name) []*FibNextHopEntry
+	FindStrategyEnc(name *enc.Name) *enc.Name
+	InsertNextHopEnc(name *enc.Name, nextHop uint64, cost uint64)
+	ClearNextHopsEnc(name *enc.Name)
+	RemoveNextHopEnc(name *enc.Name, nextHop uint64)
 	GetAllFIBEntries() []FibStrategyEntry
-
-	SetStrategy(name *ndn.Name, strategy *ndn.Name)
-	UnsetStrategy(name *ndn.Name)
+	SetStrategyEnc(name *enc.Name, strategy *enc.Name)
+	UnSetStrategyEnc(name *enc.Name)
 	GetAllForwardingStrategies() []FibStrategyEntry
 }
 
@@ -56,9 +60,17 @@ func (e *baseFibStrategyEntry) Name() *ndn.Name {
 	return e.name
 }
 
+func (e *baseFibStrategyEntry) EncName() *enc.Name {
+	return e.encname
+}
+
 // GetStrategy returns the strategy associated with the baseFibStrategyEntry.
 func (e *baseFibStrategyEntry) GetStrategy() *ndn.Name {
 	return e.strategy
+}
+
+func (e *baseFibStrategyEntry) GetEncStrategy() *enc.Name {
+	return e.ppstrategy
 }
 
 // GetNexthops gets the nexthops of the specified entry.

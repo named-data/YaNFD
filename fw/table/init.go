@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // tableQueueSize is the maxmimum size of queues in the tables.
@@ -65,11 +65,11 @@ func Configure() {
 		producerRegions = make([]string, 0)
 	}
 	for _, region := range producerRegions {
-		name, err := ndn.NameFromString(region)
+		name, err := enc.NameFromStr(region)
 		if err != nil {
 			core.LogFatal("NetworkRegionTable", "Could not add name=", region, " to table: ", err)
 		}
-		NetworkRegion.Add(name)
+		NetworkRegion.Add(&name)
 		core.LogDebug("NetworkRegionTable", "Added name=", region, " to table")
 	}
 }
@@ -81,9 +81,6 @@ func SetCsCapacity(capacity int) {
 
 func CreateFIBTable(fibTableAlgorithm string) {
 	switch fibTableAlgorithm {
-	case "hashtable":
-		m := core.GetConfigUint16Default("tables.fib.hashtable.m", 5)
-		newFibStrategyTableHashTable(m)
 	case "nametree":
 		newFibStrategyTableTree()
 	default:

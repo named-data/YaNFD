@@ -17,6 +17,7 @@ import (
 	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/ndn/tlv"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // RIBModule is the module that handles RIB Management.
@@ -113,8 +114,8 @@ func (r *RIBModule) register(interest *ndn.Interest, pitToken []byte, inFace uin
 		*expirationPeriod = time.Duration(*params.ExpirationPeriod) * time.Millisecond
 	}
 
-	table.Rib.AddRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
-
+	convert, _ := enc.NameFromStr(params.Name.String())
+	table.Rib.AddEncRoute(&convert, faceID, origin, cost, flags, expirationPeriod)
 	if expirationPeriod != nil {
 		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
 	} else {
@@ -178,8 +179,8 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 	if params.Origin != nil {
 		origin = *params.Origin
 	}
-
-	table.Rib.RemoveRoute(params.Name, faceID, origin)
+	convert, _ := enc.NameFromStr(params.Name.String())
+	table.Rib.RemoveRouteEnc(&convert, faceID, origin)
 
 	core.LogInfo(r, "Removed route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin)
 	responseParams := mgmt.MakeControlParameters()
@@ -200,7 +201,6 @@ func (r *RIBModule) unregister(interest *ndn.Interest, pitToken []byte, inFace u
 
 func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
-
 	if interest.Name().Size() != r.manager.prefixLength()+3 || interest.Name().At(r.manager.prefixLength()+2).Type() != tlv.ParametersSha256DigestComponent {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(r, "Name of Interest=", interest.Name(), " is either too short or incorrectly formatted to be rib/announce")
@@ -242,8 +242,8 @@ func (r *RIBModule) announce(interest *ndn.Interest, pitToken []byte, inFace uin
 	} else if notAfter.Before(time.Now().Add(expirationPeriod)) {
 		expirationPeriod = time.Until(notAfter)
 	}
-
-	table.Rib.AddRoute(prefix, faceID, origin, cost, 0, &expirationPeriod)
+	convert, _ := enc.NameFromStr(prefix.String())
+	table.Rib.AddEncRoute(&convert, faceID, origin, cost, 0, &expirationPeriod)
 
 	core.LogInfo(r, "Created route via PrefixAnnouncement for Prefix=", prefix, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x0, ExpirationPeriod=", expirationPeriod)
 
@@ -279,7 +279,8 @@ func (r *RIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	entries := table.Rib.GetAllEntries()
 	dataset := make([]byte, 0)
 	for _, entry := range entries {
-		ribEntry := mgmt.MakeRibEntry(entry.Name)
+		convert, _ := ndn.NameFromString(entry.EncName.String())
+		ribEntry := mgmt.MakeRibEntry(convert)
 		for _, route := range entry.GetRoutes() {
 			var res mgmt.Route
 			res.FaceID = route.FaceID

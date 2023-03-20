@@ -7,7 +7,9 @@
 
 package mgmt
 
-import "github.com/named-data/YaNFD/ndn"
+import (
+	"github.com/named-data/YaNFD/ndn"
+)
 
 // Module represents a management module
 type Module interface {
