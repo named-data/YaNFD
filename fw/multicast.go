@@ -31,35 +31,35 @@ func (s *Multicast) Instantiate(fwThread *Thread) {
 }
 
 // AfterContentStoreHit ...
-func (s *Multicast) AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", data.Name(), " to FaceID=", inFace)
-	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", " to FaceID=", inFace)
+	s.SendData(pendingPacket, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
-func (s *Multicast) AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
-	core.LogTrace(s, "AfterReceiveData: Data=", data.Name(), ", ", len(pitEntry.InRecords()), " In-Records")
+func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+	core.LogTrace(s, "AfterReceiveData: Data=", pendingPacket.EncPacket.Data.NameV, ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", data.Name(), " to FaceID=", faceID)
-		s.SendData(data, pitEntry, faceID, inFace)
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", pendingPacket.EncPacket.Data.NameV, " to FaceID=", faceID)
+		s.SendData(pendingPacket, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
-func (s *Multicast) AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
+func (s *Multicast) AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry) {
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", interest.Name(), " - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", " - DROP")
 		return
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", interest.Name(), " to FaceID=", nexthop.Nexthop)
-		s.SendInterest(interest, pitEntry, nexthop.Nexthop, inFace)
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", " to FaceID=", nexthop.Nexthop)
+		s.SendInterest(pendingPacket, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
 
 // BeforeSatisfyInterest ...
-func (s *Multicast) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *Multicast) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64) {
 	// This does nothing in Multicast
 }

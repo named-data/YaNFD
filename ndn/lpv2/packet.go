@@ -49,10 +49,136 @@ func NewPacket(fragment []byte) *Packet {
 		fragment: fragmentCopy,
 	}
 }
+func NewPacketNoCopy(fragment []byte) *Packet {
+	return &Packet{
+		fragment: fragment,
+	}
+}
 
 // NewIDLEPacket returns an NDNLPv2 IDLE frame.
 func NewIDLEPacket() *Packet {
 	return &Packet{}
+}
+
+func DecodePacketNoCopy(wire *tlv.Block) (*Packet, error) {
+	if wire == nil {
+		return nil, errors.New("wire is unset")
+	}
+
+	p := &Packet{}
+
+	// If type is not LpPacket, then this is a "bare" packet.
+	if wire.Type() != LpPacket {
+		encodedFragment, err := wire.Wire()
+		if err != nil {
+			return nil, errors.New("unable to encode bare fragment: " + err.Error())
+		}
+		// copy encoded fragment
+		p.fragment = make([]byte, len(encodedFragment))
+		copy(p.fragment, encodedFragment)
+		return p, nil
+	}
+
+	p.wire = wire
+	if e := p.wire.Parse(); e != nil {
+		return nil, errors.New("unable to decode LpPacket")
+	}
+	for _, elem := range p.wire.Subelements() {
+		switch elem.Type() {
+		case Fragment:
+			val := elem.Value()
+			p.fragment = make([]byte, len(val))
+			copy(p.fragment, val)
+		case Sequence:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode Sequence")
+			}
+			p.sequence = &v
+		case FragIndex:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode FragIndex")
+			}
+			p.fragIndex = &v
+		case FragCount:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode FragCount")
+			}
+			p.fragCount = &v
+		case PitToken:
+			val := elem.Value()
+			p.pitToken = make([]byte, len(val))
+			copy(p.pitToken, val)
+		case IncomingFaceID:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode IncomingFaceID")
+			}
+			p.incomingFaceID = &v
+		case NextHopFaceID:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode NextHopFaceID")
+			}
+			p.nextHopFaceID = &v
+		case CachePolicy:
+			if e := elem.Parse(); e != nil {
+				return nil, errors.New("unable to decode CachePolicy")
+			}
+			cachePolicyType := elem.Find(CachePolicyType)
+			if cachePolicyType == nil {
+				return nil, errors.New("CachePolicy element does not contain CachePolicyType")
+			}
+			v, e := tlv.DecodeNNIBlock(cachePolicyType)
+			if e != nil {
+				return nil, errors.New("unable to decode CachePolicyType")
+			}
+			p.cachePolicyType = &v
+		case CongestionMark:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode CongestionMark")
+			}
+			p.congestionMark = &v
+		case Ack:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode Ack")
+			}
+			p.acks = append(p.acks, v)
+		case TxSequence:
+			v, e := tlv.DecodeNNIBlock(elem)
+			if e != nil {
+				return nil, errors.New("unable to decode TxSequence")
+			}
+			p.txSequence = &v
+		case NonDiscovery:
+			p.nonDiscovery = true
+		case PrefixAnnouncement:
+			if e := elem.Parse(); e != nil {
+				return nil, errors.New("unable to parse PrefixAnnouncement: " + e.Error())
+			}
+			data := elem.Find(tlv.Data)
+			if data == nil {
+				return nil, errors.New("PrefixAnnouncement does not contain Data")
+			}
+			pa, e := ndn.DecodeData(data, false)
+			if e != nil {
+				return nil, fmt.Errorf("unable to decode PrefixAnnouncement: %w", e)
+			}
+			p.prefixAnnouncement = pa
+		case Nack:
+			// Gracefully ignore Nacks
+		default:
+			if IsCritical(elem.Type()) {
+				return nil, tlv.ErrUnrecognizedCritical
+			}
+		}
+	}
+
+	return p, nil
 }
 
 // DecodePacket returns an NDNLPv2 frame decoded from the wire.
@@ -335,6 +461,10 @@ func (p *Packet) Fragment() []byte {
 	fragment := make([]byte, len(p.fragment))
 	copy(fragment, p.fragment)
 	return fragment
+}
+
+func (p *Packet) FragmentNoCopy() []byte {
+	return p.fragment
 }
 
 // SetFragment sets the Fragment field of the LpPacket.

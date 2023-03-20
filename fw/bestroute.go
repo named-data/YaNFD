@@ -32,35 +32,35 @@ func (s *BestRoute) Instantiate(fwThread *Thread) {
 }
 
 // AfterContentStoreHit ...
-func (s *BestRoute) AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *BestRoute) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", data.Name(), " to FaceID=", inFace)
-	s.SendData(data, pitEntry, inFace, 0) // 0 indicates ContentStore is source
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", " to FaceID=", inFace)
+	s.SendData(pendingPacket, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
 // AfterReceiveData ...
-func (s *BestRoute) AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
-	core.LogTrace(s, "AfterReceiveData: Data=", data.Name(), ", ", len(pitEntry.InRecords()), " In-Records")
+func (s *BestRoute) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+	core.LogTrace(s, "AfterReceiveData: Data=", ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", data.Name(), " to FaceID=", faceID)
-		s.SendData(data, pitEntry, faceID, inFace)
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", " to FaceID=", faceID)
+		s.SendData(pendingPacket, pitEntry, faceID, inFace)
 	}
 }
 
 // AfterReceiveInterest ...
-func (s *BestRoute) AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry) {
+func (s *BestRoute) AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry) {
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", interest.Name(), " to FaceID=", nh.Nexthop)
-		if sent := s.SendInterest(interest, pitEntry, nh.Nexthop, inFace); sent {
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", " to FaceID=", nh.Nexthop)
+		if sent := s.SendInterest(pendingPacket, pitEntry, nh.Nexthop, inFace); sent {
 			return
 		}
 	}
 
-	core.LogDebug(s, "AfterReceiveInterest: No usable nexthop for Interest=", interest.Name(), " - DROP")
+	core.LogDebug(s, "AfterReceiveInterest: No usable nexthop for Interest=", " - DROP")
 }
 
 // BeforeSatisfyInterest ...
-func (s *BestRoute) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data) {
+func (s *BestRoute) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64) {
 	// This does nothing in BestRoute
 }

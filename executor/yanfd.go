@@ -111,7 +111,6 @@ func (y *YaNFD) Start() {
 	// Initialize FIB table
 	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
 	table.CreateFIBTable(fibTableAlgorithm)
-
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)
@@ -120,7 +119,6 @@ func (y *YaNFD) Start() {
 	// Start management thread
 	management := mgmt.MakeMgmtThread()
 	go management.Run()
-
 	// Create forwarding threads
 	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
 		core.LogFatal("Main", "Number of forwarding threads must be in range [1, ", fw.MaxFwThreads, "]")
@@ -220,7 +218,6 @@ func (y *YaNFD) Start() {
 			}
 		}
 	}
-
 	if core.GetConfigBoolDefault("faces.unix.enabled", true) && !y.config.DisableUnix {
 		// Set up Unix stream listener
 		y.unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
