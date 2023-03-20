@@ -12,6 +12,7 @@ import (
 	"math"
 
 	"github.com/named-data/YaNFD/ndn/util"
+	_ "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // MaxNDNPacketSize is the maximum allowed NDN packet size
@@ -93,6 +94,7 @@ func (b *Block) SetValue(value []byte) {
 //////////////
 
 // Append appends a subelement onto the end of the block's value.
+// this adds a subelement, but then also erases the wire. I assume this is because of the recursive nature of b.wire? Probably a big contributor to runtime.
 func (b *Block) Append(block *Block) {
 	b.subelements = append(b.subelements, block)
 	b.wire = []byte{}
@@ -186,6 +188,7 @@ func (b *Block) Find(tlvType uint32) *Block {
 }
 
 // Insert inserts the subelement in order of ascending TLV type, after any subelements of the same TLV type. Note that this assumes subelements are ordered by increasing TLV type.
+// wonder if insert is even necessary at all
 func (b *Block) Insert(in *Block) {
 	block := in
 	if len(b.subelements) == 0 {
@@ -241,6 +244,8 @@ func varSize(in uint64) uint64 {
 }
 
 // Wire returns the wire-encoded block.
+// this is where we supposedly write from tlv block to an actual byte array.
+// the way its used seems to not really use the return value of the array very much. Instead, it is called and we just know that the byte array is filled for later use.
 func (b *Block) Wire() ([]byte, error) {
 	if len(b.wire) == 0 {
 		// There is still unnecessary copying, but better than the original one.
@@ -297,6 +302,9 @@ func (b *Block) Reset() {
 
 // DecodeBlock decodes a block from the wire.
 func DecodeBlock(wire []byte) (*Block, uint64, error) {
+	//this is the level at which we should intercept tlv and replace with go-ndn
+	//this might be a level too low? good to look into still though
+	// is correct level,
 	b := new(Block)
 
 	// Decode TLV type

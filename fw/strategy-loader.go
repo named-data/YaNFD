@@ -11,6 +11,7 @@ import (
 	"reflect"
 
 	"github.com/named-data/YaNFD/core"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 //const strategyDir = "strategy"
@@ -70,13 +71,14 @@ var StrategyVersions = make(map[string][]uint64)
 }*/
 
 // InstantiateStrategies instantiates all strategies for a forwarding thread.
-func InstantiateStrategies(fwThread *Thread) map[string]Strategy {
-	strategies := make(map[string]Strategy, len(strategyTypes))
+func InstantiateStrategies(fwThread *Thread) map[int]Strategy {
+	strategies := make(map[int]Strategy, len(strategyTypes))
 
 	for _, strategyType := range strategyTypes {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
 		strategy.Instantiate(fwThread)
-		strategies[strategy.GetName().String()] = strategy
+		convert, _ := enc.NameFromStr(strategy.GetName().String())
+		strategies[NameHash(&convert)] = strategy
 		core.LogDebug("StrategyLoader", "Instantiated Strategy=", strategy.GetName(), " for Thread=", fwThread.GetID())
 	}
 
