@@ -18,10 +18,9 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/lpv2"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	"github.com/zjkmxy/stealthpool"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 const lpPacketOverhead = 1 + 3
@@ -29,8 +28,6 @@ const pitTokenOverhead = 1 + 1 + 6
 const congestionMarkOverhead = 3 + 1 + 8
 const ackOverhead = 3 + 1 + 8
 
-const maxPoolBlockCnt = 1000
-const maxPoolBlockSize = 9000
 const workers = 16
 
 const (
@@ -70,7 +67,7 @@ func MakeNDNLPLinkServiceOptions() NDNLPLinkServiceOptions {
 }
 
 type ndnlpUnacknowledgedFrame struct {
-	frame              *lpv2.Packet
+	frame              *spec.LpPacket
 	netPacket          uint64 // Sequence of network-layer packet
 	numRetransmissions int
 	sentTime           time.Time
@@ -102,7 +99,6 @@ type NDNLPLinkService struct {
 	lastTimeCongestionMarked time.Time
 	bees                     []*WorkerBee
 	workQueue                chan *ndn.PendingPacket
-	stealthPool              *stealthpool.Pool
 	BufferReader             enc.BufferReader
 }
 
@@ -202,15 +198,6 @@ func (l *NDNLPLinkService) computeHeaderOverhead() {
 
 // Run starts the face and associated goroutines
 func (l *NDNLPLinkService) Run(optNewFrame []byte) {
-	// Allocate and clear up the memory pool
-	pool, err := stealthpool.New(maxPoolBlockCnt, stealthpool.WithBlockSize(maxPoolBlockSize))
-	if err != nil {
-		core.LogError(l, "Failed to allocate stealthpool")
-		return
-	}
-	defer pool.Close()
-	l.stealthPool = pool
-
 	if l.transport == nil {
 		core.LogError(l, "Unable to start face due to unset transport")
 		return
@@ -257,32 +244,48 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 	}
 
 	// Fragmentation
-	var fragments []*lpv2.Packet
-	if len(wire) > effectiveMtu {
+	var fragments []*spec.LpPacket
+	if int(wire.Length()) > effectiveMtu {
 		if !l.options.IsFragmentationEnabled {
 			core.LogInfo(l, "Attempted to send frame over MTU on link without fragmentation - DROP")
 			return
 		}
 
 		// Split up fragment
-		nFragments := int(math.Ceil(float64(len(wire)) / float64(effectiveMtu)))
-		fragments = make([]*lpv2.Packet, nFragments)
+		nFragments := int((wire.Length() + uint64(effectiveMtu) - 1) / uint64(effectiveMtu))
+		lastFragSize := int(wire.Length()) - effectiveMtu*(nFragments-1)
+		fragments = make([]*spec.LpPacket, nFragments)
+		reader := enc.NewWireReader(wire)
 		for i := 0; i < nFragments; i++ {
 			if i < nFragments-1 {
-				fragments[i] = lpv2.NewPacketNoCopy(wire[effectiveMtu*i : effectiveMtu*(i+1)])
+				frag, err := reader.ReadWire(effectiveMtu)
+				if err != nil {
+					core.LogFatal(l, "Unexpected Wire reading error")
+				}
+				fragments[i] = &spec.LpPacket{
+					Fragment: frag,
+				}
 			} else {
-				fragments[i] = lpv2.NewPacketNoCopy(wire[effectiveMtu*i:])
+				frag, err := reader.ReadWire(lastFragSize)
+				if err != nil {
+					core.LogFatal(l, "Unexpected Wire reading error")
+				}
+				fragments[i] = &spec.LpPacket{
+					Fragment: frag,
+				}
 			}
 		}
 	} else {
-		fragments = make([]*lpv2.Packet, 1)
-		fragments[0] = lpv2.NewPacketNoCopy(wire)
+		fragments = make([]*spec.LpPacket, 1)
+		fragments[0] = &spec.LpPacket{
+			Fragment: wire,
+		}
 	}
 
 	// Sequence
 	if len(fragments) > 1 || l.options.IsReliabilityEnabled {
 		for _, fragment := range fragments {
-			fragment.SetSequence(l.nextSequence)
+			fragment.Sequence = utils.IdPtr(l.nextSequence)
 			l.nextSequence++
 		}
 	}
@@ -291,18 +294,18 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 	if congestionMarking && l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes && now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) {
 		// Mark congestion
 		core.LogWarn(l, "Marking congestion")
-		fragments[0].SetCongestionMark(1)
+		fragments[0].CongestionMark = utils.IdPtr[uint64](1)
 		l.lastTimeCongestionMarked = now
 	}
 
 	// Reliability
 	if l.options.IsReliabilityEnabled {
-		firstSequence := *fragments[0].Sequence()
+		firstSequence := *fragments[0].Sequence
 		unacknowledgedPacket := new(ndnlpUnacknowledgedPacket)
 		unacknowledgedPacket.lock.Lock()
 
 		for _, fragment := range fragments {
-			fragment.SetTxSequence(l.nextTxSequence)
+			fragment.TxSequence = utils.IdPtr(l.nextTxSequence)
 			unacknowledgedFrame := new(ndnlpUnacknowledgedFrame)
 			unacknowledgedFrame.frame = fragment
 			unacknowledgedFrame.netPacket = firstSequence
@@ -319,17 +322,17 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 
 	// PIT tokens
 	if len(netPacket.PitToken) > 0 {
-		fragments[0].SetPitToken(netPacket.PitToken)
+		fragments[0].PitToken = netPacket.PitToken
 	}
 
 	// Incoming face indication
 	if l.options.IsIncomingFaceIndicationEnabled && netPacket.IncomingFaceID != nil {
-		fragments[0].SetIncomingFaceID(*netPacket.IncomingFaceID)
+		fragments[0].IncomingFaceId = netPacket.IncomingFaceID
 	}
 
 	// Congestion marking
 	if netPacket.CongestionMark != nil {
-		fragments[0].SetCongestionMark(*netPacket.CongestionMark)
+		fragments[0].CongestionMark = netPacket.CongestionMark
 	}
 
 	// Fill up remaining space with Acks if Reliability enabled
@@ -339,17 +342,18 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 
 	// Send fragment(s)
 	for _, fragment := range fragments {
-		encodedFragment, err := fragment.Encode()
-		if err != nil {
+		pkt := &spec.Packet{
+			LpPacket: fragment,
+		}
+		encoder := spec.PacketEncoder{}
+		encoder.Init(pkt)
+		frameWire := encoder.Encode(pkt)
+		if frameWire == nil {
 			core.LogError(l, "Unable to encode fragment - DROP")
 			break
 		}
-		fragmentWire, err := encodedFragment.Wire()
-		if err != nil {
-			core.LogError(l, "Unable to encode fragment - DROP")
-			break
-		}
-		l.transport.sendFrame(fragmentWire)
+		// Use Join() for now
+		l.transport.sendFrame(frameWire.Join())
 	}
 }
 func (l *NDNLPLinkService) runSend() {
@@ -381,26 +385,25 @@ func (l *NDNLPLinkService) runSend() {
 		case <-l.idleAckTimer:
 			//core.LogTrace(l, "Idle Ack timer expired")
 			if l.pendingAcksToSend.Len() > 0 {
-				idle := new(lpv2.Packet)
-
 				// Add up to enough Acks to fill MTU
 				for remainingAcks := (l.transport.MTU() - lpPacketOverhead) / ackOverhead; remainingAcks > 0 && l.pendingAcksToSend.Len() > 0; remainingAcks-- {
 					// TODO: Make pendingAcksToSend thread safe
-					idle.AppendAck(l.pendingAcksToSend.Front().Value.(uint64))
+					idle := &spec.Packet{
+						LpPacket: &spec.LpPacket{
+							Ack: utils.IdPtr(l.pendingAcksToSend.Front().Value.(uint64)),
+						},
+					}
 					l.pendingAcksToSend.Remove(l.pendingAcksToSend.Front())
+					encoder := spec.PacketEncoder{}
+					encoder.Init(idle)
+					frameWire := encoder.Encode(idle)
+					if frameWire == nil {
+						core.LogError(l, "Unable to encode IDLE frame - DROP")
+						break
+					}
+					// Use Join() for now
+					l.transport.sendFrame(frameWire.Join())
 				}
-
-				encoded, err := idle.Encode()
-				if err != nil {
-					core.LogError(l, "Unable to encode IDLE frame - DROP")
-					break
-				}
-				wire, err := encoded.Wire()
-				if err != nil {
-					core.LogError(l, "Unable to encode IDLE frame - DROP")
-					break
-				}
-				l.transport.sendFrame(wire)
 			}
 		case <-l.hasTransportQuit:
 			l.hasImplQuit <- true
@@ -411,28 +414,69 @@ func (l *NDNLPLinkService) runSend() {
 
 func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	// We have to copy so receive transport buffer can be reused
-	wire := make([]byte, len(rawFrame), len(rawFrame))
+	wire := make([]byte, len(rawFrame))
 	copy(wire, rawFrame)
 	go l.processIncomingFrame(wire)
 }
 
 func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 	// all incoming frames come through a link service
-	// Free up memory
-	// Attempt to decode buffer into TLV block
-	netPacket := new(ndn.PendingPacket)
-	netPacket.IncomingFaceID = new(uint64)
-	*netPacket.IncomingFaceID = l.faceID
+	// Attempt to decode buffer into LpPacket
+	netPacket := &ndn.PendingPacket{
+		IncomingFaceID: utils.IdPtr(l.faceID),
+	}
 	packet, _, e := spec.ReadPacket(enc.NewBufferReader(wire))
 	if e != nil {
 		fmt.Println(e)
 		return
 	}
 	if packet.LpPacket == nil {
-		netPacket.RawBytes = wire
+		// Bare Data or Interest packet
+		netPacket.RawBytes = enc.Wire{wire}
 		netPacket.EncPacket = packet
 	} else {
-		fragment := packet.LpPacket.Fragment.Join()
+		fragment := packet.LpPacket.Fragment
+
+		// TODO: Reliability and processing ACKs
+		// If there is no fragment, then IDLE packet, drop.
+		if len(fragment) == 0 {
+			core.LogTrace(l, "IDLE frame - DROP")
+			return
+		}
+
+		// Reassembly
+		if l.options.IsReassemblyEnabled {
+			if packet.LpPacket.Sequence == nil {
+				core.LogInfo(l, "Received NDNLPv2 frame without Sequence but reassembly requires it - DROP")
+				return
+			}
+
+			fragIndex := uint64(0)
+			if packet.LpPacket.FragIndex != nil {
+				fragIndex = *packet.LpPacket.FragIndex
+			}
+			fragCount := uint64(1)
+			if packet.LpPacket.FragCount != nil {
+				fragCount = *packet.LpPacket.FragCount
+			}
+			baseSequence := *packet.LpPacket.Sequence - fragIndex
+
+			core.LogTrace(l, "Received fragment ", fragIndex, " of ", fragCount, " for ", baseSequence)
+			if fragIndex == 0 && fragCount == 1 {
+				// Bypass reassembly since only one fragment
+			} else {
+				fragment = l.reassemblePacket(packet.LpPacket, baseSequence, fragIndex, fragCount)
+				if fragment == nil {
+					// Nothing more to be done, so return
+					return
+				}
+			}
+		} else if packet.LpPacket.FragCount != nil || packet.LpPacket.FragIndex != nil {
+			core.LogWarn(l, "Received NDNLPv2 frame containing fragmentation fields but reassembly disabled - DROP")
+			return
+		}
+
+		// Congestion mark
 		netPacket.CongestionMark = packet.LpPacket.CongestionMark
 
 		// Consumer-controlled forwarding (NextHopFaceId)
@@ -441,27 +485,33 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 		}
 
 		// Local cache policy
-		if l.options.IsLocalCachePolicyEnabled && &packet.LpPacket.CachePolicy.CachePolicyType != nil {
+		if l.options.IsLocalCachePolicyEnabled && packet.LpPacket.CachePolicy != nil {
 			netPacket.CachePolicy = &packet.LpPacket.CachePolicy.CachePolicyType
 		}
 
 		// PIT Token
 		if len(packet.LpPacket.PitToken) > 0 {
-			netPacket.PitToken = make([]byte, len(packet.LpPacket.PitToken))
-			copy(netPacket.PitToken, packet.LpPacket.PitToken)
+			netPacket.PitToken = packet.LpPacket.PitToken
 		}
-		packet, _, e = spec.ReadPacket(enc.NewBufferReader(fragment))
+		packet, _, e = spec.ReadPacket(enc.NewWireReader(fragment))
 		if e != nil {
 			return
 		}
 		netPacket.RawBytes = fragment
 		netPacket.EncPacket = packet
 	}
+	// Counters
+	if netPacket.EncPacket.Interest != nil {
+		l.nInInterests++
+	} else if netPacket.EncPacket.Data != nil {
+		l.nInData++
+	}
 	l.dispatchIncomingPacket(netPacket)
-
 }
 
-func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uint64, fragIndex uint64, fragCount uint64) []byte {
+func (l *NDNLPLinkService) reassemblePacket(
+	frame *spec.LpPacket, baseSequence uint64, fragIndex uint64, fragCount uint64,
+) enc.Wire {
 	_, hasSequence := l.partialMessageStore[baseSequence]
 	if !hasSequence {
 		// Create map entry
@@ -469,8 +519,11 @@ func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uin
 	}
 
 	// Insert into PartialMessageStore
-	l.partialMessageStore[baseSequence][fragIndex] = make([]byte, len(frame.Fragment()))
-	copy(l.partialMessageStore[baseSequence][fragIndex], frame.Fragment())
+	// Safe to call Join since there is only one fragment
+	if len(frame.Fragment) > 1 {
+		core.LogError("LpPacket should only have one fragment.")
+	}
+	l.partialMessageStore[baseSequence][fragIndex] = frame.Fragment.Join()
 
 	// Determine whether it is time to reassemble
 	receivedCount := 0
@@ -484,11 +537,9 @@ func (l *NDNLPLinkService) reassemblePacket(frame *lpv2.Packet, baseSequence uin
 
 	if receivedCount == len(l.partialMessageStore[baseSequence]) {
 		// Time to reassemble!
-		reassembled := make([]byte, receivedTotalLen)
-		reassembledSize := 0
-		for _, fragment := range l.partialMessageStore[baseSequence] {
-			copy(reassembled[reassembledSize:], fragment)
-			reassembledSize += len(fragment)
+		reassembled := make(enc.Wire, len(l.partialMessageStore[baseSequence]))
+		for i, fragment := range l.partialMessageStore[baseSequence] {
+			reassembled[i] = fragment
 		}
 
 		delete(l.partialMessageStore, baseSequence)
