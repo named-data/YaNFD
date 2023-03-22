@@ -867,11 +867,7 @@ func (f *FaceModule) sendFaceEventNotification(id uint64, pitToken []byte) {
 		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
 		return
 	}
-	wire, err := eventBlock.Wire()
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
-		return
-	}
+	wire := eventBlock.Join()
 
 	dataName, err := ndn.NameFromString("/localhost/nfd/faces/events")
 	if err != nil {

@@ -9,10 +9,9 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/gorilla/websocket v1.5.0
 	github.com/pelletier/go-toml v1.9.5
-	github.com/stretchr/testify v1.8.1
-	github.com/zjkmxy/stealthpool v0.2.2
-	golang.org/x/exp v0.0.0-20230210204819-062eb4c674ab
-	golang.org/x/sys v0.5.0
+	github.com/stretchr/testify v1.8.2
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/sys v0.6.0
 )
 
 require (
