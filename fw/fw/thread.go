@@ -191,6 +191,14 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 		core.LogError(t, "Non-existent incoming FaceID=", *pendingPacket.IncomingFaceID, " for Interest=", pendingPacket.NameCache, " - DROP")
 		return
 	}
+
+	if pendingPacket.EncPacket.Interest.HopLimitV != nil && *pendingPacket.EncPacket.Interest.HopLimitV == 0 {
+		// core.LogDebug(t, "Received Interest=", , " with HopLimit=0 - DROP")
+		return
+	} else if pendingPacket.EncPacket.Interest.HopLimitV != nil {
+		*pendingPacket.EncPacket.Interest.HopLimitV -= 1
+	}
+
 	// Get PIT token (if any)
 	incomingPitToken := make([]byte, 0)
 	if len(pendingPacket.PitToken) > 0 {
@@ -229,7 +237,9 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 			fhName = nil
 		}
 	}
-
+	if exists := t.deadNonceList.FindEnc(&pendingPacket.EncPacket.Interest.NameV, *pendingPacket.EncPacket.Interest.NonceV); exists {
+		return
+	}
 	// Check if any matching PIT entries (and if duplicate)
 	//read into this, looks like this one will have to be manually changed
 	pitEntry, isDuplicate := t.pitCS.InsertInterest(pendingPacket, fhName, incomingFace.FaceID())
