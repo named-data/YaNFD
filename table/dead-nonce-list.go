@@ -44,8 +44,13 @@ func (d *DeadNonceList) Find(name *ndn.Name, nonce []byte) bool {
 	return ok
 }
 
-func (d *DeadNonceList) FindEnc(name string, nonce uint32) bool {
-	hash := xxhash.Sum64String(name) + uint64(nonce)
+func (d *DeadNonceList) FindEnc(name *enc.Name, nonce uint32) bool {
+	var hash uint64
+	hash = 0
+	for _, component := range *name {
+		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
+	}
+	hash = hash + uint64(nonce)
 	_, ok := d.list[hash]
 	return ok
 }
@@ -55,7 +60,7 @@ func (d *DeadNonceList) InsertEnc(name *enc.Name, nonce uint32) bool {
 	var hash uint64
 	hash = 0
 	for _, component := range *name {
-		hash = hash + xxhash.Sum64(component.Val)
+		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
 	}
 	hash = hash + uint64(nonce)
 	_, exists := d.list[hash]
