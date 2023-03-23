@@ -50,7 +50,7 @@ func (d *DeadNonceList) FindEnc(name *enc.Name, nonce uint32) bool {
 	for _, component := range *name {
 		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
 	}
-	hash = hash + uint64(nonce)
+	hash = hash ^ uint64(nonce)
 	_, ok := d.list[hash]
 	return ok
 }
@@ -62,7 +62,7 @@ func (d *DeadNonceList) InsertEnc(name *enc.Name, nonce uint32) bool {
 	for _, component := range *name {
 		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
 	}
-	hash = hash + uint64(nonce)
+	hash = hash ^ uint64(nonce)
 	_, exists := d.list[hash]
 
 	if !exists {
