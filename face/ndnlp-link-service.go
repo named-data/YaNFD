@@ -9,7 +9,6 @@ package face
 
 import (
 	"container/list"
-	"fmt"
 	"math"
 	"runtime"
 	"strconv"
@@ -427,7 +426,7 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 	}
 	packet, _, e := spec.ReadPacket(enc.NewBufferReader(wire))
 	if e != nil {
-		fmt.Println(e)
+		core.LogError(l, e)
 		return
 	}
 	if packet.LpPacket == nil {

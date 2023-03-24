@@ -11,9 +11,10 @@ import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/dispatch"
 	"github.com/named-data/YaNFD/fw"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // ContentStoreModule is the module that handles Content Store Management.
@@ -34,15 +35,15 @@ func (c *ContentStoreModule) getManager() *Thread {
 	return c.manager
 }
 
-func (c *ContentStoreModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (c *ContentStoreModule) handleIncomingInterest(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	// Only allow from /localhost
-	if !c.manager.localPrefix.PrefixOf(interest.Name()) {
+	if !c.manager.localPrefix.IsPrefix(interest.NameV) {
 		core.LogWarn(c, "Received CS management Interest from non-local source - DROP")
 		return
 	}
 
 	// Dispatch by verb
-	verb := interest.Name().At(c.manager.prefixLength() + 1).String()
+	verb := interest.NameV[c.manager.prefixLength()+1].String()
 	switch verb {
 	case "config":
 		c.config(interest, pitToken, inFace)
@@ -56,33 +57,33 @@ func (c *ContentStoreModule) handleIncomingInterest(interest *ndn.Interest, pitT
 		//c.query(interest, pitToken, inFace)
 	default:
 		core.LogWarn(c, "Received Interest for non-existent verb '", verb, "'")
-		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
+		response := makeControlResponse(501, "Unknown verb", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 }
 
-func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (c *ContentStoreModule) config(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < c.manager.prefixLength()+3 {
+	if len(interest.NameV) < c.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(c, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(c, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if (params.Flags == nil && params.Mask != nil) || (params.Flags != nil && params.Mask == nil) {
 		core.LogWarn(c, "Flags and Mask fields must either both be present or both be not present")
-		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
+		response = makeControlResponse(409, "ControlParameters are incorrect", nil)
 		c.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
@@ -104,31 +105,25 @@ func (c *ContentStoreModule) config(interest *ndn.Interest, pitToken []byte, inF
 		}
 	}*/
 
-	responseParams := mgmt.MakeControlParameters()
-	responseParams.Capacity = params.Capacity
-	responseParams.Flags = new(uint64)
-	*responseParams.Flags = 0
-	// TODO: *responseParams.Flags += 1 if CS_ENABLE_ADMIT
-	// TODO: *responseParams.Flags += 2 if CS_ENABLE_SERVE
-	responseParamsWire, err := responseParams.Encode()
-	if err != nil {
-		core.LogError(c, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	responseParams := map[string]any{
+		"Flags": uint64(0),
 	}
+	if params.Capacity != nil {
+		responseParams["Capacity"] = *params.Capacity
+	}
+	response = makeControlResponse(200, "OK", responseParams)
 	c.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (c *ContentStoreModule) info(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() > c.manager.prefixLength()+2 {
+func (c *ContentStoreModule) info(interest *spec.Interest, pitToken []byte, inFace uint64) {
+	if len(interest.NameV) > c.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
 	}
 
 	// Generate new dataset
-	status := mgmt.CsStatus{
-		Flags: mgmt.CsFlagEnableAdmit | mgmt.CsFlagEnableServe,
+	status := mgmt.CsInfo{
+		Flags: CsFlagEnableAdmit | CsFlagEnableServe,
 	}
 	for threadID := 0; threadID < fw.NumFwThreads; threadID++ {
 		thread := dispatch.GetFWThread(threadID)
@@ -136,24 +131,12 @@ func (c *ContentStoreModule) info(interest *ndn.Interest, pitToken []byte, inFac
 	}
 	// TODO fill other fields
 
-	wire, err := status.Encode()
-	if err != nil {
-		core.LogError(c, "Cannot encode CsStatus dataset: ", err)
-		return
-	}
-	dataset, _ := wire.Wire()
+	wire := status.Encode()
+	name, _ := enc.NameFromStr(c.manager.localPrefix.String() + "/cs/info")
+	segments := makeStatusDataset(name, c.nextDatasetVersion, wire)
+	c.manager.transport.Send(segments, pitToken, nil)
 
-	name, _ := ndn.NameFromString(c.manager.localPrefix.String() + "/cs/info")
-	segments := mgmt.MakeStatusDataset(name, c.nextDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(c, "Unable to encode forwarder status dataset: ", err)
-			return
-		}
-		c.manager.transport.Send(encoded, pitToken, nil)
-	}
-
-	core.LogTrace(c, "Published forwarder status dataset version=", c.nextDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(c, "Published forwarder status dataset version=", c.nextDatasetVersion,
+		", containing ", len(segments), " segments")
 	c.nextDatasetVersion++
 }

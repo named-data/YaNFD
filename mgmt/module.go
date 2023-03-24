@@ -8,7 +8,7 @@
 package mgmt
 
 import (
-	"github.com/named-data/YaNFD/ndn"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // Module represents a management module
@@ -16,5 +16,5 @@ type Module interface {
 	String() string
 	registerManager(manager *Thread)
 	getManager() *Thread
-	handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64)
+	handleIncomingInterest(interest *spec.Interest, pitToken []byte, inFace uint64)
 }
