@@ -15,9 +15,14 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/mgmt"
+	oldndn "github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/ndn/tlv"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	sec "github.com/zjkmxy/go-ndn/pkg/security"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 // FaceModule is the module that handles Face Management.
@@ -40,15 +45,15 @@ func (f *FaceModule) getManager() *Thread {
 	return f.manager
 }
 
-func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) handleIncomingInterest(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	// Only allow from /localhost
-	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+	if !f.manager.localPrefix.IsPrefix(interest.NameV) {
 		core.LogWarn(f, "Received face management Interest from non-local source - DROP")
 		return
 	}
 
 	// Dispatch by verb
-	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
+	verb := interest.NameV[f.manager.prefixLength()+1].String()
 	switch verb {
 	case "create":
 		f.create(interest, pitToken, inFace)
@@ -60,81 +65,77 @@ func (f *FaceModule) handleIncomingInterest(interest *ndn.Interest, pitToken []b
 		f.list(interest, pitToken, inFace)
 	case "query":
 		f.query(interest, pitToken, inFace)
-	case "channels":
-		f.channels(interest, pitToken, inFace)
+	// case "channels":
+	// 	f.channels(interest, pitToken, inFace)
 	case "events":
 		f.events(interest, pitToken, inFace)
 	default:
 		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
-		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
+		response := makeControlResponse(501, "Unknown verb", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 }
 
-func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(f, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
-	if params.URI == nil {
+	if params.Uri == nil {
 		core.LogWarn(f, "Missing URI in ControlParameters for ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
-	if params.URI.Canonize() != nil {
+	URI := oldndn.DecodeURIString(*params.Uri)
+	if URI == nil || URI.Canonize() != nil {
 		core.LogWarn(f, "Cannot canonize remote URI in ControlParameters for ", interest.Name())
-		response = mgmt.MakeControlResponse(406, "URI could not be canonized", nil)
+		response = makeControlResponse(406, "URI could not be canonized", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
 		core.LogWarn(f, "Flags and Mask fields either both be present or both be not present")
-		response = mgmt.MakeControlResponse(409, "Incomplete Flags/Mask combination", nil)
+		response = makeControlResponse(409, "Incomplete Flags/Mask combination", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	// Ensure does not conflict with existing face
-	existingFace := face.FaceTable.GetByURI(params.URI)
+	existingFace := face.FaceTable.GetByURI(URI)
 	if existingFace != nil {
-		core.LogWarn(f, "Cannot create face ", params.URI, ": Conflicts with existing face FaceID=", existingFace.FaceID(), ", RemoteURI=", existingFace.RemoteURI())
-		responseParams := mgmt.MakeControlParameters()
+		core.LogWarn(f, "Cannot create face ", URI, ": Conflicts with existing face FaceID=",
+			existingFace.FaceID(), ", RemoteURI=", existingFace.RemoteURI())
+		responseParams := map[string]any{}
 		f.fillFaceProperties(responseParams, existingFace)
-		responseParamsWire, err := responseParams.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode response parameters: ", err)
-			response = mgmt.MakeControlResponse(500, "Internal error", nil)
-		} else {
-			response = mgmt.MakeControlResponse(409, "Conflicts with existing face", responseParamsWire)
-		}
+		response = makeControlResponse(409, "Conflicts with existing face", responseParams)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	var linkService *face.NDNLPLinkService
 
-	if params.URI.Scheme() == "udp4" || params.URI.Scheme() == "udp6" {
+	if URI.Scheme() == "udp4" || URI.Scheme() == "udp6" {
 		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
-			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address ", params.URI)
-			response = mgmt.MakeControlResponse(406, "URI must be unicast", nil)
+		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address ", URI)
+			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
@@ -144,12 +145,12 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		/*if params.LocalURI != nil {
 			if params.LocalURI.Canonize() != nil {
 				core.LogWarn(f, "Cannot canonize local URI in ControlParameters for ", interest.Name())
-				response = mgmt.MakeControlResponse(406, "LocalURI could not be canonized", nil)
+				response = makeControlResponse(406, "LocalURI could not be canonized", nil)
 				return
 			}
 			if params.LocalURI.Scheme() != params.URI.Scheme() {
 				core.LogWarn(f, "Local URI scheme does not match remote URI scheme in ControlParameters for ", interest.Name())
-				response = mgmt.MakeControlResponse(406, "LocalURI scheme does not match URI scheme", nil)
+				response = makeControlResponse(406, "LocalURI scheme does not match URI scheme", nil)
 				f.manager.sendResponse(response, interest, pitToken, inFace)
 				return
 			}
@@ -161,14 +162,14 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			persistency = face.Persistency(*params.FacePersistency)
 		} else if params.FacePersistency != nil {
 			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency), " for UDP face specified in ControlParameters for ", interest.Name())
-			response = mgmt.MakeControlResponse(406, "Unacceptable persistency", nil)
+			response = makeControlResponse(406, "Unacceptable persistency", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
 		baseCongestionMarkingInterval := 100 * time.Millisecond
-		if params.BaseCongestionMarkingInterval != nil {
-			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+		if params.BaseCongestionMarkInterval != nil {
+			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkInterval) * time.Nanosecond
 		}
 
 		defaultCongestionThresholdBytes := uint64(math.Pow(2, 16))
@@ -177,17 +178,17 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		}
 
 		// Create new UDP face
-		transport, err := face.MakeUnicastUDPTransport(params.URI, nil, persistency)
+		transport, err := face.MakeUnicastUDPTransport(URI, nil, persistency)
 		if err != nil {
-			core.LogWarn(f, "Unable to create unicast UDP face with URI ", params.URI, ":", err.Error())
-			response = mgmt.MakeControlResponse(406, "Transport error", nil)
+			core.LogWarn(f, "Unable to create unicast UDP face with URI ", URI, ":", err.Error())
+			response = makeControlResponse(406, "Transport error", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
-		if params.MTU != nil {
-			mtu := int(*params.MTU)
-			if *params.MTU > tlv.MaxNDNPacketSize {
+		if params.Mtu != nil {
+			mtu := int(*params.Mtu)
+			if *params.Mtu > tlv.MaxNDNPacketSize {
 				mtu = tlv.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
@@ -232,11 +233,11 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 
 		// Start new face
 		go linkService.Run(nil)
-	} else if params.URI.Scheme() == "tcp4" || params.URI.Scheme() == "tcp6" {
+	} else if URI.Scheme() == "tcp4" || URI.Scheme() == "tcp6" {
 		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(params.URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
-			core.LogWarn(f, "Cannot create unicast TCP face to non-unicast address ", params.URI)
-			response = mgmt.MakeControlResponse(406, "URI must be unicast", nil)
+		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+			core.LogWarn(f, "Cannot create unicast TCP face to non-unicast address ", URI)
+			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
@@ -246,14 +247,14 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 			persistency = face.Persistency(*params.FacePersistency)
 		} else if params.FacePersistency != nil {
 			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency), " for UDP face specified in ControlParameters for ", interest.Name())
-			response = mgmt.MakeControlResponse(406, "Unacceptable persistency", nil)
+			response = makeControlResponse(406, "Unacceptable persistency", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
 		baseCongestionMarkingInterval := 100 * time.Millisecond
-		if params.BaseCongestionMarkingInterval != nil {
-			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+		if params.BaseCongestionMarkInterval != nil {
+			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkInterval) * time.Nanosecond
 		}
 
 		defaultCongestionThresholdBytes := uint64(math.Pow(2, 16))
@@ -262,17 +263,17 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		}
 
 		// Create new TCP face
-		transport, err := face.MakeUnicastTCPTransport(params.URI, nil, persistency)
+		transport, err := face.MakeUnicastTCPTransport(URI, nil, persistency)
 		if err != nil {
-			core.LogWarn(f, "Unable to create unicast TCP face with URI ", params.URI, ":", err.Error())
-			response = mgmt.MakeControlResponse(406, "Transport error", nil)
+			core.LogWarn(f, "Unable to create unicast TCP face with URI ", URI, ":", err.Error())
+			response = makeControlResponse(406, "Transport error", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
-		if params.MTU != nil {
-			mtu := int(*params.MTU)
-			if *params.MTU > tlv.MaxNDNPacketSize {
+		if params.Mtu != nil {
+			mtu := int(*params.Mtu)
+			if *params.Mtu > tlv.MaxNDNPacketSize {
 				mtu = tlv.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
@@ -319,104 +320,83 @@ func (f *FaceModule) create(interest *ndn.Interest, pitToken []byte, inFace uint
 		go linkService.Run(nil)
 	} else {
 		// Unsupported scheme
-		core.LogWarn(f, "Cannot create face with URI ", params.URI, ": Unsupported scheme ", params.URI)
-		response = mgmt.MakeControlResponse(406, "Unsupported scheme "+params.URI.Scheme(), nil)
+		core.LogWarn(f, "Cannot create face with URI ", URI, ": Unsupported scheme ", URI)
+		response = makeControlResponse(406, "Unsupported scheme "+URI.Scheme(), nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if linkService == nil {
 		// Internal failure --> 504
-		core.LogWarn(f, "Transport error when creating face ", params.URI)
-		response = mgmt.MakeControlResponse(504, "Transport error when creating face", nil)
+		core.LogWarn(f, "Transport error when creating face ", URI)
+		response = makeControlResponse(504, "Transport error when creating face", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
-	core.LogInfo(f, "Created face with URI ", params.URI)
-	responseParams := mgmt.MakeControlParameters()
+	core.LogInfo(f, "Created face with URI ", URI)
+	responseParams := map[string]any{}
 	f.fillFaceProperties(responseParams, linkService)
-	responseParamsWire, err := responseParams.Encode()
-	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
-	}
+	response = makeControlResponse(200, "OK", responseParams)
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(f, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	faceID := inFace
-	if params.FaceID != nil && *params.FaceID != 0 {
-		faceID = *params.FaceID
+	if params.FaceId != nil && *params.FaceId != 0 {
+		faceID = *params.FaceId
 	}
 
 	// Validate parameters
 
-	responseParams := mgmt.MakeControlParameters()
+	responseParams := map[string]any{}
 	areParamsValid := true
 
 	selectedFace := face.FaceTable.Get(faceID)
 	if selectedFace == nil {
 		core.LogWarn(f, "Cannot update specified (or implicit) FaceID=", faceID, " because it does not exist")
-		responseParams.FaceID = new(uint64)
-		*responseParams.FaceID = faceID
-		responseParamsWire, err := responseParams.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode response parameters: ", err)
-			response = mgmt.MakeControlResponse(500, "Internal error", nil)
-		} else {
-			response = mgmt.MakeControlResponse(404, "Face does not exist", responseParamsWire)
-		}
+		responseParams["FaceId"] = uint64(faceID)
+		response = makeControlResponse(404, "Face does not exist", responseParams)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	// Can't update null (or internal) faces via management
 	if selectedFace.RemoteURI().Scheme() == "null" || selectedFace.RemoteURI().Scheme() == "internal" {
-		responseParams.FaceID = new(uint64)
-		*responseParams.FaceID = faceID
-		responseParamsWire, err := responseParams.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode response parameters: ", err)
-			response = mgmt.MakeControlResponse(500, "Internal error", nil)
-		} else {
-			response = mgmt.MakeControlResponse(401, "Face cannot be updated via management", responseParamsWire)
-		}
+		responseParams["FaceId"] = uint64(faceID)
+		response = makeControlResponse(401, "Face cannot be updated via management", responseParams)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if params.FacePersistency != nil {
 		if selectedFace.RemoteURI().Scheme() == "ether" && *params.FacePersistency != uint64(face.PersistencyPermanent) {
-			responseParams.FacePersistency = new(uint64)
-			*responseParams.FacePersistency = *params.FacePersistency
+			responseParams["FacePersistency"] = uint64(*params.FacePersistency)
 			areParamsValid = false
-		} else if (selectedFace.RemoteURI().Scheme() == "udp4" || selectedFace.RemoteURI().Scheme() == "udp6") && *params.FacePersistency != uint64(face.PersistencyPersistent) && *params.FacePersistency != uint64(face.PersistencyPermanent) {
-			responseParams.FacePersistency = new(uint64)
-			*responseParams.FacePersistency = *params.FacePersistency
+		} else if (selectedFace.RemoteURI().Scheme() == "udp4" || selectedFace.RemoteURI().Scheme() == "udp6") &&
+			*params.FacePersistency != uint64(face.PersistencyPersistent) &&
+			*params.FacePersistency != uint64(face.PersistencyPermanent) {
+			responseParams["FacePersistency"] = uint64(*params.FacePersistency)
 			areParamsValid = false
 		} else if selectedFace.LocalURI().Scheme() == "unix" && *params.FacePersistency != uint64(face.PersistencyPersistent) {
-			responseParams.FacePersistency = new(uint64)
-			*responseParams.FacePersistency = *params.FacePersistency
+			responseParams["FacePersistency"] = uint64(*params.FacePersistency)
 			areParamsValid = false
 		}
 	}
@@ -424,18 +404,16 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	if (params.Flags != nil && params.Mask == nil) || (params.Flags == nil && params.Mask != nil) {
 		core.LogWarn(f, "Flags and Mask fields must either both be present or both be not present")
 		if params.Flags != nil {
-			responseParams.Flags = new(uint64)
-			*responseParams.Flags = *params.Flags
+			responseParams["Flags"] = uint64(*params.Flags)
 		}
 		if params.Mask != nil {
-			responseParams.Mask = new(uint64)
-			*responseParams.Mask = *params.Mask
+			responseParams["Mask"] = uint64(*params.Mask)
 		}
 		areParamsValid = false
 	}
 
 	if !areParamsValid {
-		response = mgmt.MakeControlResponse(409, "ControlParameters are incorrect", nil)
+		response = makeControlResponse(409, "ControlParameters are incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
@@ -450,8 +428,9 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	options := selectedFace.(*face.NDNLPLinkService).Options()
 
 	// Congestion
-	if params.BaseCongestionMarkingInterval != nil && time.Duration(*params.BaseCongestionMarkingInterval)*time.Nanosecond != options.BaseCongestionMarkingInterval {
-		options.BaseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkingInterval) * time.Nanosecond
+	if params.BaseCongestionMarkInterval != nil &&
+		time.Duration(*params.BaseCongestionMarkInterval)*time.Nanosecond != options.BaseCongestionMarkingInterval {
+		options.BaseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkInterval) * time.Nanosecond
 		core.LogInfo(f, "FaceID=", faceID, ", BaseCongestionMarkingInterval=", options.BaseCongestionMarkingInterval)
 	}
 
@@ -461,10 +440,10 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	}
 
 	// MTU
-	if params.MTU != nil {
+	if params.Mtu != nil {
 		oldMTU := selectedFace.MTU()
-		newMTU := int(*params.MTU)
-		if *params.MTU > tlv.MaxNDNPacketSize {
+		newMTU := int(*params.Mtu)
+		if *params.Mtu > tlv.MaxNDNPacketSize {
 			newMTU = tlv.MaxNDNPacketSize
 		}
 		selectedFace.SetMTU(newMTU)
@@ -516,62 +495,50 @@ func (f *FaceModule) update(interest *ndn.Interest, pitToken []byte, inFace uint
 	selectedFace.(*face.NDNLPLinkService).SetOptions(options)
 
 	f.fillFaceProperties(responseParams, selectedFace)
-	responseParams.URI = nil
-	responseParams.LocalURI = nil
-	responseParamsWire, err := responseParams.Encode()
-	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
-	}
+	delete(responseParams, "Uri")
+	delete(responseParams, "LocalUri")
+	response = makeControlResponse(200, "OK", responseParams)
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FaceModule) destroy(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) destroy(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(f, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
-	if params.FaceID == nil {
+	if params.FaceId == nil {
 		core.LogWarn(f, "Missing FaceId in ControlParameters for ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
-	if face.FaceTable.Get(*params.FaceID) != nil {
-		face.FaceTable.Remove(*params.FaceID)
-		core.LogInfo(f, "Destroyed face with FaceID=", *params.FaceID)
+	if face.FaceTable.Get(*params.FaceId) != nil {
+		face.FaceTable.Remove(*params.FaceId)
+		core.LogInfo(f, "Destroyed face with FaceID=", *params.FaceId)
 	} else {
-		core.LogInfo(f, "Ignoring attempt to delete non-existent face with FaceID=", *params.FaceID)
+		core.LogInfo(f, "Ignoring attempt to delete non-existent face with FaceID=", *params.FaceId)
 	}
 
-	responseParamsWire, err := params.Encode()
-	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
-	}
+	response = makeControlResponse(200, "OK", params.ToDict())
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() > f.manager.prefixLength()+2 {
+func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
 	}
@@ -585,54 +552,50 @@ func (f *FaceModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64
 	}
 	// We have to sort these or they appear in a strange order
 	sort.Slice(faceIDs, func(a int, b int) bool { return faceIDs[a] < faceIDs[b] })
-	dataset := make([]byte, 0)
+	dataset := enc.Wire{}
 	for _, faceID := range faceIDs {
 		dataset = append(dataset, f.createDataset(faces[faceID])...)
 	}
 
-	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/faces/list")
-	segments := mgmt.MakeStatusDataset(name, f.nextFaceDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode face status dataset: ", err)
-			return
-		}
-		f.manager.transport.Send(encoded, pitToken, nil)
-	}
+	name, _ := enc.NameFromStr(f.manager.localPrefix.String() + "/faces/list")
+	segments := makeStatusDataset(name, f.nextFaceDatasetVersion, dataset)
+	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published face dataset version=", f.nextFaceDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published face dataset version=", f.nextFaceDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, inFace uint64) {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain FaceQueryFilter
 		core.LogWarn(f, "Missing FaceQueryFilter in ", interest.Name())
 		return
 	}
-
-	filter, err := mgmt.DecodeFaceQueryFilterFromEncoded(interest.Name().At(f.manager.prefixLength() + 2).Value())
+	filterV, err := mgmt.ParseFaceQueryFilter(enc.NewBufferReader(interest.NameV[f.manager.prefixLength()+2].Val), true)
 	if err != nil {
 		return
 	}
+	filter := filterV.Val
 
 	faces := face.FaceTable.GetAll()
 	matchingFaces := make([]int, 0)
 	for pos, face := range faces {
-		if filter.FaceID != nil && *filter.FaceID != face.FaceID() {
+		if filter.FaceId != nil && *filter.FaceId != face.FaceID() {
 			continue
 		}
 
-		if filter.URIScheme != nil && *filter.URIScheme != face.LocalURI().Scheme() && *filter.URIScheme != face.RemoteURI().Scheme() {
+		if filter.UriScheme != nil &&
+			*filter.UriScheme != face.LocalURI().Scheme() &&
+			*filter.UriScheme != face.RemoteURI().Scheme() {
 			continue
 		}
 
-		if filter.URI != nil && filter.URI.String() != face.RemoteURI().String() {
+		if filter.Uri != nil && *filter.Uri != face.RemoteURI().String() {
 			continue
 		}
 
-		if filter.LocalURI != nil && filter.LocalURI.String() != face.LocalURI().String() {
+		if filter.LocalUri != nil && *filter.LocalUri != face.LocalURI().String() {
 			continue
 		}
 
@@ -654,55 +617,46 @@ func (f *FaceModule) query(interest *ndn.Interest, pitToken []byte, inFace uint6
 	// We have to sort these or they appear in a strange order
 	//sort.Slice(matchingFaces, func(a int, b int) bool { return matchingFaces[a] < matchingFaces[b] })
 
-	dataset := make([]byte, 0)
+	dataset := enc.Wire{}
 	for _, pos := range matchingFaces {
 		dataset = append(dataset, f.createDataset(faces[pos])...)
 	}
 
-	segments := mgmt.MakeStatusDataset(interest.Name(), f.nextFaceDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode face query dataset: ", err)
-			return
-		}
-		f.manager.transport.Send(encoded, pitToken, nil)
-	}
+	segments := makeStatusDataset(interest.Name(), f.nextFaceDatasetVersion, dataset)
+	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published face query dataset version=", f.nextFaceDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published face query dataset version=", f.nextFaceDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
-	faceDataset := mgmt.MakeFaceStatus()
-	faceDataset.FaceID = uint64(selectedFace.FaceID())
-	faceDataset.URI = selectedFace.RemoteURI()
-	faceDataset.LocalURI = selectedFace.LocalURI()
-	if selectedFace.ExpirationPeriod() != 0 {
-		faceDataset.ExpirationPeriod = new(uint64)
-		*faceDataset.ExpirationPeriod = uint64(selectedFace.ExpirationPeriod().Milliseconds())
+func (f *FaceModule) createDataset(selectedFace face.LinkService) enc.Wire {
+	faceDataset := &mgmt.FaceStatus{
+		FaceId:          selectedFace.FaceID(),
+		Uri:             selectedFace.RemoteURI().String(),
+		LocalUri:        selectedFace.LocalURI().String(),
+		FaceScope:       uint64(selectedFace.Scope()),
+		FacePersistency: uint64(selectedFace.Persistency()),
+		LinkType:        uint64(selectedFace.LinkType()),
+		Mtu:             utils.IdPtr(uint64(selectedFace.MTU())),
+		NInInterests:    selectedFace.NInInterests(),
+		NInData:         selectedFace.NInData(),
+		NInNacks:        0,
+		NOutInterests:   selectedFace.NOutInterests(),
+		NOutData:        selectedFace.NOutData(),
+		NOutNacks:       0,
+		NInBytes:        selectedFace.NInBytes(),
+		NOutBytes:       selectedFace.NInBytes(),
 	}
-	faceDataset.FaceScope = uint64(selectedFace.Scope())
-	faceDataset.FacePersistency = uint64(selectedFace.Persistency())
-	faceDataset.LinkType = uint64(selectedFace.LinkType())
-	faceDataset.MTU = new(uint64)
-	*faceDataset.MTU = uint64(selectedFace.MTU())
-	faceDataset.NInInterests = selectedFace.NInInterests()
-	faceDataset.NInData = selectedFace.NInData()
-	faceDataset.NInNacks = 0
-	faceDataset.NOutInterests = selectedFace.NOutInterests()
-	faceDataset.NOutData = selectedFace.NOutData()
-	faceDataset.NOutNacks = 0
-	faceDataset.NInBytes = selectedFace.NInBytes()
-	faceDataset.NOutBytes = selectedFace.NOutBytes()
+	if selectedFace.ExpirationPeriod() != 0 {
+		faceDataset.ExpirationPeriod = utils.IdPtr(uint64(selectedFace.ExpirationPeriod().Milliseconds()))
+	}
 	linkService, ok := selectedFace.(*face.NDNLPLinkService)
 	if ok {
 		options := linkService.Options()
 
-		faceDataset.BaseCongestionMarkingInterval = new(uint64)
-		*faceDataset.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
-		faceDataset.DefaultCongestionThreshold = new(uint64)
-		*faceDataset.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
+		faceDataset.BaseCongestionMarkInterval = utils.IdPtr(uint64(options.BaseCongestionMarkingInterval.Nanoseconds()))
+		faceDataset.DefaultCongestionThreshold = utils.IdPtr(options.DefaultCongestionThresholdBytes)
 		faceDataset.Flags = options.Flags()
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
@@ -716,124 +670,98 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) []byte {
 		}
 	}
 
-	faceDatasetEncoded, err := faceDataset.Encode()
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID=", selectedFace.FaceID(), ": ", err)
-		return []byte{}
-	}
-	faceDatasetWire, err := faceDatasetEncoded.Wire()
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceStatus for FaceID=", selectedFace.FaceID(), ": ", err)
-		return []byte{}
-	}
-	return faceDatasetWire
+	return faceDataset.Encode()
 }
 
-func (f *FaceModule) channels(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() < f.manager.prefixLength()+2 {
-		core.LogWarn(f, "Channel dataset Interest too short: ", interest.Name())
-		return
-	}
+// func (f *FaceModule) channels(interest *spec.Interest, pitToken []byte, inFace uint64) {
+// 	if len(interest.NameV) < f.manager.prefixLength()+2 {
+// 		core.LogWarn(f, "Channel dataset Interest too short: ", interest.Name())
+// 		return
+// 	}
 
-	dataset := make([]byte, 0)
-	// UDP channel
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		core.LogWarn(f, "Unable to access channel dataset: ", err)
-		return
-	}
-	for _, iface := range ifaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			core.LogWarn(f, "Unable to access IP addresses for ", iface.Name, ": ", err)
-			return
-		}
-		for _, addr := range addrs {
-			ipAddr := addr.(*net.IPNet)
+// 	dataset := make([]byte, 0)
+// 	// UDP channel
+// 	ifaces, err := net.Interfaces()
+// 	if err != nil {
+// 		core.LogWarn(f, "Unable to access channel dataset: ", err)
+// 		return
+// 	}
+// 	for _, iface := range ifaces {
+// 		addrs, err := iface.Addrs()
+// 		if err != nil {
+// 			core.LogWarn(f, "Unable to access IP addresses for ", iface.Name, ": ", err)
+// 			return
+// 		}
+// 		for _, addr := range addrs {
+// 			ipAddr := addr.(*net.IPNet)
 
-			ipVersion := 4
-			path := ipAddr.IP.String()
-			if ipAddr.IP.To4() == nil {
-				ipVersion = 6
-				path += "%" + iface.Name
-			}
+// 			ipVersion := 4
+// 			path := ipAddr.IP.String()
+// 			if ipAddr.IP.To4() == nil {
+// 				ipVersion = 6
+// 				path += "%" + iface.Name
+// 			}
 
-			if !addr.(*net.IPNet).IP.IsLoopback() {
-				uri := ndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort)
-				channel := mgmt.MakeChannelStatus(uri)
-				channelEncoded, err := channel.Encode()
-				if err != nil {
-					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-					continue
-				}
-				channelWire, err := channelEncoded.Wire()
-				if err != nil {
-					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-					continue
-				}
-				dataset = append(dataset, channelWire...)
-			}
-		}
-	}
+// 			if !addr.(*net.IPNet).IP.IsLoopback() {
+// 				uri := oldndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort)
+// 				channel := mgmt.ChannelStatus{}
+// 				channelEncoded, err := channel.Encode()
+// 				if err != nil {
+// 					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
+// 					continue
+// 				}
+// 				channelWire, err := channelEncoded.Wire()
+// 				if err != nil {
+// 					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
+// 					continue
+// 				}
+// 				dataset = append(dataset, channelWire...)
+// 			}
+// 		}
+// 	}
 
-	// Unix channel
-	uri := ndn.MakeUnixFaceURI(face.UnixSocketPath)
-	channel := mgmt.MakeChannelStatus(uri)
-	channelEncoded, err := channel.Encode()
-	if err != nil {
-		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-		return
-	}
-	channelWire, err := channelEncoded.Wire()
-	if err != nil {
-		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-		return
-	}
-	dataset = append(dataset, channelWire...)
+// 	// Unix channel
+// 	uri := oldndn.MakeUnixFaceURI(face.UnixSocketPath)
+// 	channel := mgmt.MakeChannelStatus(uri)
+// 	channelEncoded, err := channel.Encode()
+// 	if err != nil {
+// 		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
+// 		return
+// 	}
+// 	channelWire, err := channelEncoded.Wire()
+// 	if err != nil {
+// 		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
+// 		return
+// 	}
+// 	dataset = append(dataset, channelWire...)
 
-	segments := mgmt.MakeStatusDataset(interest.Name(), f.nextChannelDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode channel dataset: ", err)
-			return
-		}
-		f.manager.transport.Send(encoded, pitToken, nil)
-	}
+// 	segments := makeStatusDataset(interest.Name(), f.nextChannelDatasetVersion, dataset)
+// 	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published channel dataset version=", f.nextChannelDatasetVersion, ", containing ", len(segments), " segments")
-	f.nextChannelDatasetVersion++
-}
+// 	core.LogTrace(f, "Published channel dataset version=", f.nextChannelDatasetVersion, ", containing ", len(segments), " segments")
+// 	f.nextChannelDatasetVersion++
+// }
 
-func (f *FaceModule) fillFaceProperties(params *mgmt.ControlParameters, selectedFace face.LinkService) {
-	params.FaceID = new(uint64)
-	*params.FaceID = uint64(selectedFace.FaceID())
-	params.URI = selectedFace.RemoteURI()
-	params.LocalURI = selectedFace.LocalURI()
-	params.FacePersistency = new(uint64)
-	*params.FacePersistency = uint64(selectedFace.Persistency())
-	params.MTU = new(uint64)
-	*params.MTU = uint64(selectedFace.MTU())
-
-	params.Flags = new(uint64)
-	*params.Flags = 0
-	linkService, ok := selectedFace.(*face.NDNLPLinkService)
-	if ok {
+func (f *FaceModule) fillFaceProperties(params map[string]any, selectedFace face.LinkService) {
+	params["FaceId"] = uint64(selectedFace.FaceID())
+	params["Uri"] = selectedFace.RemoteURI().String()
+	params["LocalUri"] = selectedFace.LocalURI().String()
+	params["FacePersistency"] = uint64(selectedFace.Persistency())
+	params["Mtu"] = uint64(selectedFace.MTU())
+	params["Flags"] = 0
+	if linkService, ok := selectedFace.(*face.NDNLPLinkService); ok {
 		options := linkService.Options()
-
-		params.BaseCongestionMarkingInterval = new(uint64)
-		*params.BaseCongestionMarkingInterval = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
-		params.DefaultCongestionThreshold = new(uint64)
-		*params.DefaultCongestionThreshold = options.DefaultCongestionThresholdBytes
-		*params.Flags = options.Flags()
+		params["BaseCongestionMarkInterval"] = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
+		params["DefaultCongestionThreshold"] = options.DefaultCongestionThresholdBytes
+		params["Flags"] = uint64(options.Flags())
 	}
 }
 
-func (f *FaceModule) events(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) events(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var id uint64 = 0
 	var err error
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name is a prefix, take the last one
 		id = face.FaceEventLastId()
 		if !interest.CanBePrefix() {
@@ -841,12 +769,12 @@ func (f *FaceModule) events(interest *ndn.Interest, pitToken []byte, inFace uint
 			return
 		}
 	} else {
-		seg, ok := interest.Name().At(f.manager.prefixLength() + 2).(*ndn.SequenceNumNameComponent)
-		if !ok {
+		seg := interest.NameV[f.manager.prefixLength()+2]
+		if seg.Typ != enc.TypeSegmentNameComponent {
 			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name())
 			return
 		}
-		id, err = tlv.DecodeNNI(seg.Value())
+		id, err = tlv.DecodeNNI(seg.Val)
 		if err != nil {
 			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name(), "err: ", err)
 			return
@@ -867,25 +795,27 @@ func (f *FaceModule) sendFaceEventNotification(id uint64, pitToken []byte) {
 		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
 		return
 	}
-	wire := eventBlock.Join()
 
-	dataName, err := ndn.NameFromString("/localhost/nfd/faces/events")
+	dataName, err := enc.NameFromStr("/localhost/nfd/faces/events")
 	if err != nil {
 		core.LogError(f, "Cannot encode FaceEventNotification name.")
 		return
 	}
-	dataName = dataName.Append(ndn.NewSequenceNumNameComponent(id))
-	data := ndn.NewData(dataName, wire)
-	metaInfo := ndn.NewMetaInfo()
-	metaInfo.SetFreshnessPeriod(1 * time.Millisecond)
-	data.SetMetaInfo(metaInfo)
-
-	encodedData, err := data.Encode()
+	dataName = append(dataName, enc.NewSequenceNumComponent(id))
+	dataWire, _, err := spec.Spec{}.MakeData(
+		dataName,
+		&ndn.DataConfig{
+			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
+			Freshness:   utils.IdPtr(1 * time.Millisecond),
+		},
+		eventBlock,
+		sec.NewSha256Signer(),
+	)
 	if err != nil {
 		core.LogError(f, "Cannot encode FaceEventNotification data for EventID=", id, ": ", err)
 		return
 	}
 	if f.manager.transport != nil {
-		f.manager.transport.Send(encodedData, pitToken, nil)
+		f.manager.transport.Send(dataWire, pitToken, nil)
 	}
 }
