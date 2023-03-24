@@ -239,7 +239,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 			core.LogError(l, "Unable to decode Interest (", err, ") - DROP")
 			break
 		}
-		thread := fw.HashNameToFwThread(&netPacket.EncPacket.Interest.NameV)
+		thread := fw.HashNameToFwThread(netPacket.EncPacket.Interest.NameV)
 		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case netPacket.EncPacket.Data != nil:
@@ -266,7 +266,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn.PendingPacket) {
 				core.LogError(l, "Unable to decode Data (", err, ") - DROP")
 				break
 			}
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(&netPacket.EncPacket.Data.NameV) {
+			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.EncPacket.Data.NameV) {
 				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}

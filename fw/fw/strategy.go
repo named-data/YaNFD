@@ -10,6 +10,7 @@ package fw
 import (
 	"strconv"
 
+	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -22,8 +23,7 @@ const StrategyPrefix = "/localhost/nfd/strategy"
 type Strategy interface {
 	Instantiate(fwThread *Thread)
 	String() string
-	GetName() *ndn.Name
-	GetEncName() *enc.Name
+	GetName() enc.Name
 
 	AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
 	AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
@@ -35,20 +35,23 @@ type Strategy interface {
 type StrategyBase struct {
 	thread          *Thread
 	threadID        int
-	name            *ndn.Name
-	encName         *enc.Name
-	strategyName    *ndn.GenericNameComponent
+	name            enc.Name
+	strategyName    enc.Component
 	version         uint64
 	strategyLogName string
 }
 
 // NewStrategyBase is a helper that allows specific strategies to initialize the base.
-func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName *ndn.GenericNameComponent, version uint64, strategyLogName string) {
+func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName enc.Component, version uint64, strategyLogName string) {
+	var err error
 	s.thread = fwThread
 	s.threadID = s.thread.threadID
-	s.name, _ = ndn.NameFromString(StrategyPrefix)
+	s.name, err = enc.NameFromStr(StrategyPrefix)
+	if err != nil {
+		core.LogFatal(s, "StrategyPrefix is a bad NDN Name")
+	}
 	s.strategyName = strategyName
-	s.name.Append(strategyName).Append(ndn.NewVersionNameComponent(version))
+	s.name = append(s.name, strategyName, enc.NewVersionComponent(version))
 	s.version = version
 	s.strategyLogName = strategyLogName
 }
@@ -58,12 +61,8 @@ func (s *StrategyBase) String() string {
 }
 
 // GetName returns the name of strategy, including version information.
-func (s *StrategyBase) GetName() *ndn.Name {
+func (s *StrategyBase) GetName() enc.Name {
 	return s.name
-}
-
-func (s *StrategyBase) GetEncName() *enc.Name {
-	return s.encName
 }
 
 // SendInterest sends an Interest on the specified face.

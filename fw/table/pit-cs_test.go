@@ -15,10 +15,10 @@ func TestBasePitEntryGetters(t *testing.T) {
 	name, _ := enc.NameFromStr("/something")
 	currTime := time.Now()
 	bpe := basePitEntry{
-		encname:           &name,
+		encname:           name,
 		canBePrefix:       true,
 		mustBeFresh:       true,
-		forwardingHintNew: &name,
+		forwardingHintNew: name,
 		expirationTime:    currTime,
 		satisfied:         true,
 		token:             1234,
@@ -39,10 +39,10 @@ func TestBasePitEntrySetters(t *testing.T) {
 	name, _ := enc.NameFromStr("/something")
 	currTime := time.Now()
 	bpe := basePitEntry{
-		encname:           &name,
+		encname:           name,
 		canBePrefix:       true,
 		mustBeFresh:       true,
-		forwardingHintNew: &name,
+		forwardingHintNew: name,
 		expirationTime:    currTime,
 		satisfied:         true,
 		token:             1234,

@@ -28,20 +28,20 @@ const MaxFwThreads = 32
 var Threads map[int]*Thread
 var LOCALHOST = []byte{0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f, 0x73, 0x74}
 
-func NameHash(name *enc.Name) int {
+func NameHash(name enc.Name) int {
 	var hash uint64
 	hash = 0
-	for _, component := range *name {
+	for _, component := range name {
 		hash ^= xxhash.Sum64(component.Val)
 	}
 	return int(hash)
 }
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.
-func HashNameToFwThread(name *enc.Name) int {
+func HashNameToFwThread(name enc.Name) int {
 	// Dispatch all management requests to thread 0
 	//this is fine, all it does is make sure the pitcs table in thread 0 has the management stuff. This is not actually touching management.
-	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
+	if len(name) > 0 && bytes.Equal((name)[0].Val, LOCALHOST) {
 		return 0
 	}
 	// to prevent negative modulos because we converted from uint to int
@@ -49,9 +49,9 @@ func HashNameToFwThread(name *enc.Name) int {
 }
 
 // HashNameToAllPrefixFwThreads hahes an NDN name to all forwarding threads for all prefixes of the name.
-func HashNameToAllPrefixFwThreads(name *enc.Name) []int {
+func HashNameToAllPrefixFwThreads(name enc.Name) []int {
 	// Dispatch all management requests to thread 0
-	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
+	if len(name) > 0 && bytes.Equal(name[0].Val, LOCALHOST) {
 		return []int{0}
 	}
 	threadMap := make(map[int]interface{})
@@ -62,7 +62,7 @@ func HashNameToAllPrefixFwThreads(name *enc.Name) []int {
 	// }
 	var hash uint64
 	hash = 0
-	for _, component := range *name {
+	for _, component := range name {
 		hash ^= xxhash.Sum64(component.Val)
 		threadMap[int(hash%uint64(len(Threads)))] = true
 	}
@@ -219,25 +219,28 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// Check for forwarding hint and, if present, determine if reaching producer region (and then strip forwarding hint)
 	isReachingProducerRegion := true
-	var fhName *enc.Name = nil
+	var fhName enc.Name = nil
 	hint := pendingPacket.EncPacket.Interest.ForwardingHintV
 	if hint != nil && len(hint.Names) > 0 {
 		isReachingProducerRegion = false
 		for _, fh := range hint.Names {
-			if table.NetworkRegion.IsProducer(&fh) {
+			if table.NetworkRegion.IsProducer(fh) {
 				isReachingProducerRegion = true
 				break
 			} else if fhName == nil {
-				fhName = &fh
+				fhName = fh
 			}
 		}
 		if isReachingProducerRegion {
 			//interest.SetForwardingHint(nil)
 			//will need to add this back again!
+			// TODO: Unable to drop the forwarding hint for now.
 			fhName = nil
 		}
 	}
-	if exists := t.deadNonceList.FindEnc(&pendingPacket.EncPacket.Interest.NameV, *pendingPacket.EncPacket.Interest.NonceV); exists {
+	if exists := t.deadNonceList.Find(
+		pendingPacket.EncPacket.Interest.NameV, *pendingPacket.EncPacket.Interest.NonceV,
+	); exists {
 		return
 	}
 	// Check if any matching PIT entries (and if duplicate)
@@ -252,7 +255,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 
 	// Get strategy for name
 	// getting strategy for name seems generic enough that it will be easy
-	strategyName := table.FibStrategyTable.FindStrategyEnc(&pendingPacket.EncPacket.Interest.NameV)
+	strategyName := table.FibStrategyTable.FindStrategyEnc(pendingPacket.EncPacket.Interest.NameV)
 	strategy := t.strategies[NameHash(strategyName)]
 	core.LogDebug(t, "Using Strategy=", "/localhost/nfd/strategy/best-route/v=1", " for Interest=", pendingPacket.NameCache)
 
@@ -297,7 +300,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	var trash []*table.FibNextHopEntry
 	//var nexthop []*table.FibNextHopEntry
 	if fhName == nil {
-		trash = table.FibStrategyTable.FindNextHopsEnc(&pendingPacket.EncPacket.Interest.NameV)
+		trash = table.FibStrategyTable.FindNextHopsEnc(pendingPacket.EncPacket.Interest.NameV)
 	} else {
 		trash = table.FibStrategyTable.FindNextHopsEnc(fhName)
 	}
@@ -312,7 +315,7 @@ func (t *Thread) processOutgoingInterest(pendingPacket *ndn.PendingPacket, pitEn
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", " - DROP")
+		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", pendingPacket.NameCache, " - DROP")
 		return false
 	}
 	if outgoingFace.FaceID() == inFace && outgoingFace.LinkType() != ndn.AdHoc {
@@ -346,7 +349,7 @@ func (t *Thread) finalizeInterest(pitEntry table.PitEntry) {
 
 	// Check for nonces to insert into dead nonce list
 	for _, outRecord := range pitEntry.OutRecords() {
-		t.deadNonceList.InsertEnc(&outRecord.LatestEncInterest.EncPacket.Interest.NameV, outRecord.LatestEncNonce)
+		t.deadNonceList.Insert(outRecord.LatestEncInterest.EncPacket.Interest.NameV, outRecord.LatestEncNonce)
 	}
 
 	// Counters
@@ -399,7 +402,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 	// Get strategy for name
 
-	strategyName := table.FibStrategyTable.FindStrategyEnc(&pendingPacket.EncPacket.Data.NameV)
+	strategyName := table.FibStrategyTable.FindStrategyEnc(pendingPacket.EncPacket.Data.NameV)
 	//strategy := t.strategies["/localhost/nfd/strategy/best-route/v=1"]
 	strategy := t.strategies[NameHash(strategyName)]
 
@@ -409,7 +412,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 		// pitEntries[0].SetExpirationTimerToNow()
 
 		// Invoke strategy's AfterReceiveData
-		core.LogTrace(t, "Sending Data=", pendingPacket.NameCache, " to strategy=", "/localhost/nfd/strategy/best-route/v=1")
+		core.LogTrace(t, "Sending Data=", pendingPacket.NameCache, " to strategy=", strategyName)
 		strategy.AfterReceiveData(pendingPacket, pitEntries[0], *pendingPacket.IncomingFaceID)
 
 		// Mark PIT entry as satisfied
@@ -417,7 +420,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 
 		// Insert into dead nonce list
 		for _, outRecord := range pitEntries[0].OutRecords() {
-			t.deadNonceList.InsertEnc(&pendingPacket.EncPacket.Data.NameV, outRecord.LatestEncNonce)
+			t.deadNonceList.Insert(pendingPacket.EncPacket.Data.NameV, outRecord.LatestEncNonce)
 		}
 
 		// Clear out records from PIT entry
@@ -446,7 +449,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 
 			// Insert into dead nonce list
 			for _, outRecord := range pitEntries[0].GetOutRecords() {
-				t.deadNonceList.InsertEnc(&pendingPacket.EncPacket.Data.NameV, outRecord.LatestEncNonce)
+				t.deadNonceList.Insert(pendingPacket.EncPacket.Data.NameV, outRecord.LatestEncNonce)
 			}
 
 			// Clear PIT entry's in- and out-records

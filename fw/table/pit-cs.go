@@ -17,7 +17,7 @@ import (
 // PitCsTable dictates what functionality a Pit-Cs table should implement
 // Warning: All functions must be called in the same forwarding goroutine as the creation of the table.
 type PitCsTable interface {
-	InsertInterest(pendingPacket *ndn.PendingPacket, hint *enc.Name, inFace uint64) (PitEntry, bool)
+	InsertInterest(pendingPacket *ndn.PendingPacket, hint enc.Name, inFace uint64) (PitEntry, bool)
 	RemoveInterest(pitEntry PitEntry) bool
 	FindInterestExactMatchEnc(pendingPacket *ndn.PendingPacket) PitEntry
 	FindInterestPrefixMatchByDataEnc(pendingPacket *ndn.PendingPacket, token *uint32) []PitEntry
@@ -46,10 +46,10 @@ type basePitCsTable struct{}
 // PitEntry dictates what entries in a PIT-CS table should implement
 type PitEntry interface {
 	PitCs() PitCsTable
-	EncName() *enc.Name
+	EncName() enc.Name
 	CanBePrefix() bool
 	MustBeFresh() bool
-	ForwardingHintNew() *enc.Name
+	ForwardingHintNew() enc.Name
 	// Interests must match in terms of Forwarding Hint to be aggregated in PIT.
 	InRecords() map[uint64]*PitInRecord   // Key is face ID
 	OutRecords() map[uint64]*PitOutRecord // Key is face ID
@@ -71,10 +71,10 @@ type PitEntry interface {
 // basePitEntry contains PIT entry properties common to all tables.
 type basePitEntry struct {
 	// lowercase fields so that they aren't exported
-	encname           *enc.Name
+	encname           enc.Name
 	canBePrefix       bool
 	mustBeFresh       bool
-	forwardingHintNew *enc.Name
+	forwardingHintNew enc.Name
 	// Interests must match in terms of Forwarding Hint to be
 	// aggregated in PIT.
 	inRecords      map[uint64]*PitInRecord  // Key is face ID
@@ -169,7 +169,7 @@ func UpdateExpirationTimer(e PitEntry) {
 }
 
 // /// Setters and Getters /////
-func (bpe *basePitEntry) EncName() *enc.Name {
+func (bpe *basePitEntry) EncName() enc.Name {
 	return bpe.encname
 }
 
@@ -180,7 +180,7 @@ func (bpe *basePitEntry) CanBePrefix() bool {
 func (bpe *basePitEntry) MustBeFresh() bool {
 	return bpe.mustBeFresh
 }
-func (bpe *basePitEntry) ForwardingHintNew() *enc.Name {
+func (bpe *basePitEntry) ForwardingHintNew() enc.Name {
 	return bpe.forwardingHintNew
 }
 
