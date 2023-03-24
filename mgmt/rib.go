@@ -114,8 +114,7 @@ func (r *RIBModule) register(interest *spec.Interest, pitToken []byte, inFace ui
 		*expirationPeriod = time.Duration(*params.ExpirationPeriod) * time.Millisecond
 	}
 
-	convert, _ := enc.NameFromStr(params.Name.String())
-	table.Rib.AddEncRoute(&convert, faceID, origin, cost, flags, expirationPeriod)
+	table.Rib.AddEncRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
 	if expirationPeriod != nil {
 		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
 	} else {
@@ -169,8 +168,7 @@ func (r *RIBModule) unregister(interest *spec.Interest, pitToken []byte, inFace 
 	if params.Origin != nil {
 		origin = *params.Origin
 	}
-	convert, _ := enc.NameFromStr(params.Name.String())
-	table.Rib.RemoveRouteEnc(&convert, faceID, origin)
+	table.Rib.RemoveRouteEnc(params.Name, faceID, origin)
 
 	core.LogInfo(r, "Removed route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin)
 	responseParams := map[string]any{
@@ -233,9 +231,8 @@ func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 	entries := table.Rib.GetAllEntries()
 	dataset := enc.Wire{}
 	for _, entry := range entries {
-		convert, _ := enc.NameFromStr(entry.EncName.String())
 		ribEntry := &mgmt.RibEntry{
-			Name:   convert,
+			Name:   entry.Name,
 			Routes: make([]*mgmt.Route, len(entry.GetRoutes())),
 		}
 		for i, route := range entry.GetRoutes() {

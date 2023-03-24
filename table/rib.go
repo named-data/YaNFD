@@ -11,7 +11,6 @@ import (
 	"container/list"
 	"time"
 
-	"github.com/named-data/YaNFD/ndn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
@@ -22,11 +21,9 @@ type RibTable struct {
 
 // RibEntry represents an entry in the RIB table.
 type RibEntry struct {
-	component    ndn.NameComponent
-	encComponent enc.Component
-	Name         *ndn.Name
-	EncName      *enc.Name
-	depth        int
+	component enc.Component
+	Name      enc.Name
+	depth     int
 
 	parent   *RibEntry
 	children map[*RibEntry]bool
@@ -67,37 +64,37 @@ var Rib = RibTable{
 	},
 }
 
-func (r *RibTable) fillTreeToPrefixEnc(name *enc.Name) *RibEntry {
+func (r *RibTable) fillTreeToPrefixEnc(name enc.Name) *RibEntry {
 	entry := r.findLongestPrefixEntryEnc(name)
-	for depth := entry.depth + 1; depth <= len(*name); depth++ {
+	for depth := entry.depth + 1; depth <= len(name); depth++ {
 		child := &RibEntry{
-			depth:        depth,
-			encComponent: deepCopy(At(name, depth-1)),
-			parent:       entry,
-			children:     map[*RibEntry]bool{},
+			depth:     depth,
+			component: At(name, depth-1),
+			parent:    entry,
+			children:  map[*RibEntry]bool{},
 		}
 		entry.children[child] = true
 		entry = child
 	}
 	return entry
 }
-func (r *RibEntry) findExactMatchEntryEnc(name *enc.Name) *RibEntry {
-	if len(*name) > r.depth {
+func (r *RibEntry) findExactMatchEntryEnc(name enc.Name) *RibEntry {
+	if len(name) > r.depth {
 		for child := range r.children {
-			if At(name, child.depth-1).Equal(child.encComponent) {
+			if At(name, child.depth-1).Equal(child.component) {
 				return child.findExactMatchEntryEnc(name)
 			}
 		}
-	} else if len(*name) == r.depth {
+	} else if len(name) == r.depth {
 		return r
 	}
 	return nil
 }
 
-func (r *RibEntry) findLongestPrefixEntryEnc(name *enc.Name) *RibEntry {
-	if len(*name) > r.depth {
+func (r *RibEntry) findLongestPrefixEntryEnc(name enc.Name) *RibEntry {
+	if len(name) > r.depth {
 		for child := range r.children {
-			if At(name, child.depth-1).Equal(child.encComponent) {
+			if At(name, child.depth-1).Equal(child.component) {
 				return child.findLongestPrefixEntryEnc(name)
 			}
 		}
@@ -112,7 +109,7 @@ func (r *RibEntry) pruneIfEmpty() {
 	}
 }
 func (r *RibEntry) updateNexthopsEnc() {
-	FibStrategyTable.ClearNextHopsEnc(r.EncName)
+	FibStrategyTable.ClearNextHopsEnc(r.Name)
 
 	// Find minimum cost route per nexthop
 	minCostRoutes := make(map[uint64]uint64) // FaceID -> Cost
@@ -125,15 +122,15 @@ func (r *RibEntry) updateNexthopsEnc() {
 
 	// Add "flattened" set of nexthops
 	for nexthop, cost := range minCostRoutes {
-		FibStrategyTable.InsertNextHopEnc(r.EncName, nexthop, cost)
+		FibStrategyTable.InsertNextHopEnc(r.Name, nexthop, cost)
 	}
 }
 
 // AddRoute adds or updates a RIB entry for the specified prefix.
-func (r *RibTable) AddEncRoute(name *enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration) {
+func (r *RibTable) AddEncRoute(name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration) {
 	node := r.fillTreeToPrefixEnc(name)
-	if node.EncName == nil {
-		node.EncName = name
+	if node.Name == nil {
+		node.Name = name
 	}
 
 	defer node.updateNexthopsEnc()
@@ -184,7 +181,7 @@ func (r *RibEntry) GetRoutes() []*Route {
 }
 
 // RemoveRoute removes the specified route from the specified prefix.
-func (r *RibTable) RemoveRouteEnc(name *enc.Name, faceID uint64, origin uint64) {
+func (r *RibTable) RemoveRouteEnc(name enc.Name, faceID uint64, origin uint64) {
 	entry := r.findExactMatchEntryEnc(name)
 	if entry != nil {
 		for i, existingRoute := range entry.routes {
@@ -208,7 +205,7 @@ func (r *RibEntry) CleanUpFace(faceId uint64) {
 		child.CleanUpFace(faceId)
 	}
 
-	if r.EncName == nil {
+	if r.Name == nil {
 		return
 	}
 	for i, existingNexthop := range r.routes {

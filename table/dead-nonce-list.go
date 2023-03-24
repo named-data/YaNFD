@@ -8,11 +8,9 @@
 package table
 
 import (
-	"encoding/binary"
 	"time"
 
 	"github.com/cespare/xxhash"
-	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/utils/priority_queue"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -34,20 +32,10 @@ func NewDeadNonceList() *DeadNonceList {
 }
 
 // Find returns whether the specified name and nonce combination are present in the Dead Nonce List.
-func (d *DeadNonceList) Find(name *ndn.Name, nonce []byte) bool {
-	wire, err := name.Encode().Wire()
-	if err != nil {
-		return false
-	}
-	hash := xxhash.Sum64(wire) + uint64(binary.BigEndian.Uint32(nonce))
-	_, ok := d.list[hash]
-	return ok
-}
-
-func (d *DeadNonceList) FindEnc(name *enc.Name, nonce uint32) bool {
+func (d *DeadNonceList) Find(name enc.Name, nonce uint32) bool {
 	var hash uint64
 	hash = 0
-	for _, component := range *name {
+	for _, component := range name {
 		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
 	}
 	hash = hash ^ uint64(nonce)
@@ -55,11 +43,12 @@ func (d *DeadNonceList) FindEnc(name *enc.Name, nonce uint32) bool {
 	return ok
 }
 
-// Insert inserts an entry in the Dead Nonce List with the specified name and nonce. Returns whether nonce already present.
-func (d *DeadNonceList) InsertEnc(name *enc.Name, nonce uint32) bool {
+// Insert inserts an entry in the Dead Nonce List with the specified name and nonce.
+// Returns whether nonce already present.
+func (d *DeadNonceList) Insert(name enc.Name, nonce uint32) bool {
 	var hash uint64
 	hash = 0
-	for _, component := range *name {
+	for _, component := range name {
 		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
 	}
 	hash = hash ^ uint64(nonce)

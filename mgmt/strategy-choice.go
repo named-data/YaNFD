@@ -152,7 +152,7 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		// Add missing version information to strategy name
 		params.Strategy.Name = append(params.Strategy.Name, enc.NewVersionComponent(strategyVersion))
 	}
-	table.FibStrategyTable.SetStrategyEnc(&params.Name, &params.Strategy.Name)
+	table.FibStrategyTable.SetStrategyEnc(params.Name, params.Strategy.Name)
 
 	core.LogInfo(s, "Set strategy for Name=", params.Name, " to Strategy=", params.Strategy)
 	responseParams := map[string]any{}
@@ -193,8 +193,7 @@ func (s *StrategyChoiceModule) unset(interest *spec.Interest, pitToken []byte, i
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
-	convertName, _ := enc.NameFromStr(params.Name.String())
-	table.FibStrategyTable.UnSetStrategyEnc(&convertName)
+	table.FibStrategyTable.UnSetStrategyEnc(params.Name)
 
 	core.LogInfo(s, "Unset Strategy for Name=", params.Name)
 	responseParams := map[string]any{}
@@ -214,10 +213,8 @@ func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, in
 	entries := table.FibStrategyTable.GetAllForwardingStrategies()
 	strategyChoiceList := []*mgmt.StrategyChoice{}
 	for _, fsEntry := range entries {
-		convertName, _ := enc.NameFromStr(fsEntry.EncName().String())
-		convertStrategy, _ := enc.NameFromStr(fsEntry.GetEncStrategy().String())
 		strategyChoiceList = append(strategyChoiceList,
-			&mgmt.StrategyChoice{convertName, &mgmt.Strategy{convertStrategy}})
+			&mgmt.StrategyChoice{fsEntry.Name(), &mgmt.Strategy{fsEntry.GetStrategy()}})
 	}
 	strategyChoiceMsg := &mgmt.StrategyChoiceMsg{strategyChoiceList}
 	wire := strategyChoiceMsg.Encode()

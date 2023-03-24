@@ -94,10 +94,10 @@ func (m *Thread) Run() {
 	if err != nil {
 		core.LogFatal(m, "Unable to create name for management prefix: ", err)
 	}
-	table.FibStrategyTable.InsertNextHopEnc(&faces, m.face.FaceID(), 0)
+	table.FibStrategyTable.InsertNextHopEnc(faces, m.face.FaceID(), 0)
 	if enableLocalhopManagement {
 		add1, _ := enc.NameFromStr("/localhop/nfd")
-		table.FibStrategyTable.InsertNextHopEnc(&add1, m.face.FaceID(), 0)
+		table.FibStrategyTable.InsertNextHopEnc(add1, m.face.FaceID(), 0)
 	}
 	for {
 		fragment, pitToken, inFace := m.transport.Receive()

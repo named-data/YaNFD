@@ -13,6 +13,7 @@ import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // Multicast is a forwarding strategy that forwards Interests to all nexthop faces.
@@ -27,13 +28,16 @@ func init() {
 
 // Instantiate creates a new instance of the Multicast strategy.
 func (s *Multicast) Instantiate(fwThread *Thread) {
-	s.NewStrategyBase(fwThread, ndn.NewGenericNameComponent([]byte("multicast")), 1, "Multicast")
+	s.NewStrategyBase(fwThread, enc.Component{
+		Typ: enc.TypeGenericNameComponent, Val: []byte("multicast"),
+	}, 1, "Multicast")
 }
 
 // AfterContentStoreHit ...
 func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", " to FaceID=", inFace)
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", pendingPacket.NameCache,
+		" to FaceID=", inFace)
 	s.SendData(pendingPacket, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
@@ -49,12 +53,14 @@ func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry 
 // AfterReceiveInterest ...
 func (s *Multicast) AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry) {
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", " - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", pendingPacket.NameCache,
+			" - DROP")
 		return
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", " to FaceID=", nexthop.Nexthop)
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", pendingPacket.NameCache,
+			" to FaceID=", nexthop.Nexthop)
 		s.SendInterest(pendingPacket, pitEntry, nexthop.Nexthop, inFace)
 	}
 }

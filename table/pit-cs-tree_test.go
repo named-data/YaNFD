@@ -108,7 +108,7 @@ func TestInsertInterest(t *testing.T) {
 
 	pitCS := NewPitCS(func(PitEntry) {})
 
-	pitEntry, duplicateNonce := pitCS.InsertInterest(interest, &hint, inFace)
+	pitEntry, duplicateNonce := pitCS.InsertInterest(interest, hint, inFace)
 
 	assert.False(t, duplicateNonce)
 
@@ -128,7 +128,7 @@ func TestInsertInterest(t *testing.T) {
 
 	// Interest already exists, so we should just update it
 	// insert the interest again, the same data should be returned
-	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, &hint, inFace)
+	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, hint, inFace)
 
 	assert.False(t, duplicateNonce)
 
@@ -149,7 +149,7 @@ func TestInsertInterest(t *testing.T) {
 	// Looping interest, duplicate nonce
 	pitEntry.InsertInRecord(interest, inFace, []byte("abc"))
 	inFace2 := uint64(2222)
-	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, &hint, inFace2)
+	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, hint, inFace2)
 
 	assert.True(t, duplicateNonce)
 	assert.True(t, pitEntry.EncName().Equal(name))
@@ -171,7 +171,7 @@ func TestInsertInterest(t *testing.T) {
 	inFace3 := uint64(3333)
 	name2, _ := enc.NameFromStr("/interest2")
 	interest2 := makeInterest(name2)
-	pitEntry, duplicateNonce = pitCS.InsertInterest(interest2, &hint2, inFace3)
+	pitEntry, duplicateNonce = pitCS.InsertInterest(interest2, hint2, inFace3)
 
 	assert.False(t, duplicateNonce)
 	assert.True(t, pitEntry.EncName().Equal(name2))
@@ -198,8 +198,8 @@ func TestInsertInterest(t *testing.T) {
 
 	name2, _ = enc.NameFromStr("/interest/longer")
 	interest2 = makeInterest(name2)
-	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, &hint, inFace)
-	pitEntry2, duplicateNonce2 := pitCS.InsertInterest(interest2, &hint, inFace)
+	pitEntry, duplicateNonce = pitCS.InsertInterest(interest, hint, inFace)
+	pitEntry2, duplicateNonce2 := pitCS.InsertInterest(interest2, hint, inFace)
 
 	assert.False(t, duplicateNonce)
 	// assert.True(t, pitEntry.Name().Equals(name))
@@ -247,7 +247,7 @@ func TestRemoveInterest(t *testing.T) {
 	interest1 := makeInterest(name1)
 
 	// Simple insert and removal
-	pitEntry, _ := pitCS.InsertInterest(interest1, &hint, inFace)
+	pitEntry, _ := pitCS.InsertInterest(interest1, hint, inFace)
 	removedInterest := pitCS.RemoveInterest(pitEntry)
 	assert.True(t, removedInterest)
 	assert.Equal(t, pitCS.PitSize(), 0)
@@ -255,7 +255,7 @@ func TestRemoveInterest(t *testing.T) {
 	// Remove a nonexistent pit entry
 	name2, _ := enc.NameFromStr("/interest2")
 	interest2 := makeInterest(name2)
-	pitEntry2, _ := pitCS.InsertInterest(interest2, &hint, inFace)
+	pitEntry2, _ := pitCS.InsertInterest(interest2, hint, inFace)
 
 	removedInterest = pitCS.RemoveInterest(pitEntry)
 	assert.False(t, removedInterest)
@@ -268,10 +268,10 @@ func TestRemoveInterest(t *testing.T) {
 	hint2, _ := enc.NameFromStr("/2")
 	hint3, _ := enc.NameFromStr("/3")
 	hint4, _ := enc.NameFromStr("/4")
-	_, _ = pitCS.InsertInterest(interest2, &hint, inFace)
-	_, _ = pitCS.InsertInterest(interest2, &hint2, inFace)
-	pitEntry3, _ := pitCS.InsertInterest(interest2, &hint3, inFace)
-	_, _ = pitCS.InsertInterest(interest2, &hint4, inFace)
+	_, _ = pitCS.InsertInterest(interest2, hint, inFace)
+	_, _ = pitCS.InsertInterest(interest2, hint2, inFace)
+	pitEntry3, _ := pitCS.InsertInterest(interest2, hint3, inFace)
+	_, _ = pitCS.InsertInterest(interest2, hint4, inFace)
 
 	removedInterest = pitCS.RemoveInterest(pitEntry3)
 	assert.True(t, removedInterest)
@@ -286,9 +286,9 @@ func TestRemoveInterest(t *testing.T) {
 	interest2 = makeInterest(name2)
 	interest3 := makeInterest(name3)
 
-	_, _ = pitCS.InsertInterest(interest1, &hint, inFace)
-	pitEntry2, _ = pitCS.InsertInterest(interest2, &hint, inFace)
-	_, _ = pitCS.InsertInterest(interest3, &hint3, inFace)
+	_, _ = pitCS.InsertInterest(interest1, hint, inFace)
+	pitEntry2, _ = pitCS.InsertInterest(interest2, hint, inFace)
+	_, _ = pitCS.InsertInterest(interest3, hint3, inFace)
 
 	removedInterest = pitCS.RemoveInterest(pitEntry2)
 	assert.True(t, removedInterest)
@@ -304,7 +304,7 @@ func TestFindInterestExactMatch(t *testing.T) {
 	interest := makeInterest(name)
 
 	// Simple insert and find
-	_, _ = pitCS.InsertInterest(interest, &hint, inFace)
+	_, _ = pitCS.InsertInterest(interest, hint, inFace)
 
 	pitEntry := pitCS.FindInterestExactMatchEnc(interest)
 	assert.NotNil(t, pitEntry)
@@ -331,7 +331,7 @@ func TestFindInterestExactMatch(t *testing.T) {
 
 	// /a/b exists but we're looking for /a only
 	pitCS.RemoveInterest(pitEntry)
-	_, _ = pitCS.InsertInterest(interest3, &hint, inFace)
+	_, _ = pitCS.InsertInterest(interest3, hint, inFace)
 	pitEntryNil = pitCS.FindInterestExactMatchEnc(interest)
 	assert.Nil(t, pitEntryNil)
 }
@@ -348,7 +348,7 @@ func TestFindInterestPrefixMatchByData(t *testing.T) {
 	interest.EncPacket.Interest.CanBePrefixV = true
 
 	// Simple insert and find
-	_, _ = pitCS.InsertInterest(interest, &hint, inFace)
+	_, _ = pitCS.InsertInterest(interest, hint, inFace)
 
 	pitEntries := pitCS.FindInterestPrefixMatchByDataEnc(data, nil)
 	assert.Equal(t, len(pitEntries), 1)
@@ -376,7 +376,7 @@ func TestFindInterestPrefixMatchByData(t *testing.T) {
 
 	// /a/b exists but we're looking for /a
 	// should return both /a/b and /a
-	_, _ = pitCS.InsertInterest(interest3, &hint, inFace)
+	_, _ = pitCS.InsertInterest(interest3, hint, inFace)
 	pitEntries = pitCS.FindInterestPrefixMatchByDataEnc(data3, nil)
 	assert.Equal(t, len(pitEntries), 2)
 }
@@ -391,7 +391,7 @@ func TestInsertOutRecord(t *testing.T) {
 	interest.EncPacket.Interest.CanBePrefixV = true
 
 	// New outrecord
-	pitEntry, _ := pitCS.InsertInterest(interest, &hint, inFace)
+	pitEntry, _ := pitCS.InsertInterest(interest, hint, inFace)
 	outRecord := pitEntry.InsertOutRecord(interest, inFace)
 	assert.Equal(t, outRecord.Face, inFace)
 	assert.Equal(t, outRecord.LatestEncInterest, interest)
@@ -426,7 +426,7 @@ func TestGetOutRecords(t *testing.T) {
 	interest.EncPacket.Interest.CanBePrefixV = true
 
 	// New outrecord
-	pitEntry, _ := pitCS.InsertInterest(interest, &hint, inFace)
+	pitEntry, _ := pitCS.InsertInterest(interest, hint, inFace)
 	_ = pitEntry.InsertOutRecord(interest, inFace)
 	outRecords := pitEntry.GetOutRecords()
 	assert.Equal(t, len(outRecords), 1)

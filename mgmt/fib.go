@@ -97,8 +97,7 @@ func (f *FIBModule) add(interest *spec.Interest, pitToken []byte, inFace uint64)
 	if params.Cost != nil {
 		cost = *params.Cost
 	}
-	convert, _ := enc.NameFromStr(params.Name.String())
-	table.FibStrategyTable.InsertNextHopEnc(&convert, faceID, cost)
+	table.FibStrategyTable.InsertNextHopEnc(params.Name, faceID, cost)
 
 	core.LogInfo(f, "Created nexthop for ", params.Name, " to FaceID=", faceID, "with Cost=", cost)
 	responseParams := map[string]any{
@@ -139,8 +138,7 @@ func (f *FIBModule) remove(interest *spec.Interest, pitToken []byte, inFace uint
 	if params.FaceId != nil && *params.FaceId != 0 {
 		faceID = *params.FaceId
 	}
-	convert, _ := enc.NameFromStr(params.Name.String())
-	table.FibStrategyTable.RemoveNextHopEnc(&convert, faceID)
+	table.FibStrategyTable.RemoveNextHopEnc(params.Name, faceID)
 
 	core.LogInfo(f, "Removed nexthop for ", params.Name, " to FaceID=", faceID)
 	responseParams := map[string]any{
@@ -162,10 +160,9 @@ func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 	entries := table.FibStrategyTable.GetAllFIBEntries()
 	dataset := enc.Wire{}
 	for _, fsEntry := range entries {
-		convert, _ := enc.NameFromStr(fsEntry.EncName().String())
 		nextHops := fsEntry.GetNextHops()
 		fibEntry := &mgmt.FibEntry{
-			Name:           convert,
+			Name:           fsEntry.Name(),
 			NextHopRecords: make([]*mgmt.NextHopRecord, len(nextHops)),
 		}
 		for i, nexthop := range nextHops {

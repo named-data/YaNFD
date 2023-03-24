@@ -11,7 +11,6 @@ import (
 	"reflect"
 
 	"github.com/named-data/YaNFD/core"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 //const strategyDir = "strategy"
@@ -77,8 +76,7 @@ func InstantiateStrategies(fwThread *Thread) map[int]Strategy {
 	for _, strategyType := range strategyTypes {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
 		strategy.Instantiate(fwThread)
-		convert, _ := enc.NameFromStr(strategy.GetName().String())
-		strategies[NameHash(&convert)] = strategy
+		strategies[NameHash(strategy.GetName())] = strategy
 		core.LogDebug("StrategyLoader", "Instantiated Strategy=", strategy.GetName(), " for Thread=", fwThread.GetID())
 	}
 

@@ -69,7 +69,7 @@ func Configure() {
 		if err != nil {
 			core.LogFatal("NetworkRegionTable", "Could not add name=", region, " to table: ", err)
 		}
-		NetworkRegion.Add(&name)
+		NetworkRegion.Add(name)
 		core.LogDebug("NetworkRegionTable", "Added name=", region, " to table")
 	}
 }
