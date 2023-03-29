@@ -107,20 +107,6 @@ func (f *fibStrategyTreeEntry) pruneIfEmpty() {
 		}
 	}
 }
-func (f *fibStrategyTreeEntry) pruneIfEmptyEnc() {
-	for curNode := f; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.nexthops) == 0 && curNode.strategy == nil; curNode = curNode.parent {
-		// Remove from parent's children
-		for i, child := range curNode.parent.children {
-			if child == f {
-				if i < len(curNode.parent.children)-1 {
-					copy(curNode.parent.children[i:], curNode.parent.children[i+1:])
-				}
-				curNode.parent.children = curNode.parent.children[:len(curNode.parent.children)-1]
-				break
-			}
-		}
-	}
-}
 
 // FindNextHops returns the longest-prefix matching nexthop(s) matching the specified name.
 
@@ -279,7 +265,7 @@ func (f *FibStrategyTree) UnSetStrategyEnc(name enc.Name) {
 	entry := f.root.findExactMatchEntryEnc(name)
 	if entry != nil {
 		entry.strategy = nil
-		entry.pruneIfEmptyEnc()
+		entry.pruneIfEmpty()
 	}
 }
 
