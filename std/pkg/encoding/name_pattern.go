@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/cespare/xxhash"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -91,21 +92,22 @@ func (n Name) Bytes() []byte {
 
 // Hash returns the hash of the name
 func (n Name) Hash() uint64 {
-	ret := uint64(0)
+	h := xxhash.New()
 	for _, c := range n {
-		ret ^= c.Hash()
+		c.HashInto(h)
 	}
-	return ret
+	return h.Sum64()
 }
 
 // PrefixHash returns the hash value of all prefixes of the name
 func (n Name) PrefixHash() []uint64 {
-	ret := make([]uint64, len(n)+1)
+	ret := make([]uint64, len(n))
+	h := xxhash.New()
 	for i, c := range n {
-		ret[i] ^= c.Hash()
-		ret[i+1] = ret[i]
+		c.HashInto(h)
+		ret[i] = h.Sum64()
 	}
-	return ret[:len(n)]
+	return ret
 }
 
 func NameFromStr(s string) (Name, error) {

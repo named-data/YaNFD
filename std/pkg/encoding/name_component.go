@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"strconv"
 	"strings"
@@ -529,12 +530,17 @@ func (c Component) NumberVal() uint64 {
 
 // Hash returns the hash of the component
 func (c Component) Hash() uint64 {
+	h := xxhash.New()
+	c.HashInto(h)
+	return h.Sum64()
+}
+
+// HashInto hashes the current component into the hasher
+func (c Component) HashInto(h hash.Hash) {
 	tbuf := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	binary.BigEndian.PutUint64(tbuf, uint64(c.Typ))
-	h := xxhash.New()
 	h.Write(tbuf)
 	h.Write(c.Val)
-	return h.Sum64()
 }
 
 func (c Component) Equal(rhs ComponentPattern) bool {
