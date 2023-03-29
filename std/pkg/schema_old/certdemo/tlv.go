@@ -58,9 +58,12 @@ type CmdNewData struct {
 }
 
 type CipherMsg struct {
-	InitVec  []byte `tlv:"0x9D"`
+	//+field:binary
+	InitVec []byte `tlv:"0x9D"`
+	//+field:binary
 	AuthNTag []byte `tlv:"0xAF"`
-	Payload  []byte `tlv:"0x9F"`
+	//+field:binary
+	Payload []byte `tlv:"0x9F"`
 }
 
 type ChallengeIntPlain struct {

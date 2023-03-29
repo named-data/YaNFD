@@ -89,6 +89,25 @@ func (n Name) Bytes() []byte {
 	return buf
 }
 
+// Hash returns the hash of the name
+func (n Name) Hash() uint64 {
+	ret := uint64(0)
+	for _, c := range n {
+		ret ^= c.Hash()
+	}
+	return ret
+}
+
+// PrefixHash returns the hash value of all prefixes of the name
+func (n Name) PrefixHash() []uint64 {
+	ret := make([]uint64, len(n)+1)
+	for i, c := range n {
+		ret[i] ^= c.Hash()
+		ret[i+1] = ret[i]
+	}
+	return ret[:len(n)]
+}
+
 func NameFromStr(s string) (Name, error) {
 	strs := strings.Split(s, "/")
 	// Removing leading and trailing empty strings given by /

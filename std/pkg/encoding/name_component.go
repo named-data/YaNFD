@@ -2,11 +2,14 @@ package encoding
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/cespare/xxhash"
 )
 
 const (
@@ -243,16 +246,30 @@ type ComponentPattern interface {
 	// Component | Pattern does not work because we need a mixed list NamePattern
 	ComponentPatternTrait() ComponentPattern
 
+	// String returns the string of the component, with naming conventions.
+	// Since naming conventions are not standardized, this should not be used for purposes other than logging.
+	// please use CanonicalString() for stable string representation.
 	String() string
 
+	// CanonicalString returns the string representation of the component without naming conventions.
+	CanonicalString() string
+
+	// Compare returns an integer comparing two components lexicographically.
+	// It compares the type number first, and then its value.
+	// A component is always less than a pattern.
+	// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
 	Compare(ComponentPattern) int
 
+	// Equal returns the two components/patterns are the same.
 	Equal(ComponentPattern) bool
 
+	// IsMatch returns if the Component value matches with the current component/pattern.
 	IsMatch(value Component) bool
 
+	// Match matches the current pattern/component with the value, and put the matching into the Matching map.
 	Match(value Component, m Matching)
 
+	// FromMatching initiates the pattern from the Matching map.
 	FromMatching(m Matching) (*Component, error)
 }
 
@@ -293,6 +310,14 @@ func (p Pattern) String() string {
 	}
 }
 
+func (p Pattern) CanonicalString() string {
+	if p.Typ == TypeGenericNameComponent {
+		return "<" + p.Tag + ">"
+	} else {
+		return fmt.Sprintf("<%d=%s>", p.Typ, p.Tag)
+	}
+}
+
 func (c Component) Length() TLNum {
 	return TLNum(len(c.Val))
 }
@@ -311,6 +336,14 @@ func (c Component) String() string {
 		tName = strconv.FormatUint(uint64(c.Typ), 10) + "="
 	}
 	return tName + vFmt.ToString(c.Val)
+}
+
+func (c Component) CanonicalString() string {
+	tName := ""
+	if c.Typ != TypeGenericNameComponent {
+		tName = strconv.FormatUint(uint64(c.Typ), 10) + "="
+	}
+	return tName + compValFmtText{}.ToString(c.Val)
 }
 
 func ParseComponent(buf Buffer) (Component, int) {
@@ -485,6 +518,25 @@ func (c Component) Compare(rhs ComponentPattern) int {
 	return bytes.Compare(c.Val, rc.Val)
 }
 
+// NumberVal returns the value of the component as a number
+func (c Component) NumberVal() uint64 {
+	ret := uint64(0)
+	for _, v := range c.Val {
+		ret = (ret << 8) | uint64(v)
+	}
+	return ret
+}
+
+// Hash returns the hash of the component
+func (c Component) Hash() uint64 {
+	tbuf := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	binary.BigEndian.PutUint64(tbuf, uint64(c.Typ))
+	h := xxhash.New()
+	h.Write(tbuf)
+	h.Write(c.Val)
+	return h.Sum64()
+}
+
 func (c Component) Equal(rhs ComponentPattern) bool {
 	// Go's strange design leads the the result that both Component and *Component implements this interface
 	// And it is nearly impossible to predict what is what.
@@ -579,12 +631,6 @@ func NewStringComponent(typ TLNum, val string) Component {
 func (Component) Match(value Component, m Matching) {}
 
 func (p Pattern) Match(value Component, m Matching) {
-	// vFmt := compValFmt(compValFmtText{})
-	// if p.Typ != TypeGenericNameComponent {
-	// 	if conv, ok := compConvByType[p.Typ]; ok {
-	// 		vFmt = conv.vFmt
-	// 	}
-	// }
 	m[p.Tag] = make([]byte, len(value.Val))
 	copy(m[p.Tag], value.Val)
 }
@@ -598,16 +644,6 @@ func (p Pattern) FromMatching(m Matching) (*Component, error) {
 	if !ok {
 		return nil, ErrNotFound{p.Tag}
 	}
-	// vFmt := compValFmt(compValFmtText{})
-	// if p.Typ != TypeGenericNameComponent {
-	// 	if conv, ok := compConvByType[p.Typ]; ok {
-	// 		vFmt = conv.vFmt
-	// 	}
-	// }
-	// cVal, err := vFmt.FromMatching(val)
-	// if err != nil {
-	// 	return nil, err
-	// }
 	return &Component{
 		Typ: p.Typ,
 		Val: []byte(val),
