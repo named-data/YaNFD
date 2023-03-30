@@ -119,7 +119,9 @@ type baseCsEntry struct {
 
 // InsertInRecord finds or inserts an InRecord for the face, updating the
 // metadata and returning whether there was already an in-record in the entry.
-func (bpe *basePitEntry) InsertInRecord(pendingPacket *ndn.PendingPacket, face uint64, incomingPitToken []byte) (*PitInRecord, bool) {
+func (bpe *basePitEntry) InsertInRecord(
+	pendingPacket *ndn.PendingPacket, face uint64, incomingPitToken []byte,
+) (*PitInRecord, bool) {
 	var record *PitInRecord
 	var ok bool
 	if record, ok = bpe.inRecords[face]; !ok {

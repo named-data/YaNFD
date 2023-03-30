@@ -49,7 +49,8 @@ func RegisterInternalTransport() (LinkService, *InternalTransport) {
 }
 
 func (t *InternalTransport) String() string {
-	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.

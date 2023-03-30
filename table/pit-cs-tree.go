@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/cespare/xxhash"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/utils/priority_queue"
@@ -70,7 +69,8 @@ func NewPitCS(onExpiration OnPitExpiration) *PitCsTree {
 	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
 	pitCs.updateTimer = make(chan struct{})
 
-	// This value has already been validated from loading the configuration, so we know it will be one of the following (or else fatal)
+	// This value has already been validated from loading the configuration,
+	// so we know it will be one of the following (or else fatal)
 	switch csReplacementPolicy {
 	case "lru":
 		pitCs.csReplacement = NewCsLRU(pitCs)
@@ -135,7 +135,9 @@ func (p *PitCsTree) InsertInterest(pendingPacket *ndn.PendingPacket, hint enc.Na
 	node := p.root.fillTreeToPrefixEnc(pendingPacket.EncPacket.Interest.NameV)
 	var entry *nameTreePitEntry
 	for _, curEntry := range node.pitEntries {
-		if curEntry.CanBePrefix() == pendingPacket.EncPacket.Interest.CanBePrefixV && curEntry.MustBeFresh() == pendingPacket.EncPacket.Interest.MustBeFreshV && ((hint == nil && curEntry.ForwardingHintNew() == nil) || hint.Equal(curEntry.ForwardingHintNew())) {
+		if curEntry.CanBePrefix() == pendingPacket.EncPacket.Interest.CanBePrefixV &&
+			curEntry.MustBeFresh() == pendingPacket.EncPacket.Interest.MustBeFreshV &&
+			((hint == nil && curEntry.ForwardingHintNew() == nil) || hint.Equal(curEntry.ForwardingHintNew())) {
 			entry = curEntry
 			break
 		}
@@ -204,7 +206,8 @@ func (p *PitCsTree) FindInterestExactMatchEnc(pendingPacket *ndn.PendingPacket) 
 	node := p.root.findExactMatchEntryEnc(pendingPacket.EncPacket.Interest.NameV)
 	if node != nil {
 		for _, curEntry := range node.pitEntries {
-			if curEntry.CanBePrefix() == pendingPacket.EncPacket.Interest.CanBePrefixV && curEntry.MustBeFresh() == pendingPacket.EncPacket.Interest.MustBeFreshV {
+			if curEntry.CanBePrefix() == pendingPacket.EncPacket.Interest.CanBePrefixV &&
+				curEntry.MustBeFresh() == pendingPacket.EncPacket.Interest.MustBeFreshV {
 				return curEntry
 			}
 		}
@@ -296,42 +299,6 @@ func (e *nameTreePitEntry) GetOutRecords() []*PitOutRecord {
 	return records
 }
 
-func (p *pitCsTreeNode) findExactMatchEntry(name enc.Name) *pitCsTreeNode {
-	if len(name) > p.depth {
-		// TODO: (URGENT) Not expected way of hashing names. THE WHOLE FILE NEEDS TO BE CHECKED.
-		if child, ok := p.children[xxhash.Sum64String(name[p.depth].String())]; ok {
-			return child.findExactMatchEntry(name)
-		}
-	} else if len(name) == p.depth {
-		return p
-	}
-	return nil
-}
-
-func (p *pitCsTreeNode) findLongestPrefixEntry(name enc.Name) *pitCsTreeNode {
-	if len(name) > p.depth {
-		if child, ok := p.children[xxhash.Sum64String(name[p.depth].String())]; ok {
-			return child.findLongestPrefixEntry(name)
-		}
-	}
-	return p
-}
-
-func (p *pitCsTreeNode) fillTreeToPrefix(name enc.Name) *pitCsTreeNode {
-	curNode := p.findLongestPrefixEntry(name)
-	for depth := curNode.depth + 1; depth <= len(name); depth++ {
-		newNode := new(pitCsTreeNode)
-		component := name[depth-1]
-		newNode.component = &component
-		newNode.depth = depth
-		newNode.parent = curNode
-		newNode.children = make(map[uint64]*pitCsTreeNode)
-		curNode.children[xxhash.Sum64String(newNode.component.String())] = newNode
-		curNode = newNode
-	}
-	return curNode
-}
-
 func At(n enc.Name, index int) enc.Component {
 	if index < -len(n) || index >= len(n) {
 		return enc.Component{}
@@ -343,17 +310,9 @@ func At(n enc.Name, index int) enc.Component {
 	return n[index]
 }
 
-func deepCopy(n enc.Component) enc.Component {
-	temp := new(enc.Component)
-	temp.Typ = n.Typ
-	temp.Val = make([]byte, len(n.Val))
-	copy(temp.Val, n.Val)
-	return *temp
-}
-
 func (p *pitCsTreeNode) findExactMatchEntryEnc(name enc.Name) *pitCsTreeNode {
 	if len(name) > p.depth {
-		if child, ok := p.children[xxhash.Sum64(At(name, p.depth).Val)]; ok {
+		if child, ok := p.children[At(name, p.depth).Hash()]; ok {
 			return child.findExactMatchEntryEnc(name)
 		}
 	} else if len(name) == p.depth {
@@ -364,7 +323,7 @@ func (p *pitCsTreeNode) findExactMatchEntryEnc(name enc.Name) *pitCsTreeNode {
 
 func (p *pitCsTreeNode) findLongestPrefixEntryEnc(name enc.Name) *pitCsTreeNode {
 	if len(name) > p.depth {
-		if child, ok := p.children[xxhash.Sum64(At(name, p.depth).Val)]; ok {
+		if child, ok := p.children[At(name, p.depth).Hash()]; ok {
 			return child.findLongestPrefixEntryEnc(name)
 		}
 	}
@@ -381,7 +340,7 @@ func (p *pitCsTreeNode) fillTreeToPrefixEnc(name enc.Name) *pitCsTreeNode {
 		newNode.parent = curNode
 		newNode.children = make(map[uint64]*pitCsTreeNode)
 
-		curNode.children[xxhash.Sum64(newNode.component.Val)] = newNode
+		curNode.children[newNode.component.Hash()] = newNode
 		curNode = newNode
 	}
 	return curNode
@@ -392,8 +351,9 @@ func (p *pitCsTreeNode) getChildrenCount() int {
 }
 
 func (p *pitCsTreeNode) pruneIfEmpty() {
-	for curNode := p; curNode.parent != nil && curNode.getChildrenCount() == 0 && len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
-		delete(curNode.parent.children, xxhash.Sum64(curNode.component.Val))
+	for curNode := p; curNode.parent != nil && curNode.getChildrenCount() == 0 &&
+		len(curNode.pitEntries) == 0 && curNode.csEntry == nil; curNode = curNode.parent {
+		delete(curNode.parent.children, curNode.component.Hash())
 	}
 }
 
@@ -406,15 +366,6 @@ func (p *PitCsTree) generateNewPitToken() uint32 {
 	}
 }
 
-func (p *PitCsTree) hashCsName(name enc.Name) uint64 {
-	var hash uint64
-	hash = 0
-	for _, component := range name {
-		hash = hash + xxhash.Sum64(component.Val)
-	}
-	return hash
-}
-
 // FindMatchingDataFromCS finds the best matching entry in the CS (if any).
 // If MustBeFresh is set to true in the Interest, only non-stale CS entries
 // will be returned.
@@ -422,7 +373,8 @@ func (p *PitCsTree) FindMatchingDataFromCS(pendingPacket *ndn.PendingPacket) CsE
 	node := p.root.findExactMatchEntryEnc(pendingPacket.EncPacket.Interest.NameV)
 	if node != nil {
 		if !pendingPacket.EncPacket.Interest.CanBePrefixV {
-			if node.csEntry != nil && (!pendingPacket.EncPacket.Interest.MustBeFreshV || time.Now().Before(node.csEntry.staleTime)) {
+			if node.csEntry != nil &&
+				(!pendingPacket.EncPacket.Interest.MustBeFreshV || time.Now().Before(node.csEntry.staleTime)) {
 				p.csReplacement.BeforeUse(node.csEntry.index, node.csEntry.encData)
 				return node.csEntry
 			}
@@ -437,7 +389,7 @@ func (p *PitCsTree) FindMatchingDataFromCS(pendingPacket *ndn.PendingPacket) CsE
 
 // InsertData inserts a Data packet into the Content Store.
 func (p *PitCsTree) InsertData(pendingPacket *ndn.PendingPacket) {
-	index := p.hashCsName(pendingPacket.EncPacket.Data.NameV)
+	index := pendingPacket.EncPacket.Data.NameV.Hash()
 	staleTime := time.Now()
 	if pendingPacket.EncPacket.Data.MetaInfo != nil && pendingPacket.EncPacket.Data.MetaInfo.FreshnessPeriod != nil {
 		staleTime = staleTime.Add(*pendingPacket.EncPacket.Data.MetaInfo.FreshnessPeriod)

@@ -58,7 +58,8 @@ func (l *CsLRU) BeforeUse(index uint64, data *ndn.PendingPacket) {
 	l.locations[index] = l.queue.PushBack(index)
 }
 
-// EvictEntries is called to instruct the policy to evict enough entries to reduce the Content Store size below its size limit.
+// EvictEntries is called to instruct the policy to evict enough entries to reduce the Content Store size
+// below its size limit.
 func (l *CsLRU) EvictEntries() {
 	for l.queue.Len() > csCapacity {
 		indexToErase := l.queue.Front().Value.(uint64)

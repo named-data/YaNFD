@@ -35,7 +35,8 @@ func NewWebSocketTransport(localURI *ndn.URI, c *websocket.Conn) (t *WebSocketTr
 }
 
 func (t *WebSocketTransport) String() string {
-	return "WebSocketTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "WebSocketTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.

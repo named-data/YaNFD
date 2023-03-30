@@ -127,7 +127,9 @@ func (r *RibEntry) updateNexthopsEnc() {
 }
 
 // AddRoute adds or updates a RIB entry for the specified prefix.
-func (r *RibTable) AddEncRoute(name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration) {
+func (r *RibTable) AddEncRoute(
+	name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration,
+) {
 	node := r.fillTreeToPrefixEnc(name)
 	if node.Name == nil {
 		node.Name = name

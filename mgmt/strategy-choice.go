@@ -123,7 +123,8 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 	}
 	if len(params.Strategy.Name) > len(s.strategyPrefix)+1 &&
 		params.Strategy.Name[len(s.strategyPrefix)+1].Typ != enc.TypeVersionNameComponent {
-		core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1], " for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
+		core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1],
+			" for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 		response = makeControlResponse(404, "Unknown strategy version", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
@@ -131,7 +132,8 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		strategyVersionBytes := params.Strategy.Name[len(s.strategyPrefix)+1].Val
 		strategyVersion, err := tlv.DecodeNNI(strategyVersionBytes)
 		if err != nil {
-			core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1], " for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
+			core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1],
+				" for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
 			response = makeControlResponse(404, "Unknown strategy version", nil)
 			s.manager.sendResponse(response, interest, pitToken, inFace)
 			return
@@ -143,7 +145,8 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 			}
 		}
 		if !foundMatchingVersion {
-			core.LogWarn(s, "Unknown Version=", strategyVersion, " for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
+			core.LogWarn(s, "Unknown Version=", strategyVersion, " for Strategy=", params.Strategy,
+				" in ControlParameters for Interest=", interest.Name())
 			response = makeControlResponse(404, "Unknown strategy version", nil)
 			s.manager.sendResponse(response, interest, pitToken, inFace)
 			return
@@ -214,9 +217,9 @@ func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, in
 	strategyChoiceList := []*mgmt.StrategyChoice{}
 	for _, fsEntry := range entries {
 		strategyChoiceList = append(strategyChoiceList,
-			&mgmt.StrategyChoice{fsEntry.Name(), &mgmt.Strategy{fsEntry.GetStrategy()}})
+			&mgmt.StrategyChoice{Name: fsEntry.Name(), Strategy: &mgmt.Strategy{Name: fsEntry.GetStrategy()}})
 	}
-	strategyChoiceMsg := &mgmt.StrategyChoiceMsg{strategyChoiceList}
+	strategyChoiceMsg := &mgmt.StrategyChoiceMsg{StrategyChoices: strategyChoiceList}
 	wire := strategyChoiceMsg.Encode()
 	name, _ := enc.NameFromStr(s.manager.localPrefix.String() + "/strategy-choice/list")
 	segments := makeStatusDataset(name, s.nextStrategyDatasetVersion, wire)

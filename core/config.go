@@ -29,7 +29,8 @@ func LoadConfig(file string) {
 	configFileDir = filepath.Dir(file)
 }
 
-// GetConfigBoolDefault returns the boolean configuration value at the specified key or the specified default value if it does not exist.
+// GetConfigBoolDefault returns the boolean configuration value at the specified key or the specified default value
+// if it does not exist.
 func GetConfigBoolDefault(key string, def bool) bool {
 	valRaw := config.Get(key)
 	if valRaw == nil {
@@ -42,7 +43,8 @@ func GetConfigBoolDefault(key string, def bool) bool {
 	return def
 }
 
-// GetConfigIntDefault returns the integer configuration value at the specified key or the specified default value if it does not exist.
+// GetConfigIntDefault returns the integer configuration value at the specified key or the specified default value
+// if it does not exist.
 func GetConfigIntDefault(key string, def int) int {
 	valRaw := config.Get(key)
 	if valRaw == nil {
@@ -55,7 +57,8 @@ func GetConfigIntDefault(key string, def int) int {
 	return def
 }
 
-// GetConfigStringDefault returns the string configuration value at the specified key or the specified default value if it does not exist.
+// GetConfigStringDefault returns the string configuration value at the specified key or the specified default value
+// if it does not exist.
 func GetConfigStringDefault(key string, def string) string {
 	valRaw := config.Get(key)
 	if valRaw == nil {
@@ -68,7 +71,8 @@ func GetConfigStringDefault(key string, def string) string {
 	return def
 }
 
-// GetConfigUint16Default returns the integer configuration value at the specified key or the specified default value if it does not exist.
+// GetConfigUint16Default returns the integer configuration value at the specified key or the specified default value
+// if it does not exist.
 func GetConfigUint16Default(key string, def uint16) uint16 {
 	valRaw := config.Get(key)
 	if valRaw == nil {

@@ -116,9 +116,11 @@ func (r *RIBModule) register(interest *spec.Interest, pitToken []byte, inFace ui
 
 	table.Rib.AddEncRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
 	if expirationPeriod != nil {
-		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
+		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin,
+			", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
 	} else {
-		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin, ", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16))
+		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin,
+			", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16))
 	}
 	responseParams := map[string]any{
 		"Name":   params.Name,
@@ -185,7 +187,8 @@ func (r *RIBModule) announce(interest *spec.Interest, pitToken []byte, inFace ui
 	if len(interest.NameV) != r.manager.prefixLength()+3 ||
 		interest.NameV[r.manager.prefixLength()+2].Typ != enc.TypeParametersSha256DigestComponent {
 		// Name not long enough to contain ControlParameters
-		core.LogWarn(r, "Name of Interest=", interest.Name(), " is either too short or incorrectly formatted to be rib/announce")
+		core.LogWarn(r, "Name of Interest=", interest.Name(),
+			" is either too short or incorrectly formatted to be rib/announce")
 		response = makeControlResponse(400, "Name is incorrect", nil)
 		r.manager.sendResponse(response, interest, pitToken, inFace)
 		return
