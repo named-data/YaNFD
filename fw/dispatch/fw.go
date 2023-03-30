@@ -11,7 +11,8 @@ import (
 	"github.com/named-data/YaNFD/ndn"
 )
 
-// FWThread provides an interface that forwarding threads can satisfy (to avoid circular dependency between faces and forwarding)
+// FWThread provides an interface that forwarding threads can satisfy
+// (to avoid circular dependency between faces and forwarding)
 type FWThread interface {
 	String() string
 

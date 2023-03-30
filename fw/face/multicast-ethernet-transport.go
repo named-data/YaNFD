@@ -35,7 +35,8 @@ type MulticastEthernetTransport struct {
 // MakeMulticastEthernetTransport creates a new multicast Ethernet transport.
 func MakeMulticastEthernetTransport(remoteURI *ndn.URI, localURI *ndn.URI) (*MulticastEthernetTransport, error) {
 	// Validate URIs
-	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "ether" || !localURI.IsCanonical() || localURI.Scheme() != "dev" {
+	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "ether" || !localURI.IsCanonical() ||
+		localURI.Scheme() != "dev" {
 		return nil, core.ErrNotCanonical
 	}
 
@@ -72,7 +73,8 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 	t.scope = ndn.NonLocal
 
 	t.pcap, err = impl.OpenPcap(t.localURI.Path(),
-		fmt.Sprintf("ether proto %d and ether dst %s and not ether src %s and not vlan", ndnEtherType, t.remoteAddr, t.localAddr),
+		fmt.Sprintf("ether proto %d and ether dst %s and not ether src %s and not vlan",
+			ndnEtherType, t.remoteAddr, t.localAddr),
 	)
 	if err != nil {
 		return err
@@ -85,7 +87,8 @@ func (t *MulticastEthernetTransport) activateHandle() error {
 }
 
 func (t *MulticastEthernetTransport) String() string {
-	return "MulticastEthernetTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "MulticastEthernetTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.
@@ -115,7 +118,11 @@ func (t *MulticastEthernetTransport) sendFrame(frame []byte) {
 	}
 
 	// Wrap in Ethernet frame
-	ethHeader := layers.Ethernet{SrcMAC: t.localAddr, DstMAC: t.remoteAddr, EthernetType: layers.EthernetType(ndnEtherType)}
+	ethHeader := layers.Ethernet{
+		SrcMAC:       t.localAddr,
+		DstMAC:       t.remoteAddr,
+		EthernetType: layers.EthernetType(ndnEtherType),
+	}
 	ethFrame := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(ethFrame, gopacket.SerializeOptions{}, &ethHeader, gopacket.Payload(frame))
 

@@ -30,9 +30,12 @@ type UnicastUDPTransport struct {
 }
 
 // MakeUnicastUDPTransport creates a new unicast UDP transport.
-func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency) (*UnicastUDPTransport, error) {
+func MakeUnicastUDPTransport(
+	remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency,
+) (*UnicastUDPTransport, error) {
 	// Validate URIs
-	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") || (localURI != nil && !localURI.IsCanonical()) || (localURI != nil && remoteURI.Scheme() != localURI.Scheme()) {
+	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") ||
+		(localURI != nil && !localURI.IsCanonical()) || (localURI != nil && remoteURI.Scheme() != localURI.Scheme()) {
 		return nil, core.ErrNotCanonical
 	}
 
@@ -64,7 +67,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 	var err error
 	// Configure dialer so we can allow address reuse
 	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
+	conn, err := t.dialer.Dial(t.remoteURI.Scheme(),
+		net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
@@ -83,7 +87,8 @@ func MakeUnicastUDPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 }
 
 func (t *UnicastUDPTransport) String() string {
-	return "UnicastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "UnicastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.
@@ -111,7 +116,8 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 		// Restart socket
 		t.conn.Close()
 		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(),
+			net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
 		if err != nil {
 			core.LogError(t, "Unable to connect to remote endpoint: ", err)
 		}
@@ -135,7 +141,8 @@ func (t *UnicastUDPTransport) expirationHandler() {
 		if t.state == ndn.Down {
 			break
 		}
-		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now())) {
+		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) ||
+			t.expirationTime.Equal(time.Now())) {
 			core.LogInfo(t, "Face expired")
 			t.changeState(ndn.Down)
 			break

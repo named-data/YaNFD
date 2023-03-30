@@ -10,7 +10,6 @@ package table
 import (
 	"time"
 
-	"github.com/cespare/xxhash"
 	"github.com/named-data/YaNFD/utils/priority_queue"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -33,25 +32,14 @@ func NewDeadNonceList() *DeadNonceList {
 
 // Find returns whether the specified name and nonce combination are present in the Dead Nonce List.
 func (d *DeadNonceList) Find(name enc.Name, nonce uint32) bool {
-	var hash uint64
-	hash = 0
-	for _, component := range name {
-		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
-	}
-	hash = hash ^ uint64(nonce)
-	_, ok := d.list[hash]
+	_, ok := d.list[name.Hash()]
 	return ok
 }
 
 // Insert inserts an entry in the Dead Nonce List with the specified name and nonce.
 // Returns whether nonce already present.
 func (d *DeadNonceList) Insert(name enc.Name, nonce uint32) bool {
-	var hash uint64
-	hash = 0
-	for _, component := range name {
-		hash = hash ^ uint64(component.Typ) ^ xxhash.Sum64(component.Val)
-	}
-	hash = hash ^ uint64(nonce)
+	hash := name.Hash()
 	_, exists := d.list[hash]
 
 	if !exists {

@@ -43,7 +43,8 @@ func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEn
 
 // AfterReceiveData ...
 func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
-	core.LogTrace(s, "AfterReceiveData: Data=", pendingPacket.EncPacket.Data.NameV, ", ", len(pitEntry.InRecords()), " In-Records")
+	core.LogTrace(s, "AfterReceiveData: Data=", pendingPacket.EncPacket.Data.NameV, ", ",
+		len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
 		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", pendingPacket.EncPacket.Data.NameV, " to FaceID=", faceID)
 		s.SendData(pendingPacket, pitEntry, faceID, inFace)
@@ -51,7 +52,9 @@ func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry 
 }
 
 // AfterReceiveInterest ...
-func (s *Multicast) AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry) {
+func (s *Multicast) AfterReceiveInterest(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
+) {
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", pendingPacket.NameCache,
 			" - DROP")

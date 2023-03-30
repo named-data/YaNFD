@@ -180,6 +180,7 @@ func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 	segments := makeStatusDataset(name, f.nextFIBDatasetVersion, dataset)
 	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextFIBDatasetVersion++
 }

@@ -184,7 +184,8 @@ func (y *YaNFD) Start() {
 			}
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
-				multicastUDPTransport, err := face.MakeMulticastUDPTransport(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
+				multicastUDPTransport, err := face.MakeMulticastUDPTransport(
+					ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
 					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
 					continue

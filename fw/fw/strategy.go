@@ -27,7 +27,8 @@ type Strategy interface {
 
 	AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
 	AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
-	AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
+	AfterReceiveInterest(
+		pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
 	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64)
 }
 
@@ -42,7 +43,9 @@ type StrategyBase struct {
 }
 
 // NewStrategyBase is a helper that allows specific strategies to initialize the base.
-func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName enc.Component, version uint64, strategyLogName string) {
+func (s *StrategyBase) NewStrategyBase(
+	fwThread *Thread, strategyName enc.Component, version uint64, strategyLogName string,
+) {
 	var err error
 	s.thread = fwThread
 	s.threadID = s.thread.threadID
@@ -66,12 +69,16 @@ func (s *StrategyBase) GetName() enc.Name {
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64) bool {
+func (s *StrategyBase) SendInterest(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+) bool {
 	return s.thread.processOutgoingInterest(pendingPacket, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64) {
+func (s *StrategyBase) SendData(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+) {
 	var pitToken []byte
 	if inRecord, ok := pitEntry.InRecords()[nexthop]; ok {
 		pitToken = inRecord.PitToken

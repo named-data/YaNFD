@@ -52,7 +52,9 @@ func (s *BestRoute) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry 
 }
 
 // AfterReceiveInterest ...
-func (s *BestRoute) AfterReceiveInterest(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry) {
+func (s *BestRoute) AfterReceiveInterest(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
+) {
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {
 		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", pendingPacket.NameCache, " to FaceID=", nh.Nexthop)

@@ -305,7 +305,10 @@ func DecodePacket(wire *tlv.Block) (*Packet, error) {
 
 // IsBare returns whether the LpPacket only contains a fragment and has no headers fields.
 func (p *Packet) IsBare() bool {
-	return p.sequence == nil && p.fragIndex == nil && p.fragCount == nil && len(p.pitToken) == 0 && p.nextHopFaceID == nil && p.incomingFaceID == nil && p.cachePolicyType == nil && p.congestionMark == nil && p.txSequence == nil && len(p.acks) == 0 && !p.nonDiscovery && p.prefixAnnouncement == nil && p.prefixAnnouncement != nil
+	return (p.sequence == nil && p.fragIndex == nil && p.fragCount == nil &&
+		len(p.pitToken) == 0 && p.nextHopFaceID == nil && p.incomingFaceID == nil &&
+		p.cachePolicyType == nil && p.congestionMark == nil && p.txSequence == nil &&
+		len(p.acks) == 0 && !p.nonDiscovery && p.prefixAnnouncement == nil && p.prefixAnnouncement != nil)
 }
 
 // IsIdle returns whether the LpPacket is an "IDLE" frame and does not contain a fragment.

@@ -88,6 +88,7 @@ func (f *ForwarderStatusModule) general(interest *spec.Interest, pitToken []byte
 	segments := makeStatusDataset(name, f.nextGeneralDatasetVersion, wire)
 	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published forwarder status dataset version=", f.nextGeneralDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published forwarder status dataset version=", f.nextGeneralDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextGeneralDatasetVersion++
 }

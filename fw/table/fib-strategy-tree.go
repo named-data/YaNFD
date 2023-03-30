@@ -11,7 +11,6 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/cespare/xxhash"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
@@ -108,7 +107,8 @@ func (f *fibStrategyTreeEntry) pruneIfEmpty() {
 	}
 }
 func (f *fibStrategyTreeEntry) pruneIfEmptyEnc() {
-	for curNode := f; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.nexthops) == 0 && curNode.strategy == nil; curNode = curNode.parent {
+	for curNode := f; curNode.parent != nil && len(curNode.children) == 0 && len(curNode.nexthops) == 0 &&
+		curNode.strategy == nil; curNode = curNode.parent {
 		// Remove from parent's children
 		for i, child := range curNode.parent.children {
 			if child == f {
@@ -186,12 +186,7 @@ func (f *FibStrategyTree) InsertNextHopEnc(name enc.Name, nexthop uint64, cost u
 	newEntry.Nexthop = nexthop
 	newEntry.Cost = cost
 	entry.nexthops = append(entry.nexthops, newEntry)
-	var hash uint64
-	hash = 0
-	for _, component := range name {
-		hash = hash + xxhash.Sum64(component.Val)
-	}
-	f.fibPrefixes[hash] = entry
+	f.fibPrefixes[name.Hash()] = entry
 }
 
 // ClearNextHops clears all nexthops for the specified prefix.
@@ -225,12 +220,7 @@ func (f *FibStrategyTree) RemoveNextHopEnc(name enc.Name, nexthop uint64) {
 			}
 		}
 		if len(entry.nexthops) == 0 {
-			var hash uint64
-			hash = 0
-			for _, component := range name {
-				hash = hash + xxhash.Sum64(component.Val)
-			}
-			delete(f.fibPrefixes, hash)
+			delete(f.fibPrefixes, name.Hash())
 		}
 		entry.pruneIfEmpty()
 	}

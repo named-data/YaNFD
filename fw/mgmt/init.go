@@ -11,7 +11,8 @@ import (
 	"github.com/named-data/YaNFD/core"
 )
 
-// enableLocalhopManagement determines whether management will listen for command and dataset Interests on non-local faces.
+// enableLocalhopManagement determines whether management will listen for command and dataset Interests
+// on non-local faces.
 var enableLocalhopManagement bool
 
 // Configure configures the face system.

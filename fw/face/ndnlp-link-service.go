@@ -290,7 +290,8 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 	}
 
 	// Congestion marking
-	if congestionMarking && l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes && now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) {
+	if congestionMarking && l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes &&
+		now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) {
 		// Mark congestion
 		core.LogWarn(l, "Marking congestion")
 		fragments[0].CongestionMark = utils.IdPtr[uint64](1)
@@ -375,7 +376,8 @@ func (l *NDNLPLinkService) runSend() {
 		case oldTxSequence := <-l.retransmitQueue:
 			loadedFrame, ok := l.unacknowledgedFrames.Load(oldTxSequence)
 			if !ok {
-				// Frame must have been acknowledged between when noted as timed out and when processed here, so just silently ignore
+				// Frame must have been acknowledged between when noted as timed out and when processed here,
+				// so just silently ignore
 				continue
 			}
 			frame := loadedFrame.(*ndnlpUnacknowledgedFrame)
@@ -385,7 +387,8 @@ func (l *NDNLPLinkService) runSend() {
 			//core.LogTrace(l, "Idle Ack timer expired")
 			if l.pendingAcksToSend.Len() > 0 {
 				// Add up to enough Acks to fill MTU
-				for remainingAcks := (l.transport.MTU() - lpPacketOverhead) / ackOverhead; remainingAcks > 0 && l.pendingAcksToSend.Len() > 0; remainingAcks-- {
+				for remainingAcks := (l.transport.MTU() - lpPacketOverhead) / ackOverhead; remainingAcks > 0 &&
+					l.pendingAcksToSend.Len() > 0; remainingAcks-- {
 					// TODO: Make pendingAcksToSend thread safe
 					idle := &spec.Packet{
 						LpPacket: &spec.LpPacket{
@@ -569,7 +572,8 @@ func (l *NDNLPLinkService) runRetransmit() {
 			if frame.sentTime.Add(l.rto).Before(curTime) {
 				if frame.numRetransmissions >= l.options.MaxRetransmissions {
 					// Drop entire network-layer packet because number of retransmissions exceeded
-					core.LogDebug(l, "Network packet with Sequence number ", frame.netPacket, " exceeded allowed number of retransmissions - DROP")
+					core.LogDebug(l, "Network packet with Sequence number ", frame.netPacket,
+						" exceeded allowed number of retransmissions - DROP")
 					l.removeUnacknowledgedPacket(frame.netPacket)
 				} else {
 					// Indicate retransmission needed

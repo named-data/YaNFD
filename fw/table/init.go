@@ -57,7 +57,8 @@ func Configure() {
 	}
 
 	// Dead Nonce List
-	deadNonceListLifetime = time.Duration(core.GetConfigIntDefault("tables.dead_nonce_list.lifetime", 6000)) * time.Millisecond
+	deadNonceListLifetime = time.Duration(
+		core.GetConfigIntDefault("tables.dead_nonce_list.lifetime", 6000)) * time.Millisecond
 
 	// Network Region Table
 	producerRegions = core.GetConfigArrayString("tables.network_region.regions")

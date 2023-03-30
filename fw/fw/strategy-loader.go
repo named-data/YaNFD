@@ -59,7 +59,8 @@ var StrategyVersions = make(map[string][]uint64)
 		// Make sure strategy class can be cast to Strategy
 		_, ok := strategy.(Strategy)
 		if !ok {
-			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": ", strategyName.(string), " does not satisfy the requirements of Strategy")
+			core.LogError("StrategyLoader", "Unable to load strategy ", path, ": ", strategyName.(string),
+			  " does not satisfy the requirements of Strategy")
 			return nil
 		}
 
@@ -70,13 +71,13 @@ var StrategyVersions = make(map[string][]uint64)
 }*/
 
 // InstantiateStrategies instantiates all strategies for a forwarding thread.
-func InstantiateStrategies(fwThread *Thread) map[int]Strategy {
-	strategies := make(map[int]Strategy, len(strategyTypes))
+func InstantiateStrategies(fwThread *Thread) map[uint64]Strategy {
+	strategies := make(map[uint64]Strategy, len(strategyTypes))
 
 	for _, strategyType := range strategyTypes {
 		strategy := reflect.New(strategyType.Elem()).Interface().(Strategy)
 		strategy.Instantiate(fwThread)
-		strategies[NameHash(strategy.GetName())] = strategy
+		strategies[strategy.GetName().Hash()] = strategy
 		core.LogDebug("StrategyLoader", "Instantiated Strategy=", strategy.GetName(), " for Thread=", fwThread.GetID())
 	}
 

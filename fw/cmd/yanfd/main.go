@@ -28,9 +28,11 @@ func main() {
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
 	var disableEthernet bool
-	flag.BoolVar(&disableEthernet, "disable-ethernet", false, "Disable Ethernet transports (deprecated; set.faces.ethernet.enabled=false in config file instead)")
+	flag.BoolVar(&disableEthernet, "disable-ethernet", false,
+		"Disable Ethernet transports (deprecated; set.faces.ethernet.enabled=false in config file instead)")
 	var disableUnix bool
-	flag.BoolVar(&disableUnix, "disable-unix", false, "Disable Unix stream transports (deprecated; set.faces.unix.enabled=false in config file instead)")
+	flag.BoolVar(&disableUnix, "disable-unix", false,
+		"Disable Unix stream transports (deprecated; set.faces.unix.enabled=false in config file instead)")
 	var cpuProfile string
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Enable CPU profiling (output to specified file)")
 	var memProfile string
@@ -38,7 +40,8 @@ func main() {
 	var blockProfile string
 	flag.StringVar(&blockProfile, "block-profile", "", "Enable block profiling (output to specified file)")
 	var memoryBallastSize int
-	flag.IntVar(&memoryBallastSize, "memory-ballast", 0, "Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
+	flag.IntVar(&memoryBallastSize, "memory-ballast", 0,
+		"Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
 
 	if shouldPrintVersion {

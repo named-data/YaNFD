@@ -133,7 +133,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 	if URI.Scheme() == "udp4" || URI.Scheme() == "udp6" {
 		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() &&
+			!remoteAddr.IsLinkLocalUnicast() {
 			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address ", URI)
 			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
@@ -158,10 +159,12 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		}*/
 
 		persistency := face.PersistencyPersistent
-		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) || *params.FacePersistency == uint64(face.PersistencyPermanent)) {
+		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) ||
+			*params.FacePersistency == uint64(face.PersistencyPermanent)) {
 			persistency = face.Persistency(*params.FacePersistency)
 		} else if params.FacePersistency != nil {
-			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency), " for UDP face specified in ControlParameters for ", interest.Name())
+			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency),
+				" for UDP face specified in ControlParameters for ", interest.Name())
 			response = makeControlResponse(406, "Unacceptable persistency", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
@@ -235,7 +238,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		go linkService.Run(nil)
 	} else if URI.Scheme() == "tcp4" || URI.Scheme() == "tcp6" {
 		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() && !remoteAddr.IsLinkLocalUnicast() {
+		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() &&
+			!remoteAddr.IsLinkLocalUnicast() {
 			core.LogWarn(f, "Cannot create unicast TCP face to non-unicast address ", URI)
 			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
@@ -243,10 +247,12 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		}
 
 		persistency := face.PersistencyPersistent
-		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) || *params.FacePersistency == uint64(face.PersistencyPermanent)) {
+		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) ||
+			*params.FacePersistency == uint64(face.PersistencyPermanent)) {
 			persistency = face.Persistency(*params.FacePersistency)
 		} else if params.FacePersistency != nil {
-			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency), " for UDP face specified in ControlParameters for ", interest.Name())
+			core.LogWarn(f, "Unacceptable persistency ", face.Persistency(*params.FacePersistency),
+				" for UDP face specified in ControlParameters for ", interest.Name())
 			response = makeControlResponse(406, "Unacceptable persistency", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
@@ -395,7 +401,8 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 			*params.FacePersistency != uint64(face.PersistencyPermanent) {
 			responseParams["FacePersistency"] = uint64(*params.FacePersistency)
 			areParamsValid = false
-		} else if selectedFace.LocalURI().Scheme() == "unix" && *params.FacePersistency != uint64(face.PersistencyPersistent) {
+		} else if selectedFace.LocalURI().Scheme() == "unix" &&
+			*params.FacePersistency != uint64(face.PersistencyPersistent) {
 			responseParams["FacePersistency"] = uint64(*params.FacePersistency)
 			areParamsValid = false
 		}
@@ -434,7 +441,8 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 		core.LogInfo(f, "FaceID=", faceID, ", BaseCongestionMarkingInterval=", options.BaseCongestionMarkingInterval)
 	}
 
-	if params.DefaultCongestionThreshold != nil && *params.DefaultCongestionThreshold != options.DefaultCongestionThresholdBytes {
+	if params.DefaultCongestionThreshold != nil &&
+		*params.DefaultCongestionThreshold != options.DefaultCongestionThresholdBytes {
 		options.DefaultCongestionThresholdBytes = *params.DefaultCongestionThreshold
 		core.LogInfo(f, "FaceID=", faceID, ", DefaultCongestionThreshold=", options.DefaultCongestionThresholdBytes, "B")
 	}
@@ -738,7 +746,8 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) enc.Wire {
 // 	segments := makeStatusDataset(interest.Name(), f.nextChannelDatasetVersion, dataset)
 // 	f.manager.transport.Send(segments, pitToken, nil)
 
-// 	core.LogTrace(f, "Published channel dataset version=", f.nextChannelDatasetVersion, ", containing ", len(segments), " segments")
+// 	core.LogTrace(f, "Published channel dataset version=", f.nextChannelDatasetVersion, ", containing ",
+// 		len(segments), " segments")
 // 	f.nextChannelDatasetVersion++
 // }
 

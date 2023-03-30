@@ -23,6 +23,7 @@ type CsReplacementPolicy interface {
 	// BeforeUse is called before an entry in the Content Store is used to satisfy a pending Interest.
 	BeforeUse(index uint64, data *ndn.PendingPacket)
 
-	// EvictEntries is called to instruct the policy to evict enough entries to reduce the Content Store size below its size limit.
+	// EvictEntries is called to instruct the policy to evict enough entries to reduce
+	// the Content Store size below its size limit.
 	EvictEntries()
 }
