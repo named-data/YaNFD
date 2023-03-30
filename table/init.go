@@ -82,6 +82,9 @@ func SetCsCapacity(capacity int) {
 
 func CreateFIBTable(fibTableAlgorithm string) {
 	switch fibTableAlgorithm {
+	case "hashtable":
+		m := core.GetConfigUint16Default("tables.fib.hashtable.m", 5)
+		newFibStrategyTableHashTable(m)
 	case "nametree":
 		newFibStrategyTableTree()
 	default:

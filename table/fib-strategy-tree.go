@@ -269,7 +269,7 @@ func (f *FibStrategyTree) UnSetStrategyEnc(name enc.Name) {
 	entry := f.root.findExactMatchEntryEnc(name)
 	if entry != nil {
 		entry.strategy = nil
-		entry.pruneIfEmptyEnc()
+		entry.pruneIfEmpty()
 	}
 }
 
