@@ -52,7 +52,8 @@ func HashNameToAllPrefixFwThreads(name enc.Name) []int {
 	// }
 	threadList := make([]int, 0, len(Threads))
 	prefixHash := name.PrefixHash()
-	for _, h := range prefixHash {
+	for i := 1; i < len(prefixHash); i++ {
+		h := prefixHash[i]
 		threadList = append(threadList, int(h%uint64(len(Threads))))
 	}
 	return threadList
