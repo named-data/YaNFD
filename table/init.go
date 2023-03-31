@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // tableQueueSize is the maxmimum size of queues in the tables.
@@ -57,7 +57,8 @@ func Configure() {
 	}
 
 	// Dead Nonce List
-	deadNonceListLifetime = time.Duration(core.GetConfigIntDefault("tables.dead_nonce_list.lifetime", 6000)) * time.Millisecond
+	deadNonceListLifetime = time.Duration(
+		core.GetConfigIntDefault("tables.dead_nonce_list.lifetime", 6000)) * time.Millisecond
 
 	// Network Region Table
 	producerRegions = core.GetConfigArrayString("tables.network_region.regions")
@@ -65,7 +66,7 @@ func Configure() {
 		producerRegions = make([]string, 0)
 	}
 	for _, region := range producerRegions {
-		name, err := ndn.NameFromString(region)
+		name, err := enc.NameFromStr(region)
 		if err != nil {
 			core.LogFatal("NetworkRegionTable", "Could not add name=", region, " to table: ", err)
 		}

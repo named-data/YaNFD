@@ -58,26 +58,26 @@ func (cfg WebSocketListenerConfig) String() string {
 // NewWebSocketListener constructs a WebSocketListener.
 func NewWebSocketListener(cfg WebSocketListenerConfig) (*WebSocketListener, error) {
 	localURI := cfg.URL()
-	server := http.Server{Addr: localURI.Host}
-	if cfg.TLSEnabled {
-		cert, e := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
-		if e != nil {
-			return nil, fmt.Errorf("tls.LoadX509KeyPair(%s %s): %w", cfg.TLSCert, cfg.TLSKey, e)
-		}
-		server.TLSConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		}
-		localURI.Scheme = "wss"
-	}
-	return &WebSocketListener{
-		server: server,
+	ret := &WebSocketListener{
+		server: http.Server{Addr: localURI.Host},
 		upgrader: websocket.Upgrader{
 			WriteBufferPool: &sync.Pool{},
 			CheckOrigin:     func(r *http.Request) bool { return true },
 		},
 		localURI: ndn.MakeWebSocketServerFaceURI(localURI),
-	}, nil
+	}
+	if cfg.TLSEnabled {
+		cert, e := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+		if e != nil {
+			return nil, fmt.Errorf("tls.LoadX509KeyPair(%s %s): %w", cfg.TLSCert, cfg.TLSKey, e)
+		}
+		ret.server.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
+		localURI.Scheme = "wss"
+	}
+	return ret, nil
 }
 
 // WebSocketListener listens for incoming WebSockets connections.

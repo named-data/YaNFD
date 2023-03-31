@@ -41,7 +41,8 @@ func InitializeLogger(logFile string) {
 	if err == nil {
 		log.SetLevel(logLevel)
 	} else if logLevelString == "TRACE" {
-		// Apex doesn't support the TRACE level, so we have to work around that by calling them DEBUG, but not printing them if not TRACE
+		// Apex doesn't support the TRACE level, so we have to work around that by calling them DEBUG,
+		// but not printing them if not TRACE
 		log.SetLevel(log.DebugLevel)
 		shouldPrintTraceLogs = true
 	} else {

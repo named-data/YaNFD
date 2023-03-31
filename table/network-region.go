@@ -7,10 +7,12 @@
 
 package table
 
-import "github.com/named-data/YaNFD/ndn"
+import (
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+)
 
 type networkRegionTable struct {
-	table []*ndn.Name
+	table []enc.Name
 }
 
 // NetworkRegion contains producer region names for this forwarder..
@@ -21,9 +23,9 @@ func init() {
 }
 
 // Add adds a name to the network region table.
-func (n *networkRegionTable) Add(name *ndn.Name) {
+func (n *networkRegionTable) Add(name enc.Name) {
 	for _, region := range n.table {
-		if region.Equals(name) {
+		if region.Equal(name) {
 			return
 		}
 	}
@@ -31,9 +33,9 @@ func (n *networkRegionTable) Add(name *ndn.Name) {
 }
 
 // IsProducer returns whether an entry in the network region table is a prefix of the specified name.
-func (n *networkRegionTable) IsProducer(name *ndn.Name) bool {
+func (n *networkRegionTable) IsProducer(name enc.Name) bool {
 	for _, region := range n.table {
-		if region.PrefixOf(name) {
+		if region.IsPrefix(name) {
 			return true
 		}
 	}

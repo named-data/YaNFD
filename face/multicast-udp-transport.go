@@ -45,9 +45,14 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	}
 
 	if localURI.Scheme() == "udp4" {
-		t.makeTransportBase(ndn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(
+			ndn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)),
+			localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
-		t.makeTransportBase(ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+strconv.FormatUint(uint64(UDPMulticastPort), 10)), localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
+		t.makeTransportBase(
+			ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+
+				strconv.FormatUint(uint64(UDPMulticastPort), 10)),
+			localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
 	}
 	t.scope = ndn.NonLocal
 
@@ -72,7 +77,8 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 	// Create receive connection
 	t.recvConn, err = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
 	if err != nil {
-		return nil, errors.New("Unable to create receive connection for group address on " + localIf.Name + ": " + err.Error())
+		return nil, errors.New("Unable to create receive connection for group address on " +
+			localIf.Name + ": " + err.Error())
 	}
 
 	t.changeState(ndn.Up)
@@ -81,7 +87,8 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 }
 
 func (t *MulticastUDPTransport) String() string {
-	return "MulticastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "MulticastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.

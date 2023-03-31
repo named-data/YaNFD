@@ -38,7 +38,8 @@ func main() {
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
 	var memoryBallastSize int
-	flag.IntVar(&memoryBallastSize, "memory-ballast", 0, "Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
+	flag.IntVar(&memoryBallastSize, "memory-ballast", 0,
+		"Enable memory ballast of specified size (in GB) to avoid frequent garbage collection")
 	flag.Parse()
 
 	if shouldPrintVersion {
