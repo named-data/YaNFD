@@ -13,9 +13,10 @@ import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/dispatch"
 	"github.com/named-data/YaNFD/fw"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // ForwarderStatusModule is the module that provide forwarder status information.
@@ -36,39 +37,40 @@ func (f *ForwarderStatusModule) getManager() *Thread {
 	return f.manager
 }
 
-func (f *ForwarderStatusModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *ForwarderStatusModule) handleIncomingInterest(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	// Only allow from /localhost
-	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+	if !f.manager.localPrefix.IsPrefix(interest.NameV) {
 		core.LogWarn(f, "Received forwarder status management Interest from non-local source - DROP")
 		return
 	}
 
 	// Dispatch by verb
-	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
+	verb := interest.NameV[f.manager.prefixLength()+1].String()
 	switch verb {
 	case "general":
 		f.general(interest, pitToken, inFace)
 	default:
 		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
-		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
+		response := makeControlResponse(501, "Unknown verb", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 }
 
-func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() > f.manager.prefixLength()+2 {
+func (f *ForwarderStatusModule) general(interest *spec.Interest, pitToken []byte, inFace uint64) {
+	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
 	}
 
 	// Generate new dataset
-	status := mgmt.MakeGeneralStatus()
-	status.NfdVersion = core.Version
-	status.StartTimestamp = uint64(core.StartTimestamp.UnixNano() / 1000 / 1000)
-	status.CurrentTimestamp = uint64(time.Now().UnixNano() / 1000 / 1000)
+	status := &mgmt.GeneralStatus{
+		NfdVersion:       core.Version,
+		StartTimestamp:   uint64(core.StartTimestamp.UnixNano() / 1000 / 1000),
+		CurrentTimestamp: uint64(time.Now().UnixNano() / 1000 / 1000),
+		NFibEntries:      uint64(len(table.FibStrategyTable.GetAllFIBEntries())),
+	}
 	// Don't set NNameTreeEntries because we don't use a NameTree
-	status.NFibEntries = uint64(len(table.FibStrategyTable.GetAllFIBEntries()))
 	for threadID := 0; threadID < fw.NumFwThreads; threadID++ {
 		thread := dispatch.GetFWThread(threadID)
 		status.NPitEntries += uint64(thread.GetNumPitEntries())
@@ -80,25 +82,13 @@ func (f *ForwarderStatusModule) general(interest *ndn.Interest, pitToken []byte,
 		status.NSatisfiedInterests += thread.(*fw.Thread).NSatisfiedInterests
 		status.NUnsatisfiedInterests += thread.(*fw.Thread).NUnsatisfiedInterests
 	}
+	wire := status.Encode()
 
-	wire, err := status.Encode()
-	if err != nil {
-		core.LogError(f, "Cannot encode forwarder status dataset: ", err)
-		return
-	}
-	dataset := wire.Value()
+	name, _ := enc.NameFromStr(f.manager.localPrefix.String() + "/status/general")
+	segments := makeStatusDataset(name, f.nextGeneralDatasetVersion, wire)
+	f.manager.transport.Send(segments, pitToken, nil)
 
-	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/status/general")
-	segments := mgmt.MakeStatusDataset(name, f.nextGeneralDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode forwarder status dataset: ", err)
-			return
-		}
-		f.manager.transport.Send(encoded, pitToken, nil)
-	}
-
-	core.LogTrace(f, "Published forwarder status dataset version=", f.nextGeneralDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published forwarder status dataset version=", f.nextGeneralDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextGeneralDatasetVersion++
 }

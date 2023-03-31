@@ -11,7 +11,8 @@ import (
 	"errors"
 
 	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 )
 
 const FaceEventsCacheSize = 100
@@ -102,24 +103,25 @@ func FaceEventLastId() uint64 {
 }
 
 // Encode encodes a FaceEventNotification.
-func (f *FaceEvent) Encode() (*tlv.Block, error) {
-	wire := tlv.NewEmptyBlock(tlv.FaceEventNotification)
-
-	wire.Append(tlv.EncodeNNIBlock(tlv.FaceEventKind, uint64(f.faceEventKind)))
-	wire.Append(tlv.EncodeNNIBlock(tlv.FaceID, f.faceId))
+func (f *FaceEvent) Encode() (enc.Wire, error) {
 	if f.remoteURI == nil {
 		return nil, errors.New("URI is required, but unset")
 	}
-	wire.Append(tlv.NewBlock(tlv.URI, []byte(f.remoteURI.String())))
 	if f.localURI == nil {
 		return nil, errors.New("LocalUri is required, but unset")
 	}
-	wire.Append(tlv.NewBlock(tlv.LocalURI, []byte(f.localURI.String())))
-	wire.Append(tlv.EncodeNNIBlock(tlv.FaceScope, uint64(f.scope)))
-	wire.Append(tlv.EncodeNNIBlock(tlv.FacePersistency, uint64(f.persistency)))
-	wire.Append(tlv.EncodeNNIBlock(tlv.LinkType, uint64(f.linkType)))
-	wire.Append(tlv.EncodeNNIBlock(tlv.Flags, f.flags))
+	notif := &mgmt.FaceEventNotification{
+		Val: &mgmt.FaceEventNotificationValue{
+			FaceEventKind:   uint64(f.faceEventKind),
+			FaceId:          f.faceId,
+			Uri:             f.remoteURI.String(),
+			LocalUri:        f.localURI.String(),
+			FaceScope:       uint64(f.scope),
+			FacePersistency: uint64(f.persistency),
+			LinkType:        uint64(f.linkType),
+			Flags:           f.flags,
+		},
+	}
 
-	wire.Encode()
-	return wire, nil
+	return notif.Encode(), nil
 }

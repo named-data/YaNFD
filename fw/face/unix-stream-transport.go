@@ -43,7 +43,8 @@ func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Con
 }
 
 func (t *UnixStreamTransport) String() string {
-	return "UnixStreamTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "UnixStreamTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.
@@ -87,7 +88,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
-
+	//also maybe an area of improvement? for reading buf?
 	if lockThreadsToCores {
 		runtime.LockOSThread()
 	}
@@ -107,10 +108,8 @@ func (t *UnixStreamTransport) runReceive() {
 			t.changeState(ndn.Down)
 			break
 		}
-
 		core.LogTrace(t, "Receive of size ", readSize)
 		t.nInBytes += uint64(readSize)
-
 		if startPos > tlv.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 			continue

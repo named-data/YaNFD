@@ -31,7 +31,8 @@ func (m *measurements) Get(key string) interface{} {
 	return value
 }
 
-// Set atomically sets the value of the specified measurement table key only if it is equal to the expected value, returning whether the operation was successful.
+// Set atomically sets the value of the specified measurement table key only if it is equal to the expected value,
+// returning whether the operation was successful.
 func (m *measurements) Set(key string, expected interface{}, value interface{}) bool {
 	if v, ok := m.table.Get(key); ok && v == expected {
 		m.table.Set(key, value)

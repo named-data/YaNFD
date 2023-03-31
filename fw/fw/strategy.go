@@ -10,8 +10,10 @@ package fw
 import (
 	"strconv"
 
+	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // StrategyPrefix is the prefix of all strategy names for YaNFD
@@ -21,31 +23,38 @@ const StrategyPrefix = "/localhost/nfd/strategy"
 type Strategy interface {
 	Instantiate(fwThread *Thread)
 	String() string
-	GetName() *ndn.Name
+	GetName() enc.Name
 
-	AfterContentStoreHit(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveData(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
-	AfterReceiveInterest(pitEntry table.PitEntry, inFace uint64, interest *ndn.Interest, nexthops []*table.FibNextHopEntry)
-	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64, data *ndn.Data)
+	AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterReceiveInterest(
+		pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
+	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64)
 }
 
 // StrategyBase provides common helper methods for YaNFD forwarding strategies.
 type StrategyBase struct {
 	thread          *Thread
 	threadID        int
-	name            *ndn.Name
-	strategyName    *ndn.GenericNameComponent
+	name            enc.Name
+	strategyName    enc.Component
 	version         uint64
 	strategyLogName string
 }
 
 // NewStrategyBase is a helper that allows specific strategies to initialize the base.
-func (s *StrategyBase) NewStrategyBase(fwThread *Thread, strategyName *ndn.GenericNameComponent, version uint64, strategyLogName string) {
+func (s *StrategyBase) NewStrategyBase(
+	fwThread *Thread, strategyName enc.Component, version uint64, strategyLogName string,
+) {
+	var err error
 	s.thread = fwThread
 	s.threadID = s.thread.threadID
-	s.name, _ = ndn.NameFromString(StrategyPrefix)
+	s.name, err = enc.NameFromStr(StrategyPrefix)
+	if err != nil {
+		core.LogFatal(s, "StrategyPrefix is a bad NDN Name")
+	}
 	s.strategyName = strategyName
-	s.name.Append(strategyName).Append(ndn.NewVersionNameComponent(version))
+	s.name = append(s.name, strategyName, enc.NewVersionComponent(version))
 	s.version = version
 	s.strategyLogName = strategyLogName
 }
@@ -55,21 +64,25 @@ func (s *StrategyBase) String() string {
 }
 
 // GetName returns the name of strategy, including version information.
-func (s *StrategyBase) GetName() *ndn.Name {
+func (s *StrategyBase) GetName() enc.Name {
 	return s.name
 }
 
 // SendInterest sends an Interest on the specified face.
-func (s *StrategyBase) SendInterest(interest *ndn.Interest, pitEntry table.PitEntry, nexthop uint64, inFace uint64) bool {
-	return s.thread.processOutgoingInterest(interest, pitEntry, nexthop, inFace)
+func (s *StrategyBase) SendInterest(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+) bool {
+	return s.thread.processOutgoingInterest(pendingPacket, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
-func (s *StrategyBase) SendData(data *ndn.Data, pitEntry table.PitEntry, nexthop uint64, inFace uint64) {
+func (s *StrategyBase) SendData(
+	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+) {
 	var pitToken []byte
 	if inRecord, ok := pitEntry.InRecords()[nexthop]; ok {
 		pitToken = inRecord.PitToken
 		delete(pitEntry.InRecords(), nexthop)
 	}
-	s.thread.processOutgoingData(data, nexthop, pitToken, inFace)
+	s.thread.processOutgoingData(pendingPacket, nexthop, pitToken, inFace)
 }

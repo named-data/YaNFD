@@ -30,12 +30,12 @@ func NewCsLRU(cs PitCsTable) *CsLRU {
 }
 
 // AfterInsert is called after a new entry is inserted into the Content Store.
-func (l *CsLRU) AfterInsert(index uint64, data *ndn.Data) {
+func (l *CsLRU) AfterInsert(index uint64, data *ndn.PendingPacket) {
 	l.locations[index] = l.queue.PushBack(index)
 }
 
 // AfterRefresh is called after a new data packet refreshes an existing entry in the Content Store.
-func (l *CsLRU) AfterRefresh(index uint64, data *ndn.Data) {
+func (l *CsLRU) AfterRefresh(index uint64, data *ndn.PendingPacket) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 	}
@@ -43,7 +43,7 @@ func (l *CsLRU) AfterRefresh(index uint64, data *ndn.Data) {
 }
 
 // BeforeErase is called before an entry is erased from the Content Store through management.
-func (l *CsLRU) BeforeErase(index uint64, data *ndn.Data) {
+func (l *CsLRU) BeforeErase(index uint64, data *ndn.PendingPacket) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 		delete(l.locations, index)
@@ -51,14 +51,15 @@ func (l *CsLRU) BeforeErase(index uint64, data *ndn.Data) {
 }
 
 // BeforeUse is called before an entry in the Content Store is used to satisfy a pending Interest.
-func (l *CsLRU) BeforeUse(index uint64, data *ndn.Data) {
+func (l *CsLRU) BeforeUse(index uint64, data *ndn.PendingPacket) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 	}
 	l.locations[index] = l.queue.PushBack(index)
 }
 
-// EvictEntries is called to instruct the policy to evict enough entries to reduce the Content Store size below its size limit.
+// EvictEntries is called to instruct the policy to evict enough entries to reduce the Content Store size
+// below its size limit.
 func (l *CsLRU) EvictEntries() {
 	for l.queue.Len() > csCapacity {
 		indexToErase := l.queue.Front().Value.(uint64)

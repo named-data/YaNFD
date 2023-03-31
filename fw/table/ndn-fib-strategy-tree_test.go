@@ -1,6 +1,6 @@
 /* YaNFD - Yet another NDN Forwarding Daemon
  *
- * Copyright (C) 2022 Danning Yu.
+ * Copyright (C) 2020-2021 Eric Newberry.
  *
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
@@ -11,13 +11,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestFindNextHopsEncEnc_HT(t *testing.T) {
-	fibTableAlgorithm = "hashtable"
-	newFibStrategyTableHashTable(1)
+func TestNdnFindNextHops(t *testing.T) {
+	newFibStrategyTableTree()
 
 	assert.NotNil(t, FibStrategyTable)
 
@@ -69,8 +69,8 @@ func TestFindNextHopsEncEnc_HT(t *testing.T) {
 	assert.Equal(t, 0, len(nexthops2c))
 }
 
-func TestFind_Set_Unset_Strategy_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnFind_Set_Unset_Strategy(t *testing.T) {
+	newFibStrategyTableTree()
 
 	assert.NotNil(t, FibStrategyTable)
 
@@ -105,8 +105,8 @@ func TestFind_Set_Unset_Strategy_HT(t *testing.T) {
 	assert.True(t, multicast.Equal(FibStrategyTable.FindStrategyEnc(name3)))
 }
 
-func TestInsertNextHopEnc_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnInsertNextHop(t *testing.T) {
+	newFibStrategyTableTree()
 	assert.NotNil(t, FibStrategyTable)
 
 	name, _ := enc.NameFromStr("/test/name")
@@ -127,8 +127,8 @@ func TestInsertNextHopEnc_HT(t *testing.T) {
 	assert.Equal(t, uint64(20), nextHops[0].Cost)
 }
 
-func TestClearNextHops_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnClearNextHops(t *testing.T) {
+	newFibStrategyTableTree()
 	assert.NotNil(t, FibStrategyTable)
 
 	name, _ := enc.NameFromStr("/test/name")
@@ -172,8 +172,8 @@ func TestClearNextHops_HT(t *testing.T) {
 	assert.Equal(t, 1, len(nextHops))
 }
 
-func TestRemoveNextHopEnc_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnRemoveNextHop(t *testing.T) {
+	newFibStrategyTableTree()
 	assert.NotNil(t, FibStrategyTable)
 
 	name, _ := enc.NameFromStr("/test")
@@ -213,8 +213,8 @@ func TestRemoveNextHopEnc_HT(t *testing.T) {
 	assert.Equal(t, 1, len(nextHops))
 }
 
-func TestGetAllFIBEntries_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnGetAllFIBEntries(t *testing.T) {
+	newFibStrategyTableTree()
 	assert.NotNil(t, FibStrategyTable)
 
 	bestRoute, _ := enc.NameFromStr("/localhost/nfd/strategy/best-route/v=1")
@@ -263,8 +263,8 @@ func TestGetAllFIBEntries_HT(t *testing.T) {
 	assert.Equal(t, uint64(50), nextHops[0].Cost)
 }
 
-func TestGetAllForwardingStrategies_HT(t *testing.T) {
-	newFibStrategyTableHashTable(1)
+func TestNdnGetAllForwardingStrategies(t *testing.T) {
+	newFibStrategyTableTree()
 	assert.NotNil(t, FibStrategyTable)
 
 	bestRoute, _ := enc.NameFromStr("/localhost/nfd/strategy/best-route/v=1")
@@ -311,161 +311,4 @@ func TestGetAllForwardingStrategies_HT(t *testing.T) {
 	assert.True(t, multicast.Equal(fse[2].GetStrategy()))
 	nextHops = fse[2].GetNextHops()
 	assert.Equal(t, 0, len(nextHops))
-}
-
-func testFIB_HT_Details(t *testing.T, m uint16) {
-	// A test suite specific to the hash table approach
-	newFibStrategyTableHashTable(m)
-	assert.NotNil(t, FibStrategyTable)
-
-	name1, _ := enc.NameFromStr("/a")
-	name2, _ := enc.NameFromStr("/a/b/d")
-	name3, _ := enc.NameFromStr("/a/b/c")
-	name4, _ := enc.NameFromStr("/a/b/d/e")
-	name5, _ := enc.NameFromStr("/a/b/d/e/f")
-	nameNonexistent, _ := enc.NameFromStr(("/asdfasdf"))
-
-	hopId1 := uint64(10)
-	hopId2 := uint64(11)
-	hopId3 := uint64(12)
-	hopId4a := uint64(13)
-	hopId4b := uint64(14)
-	hopId5 := uint64(15)
-
-	cost := uint64(1)
-
-	FibStrategyTable.InsertNextHopEnc(name1, hopId1, cost)
-	FibStrategyTable.InsertNextHopEnc(name2, hopId2, cost)
-	FibStrategyTable.InsertNextHopEnc(name3, hopId3, cost)
-	FibStrategyTable.InsertNextHopEnc(name4, hopId4a, cost)
-	FibStrategyTable.InsertNextHopEnc(name4, hopId4b, cost)
-	FibStrategyTable.InsertNextHopEnc(name5, hopId5, cost)
-
-	nextHopsEmpty := FibStrategyTable.FindNextHopsEnc(nameNonexistent)
-	assert.Equal(t, 0, len(nextHopsEmpty))
-
-	nameSearch1, _ := enc.NameFromStr("/a/b/c/d/e/f")
-	// match /a/b/c
-	nextHops1 := FibStrategyTable.FindNextHopsEnc(nameSearch1)
-	assert.Equal(t, 1, len(nextHops1))
-	assert.Equal(t, hopId3, nextHops1[0].Nexthop)
-	assert.Equal(t, cost, nextHops1[0].Cost)
-
-	nameSearch2, _ := enc.NameFromStr("/a/c/d/e/f/g")
-	// match /a
-	nextHops2 := FibStrategyTable.FindNextHopsEnc(nameSearch2)
-	assert.Equal(t, 1, len(nextHops2))
-	assert.Equal(t, hopId1, nextHops2[0].Nexthop)
-	assert.Equal(t, cost, nextHops2[0].Cost)
-
-	nextHops3 := FibStrategyTable.FindNextHopsEnc(name1)
-	// match /a
-	assert.Equal(t, 1, len(nextHops3))
-	assert.Equal(t, hopId1, nextHops3[0].Nexthop)
-	assert.Equal(t, cost, nextHops3[0].Cost)
-
-	nameSearch3, _ := enc.NameFromStr("/a/b/d/e/zzz")
-	// match /a/b/d/e
-	nextHops4 := FibStrategyTable.FindNextHopsEnc(nameSearch3)
-	assert.Equal(t, 2, len(nextHops4))
-	assert.Equal(t, hopId4a, nextHops4[0].Nexthop)
-	assert.Equal(t, cost, nextHops4[0].Cost)
-	assert.Equal(t, hopId4b, nextHops4[1].Nexthop)
-	assert.Equal(t, cost, nextHops4[1].Cost)
-
-	nameSearch4, _ := enc.NameFromStr("/a/b/d/e/f/g/h")
-	// match /a/b/d/e/f
-	nextHops5 := FibStrategyTable.FindNextHopsEnc(nameSearch4)
-	assert.Equal(t, 1, len(nextHops5))
-	assert.Equal(t, hopId5, nextHops5[0].Nexthop)
-	assert.Equal(t, cost, nextHops5[0].Cost)
-
-	nameSearch5, _ := enc.NameFromStr("/b")
-	// match nothing
-	nextHops6 := FibStrategyTable.FindNextHopsEnc(nameSearch5)
-	assert.Equal(t, 0, len(nextHops6))
-
-	nameSearch6, _ := enc.NameFromStr("/z/y/x/w/v/u/t")
-	// match nothing
-	nextHops7 := FibStrategyTable.FindNextHopsEnc(nameSearch6)
-	assert.Equal(t, 0, len(nextHops7))
-
-	// Deletions
-	// Delete nonexistent name or face
-	FibStrategyTable.RemoveNextHopEnc(nameNonexistent, uint64(0))
-	FibStrategyTable.RemoveNextHopEnc(name1, uint64(0))
-
-	// Delete with name and outFace that exists
-	FibStrategyTable.RemoveNextHopEnc(name4, hopId4b)
-	nextHops := FibStrategyTable.FindNextHopsEnc(name4)
-	assert.Equal(t, 1, len(nextHops))
-	assert.Equal(t, hopId4a, nextHops4[0].Nexthop)
-	assert.Equal(t, cost, nextHops4[0].Cost)
-
-	FibStrategyTable.RemoveNextHopEnc(name4, hopId4a)
-	// This should only match name2 now: /a/b/d
-	nextHops = FibStrategyTable.FindNextHopsEnc(name4)
-	assert.Equal(t, 1, len(nextHops))
-	assert.Equal(t, hopId2, nextHops[0].Nexthop)
-	assert.Equal(t, cost, nextHops[0].Cost)
-
-	FibStrategyTable.RemoveNextHopEnc(name3, hopId3)
-	// This should only match name1 now: /a
-	nextHops = FibStrategyTable.FindNextHopsEnc(name3)
-	assert.Equal(t, 1, len(nextHops))
-	assert.Equal(t, hopId1, nextHops[0].Nexthop)
-	assert.Equal(t, cost, nextHops[0].Cost)
-
-	// This should trigger pruning
-	FibStrategyTable.RemoveNextHopEnc(name5, hopId5)
-	nextHops = FibStrategyTable.FindNextHopsEnc(name5)
-	// This should only match name2 now: /a/b/d
-	assert.Equal(t, 1, len(nextHops))
-	assert.Equal(t, hopId2, nextHops[0].Nexthop)
-	assert.Equal(t, cost, nextHops[0].Cost)
-
-	FibStrategyTable.RemoveNextHopEnc(name1, hopId1)
-	nextHops = FibStrategyTable.FindNextHopsEnc(name1)
-	assert.Equal(t, 0, len(nextHops))
-
-	nextHops = FibStrategyTable.FindNextHopsEnc(name2)
-	assert.Equal(t, 1, len(nextHops))
-	assert.Equal(t, hopId2, nextHops[0].Nexthop)
-	assert.Equal(t, cost, nextHops[0].Cost)
-
-	FibStrategyTable.RemoveNextHopEnc(name2, hopId2)
-
-	// No entries left in FIB, everything should be removed
-	nextHops = FibStrategyTable.FindNextHopsEnc(name1)
-	assert.Equal(t, 0, len(nextHops))
-	nextHops = FibStrategyTable.FindNextHopsEnc(name2)
-	assert.Equal(t, 0, len(nextHops))
-	nextHops = FibStrategyTable.FindNextHopsEnc(name3)
-	assert.Equal(t, 0, len(nextHops))
-	nextHops = FibStrategyTable.FindNextHopsEnc(name4)
-	assert.Equal(t, 0, len(nextHops))
-	nextHops = FibStrategyTable.FindNextHopsEnc(name5)
-	assert.Equal(t, 0, len(nextHops))
-
-	// Eliminate the root name from tree too
-	// This results in an empty hash table
-	rootName, _ := enc.NameFromStr("/")
-	FibStrategyTable.UnSetStrategyEnc(rootName)
-	nextHops = FibStrategyTable.FindNextHopsEnc(name1)
-	assert.Equal(t, 0, len(nextHops))
-	nextHops = FibStrategyTable.FindNextHopsEnc(name5)
-	assert.Equal(t, 0, len(nextHops))
-	strategy := FibStrategyTable.FindStrategyEnc(name1)
-	assert.Nil(t, strategy)
-
-	// Nexthop entry exists but not root strategy
-	FibStrategyTable.InsertNextHopEnc(name1, hopId1, cost)
-	strategy = FibStrategyTable.FindStrategyEnc(name1)
-	assert.Nil(t, strategy)
-}
-func TestFIB_HT_RealAndVirtualNodes(t *testing.T) {
-	// Hashtable specific tests, for different values of m
-	for i := 1; i < 8; i++ {
-		testFIB_HT_Details(t, uint16(i))
-	}
 }

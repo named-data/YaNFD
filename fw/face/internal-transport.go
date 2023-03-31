@@ -13,8 +13,10 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/lpv2"
 	"github.com/named-data/YaNFD/ndn/tlv"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 // InternalTransport is a transport for use by internal YaNFD modules (e.g., management).
@@ -47,7 +49,8 @@ func RegisterInternalTransport() (LinkService, *InternalTransport) {
 }
 
 func (t *InternalTransport) String() string {
-	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return "InternalTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
+		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
 }
 
 // SetPersistency changes the persistency of the face.
@@ -70,60 +73,48 @@ func (t *InternalTransport) GetSendQueueSize() uint64 {
 }
 
 // Send sends a packet from the perspective of the internal component.
-func (t *InternalTransport) Send(block *tlv.Block, pitToken []byte, nextHopFaceID *uint64) {
-	netWire, err := block.Wire()
-	if err != nil {
-		core.LogWarn(t, "Unable to decode net packet to send - DROP")
-		return
+func (t *InternalTransport) Send(netWire enc.Wire, pitToken []byte, nextHopFaceID *uint64) {
+	lpPkt := &spec.LpPacket{
+		Fragment: netWire,
 	}
-	lpPacket := lpv2.NewPacket(netWire)
 	if len(pitToken) > 0 {
-		lpPacket.SetPitToken(pitToken)
+		lpPkt.PitToken = pitToken
 	}
 	if nextHopFaceID != nil {
-		lpPacket.SetNextHopFaceID(*nextHopFaceID)
+		lpPkt.NextHopFaceId = utils.IdPtr(*nextHopFaceID)
 	}
-	lpPacketWire, err := lpPacket.Encode()
-	if err != nil {
+	pkt := &spec.Packet{
+		LpPacket: lpPkt,
+	}
+	encoder := spec.PacketEncoder{}
+	encoder.Init(pkt)
+	lpPacketWire := encoder.Encode(pkt)
+	if lpPacketWire == nil {
 		core.LogWarn(t, "Unable to encode block to send - DROP")
 		return
 	}
-	frame, err := lpPacketWire.Wire()
-	if err != nil {
-		core.LogWarn(t, "Unable to encode block to send - DROP")
-		return
-	}
-	t.sendQueue <- frame
+	t.sendQueue <- lpPacketWire.Join()
 }
 
 // Receive receives a packet from the perspective of the internal component.
-func (t *InternalTransport) Receive() (*tlv.Block, []byte, uint64) {
+func (t *InternalTransport) Receive() (enc.Wire, []byte, uint64) {
 	shouldContinue := true
 	// We need to use a for loop to silently ignore invalid packets
 	for shouldContinue {
 		select {
 		case frame := <-t.recvQueue:
-			lpBlock, _, err := tlv.DecodeBlock(frame)
+			pkt, _, err := spec.ReadPacket(enc.NewBufferReader(frame))
 			if err != nil {
 				core.LogWarn(t, "Unable to decode received block - DROP")
 				continue
 			}
-			lpPacket, err := lpv2.DecodePacket(lpBlock)
-			if err != nil {
-				core.LogWarn(t, "Unable to decode received block - DROP")
-				continue
-			}
-			if len(lpPacket.Fragment()) == 0 {
+			lpPkt := pkt.LpPacket
+			if lpPkt.Fragment.Length() == 0 {
 				core.LogWarn(t, "Received empty fragment - DROP")
 				continue
 			}
 
-			block, _, err := tlv.DecodeBlock(lpPacket.Fragment())
-			if err != nil {
-				core.LogWarn(t, "Unable to decode received block - DROP")
-				continue
-			}
-			return block, lpPacket.PitToken(), *lpPacket.IncomingFaceID()
+			return lpPkt.Fragment, lpPkt.PitToken, *lpPkt.IncomingFaceId
 		case <-t.hasQuit:
 			shouldContinue = false
 		}

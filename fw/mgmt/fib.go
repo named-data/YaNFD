@@ -10,9 +10,10 @@ package mgmt
 import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/mgmt"
 	"github.com/named-data/YaNFD/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // FIBModule is the module that handles FIB Management.
@@ -33,15 +34,15 @@ func (f *FIBModule) getManager() *Thread {
 	return f.manager
 }
 
-func (f *FIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FIBModule) handleIncomingInterest(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	// Only allow from /localhost
-	if !f.manager.localPrefix.PrefixOf(interest.Name()) {
+	if !f.manager.localPrefix.IsPrefix(interest.Name()) {
 		core.LogWarn(f, "Received FIB management Interest from non-local source - DROP")
 		return
 	}
 
 	// Dispatch by verb
-	verb := interest.Name().At(f.manager.prefixLength() + 1).String()
+	verb := interest.NameV[f.manager.prefixLength()+1].String()
 	switch verb {
 	case "add-nexthop":
 		f.add(interest, pitToken, inFace)
@@ -51,42 +52,42 @@ func (f *FIBModule) handleIncomingInterest(interest *ndn.Interest, pitToken []by
 		f.list(interest, pitToken, inFace)
 	default:
 		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
-		response := mgmt.MakeControlResponse(501, "Unknown verb", nil)
+		response := makeControlResponse(501, "Unknown verb", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 }
 
-func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FIBModule) add(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(f, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if params.Name == nil {
 		core.LogWarn(f, "Missing Name in ControlParameters for ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	faceID := inFace
-	if params.FaceID != nil && *params.FaceID != 0 {
-		faceID = *params.FaceID
+	if params.FaceId != nil && *params.FaceId != 0 {
+		faceID = *params.FaceId
 		if face.FaceTable.Get(faceID) == nil {
-			response = mgmt.MakeControlResponse(410, "Face does not exist", nil)
+			response = makeControlResponse(410, "Face does not exist", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
@@ -96,75 +97,60 @@ func (f *FIBModule) add(interest *ndn.Interest, pitToken []byte, inFace uint64) 
 	if params.Cost != nil {
 		cost = *params.Cost
 	}
-
-	table.FibStrategyTable.InsertNextHop(params.Name, faceID, cost)
+	table.FibStrategyTable.InsertNextHopEnc(params.Name, faceID, cost)
 
 	core.LogInfo(f, "Created nexthop for ", params.Name, " to FaceID=", faceID, "with Cost=", cost)
-	responseParams := mgmt.MakeControlParameters()
-	responseParams.Name = params.Name
-	responseParams.FaceID = new(uint64)
-	*responseParams.FaceID = faceID
-	responseParams.Cost = new(uint64)
-	*responseParams.Cost = cost
-	responseParamsWire, err := responseParams.Encode()
-	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	responseParams := map[string]any{
+		"Name":   params.Name,
+		"FaceId": faceID,
+		"Cost":   cost,
 	}
+	response = makeControlResponse(200, "OK", responseParams)
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FIBModule) remove(interest *ndn.Interest, pitToken []byte, inFace uint64) {
+func (f *FIBModule) remove(interest *spec.Interest, pitToken []byte, inFace uint64) {
 	var response *mgmt.ControlResponse
 
-	if interest.Name().Size() < f.manager.prefixLength()+3 {
+	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain ControlParameters
 		core.LogWarn(f, "Missing ControlParameters in ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	params := decodeControlParameters(f, interest)
 	if params == nil {
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	if params.Name == nil {
 		core.LogWarn(f, "Missing Name in ControlParameters for ", interest.Name())
-		response = mgmt.MakeControlResponse(400, "ControlParameters is incorrect", nil)
+		response = makeControlResponse(400, "ControlParameters is incorrect", nil)
 		f.manager.sendResponse(response, interest, pitToken, inFace)
 		return
 	}
 
 	faceID := inFace
-	if params.FaceID != nil && *params.FaceID != 0 {
-		faceID = *params.FaceID
+	if params.FaceId != nil && *params.FaceId != 0 {
+		faceID = *params.FaceId
 	}
-
-	table.FibStrategyTable.RemoveNextHop(params.Name, faceID)
+	table.FibStrategyTable.RemoveNextHopEnc(params.Name, faceID)
 
 	core.LogInfo(f, "Removed nexthop for ", params.Name, " to FaceID=", faceID)
-	responseParams := mgmt.MakeControlParameters()
-	responseParams.Name = params.Name
-	responseParams.FaceID = new(uint64)
-	*responseParams.FaceID = faceID
-	responseParamsWire, err := responseParams.Encode()
-	if err != nil {
-		core.LogError(f, "Unable to encode response parameters: ", err)
-		response = mgmt.MakeControlResponse(500, "Internal error", nil)
-	} else {
-		response = mgmt.MakeControlResponse(200, "OK", responseParamsWire)
+	responseParams := map[string]any{
+		"Name":   params.Name,
+		"FaceId": faceID,
 	}
+	response = makeControlResponse(200, "OK", responseParams)
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64) {
-	if interest.Name().Size() > f.manager.prefixLength()+2 {
+func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
 	}
@@ -172,40 +158,29 @@ func (f *FIBModule) list(interest *ndn.Interest, pitToken []byte, inFace uint64)
 	// Generate new dataset
 	// TODO: For thread safety, we should lock the FIB from writes until we are done
 	entries := table.FibStrategyTable.GetAllFIBEntries()
-	dataset := make([]byte, 0)
+	dataset := enc.Wire{}
 	for _, fsEntry := range entries {
-		fibEntry := mgmt.MakeFibEntry(fsEntry.Name())
-		for _, nexthop := range fsEntry.GetNextHops() {
-			var record mgmt.NextHopRecord
-			record.FaceID = nexthop.Nexthop
-			record.Cost = nexthop.Cost
-			fibEntry.Nexthops = append(fibEntry.Nexthops, record)
+		nextHops := fsEntry.GetNextHops()
+		fibEntry := &mgmt.FibEntry{
+			Name:           fsEntry.Name(),
+			NextHopRecords: make([]*mgmt.NextHopRecord, len(nextHops)),
+		}
+		for i, nexthop := range nextHops {
+			fibEntry.NextHopRecords[i] = &mgmt.NextHopRecord{
+				FaceId: nexthop.Nexthop,
+				Cost:   nexthop.Cost,
+			}
 		}
 
-		wire, err := fibEntry.Encode()
-		if err != nil {
-			core.LogError(f, "Cannot encode FibEntry for Name=", fsEntry.Name, ": ", err)
-			continue
-		}
-		encoded, err := wire.Wire()
-		if err != nil {
-			core.LogError(f, "Cannot encode FibEntry for Name=", fsEntry.Name, ": ", err)
-			continue
-		}
-		dataset = append(dataset, encoded...)
+		wire := fibEntry.Encode()
+		dataset = append(dataset, wire...)
 	}
 
-	name, _ := ndn.NameFromString(f.manager.localPrefix.String() + "/fib/list")
-	segments := mgmt.MakeStatusDataset(name, f.nextFIBDatasetVersion, dataset)
-	for _, segment := range segments {
-		encoded, err := segment.Encode()
-		if err != nil {
-			core.LogError(f, "Unable to encode FIB dataset: ", err)
-			return
-		}
-		f.manager.transport.Send(encoded, pitToken, nil)
-	}
+	name, _ := enc.NameFromStr(f.manager.localPrefix.String() + "/fib/list")
+	segments := makeStatusDataset(name, f.nextFIBDatasetVersion, dataset)
+	f.manager.transport.Send(segments, pitToken, nil)
 
-	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion, ", containing ", len(segments), " segments")
+	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion,
+		", containing ", len(segments), " segments")
 	f.nextFIBDatasetVersion++
 }
