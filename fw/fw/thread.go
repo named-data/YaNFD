@@ -231,6 +231,8 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	if exists := t.deadNonceList.Find(
 		pendingPacket.EncPacket.Interest.NameV, *pendingPacket.EncPacket.Interest.NonceV,
 	); exists {
+		core.LogInfo(t, "Interest ", pendingPacket.NameCache, " is dropped by DeadNonce: ",
+			*pendingPacket.EncPacket.Interest.NonceV)
 		return
 	}
 	// Check if any matching PIT entries (and if duplicate)
