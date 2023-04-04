@@ -58,11 +58,6 @@ type Strategy struct {
 type ControlArgs struct {
 	// Note: go-ndn generator does not support inheritance yet.
 
-	//+field:natural:optional
-	StatusCode *uint64 `tlv:"0x66"`
-	//+field:string:optional
-	StatusText *string `tlv:"0x67"`
-
 	//+field:name
 	Name enc.Name `tlv:"0x07"`
 	//+field:natural:optional
@@ -74,7 +69,7 @@ type ControlArgs struct {
 	//+field:natural:optional
 	Origin *uint64 `tlv:"0x6f"`
 	//+field:natural:optional
-	Cost *uint64 `tlv:"0x61"`
+	Cost *uint64 `tlv:"0x6a"`
 	//+field:natural:optional
 	Capacity *uint64 `tlv:"0x83"`
 	//+field:natural:optional
@@ -97,14 +92,24 @@ type ControlArgs struct {
 	FacePersistency *uint64 `tlv:"0x85"`
 }
 
+// +tlv-model:dict
+type ControlResponseVal struct {
+	//+field:natural
+	StatusCode uint64 `tlv:"0x66"`
+	//+field:string
+	StatusText string `tlv:"0x67"`
+	//+field:struct:ControlArgs
+	Params *ControlArgs `tlv:"0x68"`
+}
+
 type ControlParameters struct {
 	//+field:struct:ControlArgs
 	Val *ControlArgs `tlv:"0x68"`
 }
 
 type ControlResponse struct {
-	//+field:struct:ControlArgs
-	Val *ControlArgs `tlv:"0x65"`
+	//+field:struct:ControlResponseVal
+	Val *ControlResponseVal `tlv:"0x65"`
 }
 
 type FaceEventNotificationValue struct {

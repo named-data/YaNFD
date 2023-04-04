@@ -451,15 +451,12 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 					if err != nil {
 						ch <- err
 					} else {
-						if ret.Val != nil && ret.Val.StatusCode != nil {
-							if *ret.Val.StatusCode == 200 {
+						if ret.Val != nil {
+							if ret.Val.StatusCode == 200 {
 								ch <- nil
 							} else {
-								errText := ""
-								if ret.Val.StatusText != nil {
-									errText = *ret.Val.StatusText
-								}
-								ch <- fmt.Errorf("registration failed due to error %d: %s", *ret.Val.StatusCode, errText)
+								errText := ret.Val.StatusText
+								ch <- fmt.Errorf("registration failed due to error %d: %s", ret.Val.StatusCode, errText)
 							}
 						} else {
 							ch <- fmt.Errorf("improper response")

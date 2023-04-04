@@ -36,6 +36,7 @@ func (Timer) Now() time.Time {
 }
 
 func (Timer) Nonce() []byte {
+	// After go1.20 rand.Seed does not need to be called manually.
 	buf := make([]byte, 8)
 	n, _ := rand.Read(buf) // Should always succeed
 	return buf[:n]

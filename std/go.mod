@@ -1,6 +1,6 @@
 module github.com/zjkmxy/go-ndn
 
-go 1.19
+go 1.20
 
 require (
 	github.com/apex/log v1.9.0

@@ -229,7 +229,6 @@ type ControlArgsParsingContext struct {
 }
 
 func (encoder *ControlArgsEncoder) Init(value *ControlArgs) {
-
 	if value.Name != nil {
 		encoder.Name_length = 0
 		for _, c := range value.Name {
@@ -242,35 +241,6 @@ func (encoder *ControlArgsEncoder) Init(value *ControlArgs) {
 	}
 
 	l := uint(0)
-	if value.StatusCode != nil {
-		l += 1
-		switch x := *value.StatusCode; {
-		case x <= 0xff:
-			l += 2
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-	}
-
-	if value.StatusText != nil {
-		l += 1
-		switch x := len(*value.StatusText); {
-		case x <= 0xfc:
-			l += 1
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-		l += uint(len(*value.StatusText))
-	}
-
 	if value.Name != nil {
 		l += 1
 		switch x := encoder.Name_length; {
@@ -512,53 +482,6 @@ func (context *ControlArgsParsingContext) Init() {
 func (encoder *ControlArgsEncoder) EncodeInto(value *ControlArgs, buf []byte) {
 
 	pos := uint(0)
-	if value.StatusCode != nil {
-		buf[pos] = byte(102)
-		pos += 1
-		switch x := *value.StatusCode; {
-		case x <= 0xff:
-			buf[pos] = 1
-			buf[pos+1] = byte(x)
-			pos += 2
-		case x <= 0xffff:
-			buf[pos] = 2
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 4
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 8
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-	}
-
-	if value.StatusText != nil {
-		buf[pos] = byte(103)
-		pos += 1
-		switch x := len(*value.StatusText); {
-		case x <= 0xfc:
-			buf[pos] = byte(x)
-			pos += 1
-		case x <= 0xffff:
-			buf[pos] = 0xfd
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 0xfe
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 0xff
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-		copy(buf[pos:], *value.StatusText)
-		pos += uint(len(*value.StatusText))
-	}
-
 	if value.Name != nil {
 		buf[pos] = byte(7)
 		pos += 1
@@ -679,7 +602,7 @@ func (encoder *ControlArgsEncoder) EncodeInto(value *ControlArgs, buf []byte) {
 	}
 
 	if value.Cost != nil {
-		buf[pos] = byte(97)
+		buf[pos] = byte(106)
 		pos += 1
 		switch x := *value.Cost; {
 		case x <= 0xff:
@@ -972,44 +895,8 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 		err = nil
 		for handled := false; !handled; progress++ {
 			switch typ {
-			case 102:
-				if progress+1 == 0 {
-					handled = true
-					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
-						{
-							for i := 0; i < int(l); i++ {
-								x := byte(0)
-								x, err = reader.ReadByte()
-								if err != nil {
-									if err == io.EOF {
-										err = io.ErrUnexpectedEOF
-									}
-									break
-								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
-							}
-						}
-						value.StatusCode = &tempVal
-					}
-
-				}
-			case 103:
-				if progress+1 == 1 {
-					handled = true
-					{
-						var builder strings.Builder
-						_, err = io.CopyN(&builder, reader, int64(l))
-						if err == nil {
-							tempStr := builder.String()
-							value.StatusText = &tempStr
-						}
-					}
-
-				}
 			case 7:
-				if progress+1 == 2 {
+				if progress+1 == 0 {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -1034,7 +921,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 105:
-				if progress+1 == 3 {
+				if progress+1 == 1 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1057,7 +944,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 114:
-				if progress+1 == 4 {
+				if progress+1 == 2 {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1070,7 +957,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 129:
-				if progress+1 == 5 {
+				if progress+1 == 3 {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1083,7 +970,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 111:
-				if progress+1 == 6 {
+				if progress+1 == 4 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1105,8 +992,8 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 					}
 
 				}
-			case 97:
-				if progress+1 == 7 {
+			case 106:
+				if progress+1 == 5 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1129,7 +1016,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 131:
-				if progress+1 == 8 {
+				if progress+1 == 6 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1152,7 +1039,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 132:
-				if progress+1 == 9 {
+				if progress+1 == 7 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1175,7 +1062,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 135:
-				if progress+1 == 10 {
+				if progress+1 == 8 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1198,7 +1085,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 136:
-				if progress+1 == 11 {
+				if progress+1 == 9 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1221,7 +1108,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 137:
-				if progress+1 == 12 {
+				if progress+1 == 10 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1244,7 +1131,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 108:
-				if progress+1 == 13 {
+				if progress+1 == 11 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1267,7 +1154,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 112:
-				if progress+1 == 14 {
+				if progress+1 == 12 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1290,12 +1177,12 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 107:
-				if progress+1 == 15 {
+				if progress+1 == 13 {
 					handled = true
 					value.Strategy, err = context.Strategy_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 109:
-				if progress+1 == 16 {
+				if progress+1 == 14 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1318,7 +1205,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 133:
-				if progress+1 == 17 {
+				if progress+1 == 15 {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1350,40 +1237,36 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			if err == nil && !handled {
 				switch progress {
 				case 0 - 1:
-					value.StatusCode = nil
-				case 1 - 1:
-					value.StatusText = nil
-				case 2 - 1:
 					value.Name = nil
-				case 3 - 1:
+				case 1 - 1:
 					value.FaceId = nil
-				case 4 - 1:
+				case 2 - 1:
 					value.Uri = nil
-				case 5 - 1:
+				case 3 - 1:
 					value.LocalUri = nil
-				case 6 - 1:
+				case 4 - 1:
 					value.Origin = nil
-				case 7 - 1:
+				case 5 - 1:
 					value.Cost = nil
-				case 8 - 1:
+				case 6 - 1:
 					value.Capacity = nil
-				case 9 - 1:
+				case 7 - 1:
 					value.Count = nil
-				case 10 - 1:
+				case 8 - 1:
 					value.BaseCongestionMarkInterval = nil
-				case 11 - 1:
+				case 9 - 1:
 					value.DefaultCongestionThreshold = nil
-				case 12 - 1:
+				case 10 - 1:
 					value.Mtu = nil
-				case 13 - 1:
+				case 11 - 1:
 					value.Flags = nil
-				case 14 - 1:
+				case 12 - 1:
 					value.Mask = nil
-				case 15 - 1:
+				case 13 - 1:
 					value.Strategy = nil
-				case 16 - 1:
+				case 14 - 1:
 					value.ExpirationPeriod = nil
-				case 17 - 1:
+				case 15 - 1:
 					value.FacePersistency = nil
 				}
 			}
@@ -1393,43 +1276,39 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 		}
 	}
 	startPos = reader.Pos()
-	for ; progress < 18; progress++ {
+	for ; progress < 16; progress++ {
 		switch progress {
 		case 0 - 1:
-			value.StatusCode = nil
-		case 1 - 1:
-			value.StatusText = nil
-		case 2 - 1:
 			value.Name = nil
-		case 3 - 1:
+		case 1 - 1:
 			value.FaceId = nil
-		case 4 - 1:
+		case 2 - 1:
 			value.Uri = nil
-		case 5 - 1:
+		case 3 - 1:
 			value.LocalUri = nil
-		case 6 - 1:
+		case 4 - 1:
 			value.Origin = nil
-		case 7 - 1:
+		case 5 - 1:
 			value.Cost = nil
-		case 8 - 1:
+		case 6 - 1:
 			value.Capacity = nil
-		case 9 - 1:
+		case 7 - 1:
 			value.Count = nil
-		case 10 - 1:
+		case 8 - 1:
 			value.BaseCongestionMarkInterval = nil
-		case 11 - 1:
+		case 9 - 1:
 			value.DefaultCongestionThreshold = nil
-		case 12 - 1:
+		case 10 - 1:
 			value.Mtu = nil
-		case 13 - 1:
+		case 11 - 1:
 			value.Flags = nil
-		case 14 - 1:
+		case 12 - 1:
 			value.Mask = nil
-		case 15 - 1:
+		case 13 - 1:
 			value.Strategy = nil
-		case 16 - 1:
+		case 14 - 1:
 			value.ExpirationPeriod = nil
-		case 17 - 1:
+		case 15 - 1:
 			value.FacePersistency = nil
 		}
 	}
@@ -1457,14 +1336,6 @@ func ParseControlArgs(reader enc.ParseReader, ignoreCritical bool) (*ControlArgs
 
 func (value *ControlArgs) ToDict() map[string]any {
 	dict := map[string]any{}
-	if value.StatusCode != nil {
-		dict["StatusCode"] = *value.StatusCode
-	}
-
-	if value.StatusText != nil {
-		dict["StatusText"] = *value.StatusText
-	}
-
 	if value.Name != nil {
 		dict["Name"] = value.Name
 	}
@@ -1535,32 +1406,6 @@ func (value *ControlArgs) ToDict() map[string]any {
 func DictToControlArgs(dict map[string]any) (*ControlArgs, error) {
 	value := &ControlArgs{}
 	var err error = nil
-	if vv, ok := dict["StatusCode"]; ok {
-		if v, ok := vv.(uint64); ok {
-			value.StatusCode = &v
-		} else {
-			err = enc.ErrIncompatibleType{Name: "StatusCode", TypeNum: 102, ValType: "uint64", Value: vv}
-		}
-	} else {
-		value.StatusCode = nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	if vv, ok := dict["StatusText"]; ok {
-		if v, ok := vv.(string); ok {
-			value.StatusText = &v
-		} else {
-			err = enc.ErrIncompatibleType{Name: "StatusText", TypeNum: 103, ValType: "string", Value: vv}
-		}
-	} else {
-		value.StatusText = nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
 	if vv, ok := dict["Name"]; ok {
 		if v, ok := vv.(enc.Name); ok {
 			value.Name = v
@@ -1630,7 +1475,7 @@ func DictToControlArgs(dict map[string]any) (*ControlArgs, error) {
 		if v, ok := vv.(uint64); ok {
 			value.Cost = &v
 		} else {
-			err = enc.ErrIncompatibleType{Name: "Cost", TypeNum: 97, ValType: "uint64", Value: vv}
+			err = enc.ErrIncompatibleType{Name: "Cost", TypeNum: 106, ValType: "uint64", Value: vv}
 		}
 	} else {
 		value.Cost = nil
@@ -1764,6 +1609,329 @@ func DictToControlArgs(dict map[string]any) (*ControlArgs, error) {
 		}
 	} else {
 		value.FacePersistency = nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+type ControlResponseValEncoder struct {
+	length uint
+
+	Params_encoder ControlArgsEncoder
+}
+
+type ControlResponseValParsingContext struct {
+	Params_context ControlArgsParsingContext
+}
+
+func (encoder *ControlResponseValEncoder) Init(value *ControlResponseVal) {
+
+	if value.Params != nil {
+		encoder.Params_encoder.Init(value.Params)
+	}
+	l := uint(0)
+	l += 1
+	switch x := value.StatusCode; {
+	case x <= 0xff:
+		l += 2
+	case x <= 0xffff:
+		l += 3
+	case x <= 0xffffffff:
+		l += 5
+	default:
+		l += 9
+	}
+
+	l += 1
+	switch x := len(value.StatusText); {
+	case x <= 0xfc:
+		l += 1
+	case x <= 0xffff:
+		l += 3
+	case x <= 0xffffffff:
+		l += 5
+	default:
+		l += 9
+	}
+	l += uint(len(value.StatusText))
+
+	if value.Params != nil {
+		l += 1
+		switch x := encoder.Params_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.Params_encoder.length
+	}
+
+	encoder.length = l
+
+}
+
+func (context *ControlResponseValParsingContext) Init() {
+
+	context.Params_context.Init()
+}
+
+func (encoder *ControlResponseValEncoder) EncodeInto(value *ControlResponseVal, buf []byte) {
+
+	pos := uint(0)
+	buf[pos] = byte(102)
+	pos += 1
+	switch x := value.StatusCode; {
+	case x <= 0xff:
+		buf[pos] = 1
+		buf[pos+1] = byte(x)
+		pos += 2
+	case x <= 0xffff:
+		buf[pos] = 2
+		binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+		pos += 3
+	case x <= 0xffffffff:
+		buf[pos] = 4
+		binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+		pos += 5
+	default:
+		buf[pos] = 8
+		binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+		pos += 9
+	}
+
+	buf[pos] = byte(103)
+	pos += 1
+	switch x := len(value.StatusText); {
+	case x <= 0xfc:
+		buf[pos] = byte(x)
+		pos += 1
+	case x <= 0xffff:
+		buf[pos] = 0xfd
+		binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+		pos += 3
+	case x <= 0xffffffff:
+		buf[pos] = 0xfe
+		binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+		pos += 5
+	default:
+		buf[pos] = 0xff
+		binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+		pos += 9
+	}
+	copy(buf[pos:], value.StatusText)
+	pos += uint(len(value.StatusText))
+
+	if value.Params != nil {
+		buf[pos] = byte(104)
+		pos += 1
+		switch x := encoder.Params_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.Params_encoder.length > 0 {
+			encoder.Params_encoder.EncodeInto(value.Params, buf[pos:])
+			pos += encoder.Params_encoder.length
+		}
+	}
+
+}
+
+func (encoder *ControlResponseValEncoder) Encode(value *ControlResponseVal) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
+	return wire
+}
+
+func (context *ControlResponseValParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*ControlResponseVal, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &ControlResponseVal{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 102:
+				if progress+1 == 0 {
+					handled = true
+					value.StatusCode = uint64(0)
+					{
+						for i := 0; i < int(l); i++ {
+							x := byte(0)
+							x, err = reader.ReadByte()
+							if err != nil {
+								if err == io.EOF {
+									err = io.ErrUnexpectedEOF
+								}
+								break
+							}
+							value.StatusCode = uint64(value.StatusCode<<8) | uint64(x)
+						}
+					}
+				}
+			case 103:
+				if progress+1 == 1 {
+					handled = true
+					{
+						var builder strings.Builder
+						_, err = io.CopyN(&builder, reader, int64(l))
+						if err == nil {
+							value.StatusText = builder.String()
+						}
+					}
+
+				}
+			case 104:
+				if progress+1 == 2 {
+					handled = true
+					value.Params, err = context.Params_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+					err = enc.ErrSkipRequired{Name: "StatusCode", TypeNum: 102}
+				case 1 - 1:
+					err = enc.ErrSkipRequired{Name: "StatusText", TypeNum: 103}
+				case 2 - 1:
+					value.Params = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 3; progress++ {
+		switch progress {
+		case 0 - 1:
+			err = enc.ErrSkipRequired{Name: "StatusCode", TypeNum: 102}
+		case 1 - 1:
+			err = enc.ErrSkipRequired{Name: "StatusText", TypeNum: 103}
+		case 2 - 1:
+			value.Params = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (value *ControlResponseVal) Encode() enc.Wire {
+	encoder := ControlResponseValEncoder{}
+	encoder.Init(value)
+	return encoder.Encode(value)
+}
+
+func (value *ControlResponseVal) Bytes() []byte {
+	return value.Encode().Join()
+}
+
+func ParseControlResponseVal(reader enc.ParseReader, ignoreCritical bool) (*ControlResponseVal, error) {
+	context := ControlResponseValParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
+func (value *ControlResponseVal) ToDict() map[string]any {
+	dict := map[string]any{}
+	dict["StatusCode"] = value.StatusCode
+
+	dict["StatusText"] = value.StatusText
+
+	if value.Params != nil {
+		dict["Params"] = value.Params.ToDict()
+	}
+
+	return dict
+}
+
+func DictToControlResponseVal(dict map[string]any) (*ControlResponseVal, error) {
+	value := &ControlResponseVal{}
+	var err error = nil
+	if vv, ok := dict["StatusCode"]; ok {
+		if v, ok := vv.(uint64); ok {
+			value.StatusCode = v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "StatusCode", TypeNum: 102, ValType: "uint64", Value: vv}
+		}
+	} else {
+		err = enc.ErrSkipRequired{Name: "StatusCode", TypeNum: 102}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	if vv, ok := dict["StatusText"]; ok {
+		if v, ok := vv.(string); ok {
+			value.StatusText = v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "StatusText", TypeNum: 103, ValType: "string", Value: vv}
+		}
+	} else {
+		err = enc.ErrSkipRequired{Name: "StatusText", TypeNum: 103}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	if vv, ok := dict["Params"]; ok {
+		if v, ok := vv.(*ControlArgs); ok {
+			value.Params = v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "Params", TypeNum: 104, ValType: "*ControlArgs", Value: vv}
+		}
+	} else {
+		value.Params = nil
 	}
 
 	if err != nil {
@@ -1932,11 +2100,11 @@ func ParseControlParameters(reader enc.ParseReader, ignoreCritical bool) (*Contr
 type ControlResponseEncoder struct {
 	length uint
 
-	Val_encoder ControlArgsEncoder
+	Val_encoder ControlResponseValEncoder
 }
 
 type ControlResponseParsingContext struct {
-	Val_context ControlArgsParsingContext
+	Val_context ControlResponseValParsingContext
 }
 
 func (encoder *ControlResponseEncoder) Init(value *ControlResponse) {
