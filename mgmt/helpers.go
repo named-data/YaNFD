@@ -38,13 +38,17 @@ func makeControlResponse(statusCode uint64, statusText string, args map[string]a
 	if args == nil {
 		args = map[string]any{}
 	}
-	args["StatusCode"] = statusCode
-	args["StatusText"] = statusText
 	ret, err := mgmt.DictToControlArgs(args)
 	if err != nil {
 		return nil
 	} else {
-		return &mgmt.ControlResponse{ret}
+		return &mgmt.ControlResponse{
+			Val: &mgmt.ControlResponseVal{
+				StatusCode: statusCode,
+				StatusText: statusText,
+				Params:     ret,
+			},
+		}
 	}
 }
 
