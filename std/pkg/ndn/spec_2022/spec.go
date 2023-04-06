@@ -267,9 +267,9 @@ func (_ Spec) MakeData(
 		}
 		if sigConfig != nil && sigConfig.Type != ndn.SignatureNone {
 			estSigLen = int(signer.EstimateSize())
-			if estSigLen >= 253 {
-				return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
-			}
+			// if estSigLen >= 253 {
+			// 	return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+			// }
 			if sigConfig.Nonce != nil {
 				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureNonce"}
 			}
@@ -314,9 +314,9 @@ func (_ Spec) MakeData(
 			SignatureValue_estLen: uint(estSigLen),
 		},
 	}
-	if encoder.Data_encoder.SignatureValue_estLen >= 253 {
-		return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
-	}
+	// if encoder.Data_encoder.SignatureValue_estLen >= 253 {
+	// 	return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+	// }
 	encoder.Init(packet)
 	wire := encoder.Encode(packet)
 	if wire == nil {
@@ -339,6 +339,7 @@ func (_ Spec) MakeData(
 		// Fix SignatureValue length
 		buf := wire[encoder.Data_encoder.SignatureValue_wireIdx-1]
 		buf[len(buf)-1] = byte(len(sigVal))
+		// TODO: This needs to be fixed for estSigLen >= 253 (urgent)
 		// Fix packet length
 		shrink := estSigLen - len(sigVal)
 		wire[0] = enc.ShrinkLength(wire[0], shrink)

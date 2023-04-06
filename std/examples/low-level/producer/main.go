@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -12,10 +13,12 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
+	sec_pib "github.com/zjkmxy/go-ndn/pkg/security/pib"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 var app *basic_engine.Engine
+var pib *sec_pib.SqlitePib
 
 func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
@@ -26,6 +29,12 @@ func onInterest(
 ) {
 	fmt.Printf(">> I: %s\n", interest.Name().String())
 	content := []byte("Hello, world!")
+
+	idName, _ := enc.NameFromStr("/test")
+	identity := pib.GetIdentity(idName)
+	cert := identity.FindCert(func(_ sec_pib.Cert) bool { return true })
+	signer := cert.AsSigner()
+
 	wire, _, err := app.Spec().MakeData(
 		interest.Name(),
 		&ndn.DataConfig{
@@ -33,7 +42,7 @@ func onInterest(
 			Freshness:   utils.IdPtr(10 * time.Second),
 		},
 		enc.Wire{content},
-		sec.NewSha256Signer())
+		signer)
 	if err != nil {
 		log.WithField("module", "main").Errorf("unable to encode data: %+v", err)
 		return
@@ -44,7 +53,7 @@ func onInterest(
 		return
 	}
 	fmt.Printf("<< D: %s\n", interest.Name().String())
-	fmt.Printf("ontent: (size: %d)\n", len(content))
+	fmt.Printf("Content: (size: %d)\n", len(content))
 	fmt.Printf("\n")
 }
 
@@ -52,6 +61,11 @@ func main() {
 	timer := basic_engine.NewTimer()
 	// face := basic_engine.NewWebSocketFace("ws", "localhost:9696", true)
 	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
+
+	homedir, _ := os.UserHomeDir()
+	tpm := sec_pib.NewFileTpm(filepath.Join(homedir, ".ndn/ndnsec-key-file"))
+	pib = sec_pib.NewSqlitePib(filepath.Join(homedir, ".ndn/pib.db"), tpm)
+
 	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	log.SetLevel(log.InfoLevel)
 	logger := log.WithField("module", "main")
