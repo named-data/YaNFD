@@ -25,6 +25,7 @@ func initFields() {
 		"struct":            NewStructField,
 		"signature":         NewSignatureField,
 		"interestName":      NewInterestNameField,
+		"map":               NewMapField,
 	}
 }
 

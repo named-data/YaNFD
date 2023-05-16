@@ -191,3 +191,50 @@ func (f *SequenceField) GenToDict() (string, error) {
 func (f *SequenceField) GenFromDict() (string, error) {
 	return "ERROR = \"Unimplemented yet!\"", nil
 }
+
+func (f *FixedUintField) GenToDict() (string, error) {
+	g := strErrBuf{}
+	if f.opt {
+		g.printlnf("if value.%s != nil {", f.name)
+		g.printlnf("\tdict[\"%s\"] = *value.%s", f.name, f.name)
+		g.printlnf("}")
+	} else {
+		g.printlnf("dict[\"%s\"] = value.%s", f.name, f.name)
+	}
+	return g.output()
+}
+
+func (f *FixedUintField) GenFromDict() (string, error) {
+	digit := ""
+	switch f.l {
+	case 1:
+		digit = "byte"
+	case 2:
+		digit = "uint16"
+	case 4:
+		digit = "uint32"
+	case 8:
+		digit = "uint64"
+	}
+
+	g := strErrBuf{}
+	g.printlnf("if vv, ok := dict[\"%s\"]; ok {", f.name)
+	g.printlnf("\tif v, ok := vv.(%s); ok {", digit)
+	if f.opt {
+		g.printlnf("\t\tvalue.%s = &v", f.name)
+	} else {
+		g.printlnf("\t\tvalue.%s = v", f.name)
+	}
+	g.printlnf("\t} else {")
+	g.printlnf("\t\terr = enc.ErrIncompatibleType{Name: \"%s\", TypeNum: %d, ValType: \"%s\", Value: vv}",
+		f.name, f.typeNum, digit)
+	g.printlnf("\t}")
+	g.printlnf("} else {")
+	if f.opt {
+		g.printlnf("\tvalue.%s = nil", f.name)
+	} else {
+		g.printlnf("err = enc.ErrSkipRequired{Name: \"%s\", TypeNum: %d}", f.name, f.typeNum)
+	}
+	g.printlnf("}")
+	return g.output()
+}
