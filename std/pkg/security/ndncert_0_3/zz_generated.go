@@ -2449,9 +2449,9 @@ func (encoder *ChallengeDataPlainEncoder) Init(value *ChallengeDataPlain) {
 
 	if value.ChalStatus != nil {
 		l += 1
-		switch x := *value.ChalStatus; {
-		case x <= 0xff:
-			l += 2
+		switch x := len(*value.ChalStatus); {
+		case x <= 0xfc:
+			l += 1
 		case x <= 0xffff:
 			l += 3
 		case x <= 0xffffffff:
@@ -2459,6 +2459,7 @@ func (encoder *ChallengeDataPlainEncoder) Init(value *ChallengeDataPlain) {
 		default:
 			l += 9
 		}
+		l += uint(len(*value.ChalStatus))
 	}
 
 	if value.RemainTries != nil {
@@ -2601,24 +2602,25 @@ func (encoder *ChallengeDataPlainEncoder) EncodeInto(value *ChallengeDataPlain, 
 	if value.ChalStatus != nil {
 		buf[pos] = byte(163)
 		pos += 1
-		switch x := *value.ChalStatus; {
-		case x <= 0xff:
-			buf[pos] = 1
-			buf[pos+1] = byte(x)
-			pos += 2
+		switch x := len(*value.ChalStatus); {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
 		case x <= 0xffff:
-			buf[pos] = 2
+			buf[pos] = 0xfd
 			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
 			pos += 3
 		case x <= 0xffffffff:
-			buf[pos] = 4
+			buf[pos] = 0xfe
 			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
 			pos += 5
 		default:
-			buf[pos] = 8
+			buf[pos] = 0xff
 			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
 			pos += 9
 		}
+		copy(buf[pos:], *value.ChalStatus)
+		pos += uint(len(*value.ChalStatus))
 	}
 
 	if value.RemainTries != nil {
@@ -2842,22 +2844,12 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 				if progress+1 == 1 {
 					handled = true
 					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
-						{
-							for i := 0; i < int(l); i++ {
-								x := byte(0)
-								x, err = reader.ReadByte()
-								if err != nil {
-									if err == io.EOF {
-										err = io.ErrUnexpectedEOF
-									}
-									break
-								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
-							}
+						var builder strings.Builder
+						_, err = io.CopyN(&builder, reader, int64(l))
+						if err == nil {
+							tempStr := builder.String()
+							value.ChalStatus = &tempStr
 						}
-						value.ChalStatus = &tempVal
 					}
 
 				}

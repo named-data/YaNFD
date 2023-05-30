@@ -1708,6 +1708,258 @@ func ParseCmdNewData(reader enc.ParseReader, ignoreCritical bool) (*CmdNewData, 
 	return context.Parse(reader, ignoreCritical)
 }
 
+type CipherMsgEncoder struct {
+	length uint
+}
+
+type CipherMsgParsingContext struct {
+}
+
+func (encoder *CipherMsgEncoder) Init(value *CipherMsg) {
+
+	l := uint(0)
+	if value.InitVec != nil {
+		l += 1
+		switch x := len(value.InitVec); {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += uint(len(value.InitVec))
+	}
+
+	if value.AuthNTag != nil {
+		l += 1
+		switch x := len(value.AuthNTag); {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += uint(len(value.AuthNTag))
+	}
+
+	if value.Payload != nil {
+		l += 1
+		switch x := len(value.Payload); {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += uint(len(value.Payload))
+	}
+
+	encoder.length = l
+
+}
+
+func (context *CipherMsgParsingContext) Init() {
+
+}
+
+func (encoder *CipherMsgEncoder) EncodeInto(value *CipherMsg, buf []byte) {
+
+	pos := uint(0)
+	if value.InitVec != nil {
+		buf[pos] = byte(157)
+		pos += 1
+		switch x := len(value.InitVec); {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		copy(buf[pos:], value.InitVec)
+		pos += uint(len(value.InitVec))
+	}
+
+	if value.AuthNTag != nil {
+		buf[pos] = byte(175)
+		pos += 1
+		switch x := len(value.AuthNTag); {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		copy(buf[pos:], value.AuthNTag)
+		pos += uint(len(value.AuthNTag))
+	}
+
+	if value.Payload != nil {
+		buf[pos] = byte(159)
+		pos += 1
+		switch x := len(value.Payload); {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		copy(buf[pos:], value.Payload)
+		pos += uint(len(value.Payload))
+	}
+
+}
+
+func (encoder *CipherMsgEncoder) Encode(value *CipherMsg) enc.Wire {
+
+	wire := make(enc.Wire, 1)
+	wire[0] = make([]byte, encoder.length)
+	buf := wire[0]
+	encoder.EncodeInto(value, buf)
+
+	return wire
+}
+
+func (context *CipherMsgParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*CipherMsg, error) {
+	if reader == nil {
+		return nil, enc.ErrBufferOverflow
+	}
+	progress := -1
+	value := &CipherMsg{}
+	var err error
+	var startPos int
+	for {
+		startPos = reader.Pos()
+		if startPos >= reader.Length() {
+			break
+		}
+		typ := enc.TLNum(0)
+		l := enc.TLNum(0)
+		typ, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		l, err = enc.ReadTLNum(reader)
+		if err != nil {
+			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
+		}
+		err = nil
+		for handled := false; !handled; progress++ {
+			switch typ {
+			case 157:
+				if progress+1 == 0 {
+					handled = true
+					value.InitVec = make([]byte, l)
+					_, err = io.ReadFull(reader, value.InitVec)
+
+				}
+			case 175:
+				if progress+1 == 1 {
+					handled = true
+					value.AuthNTag = make([]byte, l)
+					_, err = io.ReadFull(reader, value.AuthNTag)
+
+				}
+			case 159:
+				if progress+1 == 2 {
+					handled = true
+					value.Payload = make([]byte, l)
+					_, err = io.ReadFull(reader, value.Payload)
+
+				}
+			default:
+				handled = true
+				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
+					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
+				}
+				err = reader.Skip(int(l))
+			}
+			if err == nil && !handled {
+				switch progress {
+				case 0 - 1:
+					value.InitVec = nil
+				case 1 - 1:
+					value.AuthNTag = nil
+				case 2 - 1:
+					value.Payload = nil
+				}
+			}
+			if err != nil {
+				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
+			}
+		}
+	}
+	startPos = reader.Pos()
+	for ; progress < 3; progress++ {
+		switch progress {
+		case 0 - 1:
+			value.InitVec = nil
+		case 1 - 1:
+			value.AuthNTag = nil
+		case 2 - 1:
+			value.Payload = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (value *CipherMsg) Encode() enc.Wire {
+	encoder := CipherMsgEncoder{}
+	encoder.Init(value)
+	return encoder.Encode(value)
+}
+
+func (value *CipherMsg) Bytes() []byte {
+	return value.Encode().Join()
+}
+
+func ParseCipherMsg(reader enc.ParseReader, ignoreCritical bool) (*CipherMsg, error) {
+	context := CipherMsgParsingContext{}
+	context.Init()
+	return context.Parse(reader, ignoreCritical)
+}
+
 type ChallengeIntPlainEncoder struct {
 	length uint
 

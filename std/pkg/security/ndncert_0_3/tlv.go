@@ -72,8 +72,8 @@ type ChallengeIntPlain struct {
 type ChallengeDataPlain struct {
 	//+field:natural
 	Status uint64 `tlv:"0x9B"`
-	//+field:natural:optional
-	ChalStatus *uint64 `tlv:"0xA3"`
+	//+field:string:optional
+	ChalStatus *string `tlv:"0xA3"`
 	//+field:natural:optional
 	RemainTries *uint64 `tlv:"0xA5"`
 	//+field:natural:optional
