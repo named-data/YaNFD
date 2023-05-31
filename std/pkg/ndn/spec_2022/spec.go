@@ -496,7 +496,7 @@ func (_ Spec) MakeInterest(
 		// Set the digest of final name
 		finalName[len(finalName)-1].Val = digestBuf
 		// Due to no copy, digest coveres AppParam type(1B) + len + wire[1:]
-		appParamLen := enc.TLNum(len(appParam)).EncodingLength()
+		appParamLen := enc.TLNum(appParam.Length()).EncodingLength()
 		digestCovered := wire[1:]
 		// Compute sha256 hash
 		h := sha256.New()

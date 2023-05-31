@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 	"github.com/zjkmxy/go-ndn/pkg/security"
@@ -307,6 +308,30 @@ func TestMakeIntBasic(t *testing.T) {
 			"\x07\r\x08\x0bshekkuenseu"+
 			"\x0a\x04\x01\x02\x03\x04\x0c\x02\x0f\xa0"),
 		wire.Join())
+}
+
+func TestMakeIntLargeAppParam(t *testing.T) {
+	utils.SetTestingT(t)
+	spec := spec_2022.Spec{}
+
+	appParam := make([]byte, 384)
+	for i := range appParam {
+		appParam[i] = byte(i & 0xff)
+	}
+	wire, _, finalName, err := spec.MakeInterest(
+		utils.WithoutErr(enc.NameFromStr("/interest/with/large/prefix")),
+		&ndn.InterestConfig{
+			Lifetime: utils.IdPtr(4 * time.Second),
+		},
+		enc.Wire{appParam},
+		security.NewHmacIntSigner([]byte("temp-hmac-key"), basic_engine.NewTimer()),
+	)
+	require.NoError(t, err)
+
+	interest, _, err := spec.ReadInterest(enc.NewWireReader(wire))
+	require.NoError(t, err)
+	require.Equal(t, appParam, interest.AppParam().Join())
+	require.True(t, interest.Name().Equal(finalName))
 }
 
 func TestMakeIntSign(t *testing.T) {
