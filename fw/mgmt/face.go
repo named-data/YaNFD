@@ -560,13 +560,13 @@ func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint6
 	}
 	// We have to sort these or they appear in a strange order
 	sort.Slice(faceIDs, func(a int, b int) bool { return faceIDs[a] < faceIDs[b] })
-	dataset := enc.Wire{}
-	for _, faceID := range faceIDs {
-		dataset = append(dataset, f.createDataset(faces[faceID])...)
+	dataset := &mgmt.FaceStatusMsg{}
+	for _, pos := range faceIDs {
+		dataset.Vals = append(dataset.Vals, f.createDataset(faces[pos]))
 	}
 
 	name, _ := enc.NameFromStr(f.manager.localPrefix.String() + "/faces/list")
-	segments := makeStatusDataset(name, f.nextFaceDatasetVersion, dataset)
+	segments := makeStatusDataset(name, f.nextFaceDatasetVersion, dataset.Encode())
 	f.manager.transport.Send(segments, pitToken, nil)
 
 	core.LogTrace(f, "Published face dataset version=", f.nextFaceDatasetVersion,
@@ -625,12 +625,12 @@ func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, inFace uint
 	// We have to sort these or they appear in a strange order
 	//sort.Slice(matchingFaces, func(a int, b int) bool { return matchingFaces[a] < matchingFaces[b] })
 
-	dataset := enc.Wire{}
+	dataset := &mgmt.FaceStatusMsg{}
 	for _, pos := range matchingFaces {
-		dataset = append(dataset, f.createDataset(faces[pos])...)
+		dataset.Vals = append(dataset.Vals, f.createDataset(faces[pos]))
 	}
 
-	segments := makeStatusDataset(interest.Name(), f.nextFaceDatasetVersion, dataset)
+	segments := makeStatusDataset(interest.Name(), f.nextFaceDatasetVersion, dataset.Encode())
 	f.manager.transport.Send(segments, pitToken, nil)
 
 	core.LogTrace(f, "Published face query dataset version=", f.nextFaceDatasetVersion,
@@ -638,7 +638,7 @@ func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, inFace uint
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) createDataset(selectedFace face.LinkService) enc.Wire {
+func (f *FaceModule) createDataset(selectedFace face.LinkService) *mgmt.FaceStatus {
 	faceDataset := &mgmt.FaceStatus{
 		FaceId:          selectedFace.FaceID(),
 		Uri:             selectedFace.RemoteURI().String(),
@@ -678,7 +678,7 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) enc.Wire {
 		}
 	}
 
-	return faceDataset.Encode()
+	return faceDataset
 }
 
 // func (f *FaceModule) channels(interest *spec.Interest, pitToken []byte, inFace uint64) {
