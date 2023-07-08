@@ -232,7 +232,7 @@ func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 
 	// Generate new dataset
 	entries := table.Rib.GetAllEntries()
-	dataset := enc.Wire{}
+	dataset := &mgmt.RibStatus{}
 	for _, entry := range entries {
 		ribEntry := &mgmt.RibEntry{
 			Name:   entry.Name,
@@ -248,12 +248,11 @@ func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 			}
 		}
 
-		wire := ribEntry.Encode()
-		dataset = append(dataset, wire...)
+		dataset.Entries = append(dataset.Entries, ribEntry)
 	}
 
 	name, _ := enc.NameFromStr(interest.NameV[:r.manager.prefixLength()].String() + "/rib/list")
-	segments := makeStatusDataset(name, r.nextRIBDatasetVersion, dataset)
+	segments := makeStatusDataset(name, r.nextRIBDatasetVersion, dataset.Encode())
 	r.manager.transport.Send(segments, pitToken, nil)
 	core.LogTrace(r, "Published RIB dataset version=", r.nextRIBDatasetVersion,
 		", containing ", len(segments), " segments")

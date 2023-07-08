@@ -158,7 +158,7 @@ func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 	// Generate new dataset
 	// TODO: For thread safety, we should lock the FIB from writes until we are done
 	entries := table.FibStrategyTable.GetAllFIBEntries()
-	dataset := enc.Wire{}
+	dataset := &mgmt.FibStatus{}
 	for _, fsEntry := range entries {
 		nextHops := fsEntry.GetNextHops()
 		fibEntry := &mgmt.FibEntry{
@@ -172,12 +172,11 @@ func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 			}
 		}
 
-		wire := fibEntry.Encode()
-		dataset = append(dataset, wire...)
+		dataset.Entries = append(dataset.Entries, fibEntry)
 	}
 
 	name, _ := enc.NameFromStr(f.manager.localPrefix.String() + "/fib/list")
-	segments := makeStatusDataset(name, f.nextFIBDatasetVersion, dataset)
+	segments := makeStatusDataset(name, f.nextFIBDatasetVersion, dataset.Encode())
 	f.manager.transport.Send(segments, pitToken, nil)
 
 	core.LogTrace(f, "Published FIB dataset version=", f.nextFIBDatasetVersion,
