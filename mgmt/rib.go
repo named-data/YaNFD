@@ -239,6 +239,7 @@ func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64
 			Routes: make([]*mgmt.Route, len(entry.GetRoutes())),
 		}
 		for i, route := range entry.GetRoutes() {
+			ribEntry.Routes[i] = &mgmt.Route{}
 			ribEntry.Routes[i].FaceId = route.FaceID
 			ribEntry.Routes[i].Origin = route.Origin
 			ribEntry.Routes[i].Cost = route.Cost
