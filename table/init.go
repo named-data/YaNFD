@@ -80,6 +80,11 @@ func SetCsCapacity(capacity int) {
 	csCapacity = capacity
 }
 
+// CsCapacity returns the CS capacity
+func CsCapacity() int {
+	return csCapacity
+}
+
 func CreateFIBTable(fibTableAlgorithm string) {
 	switch fibTableAlgorithm {
 	case "hashtable":
