@@ -316,7 +316,6 @@ type StrategyChoiceMsg struct {
 	StrategyChoices []*StrategyChoice `tlv:"0x80"`
 }
 
-// Not supported by NFD yet
 type CsInfo struct {
 	//+field:natural
 	Capacity uint64 `tlv:"0x83"`
@@ -328,6 +327,11 @@ type CsInfo struct {
 	NHits uint64 `tlv:"0x81"`
 	//+field:natural
 	NMisses uint64 `tlv:"0x82"`
+}
+
+type CsInfoMsg struct {
+	//+field:struct:CsInfo
+	CsInfo *CsInfo `tlv:"0x80"`
 }
 
 // No Tlv numbers assigned yet
