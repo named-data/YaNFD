@@ -8,10 +8,10 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/gorilla/websocket v1.5.0
 	github.com/pelletier/go-toml v1.9.5
-	github.com/stretchr/testify v1.8.2
-	github.com/zjkmxy/go-ndn v0.0.4-0.20230404043841-0f6c7b1b0a39
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	golang.org/x/sys v0.6.0
+	github.com/stretchr/testify v1.8.4
+	github.com/zjkmxy/go-ndn v0.0.6
+	golang.org/x/exp v0.0.0-20230711023510-fffb14384f22
+	golang.org/x/sys v0.10.0
 )
 
 require (

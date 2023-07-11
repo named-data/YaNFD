@@ -122,12 +122,16 @@ func (c *ContentStoreModule) info(interest *spec.Interest, pitToken []byte, inFa
 	}
 
 	// Generate new dataset
-	status := mgmt.CsInfo{
-		Flags: CsFlagEnableAdmit | CsFlagEnableServe,
+	status := mgmt.CsInfoMsg{
+		CsInfo: &mgmt.CsInfo{
+			Capacity:   uint64(table.CsCapacity()),
+			Flags:      CsFlagEnableAdmit | CsFlagEnableServe,
+			NCsEntries: 0,
+		},
 	}
 	for threadID := 0; threadID < fw.NumFwThreads; threadID++ {
 		thread := dispatch.GetFWThread(threadID)
-		status.NCsEntries += uint64(thread.GetNumCsEntries())
+		status.CsInfo.NCsEntries += uint64(thread.GetNumCsEntries())
 	}
 	// TODO fill other fields
 
