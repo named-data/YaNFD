@@ -10,8 +10,8 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.8.4
 	github.com/zjkmxy/go-ndn v0.0.6
-	golang.org/x/exp v0.0.0-20230711023510-fffb14384f22
-	golang.org/x/sys v0.10.0
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	golang.org/x/sys v0.13.0
 )
 
 require (

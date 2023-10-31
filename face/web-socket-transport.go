@@ -8,6 +8,7 @@
 package face
 
 import (
+	"net"
 	"runtime"
 	"strconv"
 
@@ -29,7 +30,14 @@ var _ transport = &WebSocketTransport{}
 func NewWebSocketTransport(localURI *ndn.URI, c *websocket.Conn) (t *WebSocketTransport) {
 	remoteURI := ndn.MakeWebSocketClientFaceURI(c.RemoteAddr())
 	t = &WebSocketTransport{c: c}
-	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+
+	scope := ndn.NonLocal
+	ip := net.ParseIP(remoteURI.PathHost())
+	if ip != nil && ip.IsLoopback() {
+		scope = ndn.Local
+	}
+
+	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, scope, ndn.PointToPoint, tlv.MaxNDNPacketSize)
 	t.changeState(ndn.Up)
 	return t
 }
