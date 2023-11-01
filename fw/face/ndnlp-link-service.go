@@ -99,6 +99,12 @@ type NDNLPLinkService struct {
 	bees                     []*WorkerBee
 	workQueue                chan *ndn.PendingPacket
 	BufferReader             enc.BufferReader
+
+	// This is to solve a concurrency problem introduced in commit a329946
+	// Low layer transports are not supposed to have sendFrame() called concurrently
+	// Search `go sendPacket(l, netPacket)` to find the line that causes this problems
+	// Ref: https://github.com/named-data/YaNFD/issues/56
+	sendFrameMutex sync.Mutex
 }
 
 type WorkerBee struct {
@@ -353,7 +359,11 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
 			break
 		}
 		// Use Join() for now
-		l.transport.sendFrame(frameWire.Join())
+		{
+			l.sendFrameMutex.Lock()
+			defer l.sendFrameMutex.Unlock()
+			l.transport.sendFrame(frameWire.Join())
+		}
 	}
 }
 func (l *NDNLPLinkService) runSend() {
@@ -404,7 +414,11 @@ func (l *NDNLPLinkService) runSend() {
 						break
 					}
 					// Use Join() for now
-					l.transport.sendFrame(frameWire.Join())
+					{
+						l.sendFrameMutex.Lock()
+						defer l.sendFrameMutex.Unlock()
+						l.transport.sendFrame(frameWire.Join())
+					}
 				}
 			}
 		case <-l.hasTransportQuit:
