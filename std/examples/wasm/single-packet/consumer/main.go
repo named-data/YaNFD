@@ -60,7 +60,7 @@ func main() {
 
 	// Setup engine
 	timer := basic_engine.NewTimer()
-	// face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
+	// face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
 	face := basic_engine.NewWasmWsFace("ws", "127.0.0.1:9696", true)
 	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	err := app.Start()
