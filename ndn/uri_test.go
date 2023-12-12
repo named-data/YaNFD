@@ -171,7 +171,7 @@ func TestUDP(t *testing.T) {
 }
 
 func TestUnix(t *testing.T) {
-	uri := ndn.MakeUnixFaceURI("/run/nfd.sock")
+	uri := ndn.MakeUnixFaceURI("/run/nfd/nfd.sock")
 	assert.True(t, uri.IsCanonical())
 	// assert.NoError(t, uri.Canonize())
 	// assert.True(t, uri.IsCanonical())

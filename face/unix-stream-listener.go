@@ -10,6 +10,7 @@ package face
 import (
 	"net"
 	"os"
+	"path"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn"
@@ -30,10 +31,11 @@ func MakeUnixStreamListener(localURI *ndn.URI) (*UnixStreamListener, error) {
 		return nil, core.ErrNotCanonical
 	}
 
-	l := new(UnixStreamListener)
-	l.localURI = localURI
-	l.nextFD = 1
-	l.HasQuit = make(chan bool, 1)
+	l := &UnixStreamListener{
+		localURI: localURI,
+		nextFD:   1,
+		HasQuit:  make(chan bool, 1),
+	}
 	return l, nil
 }
 
@@ -46,14 +48,21 @@ func (l *UnixStreamListener) Run() {
 	// Delete any existing socket
 	os.Remove(l.localURI.Path())
 
+	// Create inside folder if not existing
+	sockPath := l.localURI.Path()
+	dirPath := path.Dir(sockPath)
+	os.MkdirAll(dirPath, os.ModePerm)
+	// Note: YaNFD will not link the old path /var/run/nfd.sock
+	// Please handle consistency yourself.
+
 	// Create listener
 	var err error
-	if l.conn, err = net.Listen(l.localURI.Scheme(), l.localURI.Path()); err != nil {
+	if l.conn, err = net.Listen(l.localURI.Scheme(), sockPath); err != nil {
 		core.LogFatal(l, "Unable to start Unix stream listener: ", err)
 	}
 
 	// Set permissions to allow all local apps to communicate with us
-	if err := os.Chmod(l.localURI.Path(), 0777); err != nil {
+	if err := os.Chmod(sockPath, os.ModePerm); err != nil {
 		core.LogFatal(l, "Unable to change permissions on Unix stream listener: ", err)
 	}
 

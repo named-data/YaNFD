@@ -59,7 +59,7 @@
     enabled = true
 
     # Location of the socket file
-    socket_path = "/run/nfd.sock"
+    socket_path = "/run/nfd/nfd.sock"
 
   [faces.websocket]
 
