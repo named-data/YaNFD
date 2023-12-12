@@ -39,7 +39,7 @@ install -m 644 ./yanfd.toml /usr/local/etc/ndn
 rm ./yanfd.toml
 ```
 
-On MacOS, one also needs to change `socket_path` to `/var/run/nfd.sock` in the copied configuration file.
+On MacOS, one also needs to change `socket_path` to `/var/run/nfd/nfd.sock` in the copied configuration file.
 
 ### On Windows 10
 ```text
@@ -48,7 +48,7 @@ mkdir %APPDATA%\ndn
 move yanfd.toml %APPDATA%\ndn\
 ```
 
-One needs to change `socket_path` to `${TEMP}\\nfd.sock` in the copied configuration file.
+One needs to change `socket_path` to `${TEMP}\\nfd\\nfd.sock` in the copied configuration file.
 Also, to execute YaNFD on Windows 10, one needs to explicitly specify the configuration path:
 ```text
 yanfd.exe --config=%APPDATA%\ndn\yanfd.toml
