@@ -60,7 +60,7 @@ func onInterest(
 func main() {
 	timer := basic_engine.NewTimer()
 	// face := basic_engine.NewWebSocketFace("ws", "localhost:9696", true)
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd.sock", true)
+	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
 
 	homedir, _ := os.UserHomeDir()
 	tpm := sec_pib.NewFileTpm(filepath.Join(homedir, ".ndn/ndnsec-key-file"))
