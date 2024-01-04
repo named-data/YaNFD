@@ -67,5 +67,5 @@ func Configure() {
 	udp6MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv6", "ff02::114")
 	udpLifetime = time.Duration(core.GetConfigUint16Default("faces.udp.lifetime", 600)) * time.Second
 	tcpLifetime = time.Duration(core.GetConfigUint16Default("faces.tcp.lifetime", 600)) * time.Second
-	UnixSocketPath = os.ExpandEnv(core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd.sock"))
+	UnixSocketPath = os.ExpandEnv(core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd/nfd.sock"))
 }
