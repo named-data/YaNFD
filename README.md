@@ -5,7 +5,7 @@ It is compatible with existing NDN applications and utilizes the management tool
 
 # Prerequisites
 
-YaNFD requires [Go 1.18+](https://go.dev/doc/install), although it may be possible to use older versions of Go.
+YaNFD requires [Go 1.20+](https://go.dev/doc/install), although it may be possible to use older versions of Go.
 Besides that, you will need `libpcap` and `g++` on Linux and MacOS. On Ubuntu, these libraries can be installed by:
 
 ```bash
@@ -41,7 +41,7 @@ rm ./yanfd.toml
 
 On MacOS, one also needs to change `socket_path` to `/var/run/nfd/nfd.sock` in the copied configuration file.
 
-### On Windows 10
+### On Windows 10/11
 ```text
 curl -o yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
 mkdir %APPDATA%\ndn
