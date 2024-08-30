@@ -13,11 +13,11 @@ jobs:
       fail-fast: false
     steps:
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Go imports check
         uses: zjkmxy/golang-github-actions@v1.1.3
         with:
