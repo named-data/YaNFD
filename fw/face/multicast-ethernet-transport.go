@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
 	"github.com/named-data/YaNFD/ndn"

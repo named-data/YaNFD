@@ -5,7 +5,7 @@ It is compatible with existing NDN applications and utilizes the management tool
 
 # Prerequisites
 
-YaNFD requires [Go 1.20+](https://go.dev/doc/install), although it may be possible to use older versions of Go.
+YaNFD requires [Go 1.23](https://go.dev/doc/install) or later.
 Besides that, you will need `libpcap` and `g++` on Linux and MacOS. On Ubuntu, these libraries can be installed by:
 
 ```bash
