@@ -10,8 +10,8 @@
 package impl
 
 import (
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
+	"github.com/gopacket/gopacket/layers"
+	"github.com/gopacket/gopacket/pcap"
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/ndn/tlv"
 )
