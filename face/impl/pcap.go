@@ -8,8 +8,8 @@
 package impl
 
 import (
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 )
 
 // PcapHandle contains a subset of *pcap.Handle methods.
