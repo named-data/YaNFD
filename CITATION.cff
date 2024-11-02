@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Newberry"
+  given-names: "Eric"
+  orcid: "https://orcid.org/0000-0002-5768-5907"
+- family-names: "Ma"
+  given-names: "Xinyu"
+  orcid: "https://orcid.org/0000-0002-7575-1058"
+- family-names: "Zhang"
+  given-names: "Lixia"
+  orcid: "https://orcid.org/0000-0003-0701-757X"
+title: "YaNFD"
+version: 1.3.0
+doi: 10.1145/3460417.3482969
+date-released: 2021-09-22
+url: "https://github.com/named-data/YaNFD"
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Newberry"
+    given-names: "Eric"
+    orcid: "https://orcid.org/0000-0002-5768-5907"
+  - family-names: "Ma"
+    given-names: "Xinyu"
+    orcid: "https://orcid.org/0000-0002-7575-1058"
+  - family-names: "Zhang"
+    given-names: "Lixia"
+    orcid: "https://orcid.org/0000-0003-0701-757X"
+  doi: "10.1145/3460417.3482969"
+  conference:
+    name: "ICN '21: Proceedings of the 8th ACM Conference on Information-Centric Networking"
+  month: 9
+  start: 30 # First page number
+  end: 41 # Last page number
+  title: "YaNFD: Yet another named data networking forwarding daemon"
+  issue: 1
+  volume: 1
+  year: 2021
+  publisher: "Association for Computing Machinery"
+  url: "https://doi.org/10.1145/3460417.3482969"
