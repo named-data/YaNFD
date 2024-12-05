@@ -5,7 +5,6 @@ go 1.23.0
 require (
 	github.com/apex/log v1.9.0
 	github.com/cornelk/hashmap v1.0.8
-	github.com/gopacket/gopacket v1.3.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.9.0

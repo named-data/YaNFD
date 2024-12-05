@@ -27,7 +27,6 @@ import (
 type YaNFDConfig struct {
 	Version           string
 	ConfigFileName    string
-	DisableEthernet   bool
 	DisableUnix       bool
 	LogFile           string
 	CpuProfile        string
@@ -136,12 +135,10 @@ func (y *YaNFD) Start() {
 	// Perform setup operations for each network interface
 	faceCnt := 0
 	ifaces, err := net.Interfaces()
-	multicastEthURI := ndn.DecodeURIString("ether://[" + face.EthernetMulticastAddress + "]")
 	if err != nil {
 		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
-	ethEnabled := core.GetConfigBoolDefault("faces.ethernet.enabled", true) && !y.config.DisableEthernet
 	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
 	tcpPort := face.TCPUnicastPort
 	y.tcpListeners = make([]*face.TCPListener, 0)
@@ -149,23 +146,6 @@ func (y *YaNFD) Start() {
 		if iface.Flags&net.FlagUp == 0 {
 			core.LogInfo("Main", "Skipping interface ", iface.Name, " because not up")
 			continue
-		}
-
-		if ethEnabled && iface.Flags&net.FlagMulticast != 0 {
-			// Create multicast Ethernet face for interface
-			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
-			if err != nil {
-				core.LogError("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
-			} else {
-				multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
-				face.FaceTable.Add(multicastEthFace)
-				faceCnt += 1
-				go multicastEthFace.Run(nil)
-				core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
-
-				// Create Ethernet listener for interface
-				// TODO
-			}
 		}
 
 		// Create UDP/TCP listener and multicast UDP interface for every address on interface

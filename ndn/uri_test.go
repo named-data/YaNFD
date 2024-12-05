@@ -41,24 +41,6 @@ func TestDev(t *testing.T) {
 	assert.Equal(t, "dev", uri.Scheme())
 }
 
-func TestEthernet(t *testing.T) {
-	mac, err := net.ParseMAC("00:11:22:33:44:AA")
-	assert.NoError(t, err)
-	uri := ndn.MakeEthernetFaceURI(mac)
-	assert.True(t, uri.IsCanonical())
-	assert.Equal(t, "ether", uri.Scheme())
-	assert.Equal(t, "00:11:22:33:44:aa", uri.Path())
-	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "ether://[00:11:22:33:44:aa]", uri.String())
-
-	uri = ndn.DecodeURIString("ether://[00:11:22:33:44:AA]")
-	assert.True(t, uri.IsCanonical())
-	assert.Equal(t, "ether", uri.Scheme())
-	assert.Equal(t, "00:11:22:33:44:aa", uri.Path())
-	assert.Equal(t, uint16(0), uri.Port())
-	assert.Equal(t, "ether://[00:11:22:33:44:aa]", uri.String())
-}
-
 func TestFD(t *testing.T) {
 	uri := ndn.MakeFDFaceURI(27)
 	assert.True(t, uri.IsCanonical())

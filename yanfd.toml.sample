@@ -14,17 +14,6 @@
   # If true, face threads will be locked to processor cores
   lock_threads_to_cores = false
 
-  [faces.ethernet]
-
-    # Whether to enable Ethernet transports
-    enabled = true
-
-    # EtherType to use for NDN
-    ethertype = 0x8624
-
-    # MAC address used for multicast Ethernet faces
-    multicast_address = "01:00:5e:00:17:aa"
-
   [faces.udp]
 
     # Port used for unicast UDP faces
@@ -133,7 +122,7 @@
 
     # Enables or disables auto prefix propagation
     auto_prefix_propagation = false
-  
+
   [tables.fib]
     # Selects the algorithm used to implement the FIB
     # Allowed options: nametree, hashtable
