@@ -69,6 +69,7 @@ type NDNLPLinkService struct {
 	lastTimeCongestionMarked time.Time
 	BufferReader             enc.BufferReader
 	congestionCheck          uint64
+	outFrame                 []byte
 }
 
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
@@ -83,6 +84,8 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.partialMessageStore = make(map[uint64][][]byte)
 	l.nextSequence = 0
 	l.nextTxSequence = 0
+	l.congestionCheck = 0
+	l.outFrame = make([]byte, ndn_defn.MaxNDNPacketSize)
 	return l
 }
 
@@ -167,17 +170,17 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 
 	// Fragmentation
 	var fragments []*spec.LpPacket
-	if int(wire.Length()) > effectiveMtu {
+	if len(wire) > effectiveMtu {
 		if !l.options.IsFragmentationEnabled {
 			core.LogInfo(l, "Attempted to send frame over MTU on link without fragmentation - DROP")
 			return
 		}
 
 		// Split up fragment
-		nFragments := int((wire.Length() + uint64(effectiveMtu) - 1) / uint64(effectiveMtu))
-		lastFragSize := int(wire.Length()) - effectiveMtu*(nFragments-1)
+		nFragments := int((len(wire) + effectiveMtu - 1) / effectiveMtu)
+		lastFragSize := len(wire) - effectiveMtu*(nFragments-1)
 		fragments = make([]*spec.LpPacket, nFragments)
-		reader := enc.NewWireReader(wire)
+		reader := enc.NewWireReader(enc.Wire{wire})
 		for i := 0; i < nFragments; i++ {
 			if i < nFragments-1 {
 				frag, err := reader.ReadWire(effectiveMtu)
@@ -200,7 +203,7 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 	} else {
 		fragments = make([]*spec.LpPacket, 1)
 		fragments[0] = &spec.LpPacket{
-			Fragment: wire,
+			Fragment: enc.Wire{wire},
 		}
 	}
 
@@ -227,7 +230,7 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 			l.congestionCheck = 0
 		}
 
-		l.congestionCheck += uint64(wire.Length()) // approx
+		l.congestionCheck += uint64(len(wire)) // approx
 	}
 
 	// PIT tokens
@@ -257,7 +260,13 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 			core.LogError(l, "Unable to encode fragment - DROP")
 			break
 		}
-		l.transport.sendFrame(frameWire.Join())
+
+		// Use preallocated buffer for outgoing frame
+		l.outFrame = l.outFrame[:0]
+		for _, b := range frameWire {
+			l.outFrame = append(l.outFrame, b...)
+		}
+		l.transport.sendFrame(l.outFrame)
 	}
 }
 func (l *NDNLPLinkService) runSend() {
@@ -298,7 +307,7 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 	}
 	if packet.LpPacket == nil {
 		// Bare Data or Interest packet
-		netPacket.RawBytes = enc.Wire{wire}
+		netPacket.RawBytes = wire
 		netPacket.EncPacket = packet
 	} else {
 		fragment := packet.LpPacket.Fragment
@@ -362,7 +371,7 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 		if e != nil {
 			return
 		}
-		netPacket.RawBytes = fragment
+		netPacket.RawBytes = fragment.Join()
 		netPacket.EncPacket = packet
 	}
 	// Counters
