@@ -110,7 +110,7 @@ func (t *InternalTransport) Receive() (enc.Wire, []byte, uint64) {
 		case frame := <-t.recvQueue:
 			pkt, _, err := spec.ReadPacket(enc.NewBufferReader(frame))
 			if err != nil {
-				core.LogWarn(t, "Unable to decode received block - DROP")
+				core.LogWarn(t, "Unable to decode received block - DROP: ", err)
 				continue
 			}
 			lpPkt := pkt.LpPacket
