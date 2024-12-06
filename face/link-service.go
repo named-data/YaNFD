@@ -213,10 +213,6 @@ func (l *linkServiceBase) NOutBytes() uint64 {
 
 // SendPacket adds a packet to the send queue for this link service
 func (l *linkServiceBase) SendPacket(packet *ndn_defn.PendingPacket) {
-	/*if l.State() != Up {
-		core.LogWarn(l, "Cannot send packet on down face - DROP")
-	}*/
-
 	select {
 	case l.sendQueue <- packet:
 		// Packet queued successfully
@@ -243,24 +239,25 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 			// Decode PitToken. If it's for us, it's a uint16 + uint32.
 			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
 			fwThread := dispatch.GetFWThread(int(pitTokenThread))
-			if fwThread == nil {
-				// If invalid PIT token present, drop.
+			if fwThread == nil { // invalid PIT token present
 				core.LogError(l, "Invalid PIT token attached to Data packet - DROP")
 				break
 			}
-			// If valid PIT token present, dispatch to that thread.
+
 			core.LogTrace(l, "Dispatched Data to thread ", pitTokenThread)
 			fwThread.QueueData(netPacket)
 		} else if l.Scope() == ndn_defn.Local {
-			netPacket.PitToken = make([]byte, 0) // Erase any PIT token just in case one is somehow present
-
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
-			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
 			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.EncPacket.Data.NameV) {
 				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
+		} else {
+			// Only exact-match for now (no CanBePrefix)
+			thread := fw.HashNameToFwThread(netPacket.EncPacket.Data.NameV)
+			core.LogTrace(l, "Dispatched Data to thread ", thread)
+			dispatch.GetFWThread(thread).QueueData(netPacket)
 		}
 	default:
 		core.LogError(l, "Cannot dispatch packet of unknown type ")

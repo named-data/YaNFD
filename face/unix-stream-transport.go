@@ -87,7 +87,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
-	//also maybe an area of improvement? for reading buf?
+
 	if lockThreadsToCores {
 		runtime.LockOSThread()
 	}
@@ -95,7 +95,6 @@ func (t *UnixStreamTransport) runReceive() {
 	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	startPos := 0
 	for {
-		core.LogTrace(t, "Reading from socket")
 		readSize, err := t.conn.Read(recvBuf[startPos:])
 		startPos += readSize
 		if err != nil {

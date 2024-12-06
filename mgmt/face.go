@@ -191,11 +191,6 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 				}
 			}
 
-			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
-			}
-
 			// Congestion control
 			if mask&face.FaceFlagCongestionMarking > 0 {
 				// CongestionMarkingEnabled
@@ -277,11 +272,6 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 					options.IsIncomingFaceIndicationEnabled = false
 					options.IsLocalCachePolicyEnabled = false
 				}
-			}
-
-			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
 			}
 
 			// Congestion control
@@ -450,16 +440,6 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 				options.IsConsumerControlledForwardingEnabled = false
 				options.IsIncomingFaceIndicationEnabled = false
 				options.IsLocalCachePolicyEnabled = false
-			}
-		}
-
-		if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-			// Update LpReliabilityEnabled
-			options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
-			if flags&face.FaceFlagLpReliabilityEnabled > 0 {
-				core.LogInfo(f, "FaceID=", faceID, ", Enabling LpReliability")
-			} else {
-				core.LogInfo(f, "FaceID=", faceID, ", Disabling LpReliability")
 			}
 		}
 
@@ -643,9 +623,6 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) *mgmt.FaceStat
 		if options.IsConsumerControlledForwardingEnabled {
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
 			faceDataset.Flags |= face.FaceFlagLocalFields
-		}
-		if options.IsReliabilityEnabled {
-			faceDataset.Flags |= face.FaceFlagLpReliabilityEnabled
 		}
 		if options.IsCongestionMarkingEnabled {
 			faceDataset.Flags |= face.FaceFlagCongestionMarking

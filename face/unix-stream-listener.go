@@ -52,8 +52,6 @@ func (l *UnixStreamListener) Run() {
 	sockPath := l.localURI.Path()
 	dirPath := path.Dir(sockPath)
 	os.MkdirAll(dirPath, os.ModePerm)
-	// Note: YaNFD will not link the old path /var/run/nfd.sock
-	// Please handle consistency yourself.
 
 	// Create listener
 	var err error

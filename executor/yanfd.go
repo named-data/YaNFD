@@ -103,13 +103,10 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 func (y *YaNFD) Start() {
 	core.LogInfo("Main", "Starting YaNFD")
 
-	// Load strategies
-	//core.LogInfo("Main", "Loading strategies")
-	//fw.LoadStrategies()
-
 	// Initialize FIB table
 	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
 	table.CreateFIBTable(fibTableAlgorithm)
+
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)
@@ -118,10 +115,13 @@ func (y *YaNFD) Start() {
 	// Start management thread
 	management := mgmt.MakeMgmtThread()
 	go management.Run()
+
 	// Create forwarding threads
 	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
 		core.LogFatal("Main", "Number of forwarding threads must be in range [1, ", fw.MaxFwThreads, "]")
+		os.Exit(2)
 	}
+
 	fw.Threads = make(map[int]*fw.Thread)
 	var fwForDispatch []dispatch.FWThread
 	for i := 0; i < fw.NumFwThreads; i++ {
