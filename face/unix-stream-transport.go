@@ -8,6 +8,8 @@
 package face
 
 import (
+	"bufio"
+	"io"
 	"net"
 	"runtime"
 	"strconv"
@@ -19,7 +21,8 @@ import (
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	conn *net.UnixConn
+	conn   *net.UnixConn
+	reader *bufio.Reader
 	transportBase
 }
 
@@ -35,6 +38,7 @@ func MakeUnixStreamTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, co
 
 	// Set connection
 	t.conn = conn.(*net.UnixConn)
+	t.reader = bufio.NewReaderSize(t.conn, 32*ndn_defn.MaxNDNPacketSize)
 
 	t.changeState(ndn_defn.Up)
 
@@ -92,48 +96,36 @@ func (t *UnixStreamTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize*32)
-	startReadPos := 0
-	startTlvPos := 0
+	handleError := func(err error) {
+		if err.Error() == "EOF" {
+			core.LogDebug(t, "EOF - Face DOWN")
+		} else {
+			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
+		}
+		t.changeState(ndn_defn.Down)
+	}
+
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
-		readSize, err := t.conn.Read(recvBuf[startReadPos:])
-		startReadPos += readSize
+		typ, len, err := ndn_defn.ReadTypeLength(t.reader)
 		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
-			} else {
-				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
-			}
-			t.changeState(ndn_defn.Down)
+			handleError(err)
 			break
 		}
 
-		t.nInBytes += uint64(readSize)
+		cursor := 0
+		cursor += typ.EncodeInto(recvBuf[cursor:])
+		cursor += len.EncodeInto(recvBuf[cursor:])
 
-		// Determine whether valid packet received
-		for {
-			_, _, tlvSize, err := ndn_defn.DecodeTypeLength(recvBuf[startTlvPos:])
-			if err != nil {
-				// Probably incomplete packet
-				core.LogDebug(t, "Unable to process received packet: ", err)
-				break
-			} else if startReadPos >= startTlvPos+tlvSize {
-				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(recvBuf[startTlvPos : startTlvPos+tlvSize])
-				startTlvPos += tlvSize
-			} else {
-				// Incomplete packet (for sure)
-				core.LogTrace(t, "Received packet is incomplete")
-				break
-			}
+		lenRead, err := io.ReadFull(t.reader, recvBuf[cursor:cursor+int(len)])
+		if err != nil {
+			handleError(err)
+			break
 		}
+		cursor += lenRead
 
-		// If less than one packet space remains in buffer, shift to beginning
-		if startReadPos-startTlvPos < ndn_defn.MaxNDNPacketSize {
-			copy(recvBuf, recvBuf[startTlvPos:startReadPos])
-			startReadPos -= startTlvPos
-			startTlvPos = 0
-		}
+		t.linkService.handleIncomingFrame(recvBuf[:cursor])
+		t.nInBytes += uint64(cursor)
 	}
 }
 
