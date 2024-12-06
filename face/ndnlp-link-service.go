@@ -11,7 +11,6 @@ import (
 	"math"
 	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
@@ -69,12 +68,6 @@ type NDNLPLinkService struct {
 	nextTxSequence           uint64
 	lastTimeCongestionMarked time.Time
 	BufferReader             enc.BufferReader
-
-	// This is to solve a concurrency problem introduced in commit a329946
-	// Low layer transports are not supposed to have sendFrame() called concurrently
-	// Search `go sendPacket(l, netPacket)` to find the line that causes this problems
-	// Ref: https://github.com/named-data/YaNFD/issues/56
-	sendFrameMutex sync.Mutex
 }
 
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
@@ -254,12 +247,7 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 			core.LogError(l, "Unable to encode fragment - DROP")
 			break
 		}
-		// Use Join() for now
-		{
-			l.sendFrameMutex.Lock()
-			defer l.sendFrameMutex.Unlock()
-			l.transport.sendFrame(frameWire.Join())
-		}
+		l.transport.sendFrame(frameWire.Join())
 	}
 }
 func (l *NDNLPLinkService) runSend() {

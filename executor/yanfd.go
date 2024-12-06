@@ -268,12 +268,12 @@ func (y *YaNFD) Stop() {
 	}
 
 	// Tell all faces to quit
-	for _, face := range face.FaceTable.Faces {
+	for _, face := range face.FaceTable.GetAll() {
 		face.Close()
 	}
 
 	// Wait for all faces to quit
-	for _, face := range face.FaceTable.Faces {
+	for _, face := range face.FaceTable.GetAll() {
 		core.LogTrace("Main", "Waiting for face ", face, " to quit")
 		<-face.GetHasQuit()
 	}
