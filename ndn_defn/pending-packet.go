@@ -8,7 +8,6 @@
 package ndn_defn
 
 import (
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
@@ -20,6 +19,6 @@ type PendingPacket struct {
 	NextHopFaceID  *uint64
 	CachePolicy    *uint64
 	EncPacket      *spec.Packet
-	RawBytes       enc.Wire
+	RawBytes       []byte
 	NameCache      string
 }
