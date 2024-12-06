@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
@@ -97,7 +97,7 @@ type NDNLPLinkService struct {
 	nextTxSequence           uint64
 	lastTimeCongestionMarked time.Time
 	bees                     []*WorkerBee
-	workQueue                chan *ndn.PendingPacket
+	workQueue                chan *ndn_defn.PendingPacket
 	BufferReader             enc.BufferReader
 
 	// This is to solve a concurrency problem introduced in commit a329946
@@ -118,7 +118,7 @@ func NewBee(id int, l *NDNLPLinkService) *WorkerBee {
 	b.link = l
 	return b
 }
-func (b *WorkerBee) Run(jobs <-chan *ndn.PendingPacket) {
+func (b *WorkerBee) Run(jobs <-chan *ndn_defn.PendingPacket) {
 	shouldContinue := true
 	for shouldContinue {
 		select {
@@ -146,7 +146,7 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.retransmitQueue = make(chan uint64, faceQueueSize)
 	l.rto = 0
 	l.nextTxSequence = 0
-	l.workQueue = make(chan *ndn.PendingPacket, faceQueueSize)
+	l.workQueue = make(chan *ndn_defn.PendingPacket, faceQueueSize)
 	for i := 0; i < workers; i++ {
 		b := NewBee(i, l)
 		go b.Run(l.workQueue)
@@ -223,10 +223,10 @@ func (l *NDNLPLinkService) Run(optNewFrame []byte) {
 
 	l.HasQuit <- true
 }
-func sendPacket(l *NDNLPLinkService, netPacket *ndn.PendingPacket) {
+func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 	wire := netPacket.RawBytes
 
-	if l.transport.State() != ndn.Up {
+	if l.transport.State() != ndn_defn.Up {
 		core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
 		l.hasImplQuit <- true
 		return
@@ -438,7 +438,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 	// all incoming frames come through a link service
 	// Attempt to decode buffer into LpPacket
-	netPacket := &ndn.PendingPacket{
+	netPacket := &ndn_defn.PendingPacket{
 		IncomingFaceID: utils.IdPtr(l.faceID),
 	}
 	packet, _, e := spec.ReadPacket(enc.NewBufferReader(wire))

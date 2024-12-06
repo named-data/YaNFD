@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -25,10 +25,10 @@ type Strategy interface {
 	String() string
 	GetName() enc.Name
 
-	AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
-	AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterContentStoreHit(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
+	AfterReceiveData(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64)
 	AfterReceiveInterest(
-		pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
+		pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry)
 	BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64)
 }
 
@@ -70,14 +70,14 @@ func (s *StrategyBase) GetName() enc.Name {
 
 // SendInterest sends an Interest on the specified face.
 func (s *StrategyBase) SendInterest(
-	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
 ) bool {
 	return s.thread.processOutgoingInterest(pendingPacket, pitEntry, nexthop, inFace)
 }
 
 // SendData sends a Data packet on the specified face.
 func (s *StrategyBase) SendData(
-	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
 ) {
 	var pitToken []byte
 	if inRecord, ok := pitEntry.InRecords()[nexthop]; ok {

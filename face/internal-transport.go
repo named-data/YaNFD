@@ -12,8 +12,7 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
@@ -29,10 +28,16 @@ type InternalTransport struct {
 // MakeInternalTransport makes an InternalTransport.
 func MakeInternalTransport() *InternalTransport {
 	t := new(InternalTransport)
-	t.makeTransportBase(ndn.MakeInternalFaceURI(), ndn.MakeInternalFaceURI(), PersistencyPersistent, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(
+		ndn_defn.MakeInternalFaceURI(),
+		ndn_defn.MakeInternalFaceURI(),
+		PersistencyPersistent,
+		ndn_defn.Local,
+		ndn_defn.PointToPoint,
+		ndn_defn.MaxNDNPacketSize)
 	t.recvQueue = make(chan []byte, faceQueueSize)
 	t.sendQueue = make(chan []byte, faceQueueSize)
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 	return t
 }
 
@@ -149,7 +154,7 @@ func (t *InternalTransport) runReceive() {
 		case frame := <-t.sendQueue:
 			core.LogTrace(t, "Component send of size ", len(frame))
 
-			if len(frame) > tlv.MaxNDNPacketSize {
+			if len(frame) > ndn_defn.MaxNDNPacketSize {
 				core.LogWarn(t, "Component trying to send too much data - DROP")
 				continue
 			}
@@ -161,7 +166,7 @@ func (t *InternalTransport) runReceive() {
 	}
 }
 
-func (t *InternalTransport) changeState(new ndn.State) {
+func (t *InternalTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -169,7 +174,7 @@ func (t *InternalTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		// Stop link service
 		t.hasQuit <- true
 		t.hasQuit <- true // Send again to stop any pending receives

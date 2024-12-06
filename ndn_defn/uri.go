@@ -5,7 +5,7 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package ndn
+package ndn_defn
 
 import (
 	"net"
@@ -22,11 +22,9 @@ import (
 // URIType represents the type of the URI.
 type URIType int
 
-// const uriPattern = `^([0-9A-Za-z]+)://([0-9A-Za-z:-\[\]%\.]+)(:([0-9]+))?$“
 const devPattern = `^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\-]+)$`
 const fdPattern = `^(?P<scheme>fd)://(?P<fd>[0-9]+)$`
 const ipv4Pattern = `^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$`
-const macPattern = `^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$`
 const udpPattern = `^(?P<scheme>udp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P<zone>[A-Za-z0-9\-]+))?\]?:(?P<port>[0-9]+)$`
 const tcpPattern = `^(?P<scheme>tcp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P<zone>[A-Za-z0-9\-]+))?\]?:(?P<port>[0-9]+)$`
 const unixPattern = `^(?P<scheme>unix)://(?P<path>[/\\A-Za-z0-9\:\.\-_]+)$`

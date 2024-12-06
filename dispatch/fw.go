@@ -8,7 +8,7 @@
 package dispatch
 
 import (
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 )
 
 // FWThread provides an interface that forwarding threads can satisfy
@@ -16,8 +16,8 @@ import (
 type FWThread interface {
 	String() string
 
-	QueueData(packet *ndn.PendingPacket)
-	QueueInterest(packet *ndn.PendingPacket)
+	QueueData(packet *ndn_defn.PendingPacket)
+	QueueInterest(packet *ndn_defn.PendingPacket)
 
 	GetNumPitEntries() int
 	GetNumCsEntries() int

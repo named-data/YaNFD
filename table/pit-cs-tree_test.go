@@ -7,31 +7,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/stretchr/testify/assert"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
-func makeData(name enc.Name, content enc.Wire) *ndn.PendingPacket {
+func makeData(name enc.Name, content enc.Wire) *ndn_defn.PendingPacket {
 	data := &spec_2022.Data{
 		NameV:    name,
 		ContentV: content,
 	}
-	netPacket := new(ndn.PendingPacket)
+	netPacket := new(ndn_defn.PendingPacket)
 	netPacket.EncPacket = new(spec_2022.Packet)
 	netPacket.EncPacket.Data = data
 	return netPacket
 }
 
-func makeInterest(name enc.Name) *ndn.PendingPacket {
+func makeInterest(name enc.Name) *ndn_defn.PendingPacket {
 	val := new(uint32)
 	*val = rand.Uint32()
 	interest := &spec_2022.Interest{
 		NameV:  name,
 		NonceV: val,
 	}
-	netPacket := new(ndn.PendingPacket)
+	netPacket := new(ndn_defn.PendingPacket)
 	netPacket.EncPacket = new(spec_2022.Packet)
 	netPacket.EncPacket.Interest = interest
 	return netPacket

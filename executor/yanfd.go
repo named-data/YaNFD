@@ -19,7 +19,7 @@ import (
 	"github.com/named-data/YaNFD/face"
 	"github.com/named-data/YaNFD/fw"
 	"github.com/named-data/YaNFD/mgmt"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 )
 
@@ -165,7 +165,7 @@ func (y *YaNFD) Start() {
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
 				multicastUDPTransport, err := face.MakeMulticastUDPTransport(
-					ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
+					ndn_defn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
 					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
 					continue
@@ -177,7 +177,7 @@ func (y *YaNFD) Start() {
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
-			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort))
+			udpListener, err := face.MakeUDPListener(ndn_defn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort))
 			if err != nil {
 				core.LogError("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
 				continue
@@ -187,7 +187,7 @@ func (y *YaNFD) Start() {
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
 
 			if tcpEnabled {
-				tcpListener, err := face.MakeTCPListener(ndn.MakeTCPFaceURI(ipVersion, path, tcpPort))
+				tcpListener, err := face.MakeTCPListener(ndn_defn.MakeTCPFaceURI(ipVersion, path, tcpPort))
 				if err != nil {
 					core.LogError("Main", "Unable to create TCP listener for ", path, " on ", iface.Name, ": ", err)
 					continue
@@ -201,7 +201,7 @@ func (y *YaNFD) Start() {
 	}
 	if core.GetConfigBoolDefault("faces.unix.enabled", true) && !y.config.DisableUnix {
 		// Set up Unix stream listener
-		y.unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
+		y.unixListener, err = face.MakeUnixStreamListener(ndn_defn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
 			core.LogError("Main", "Unable to create Unix stream listener at ", face.UnixSocketPath, ": ", err)
 		} else {

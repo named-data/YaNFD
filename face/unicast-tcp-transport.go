@@ -16,8 +16,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // UnicastTCPTransport is a unicast TCP transport.
@@ -30,7 +29,7 @@ type UnicastTCPTransport struct {
 }
 
 // MakeUnicastTCPTransport creates a new unicast TCP transport.
-func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+func MakeUnicastTCPTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
 	// Validate URIs.
 	if !remoteURI.IsCanonical() ||
 		(remoteURI.Scheme() != "tcp4" && remoteURI.Scheme() != "tcp6") {
@@ -42,16 +41,16 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 
 	t := new(UnicastTCPTransport)
 	// All persistencies are accepted.
-	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, persistency, ndn_defn.NonLocal, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(tcpLifetime)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
 	if ip.IsLoopback() {
-		t.scope = ndn.Local
+		t.scope = ndn_defn.Local
 	} else {
-		t.scope = ndn.NonLocal
+		t.scope = ndn_defn.NonLocal
 	}
 
 	// Set local and remote addresses
@@ -78,19 +77,19 @@ func MakeUnicastTCPTransport(remoteURI *ndn.URI, localURI *ndn.URI, persistency 
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-		t.localURI = ndn.DecodeURIString("tcp://" + t.localAddr.String())
+		t.localURI = ndn_defn.DecodeURIString("tcp://" + t.localAddr.String())
 	}
 
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 
 	go t.expirationHandler()
 
 	return t, nil
 }
 
-func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn_defn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
 	// Construct remote URI
-	var remoteURI *ndn.URI
+	var remoteURI *ndn_defn.URI
 	remoteAddr := remoteConn.RemoteAddr()
 	host, port, err := net.SplitHostPort(remoteAddr.String())
 	if err != nil {
@@ -102,7 +101,7 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persisten
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
 		return nil, err
 	}
-	remoteURI = ndn.MakeTCPFaceURI(4, host, uint16(portInt))
+	remoteURI = ndn_defn.MakeTCPFaceURI(4, host, uint16(portInt))
 	remoteURI.Canonize()
 	if !remoteURI.IsCanonical() {
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteURI, ": remote URI is not canonical")
@@ -111,16 +110,16 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persisten
 
 	t := new(UnicastTCPTransport)
 	// All persistencies are accepted.
-	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, persistency, ndn_defn.NonLocal, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(tcpLifetime)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
 	if ip.IsLoopback() {
-		t.scope = ndn.Local
+		t.scope = ndn_defn.Local
 	} else {
-		t.scope = ndn.NonLocal
+		t.scope = ndn_defn.NonLocal
 	}
 
 	// Set local and remote addresses
@@ -142,10 +141,10 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn.URI, persisten
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-		t.localURI = ndn.DecodeURIString("tcp://" + t.localAddr.String())
+		t.localURI = ndn_defn.DecodeURIString("tcp://" + t.localAddr.String())
 	}
 
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 
 	go t.expirationHandler()
 
@@ -197,7 +196,7 @@ func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
 			go t.runReceive()
 		}
 	default:
-		t.changeState(ndn.Down)
+		t.changeState(ndn_defn.Down)
 	}
 }
 
@@ -205,12 +204,12 @@ func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
 func (t *UnicastTCPTransport) expirationHandler() {
 	for {
 		time.Sleep(time.Duration(10) * time.Second)
-		if t.state == ndn.Down {
+		if t.state == ndn_defn.Down {
 			break
 		}
 		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now())) {
 			core.LogInfo(t, "Face expired")
-			t.changeState(ndn.Down)
+			t.changeState(ndn_defn.Down)
 			break
 		}
 	}
@@ -238,7 +237,7 @@ func (t *UnicastTCPTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
@@ -248,7 +247,7 @@ func (t *UnicastTCPTransport) runReceive() {
 				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
 				t.onTransportFailure(true)
 			}
-			t.changeState(ndn.Down)
+			t.changeState(ndn_defn.Down)
 			break
 		}
 
@@ -256,7 +255,7 @@ func (t *UnicastTCPTransport) runReceive() {
 		t.nInBytes += uint64(readSize)
 		*t.expirationTime = time.Now().Add(tcpLifetime)
 
-		if readSize > tlv.MaxNDNPacketSize {
+		if readSize > ndn_defn.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 			continue
 		}
@@ -266,7 +265,7 @@ func (t *UnicastTCPTransport) runReceive() {
 	}
 }
 
-func (t *UnicastTCPTransport) changeState(new ndn.State) {
+func (t *UnicastTCPTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -274,7 +273,7 @@ func (t *UnicastTCPTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		core.LogInfo(t, "Closing TCP socket")
 		t.hasQuit <- true
 		t.conn.Close()

@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -35,7 +35,7 @@ func (s *BestRoute) Instantiate(fwThread *Thread) {
 }
 
 // AfterContentStoreHit ...
-func (s *BestRoute) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+func (s *BestRoute) AfterContentStoreHit(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	// Send downstream
 	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", pendingPacket.NameCache,
 		" to FaceID=", inFace)
@@ -43,7 +43,7 @@ func (s *BestRoute) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEn
 }
 
 // AfterReceiveData ...
-func (s *BestRoute) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+func (s *BestRoute) AfterReceiveData(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	core.LogTrace(s, "AfterReceiveData: Data=", ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
 		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", pendingPacket.NameCache, " to FaceID=", faceID)
@@ -53,7 +53,7 @@ func (s *BestRoute) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry 
 
 // AfterReceiveInterest ...
 func (s *BestRoute) AfterReceiveInterest(
-	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
+	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
 ) {
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {

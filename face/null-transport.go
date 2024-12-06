@@ -11,8 +11,7 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // NullTransport is a transport that drops all packets.
@@ -23,8 +22,8 @@ type NullTransport struct {
 // MakeNullTransport makes a NullTransport.
 func MakeNullTransport() *NullTransport {
 	t := new(NullTransport)
-	t.makeTransportBase(ndn.MakeNullFaceURI(), ndn.MakeNullFaceURI(), PersistencyPermanent, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
-	t.changeState(ndn.Up)
+	t.makeTransportBase(ndn_defn.MakeNullFaceURI(), ndn_defn.MakeNullFaceURI(), PersistencyPermanent, ndn_defn.NonLocal, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
+	t.changeState(ndn_defn.Up)
 	return t
 }
 
@@ -51,7 +50,7 @@ func (t *NullTransport) GetSendQueueSize() uint64 {
 	return 0
 }
 
-func (t *NullTransport) changeState(new ndn.State) {
+func (t *NullTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -59,7 +58,7 @@ func (t *NullTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		// Stop link service
 		t.linkService.tellTransportQuit()
 
