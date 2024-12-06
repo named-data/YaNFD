@@ -28,11 +28,11 @@ var Threads map[int]*Thread
 var LOCALHOST = []byte{0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f, 0x73, 0x74}
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.
-func HashNameToFwThread(name *enc.Name) int {
+func HashNameToFwThread(name enc.Name) int {
 	// Dispatch all management requests to thread 0
 	// this is fine, all it does is make sure the pitcs table in thread 0 has the management stuff.
 	// This is not actually touching management.
-	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
+	if len(name) > 0 && bytes.Equal((name)[0].Val, LOCALHOST) {
 		return 0
 	}
 	// to prevent negative modulos because we converted from uint to int
@@ -40,9 +40,9 @@ func HashNameToFwThread(name *enc.Name) int {
 }
 
 // HashNameToAllPrefixFwThreads hashes an NDN name to all forwarding threads for all prefixes of the name.
-func HashNameToAllPrefixFwThreads(name *enc.Name) []int {
+func HashNameToAllPrefixFwThreads(name enc.Name) []int {
 	// Dispatch all management requests to thread 0
-	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
+	if len(name) > 0 && bytes.Equal((name)[0].Val, LOCALHOST) {
 		return []int{0}
 	}
 
