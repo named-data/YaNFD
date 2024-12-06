@@ -23,12 +23,6 @@ var congestionMarking bool
 // lockThreadsToCores determines whether face threads will be locked to logical cores.
 var lockThreadsToCores bool
 
-// NDNEtherType is the standard EtherType for NDN.
-var ndnEtherType int
-
-// EthernetMulticastAddress is the standard multicast Ethernet URI for NDN.
-var EthernetMulticastAddress string
-
 // UDPUnicastPort is the standard unicast UDP port for NDN.
 var UDPUnicastPort uint16
 
@@ -58,8 +52,6 @@ func Configure() {
 	faceQueueSize = core.GetConfigIntDefault("faces.queue_size", 1024)
 	congestionMarking = core.GetConfigBoolDefault("faces.congestion_marking", true)
 	lockThreadsToCores = core.GetConfigBoolDefault("faces.lock_threads_to_cores", false)
-	ndnEtherType = core.GetConfigIntDefault("faces.ethernet.ethertype", 0x8624)
-	EthernetMulticastAddress = core.GetConfigStringDefault("faces.ethernet.multicast_address", "01:00:5e:00:17:aa")
 	UDPUnicastPort = core.GetConfigUint16Default("faces.udp.port_unicast", 6363)
 	TCPUnicastPort = core.GetConfigUint16Default("faces.tcp.port_unicast", 6363)
 	UDPMulticastPort = core.GetConfigUint16Default("faces.udp.port_multicast", 56363)

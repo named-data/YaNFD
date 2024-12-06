@@ -5,7 +5,7 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package ndn
+package ndn_defn
 
 import (
 	"net"
@@ -22,12 +22,9 @@ import (
 // URIType represents the type of the URI.
 type URIType int
 
-// const uriPattern = `^([0-9A-Za-z]+)://([0-9A-Za-z:-\[\]%\.]+)(:([0-9]+))?$“
 const devPattern = `^(?P<scheme>dev)://(?P<ifname>[A-Za-z0-9\-]+)$`
-const ethernetPattern = `^(?P<scheme>ether)://\[(?P<mac>(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}(?P<zone>\%[A-Za-z0-9])*)\]$`
 const fdPattern = `^(?P<scheme>fd)://(?P<fd>[0-9]+)$`
 const ipv4Pattern = `^((25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])\.){3}(25[0-4]|2[0-4][0-9]|1[0-9][0-9]|[0-9][0-9]|[0-9])$`
-const macPattern = `^(([0-9a-fA-F]){2}:){5}([0-9a-fA-F]){2}$`
 const udpPattern = `^(?P<scheme>udp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P<zone>[A-Za-z0-9\-]+))?\]?:(?P<port>[0-9]+)$`
 const tcpPattern = `^(?P<scheme>tcp[46]?)://\[?(?P<host>[0-9A-Za-z\:\.\-]+)(%(?P<zone>[A-Za-z0-9\-]+))?\]?:(?P<port>[0-9]+)$`
 const unixPattern = `^(?P<scheme>unix)://(?P<path>[/\\A-Za-z0-9\:\.\-_]+)$`
@@ -35,7 +32,6 @@ const unixPattern = `^(?P<scheme>unix)://(?P<path>[/\\A-Za-z0-9\:\.\-_]+)$`
 const (
 	unknownURI URIType = iota
 	devURI
-	ethernetURI
 	fdURI
 	internalURI
 	nullURI
@@ -60,17 +56,6 @@ func MakeDevFaceURI(ifname string) *URI {
 	uri.uriType = devURI
 	uri.scheme = "dev"
 	uri.path = ifname
-	uri.port = 0
-	uri.Canonize()
-	return uri
-}
-
-// MakeEthernetFaceURI constructs a URI for an Ethernet face.
-func MakeEthernetFaceURI(mac net.HardwareAddr) *URI {
-	uri := new(URI)
-	uri.uriType = ethernetURI
-	uri.scheme = "ether"
-	uri.path = mac.String()
 	uri.port = 0
 	uri.Canonize()
 	return uri
@@ -201,20 +186,6 @@ func DecodeURIString(str string) *URI {
 		// 	return u
 		// }
 		u.path = ifname
-	case strings.EqualFold("ether", schemeSplit[0]):
-		u.uriType = ethernetURI
-		u.scheme = "ether"
-
-		regex, err := regexp.Compile(ethernetPattern)
-		if err != nil {
-			return u
-		}
-
-		matches := regex.FindStringSubmatch(str)
-		if regex.SubexpIndex("mac") < 0 || len(matches) <= regex.SubexpIndex("mac") {
-			return u
-		}
-		u.path = matches[regex.SubexpIndex("mac")]
 	case strings.EqualFold("fd", schemeSplit[0]):
 		u.uriType = fdURI
 		u.scheme = "fd"
@@ -363,9 +334,6 @@ func (u *URI) IsCanonical() bool {
 	switch u.uriType {
 	case devURI:
 		return u.scheme == "dev" && u.path != "" && u.port == 0
-	case ethernetURI:
-		isEthernet, _ := regexp.MatchString(macPattern, u.path)
-		return u.scheme == "ether" && isEthernet && u.port == 0
 	case fdURI:
 		fd, err := strconv.Atoi(u.path)
 		return u.scheme == "fd" && err == nil && fd >= 0 && u.port == 0
@@ -402,14 +370,6 @@ func (u *URI) Canonize() error {
 	switch u.uriType {
 	case devURI, fdURI:
 		// Nothing to do to canonize these
-	case ethernetURI:
-		mac, err := net.ParseMAC(strings.Trim(u.path, "[]"))
-		if err != nil {
-			return core.ErrNotCanonical
-		}
-		u.scheme = "ether"
-		u.path = mac.String()
-		u.port = 0
 	case udpURI, tcpURI:
 		path := u.path
 		zone := ""
@@ -479,8 +439,6 @@ func (u *URI) Scope() Scope {
 	switch u.uriType {
 	case devURI:
 		return NonLocal
-	case ethernetURI:
-		return NonLocal
 	case fdURI:
 		return Local
 	case nullURI:
@@ -502,8 +460,6 @@ func (u *URI) String() string {
 	switch u.uriType {
 	case devURI:
 		return "dev://" + u.path
-	case ethernetURI:
-		return u.scheme + "://[" + u.path + "]"
 	case fdURI:
 		return "fd://" + u.path
 	case internalURI:

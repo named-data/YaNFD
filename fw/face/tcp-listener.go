@@ -14,18 +14,18 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // TCPListener listens for incoming TCP unicast connections.
 type TCPListener struct {
 	conn     net.Listener
-	localURI *ndn.URI
+	localURI *ndn_defn.URI
 	HasQuit  chan bool
 }
 
 // MakeTCPListener constructs a TCPListener.
-func MakeTCPListener(localURI *ndn.URI) (*TCPListener, error) {
+func MakeTCPListener(localURI *ndn_defn.URI) (*TCPListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "tcp4" && localURI.Scheme() != "tcp6") {
 		return nil, core.ErrNotCanonical

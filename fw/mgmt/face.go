@@ -15,21 +15,17 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face"
-	oldndn "github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 // FaceModule is the module that handles Face Management.
 type FaceModule struct {
-	manager                   *Thread
-	nextFaceDatasetVersion    uint64
-	nextChannelDatasetVersion uint64
+	manager                *Thread
+	nextFaceDatasetVersion uint64
 }
 
 func (f *FaceModule) String() string {
@@ -38,7 +34,6 @@ func (f *FaceModule) String() string {
 
 func (f *FaceModule) registerManager(manager *Thread) {
 	f.manager = manager
-	face.FaceEventSendFunc = f.sendFaceEventNotification
 }
 
 func (f *FaceModule) getManager() *Thread {
@@ -65,10 +60,6 @@ func (f *FaceModule) handleIncomingInterest(interest *spec.Interest, pitToken []
 		f.list(interest, pitToken, inFace)
 	case "query":
 		f.query(interest, pitToken, inFace)
-	// case "channels":
-	// 	f.channels(interest, pitToken, inFace)
-	case "events":
-		f.events(interest, pitToken, inFace)
 	default:
 		core.LogWarn(f, "Received Interest for non-existent verb '", verb, "'")
 		response := makeControlResponse(501, "Unknown verb", nil)
@@ -102,7 +93,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		return
 	}
 
-	URI := oldndn.DecodeURIString(*params.Uri)
+	URI := ndn_defn.DecodeURIString(*params.Uri)
 	if URI == nil || URI.Canonize() != nil {
 		core.LogWarn(f, "Cannot canonize remote URI in ControlParameters for ", interest.Name())
 		response = makeControlResponse(406, "URI could not be canonized", nil)
@@ -141,23 +132,6 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 			return
 		}
 
-		// Validate and populate missing optional params
-		// TODO: Validate and use LocalURI if present
-		/*if params.LocalURI != nil {
-			if params.LocalURI.Canonize() != nil {
-				core.LogWarn(f, "Cannot canonize local URI in ControlParameters for ", interest.Name())
-				response = makeControlResponse(406, "LocalURI could not be canonized", nil)
-				return
-			}
-			if params.LocalURI.Scheme() != params.URI.Scheme() {
-				core.LogWarn(f, "Local URI scheme does not match remote URI scheme in ControlParameters for ", interest.Name())
-				response = makeControlResponse(406, "LocalURI scheme does not match URI scheme", nil)
-				f.manager.sendResponse(response, interest, pitToken, inFace)
-				return
-			}
-			// TODO: Check if matches a local interface IP
-		}*/
-
 		persistency := face.PersistencyPersistent
 		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) ||
 			*params.FacePersistency == uint64(face.PersistencyPermanent)) {
@@ -191,8 +165,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 		if params.Mtu != nil {
 			mtu := int(*params.Mtu)
-			if *params.Mtu > tlv.MaxNDNPacketSize {
-				mtu = tlv.MaxNDNPacketSize
+			if *params.Mtu > ndn_defn.MaxNDNPacketSize {
+				mtu = ndn_defn.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
 		}
@@ -215,11 +189,6 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 					options.IsIncomingFaceIndicationEnabled = false
 					options.IsLocalCachePolicyEnabled = false
 				}
-			}
-
-			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
 			}
 
 			// Congestion control
@@ -279,8 +248,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 		if params.Mtu != nil {
 			mtu := int(*params.Mtu)
-			if *params.Mtu > tlv.MaxNDNPacketSize {
-				mtu = tlv.MaxNDNPacketSize
+			if *params.Mtu > ndn_defn.MaxNDNPacketSize {
+				mtu = ndn_defn.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
 		}
@@ -303,11 +272,6 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 					options.IsIncomingFaceIndicationEnabled = false
 					options.IsLocalCachePolicyEnabled = false
 				}
-			}
-
-			if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-				// LpReliabilityEnabled
-				options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
 			}
 
 			// Congestion control
@@ -451,8 +415,8 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 	if params.Mtu != nil {
 		oldMTU := selectedFace.MTU()
 		newMTU := int(*params.Mtu)
-		if *params.Mtu > tlv.MaxNDNPacketSize {
-			newMTU = tlv.MaxNDNPacketSize
+		if *params.Mtu > ndn_defn.MaxNDNPacketSize {
+			newMTU = ndn_defn.MaxNDNPacketSize
 		}
 		selectedFace.SetMTU(newMTU)
 		core.LogInfo(f, "FaceID=", faceID, ", MTU ", oldMTU, " -> ", newMTU)
@@ -476,16 +440,6 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 				options.IsConsumerControlledForwardingEnabled = false
 				options.IsIncomingFaceIndicationEnabled = false
 				options.IsLocalCachePolicyEnabled = false
-			}
-		}
-
-		if mask&face.FaceFlagLpReliabilityEnabled > 0 {
-			// Update LpReliabilityEnabled
-			options.IsReliabilityEnabled = flags&face.FaceFlagLpReliabilityEnabled > 0
-			if flags&face.FaceFlagLpReliabilityEnabled > 0 {
-				core.LogInfo(f, "FaceID=", faceID, ", Enabling LpReliability")
-			} else {
-				core.LogInfo(f, "FaceID=", faceID, ", Disabling LpReliability")
 			}
 		}
 
@@ -545,7 +499,7 @@ func (f *FaceModule) destroy(interest *spec.Interest, pitToken []byte, inFace ui
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
@@ -574,7 +528,7 @@ func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint6
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain FaceQueryFilter
 		core.LogWarn(f, "Missing FaceQueryFilter in ", interest.Name())
@@ -670,9 +624,6 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) *mgmt.FaceStat
 			// This one will only be enabled if the other two local fields are enabled (and vice versa)
 			faceDataset.Flags |= face.FaceFlagLocalFields
 		}
-		if options.IsReliabilityEnabled {
-			faceDataset.Flags |= face.FaceFlagLpReliabilityEnabled
-		}
 		if options.IsCongestionMarkingEnabled {
 			faceDataset.Flags |= face.FaceFlagCongestionMarking
 		}
@@ -680,76 +631,6 @@ func (f *FaceModule) createDataset(selectedFace face.LinkService) *mgmt.FaceStat
 
 	return faceDataset
 }
-
-// func (f *FaceModule) channels(interest *spec.Interest, pitToken []byte, inFace uint64) {
-// 	if len(interest.NameV) < f.manager.prefixLength()+2 {
-// 		core.LogWarn(f, "Channel dataset Interest too short: ", interest.Name())
-// 		return
-// 	}
-
-// 	dataset := make([]byte, 0)
-// 	// UDP channel
-// 	ifaces, err := net.Interfaces()
-// 	if err != nil {
-// 		core.LogWarn(f, "Unable to access channel dataset: ", err)
-// 		return
-// 	}
-// 	for _, iface := range ifaces {
-// 		addrs, err := iface.Addrs()
-// 		if err != nil {
-// 			core.LogWarn(f, "Unable to access IP addresses for ", iface.Name, ": ", err)
-// 			return
-// 		}
-// 		for _, addr := range addrs {
-// 			ipAddr := addr.(*net.IPNet)
-
-// 			ipVersion := 4
-// 			path := ipAddr.IP.String()
-// 			if ipAddr.IP.To4() == nil {
-// 				ipVersion = 6
-// 				path += "%" + iface.Name
-// 			}
-
-// 			if !addr.(*net.IPNet).IP.IsLoopback() {
-// 				uri := oldndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort)
-// 				channel := mgmt.ChannelStatus{}
-// 				channelEncoded, err := channel.Encode()
-// 				if err != nil {
-// 					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-// 					continue
-// 				}
-// 				channelWire, err := channelEncoded.Wire()
-// 				if err != nil {
-// 					core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-// 					continue
-// 				}
-// 				dataset = append(dataset, channelWire...)
-// 			}
-// 		}
-// 	}
-
-// 	// Unix channel
-// 	uri := oldndn.MakeUnixFaceURI(face.UnixSocketPath)
-// 	channel := mgmt.MakeChannelStatus(uri)
-// 	channelEncoded, err := channel.Encode()
-// 	if err != nil {
-// 		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-// 		return
-// 	}
-// 	channelWire, err := channelEncoded.Wire()
-// 	if err != nil {
-// 		core.LogError(f, "Cannot encode ChannelStatus for Channel=", uri, ": ", err)
-// 		return
-// 	}
-// 	dataset = append(dataset, channelWire...)
-
-// 	segments := makeStatusDataset(interest.Name(), f.nextChannelDatasetVersion, dataset)
-// 	f.manager.transport.Send(segments, pitToken, nil)
-
-// 	core.LogTrace(f, "Published channel dataset version=", f.nextChannelDatasetVersion, ", containing ",
-// 		len(segments), " segments")
-// 	f.nextChannelDatasetVersion++
-// }
 
 func (f *FaceModule) fillFaceProperties(params map[string]any, selectedFace face.LinkService) {
 	params["FaceId"] = uint64(selectedFace.FaceID())
@@ -763,68 +644,5 @@ func (f *FaceModule) fillFaceProperties(params map[string]any, selectedFace face
 		params["BaseCongestionMarkInterval"] = uint64(options.BaseCongestionMarkingInterval.Nanoseconds())
 		params["DefaultCongestionThreshold"] = options.DefaultCongestionThresholdBytes
 		params["Flags"] = uint64(options.Flags())
-	}
-}
-
-func (f *FaceModule) events(interest *spec.Interest, pitToken []byte, inFace uint64) {
-	var id uint64 = 0
-	var err error
-
-	if len(interest.NameV) < f.manager.prefixLength()+3 {
-		// Name is a prefix, take the last one
-		id = face.FaceEventLastId()
-		if !interest.CanBePrefix() {
-			core.LogInfo(f, "FaceEvent Interest with a prefix should set CanBePrefix=true: ", interest.Name())
-			return
-		}
-	} else {
-		seg := interest.NameV[f.manager.prefixLength()+2]
-		if seg.Typ != enc.TypeSegmentNameComponent {
-			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name())
-			return
-		}
-		id, err = tlv.DecodeNNI(seg.Val)
-		if err != nil {
-			core.LogInfo(f, "FaceEvent Interest with an illegible event ID: ", interest.Name(), "err: ", err)
-			return
-		}
-	}
-
-	f.sendFaceEventNotification(id, pitToken)
-}
-
-func (f *FaceModule) sendFaceEventNotification(id uint64, pitToken []byte) {
-	event := face.GetFaceEvent(id)
-	if event == nil {
-		return
-	}
-
-	eventBlock, err := event.Encode()
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceEventNotification for EventID=", id, ": ", err)
-		return
-	}
-
-	dataName, err := enc.NameFromStr("/localhost/nfd/faces/events")
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceEventNotification name.")
-		return
-	}
-	dataName = append(dataName, enc.NewSequenceNumComponent(id))
-	dataWire, _, err := spec.Spec{}.MakeData(
-		dataName,
-		&ndn.DataConfig{
-			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
-			Freshness:   utils.IdPtr(1 * time.Millisecond),
-		},
-		eventBlock,
-		sec.NewSha256Signer(),
-	)
-	if err != nil {
-		core.LogError(f, "Cannot encode FaceEventNotification data for EventID=", id, ": ", err)
-		return
-	}
-	if f.manager.transport != nil {
-		f.manager.transport.Send(dataWire, pitToken, nil)
 	}
 }

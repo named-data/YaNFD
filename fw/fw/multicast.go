@@ -11,7 +11,7 @@ import (
 	"reflect"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -34,7 +34,7 @@ func (s *Multicast) Instantiate(fwThread *Thread) {
 }
 
 // AfterContentStoreHit ...
-func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	// Send downstream
 	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", pendingPacket.NameCache,
 		" to FaceID=", inFace)
@@ -42,7 +42,7 @@ func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn.PendingPacket, pitEn
 }
 
 // AfterReceiveData ...
-func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
+func (s *Multicast) AfterReceiveData(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
 	core.LogTrace(s, "AfterReceiveData: Data=", pendingPacket.EncPacket.Data.NameV, ", ",
 		len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
@@ -53,7 +53,7 @@ func (s *Multicast) AfterReceiveData(pendingPacket *ndn.PendingPacket, pitEntry 
 
 // AfterReceiveInterest ...
 func (s *Multicast) AfterReceiveInterest(
-	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
+	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
 ) {
 	if len(nexthops) == 0 {
 		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", pendingPacket.NameCache,
