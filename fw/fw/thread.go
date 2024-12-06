@@ -15,7 +15,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -62,8 +62,8 @@ func HashNameToAllPrefixFwThreads(name enc.Name) []int {
 // Thread Represents a forwarding thread
 type Thread struct {
 	threadID         int
-	pendingInterests chan *ndn.PendingPacket
-	pendingDatas     chan *ndn.PendingPacket
+	pendingInterests chan *ndn_defn.PendingPacket
+	pendingDatas     chan *ndn_defn.PendingPacket
 	pitCS            table.PitCsTable
 	strategies       map[uint64]Strategy
 	deadNonceList    *table.DeadNonceList
@@ -83,8 +83,8 @@ type Thread struct {
 func NewThread(id int) *Thread {
 	t := new(Thread)
 	t.threadID = id
-	t.pendingInterests = make(chan *ndn.PendingPacket, fwQueueSize)
-	t.pendingDatas = make(chan *ndn.PendingPacket, fwQueueSize)
+	t.pendingInterests = make(chan *ndn_defn.PendingPacket, fwQueueSize)
+	t.pendingDatas = make(chan *ndn_defn.PendingPacket, fwQueueSize)
 	t.pitCS = table.NewPitCS(t.finalizeInterest)
 	t.strategies = InstantiateStrategies(t)
 	t.deadNonceList = table.NewDeadNonceList()
@@ -147,7 +147,7 @@ func (t *Thread) Run() {
 }
 
 // QueueInterest queues an Interest for processing by this forwarding thread.
-func (t *Thread) QueueInterest(interest *ndn.PendingPacket) {
+func (t *Thread) QueueInterest(interest *ndn_defn.PendingPacket) {
 	select {
 	case t.pendingInterests <- interest:
 	default:
@@ -156,7 +156,7 @@ func (t *Thread) QueueInterest(interest *ndn.PendingPacket) {
 }
 
 // QueueData queues a Data packet for processing by this forwarding thread.
-func (t *Thread) QueueData(data *ndn.PendingPacket) {
+func (t *Thread) QueueData(data *ndn_defn.PendingPacket) {
 	select {
 	case t.pendingDatas <- data:
 	default:
@@ -164,7 +164,7 @@ func (t *Thread) QueueData(data *ndn.PendingPacket) {
 	}
 }
 
-func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
+func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) {
 	// Ensure incoming face is indicated
 	if pendingPacket.IncomingFaceID == nil {
 		core.LogError(t, "Interest missing IncomingFaceId - DROP")
@@ -198,7 +198,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 	}
 
 	// Check if violates /localhost
-	if incomingFace.Scope() == ndn.NonLocal && len(pendingPacket.EncPacket.Interest.NameV) > 0 &&
+	if incomingFace.Scope() == ndn_defn.NonLocal && len(pendingPacket.EncPacket.Interest.NameV) > 0 &&
 		bytes.Equal(pendingPacket.EncPacket.Interest.NameV[0].Val, LOCALHOST) {
 		core.LogWarn(t, "Interest ", pendingPacket.NameCache, " from non-local face=", incomingFace.FaceID(),
 			" violates /localhost scope - DROP")
@@ -304,7 +304,7 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn.PendingPacket) {
 }
 
 func (t *Thread) processOutgoingInterest(
-	pendingPacket *ndn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
+	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, nexthop uint64, inFace uint64,
 ) bool {
 	core.LogTrace(t, "OnOutgoingInterest: ", ", FaceID=", nexthop)
 
@@ -314,14 +314,14 @@ func (t *Thread) processOutgoingInterest(
 		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", pendingPacket.NameCache, " - DROP")
 		return false
 	}
-	if outgoingFace.FaceID() == inFace && outgoingFace.LinkType() != ndn.AdHoc {
+	if outgoingFace.FaceID() == inFace && outgoingFace.LinkType() != ndn_defn.AdHoc {
 		core.LogDebug(t, "Attempting to send Interest=", pendingPacket.NameCache, " back to incoming face - DROP")
 		return false
 	}
 
 	// Drop if HopLimit (if present) on Interest going to non-local face is 0. If so, drop
 	if pendingPacket.EncPacket.Interest.HopLimitV != nil && int(*pendingPacket.EncPacket.Interest.HopLimitV) == 0 &&
-		outgoingFace.Scope() == ndn.NonLocal {
+		outgoingFace.Scope() == ndn_defn.NonLocal {
 		core.LogDebug(t, "Attempting to send Interest=", pendingPacket.NameCache,
 			" with HopLimit=0 to non-local face - DROP")
 		return false
@@ -356,7 +356,7 @@ func (t *Thread) finalizeInterest(pitEntry table.PitEntry) {
 	}
 }
 
-func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
+func (t *Thread) processIncomingData(pendingPacket *ndn_defn.PendingPacket) {
 	// Ensure incoming face is indicated
 	if pendingPacket.IncomingFaceID == nil {
 		core.LogError(t, "Data missing IncomingFaceId - DROP")
@@ -382,7 +382,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	t.NInData++
 
 	// Check if violates /localhost
-	if incomingFace.Scope() == ndn.NonLocal && len(pendingPacket.NameCache) > 0 &&
+	if incomingFace.Scope() == ndn_defn.NonLocal && len(pendingPacket.NameCache) > 0 &&
 		bytes.Equal(pendingPacket.EncPacket.Data.NameV[0].Val, LOCALHOST) {
 		core.LogWarn(t, "Data ", pendingPacket.NameCache, " from non-local FaceID=", *pendingPacket.IncomingFaceID,
 			" violates /localhost scope - DROP")
@@ -467,7 +467,7 @@ func (t *Thread) processIncomingData(pendingPacket *ndn.PendingPacket) {
 	}
 }
 
-func (t *Thread) processOutgoingData(pendingPacket *ndn.PendingPacket, nexthop uint64, pitToken []byte, inFace uint64) {
+func (t *Thread) processOutgoingData(pendingPacket *ndn_defn.PendingPacket, nexthop uint64, pitToken []byte, inFace uint64) {
 	core.LogTrace(t, "OnOutgoingData: ", pendingPacket.NameCache, ", FaceID=", nexthop)
 
 	// Get outgoing face
@@ -478,7 +478,7 @@ func (t *Thread) processOutgoingData(pendingPacket *ndn.PendingPacket, nexthop u
 	}
 
 	// Check if violates /localhost
-	if outgoingFace.Scope() == ndn.NonLocal && len(pendingPacket.EncPacket.Data.NameV) > 0 &&
+	if outgoingFace.Scope() == ndn_defn.NonLocal && len(pendingPacket.EncPacket.Data.NameV) > 0 &&
 		bytes.Equal(pendingPacket.EncPacket.Data.NameV[0].Val, LOCALHOST) {
 		core.LogWarn(t, "Data ", pendingPacket.NameCache, " cannot be sent to non-local FaceID=", nexthop,
 			" since violates /localhost scope - DROP")

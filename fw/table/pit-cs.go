@@ -10,21 +10,21 @@ package table
 import (
 	"time"
 
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // PitCsTable dictates what functionality a Pit-Cs table should implement
 // Warning: All functions must be called in the same forwarding goroutine as the creation of the table.
 type PitCsTable interface {
-	InsertInterest(pendingPacket *ndn.PendingPacket, hint enc.Name, inFace uint64) (PitEntry, bool)
+	InsertInterest(pendingPacket *ndn_defn.PendingPacket, hint enc.Name, inFace uint64) (PitEntry, bool)
 	RemoveInterest(pitEntry PitEntry) bool
-	FindInterestExactMatchEnc(pendingPacket *ndn.PendingPacket) PitEntry
-	FindInterestPrefixMatchByDataEnc(pendingPacket *ndn.PendingPacket, token *uint32) []PitEntry
+	FindInterestExactMatchEnc(pendingPacket *ndn_defn.PendingPacket) PitEntry
+	FindInterestPrefixMatchByDataEnc(pendingPacket *ndn_defn.PendingPacket, token *uint32) []PitEntry
 	PitSize() int
 
-	InsertData(pendingPacket *ndn.PendingPacket)
-	FindMatchingDataFromCS(pendingPacket *ndn.PendingPacket) CsEntry
+	InsertData(pendingPacket *ndn_defn.PendingPacket)
+	FindMatchingDataFromCS(pendingPacket *ndn_defn.PendingPacket) CsEntry
 	CsSize() int
 	IsCsAdmitting() bool
 	IsCsServing() bool
@@ -60,8 +60,8 @@ type PitEntry interface {
 
 	Token() uint32
 
-	InsertInRecord(pendingPacket *ndn.PendingPacket, face uint64, incomingPitToken []byte) (*PitInRecord, bool)
-	InsertOutRecord(pendingPacket *ndn.PendingPacket, face uint64) *PitOutRecord
+	InsertInRecord(pendingPacket *ndn_defn.PendingPacket, face uint64, incomingPitToken []byte) (*PitInRecord, bool)
+	InsertOutRecord(pendingPacket *ndn_defn.PendingPacket, face uint64) *PitOutRecord
 
 	GetOutRecords() []*PitOutRecord
 	ClearOutRecords()
@@ -89,7 +89,7 @@ type basePitEntry struct {
 type PitInRecord struct {
 	Face              uint64
 	LatestTimestamp   time.Time
-	LatestEncInterest *ndn.PendingPacket
+	LatestEncInterest *ndn_defn.PendingPacket
 	LatestEncNonce    uint32
 	ExpirationTime    time.Time
 	PitToken          []byte
@@ -99,7 +99,7 @@ type PitInRecord struct {
 type PitOutRecord struct {
 	Face              uint64
 	LatestTimestamp   time.Time
-	LatestEncInterest *ndn.PendingPacket
+	LatestEncInterest *ndn_defn.PendingPacket
 	LatestEncNonce    uint32
 	ExpirationTime    time.Time
 }
@@ -108,19 +108,19 @@ type PitOutRecord struct {
 type CsEntry interface {
 	Index() uint64 // the hash of the entry, for fast lookup
 	StaleTime() time.Time
-	EncData() *ndn.PendingPacket
+	EncData() *ndn_defn.PendingPacket
 }
 
 type baseCsEntry struct {
 	index     uint64
 	staleTime time.Time
-	encData   *ndn.PendingPacket
+	encData   *ndn_defn.PendingPacket
 }
 
 // InsertInRecord finds or inserts an InRecord for the face, updating the
 // metadata and returning whether there was already an in-record in the entry.
 func (bpe *basePitEntry) InsertInRecord(
-	pendingPacket *ndn.PendingPacket, face uint64, incomingPitToken []byte,
+	pendingPacket *ndn_defn.PendingPacket, face uint64, incomingPitToken []byte,
 ) (*PitInRecord, bool) {
 	var record *PitInRecord
 	var ok bool
@@ -232,6 +232,6 @@ func (bce *baseCsEntry) StaleTime() time.Time {
 	return bce.staleTime
 }
 
-func (bce *baseCsEntry) EncData() *ndn.PendingPacket {
+func (bce *baseCsEntry) EncData() *ndn_defn.PendingPacket {
 	return bce.encData
 }

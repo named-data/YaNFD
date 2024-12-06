@@ -12,7 +12,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 )
 
@@ -49,7 +49,6 @@ func (t *Table) Add(face LinkService) {
 	dispatch.AddFace(faceID, face)
 
 	core.LogDebug("FaceTable", "Registered FaceID=", faceID)
-	EmitFaceEvent(FaceEventCreated, face)
 }
 
 // Get gets the face with the specified ID (if any) from the face table.
@@ -65,7 +64,7 @@ func (t *Table) Get(id uint64) LinkService {
 }
 
 // GetByURI gets the face with the specified remote URI (if any) from the face table.
-func (t *Table) GetByURI(remoteURI *ndn.URI) LinkService {
+func (t *Table) GetByURI(remoteURI *ndn_defn.URI) LinkService {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 	for _, face := range t.Faces {
@@ -92,7 +91,6 @@ func (t *Table) GetAll() []LinkService {
 func (t *Table) Remove(id uint64) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	EmitFaceEvent(FaceEventDestroyed, t.Faces[id])
 	delete(t.Faces, id)
 
 	// Remove from dispatch
