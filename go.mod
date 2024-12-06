@@ -7,10 +7,10 @@ require (
 	github.com/cornelk/hashmap v1.0.8
 	github.com/gorilla/websocket v1.5.3
 	github.com/pelletier/go-toml v1.9.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/zjkmxy/go-ndn v0.0.6
-	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
-	golang.org/x/sys v0.24.0
+	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
+	golang.org/x/sys v0.28.0
 )
 
 require (
