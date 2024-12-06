@@ -92,11 +92,12 @@ func (t *UnixStreamTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
-	startPos := 0
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize*32)
+	startReadPos := 0
+	startTlvPos := 0
 	for {
-		readSize, err := t.conn.Read(recvBuf[startPos:])
-		startPos += readSize
+		readSize, err := t.conn.Read(recvBuf[startReadPos:])
+		startReadPos += readSize
 		if err != nil {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
@@ -106,41 +107,32 @@ func (t *UnixStreamTransport) runReceive() {
 			t.changeState(ndn_defn.Down)
 			break
 		}
-		core.LogTrace(t, "Receive of size ", readSize)
+
 		t.nInBytes += uint64(readSize)
-		if startPos > ndn_defn.MaxNDNPacketSize {
-			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
-			continue
-		}
 
 		// Determine whether valid packet received
-		tlvPos := 0
 		for {
-			if tlvPos >= startPos {
-				startPos = 0
-				break
-			}
-
-			_, _, tlvSize, err := ndn_defn.DecodeTypeLength(recvBuf[tlvPos:])
+			_, _, tlvSize, err := ndn_defn.DecodeTypeLength(recvBuf[startTlvPos:])
 			if err != nil {
-				core.LogInfo(t, "Unable to process received packet: ", err)
-				startPos = 0
+				// Probably incomplete packet
+				core.LogDebug(t, "Unable to process received packet: ", err)
 				break
-			} else if startPos >= tlvPos+tlvSize {
+			} else if startReadPos >= startTlvPos+tlvSize {
 				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(recvBuf[tlvPos : tlvPos+tlvSize])
-				tlvPos += tlvSize
+				t.linkService.handleIncomingFrame(recvBuf[startTlvPos : startTlvPos+tlvSize])
+				startTlvPos += tlvSize
 			} else {
-				if tlvPos > 0 {
-					if startPos > tlvPos {
-						// Move remaining data to beginning of buffer
-						copy(recvBuf, recvBuf[tlvPos:startPos])
-					}
-					startPos -= tlvPos
-				}
+				// Incomplete packet (for sure)
 				core.LogTrace(t, "Received packet is incomplete")
 				break
 			}
+		}
+
+		// If less than one packet space remains in buffer, shift to beginning
+		if startReadPos-startTlvPos < ndn_defn.MaxNDNPacketSize {
+			copy(recvBuf, recvBuf[startTlvPos:startReadPos])
+			startReadPos -= startTlvPos
+			startTlvPos = 0
 		}
 	}
 }
