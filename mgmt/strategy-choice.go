@@ -10,6 +10,7 @@ package mgmt
 import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/fw"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
@@ -127,6 +128,29 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		response = makeControlResponse(404, "Unknown strategy version", nil)
 		s.manager.sendResponse(response, interest, pitToken, inFace)
 		return
+	} else if len(params.Strategy.Name) > len(s.strategyPrefix)+1 {
+		strategyVersionBytes := params.Strategy.Name[len(s.strategyPrefix)+1].Val
+		strategyVersion, err := ndn_defn.ParseNat(strategyVersionBytes)
+		if err != nil {
+			core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1],
+				" for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
+			response = makeControlResponse(404, "Unknown strategy version", nil)
+			s.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+		foundMatchingVersion := false
+		for _, version := range availableVersions {
+			if version == uint64(strategyVersion) {
+				foundMatchingVersion = true
+			}
+		}
+		if !foundMatchingVersion {
+			core.LogWarn(s, "Unknown Version=", strategyVersion, " for Strategy=", params.Strategy,
+				" in ControlParameters for Interest=", interest.Name())
+			response = makeControlResponse(404, "Unknown strategy version", nil)
+			s.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
 	} else {
 		// Add missing version information to strategy name
 		params.Strategy.Name = append(params.Strategy.Name, enc.NewVersionComponent(strategyVersion))
