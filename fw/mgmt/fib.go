@@ -149,7 +149,7 @@ func (f *FIBModule) remove(interest *spec.Interest, pitToken []byte, inFace uint
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (f *FIBModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
