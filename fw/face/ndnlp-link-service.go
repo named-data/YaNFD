@@ -68,6 +68,7 @@ type NDNLPLinkService struct {
 	nextTxSequence           uint64
 	lastTimeCongestionMarked time.Time
 	BufferReader             enc.BufferReader
+	congestionCheck          uint64
 }
 
 // MakeNDNLPLinkService creates a new NDNLPv2 link service
@@ -212,12 +213,21 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 	}
 
 	// Congestion marking
-	if congestionMarking && l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes &&
-		now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) {
-		// Mark congestion
-		core.LogWarn(l, "Marking congestion")
-		fragments[0].CongestionMark = utils.IdPtr[uint64](1)
-		l.lastTimeCongestionMarked = now
+	if congestionMarking {
+		// GetSendQueueSize is expensive, so only check every 1/2 of the threshold
+		// and only if we can mark congestion for this particular packet
+		if l.congestionCheck > l.options.DefaultCongestionThresholdBytes {
+			if now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) &&
+				l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes {
+				core.LogWarn(l, "Marking congestion")
+				fragments[0].CongestionMark = utils.IdPtr[uint64](1)
+				l.lastTimeCongestionMarked = now
+			}
+
+			l.congestionCheck = 0
+		}
+
+		l.congestionCheck += uint64(wire.Length()) // approx
 	}
 
 	// PIT tokens

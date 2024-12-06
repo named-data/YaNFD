@@ -28,11 +28,11 @@ var Threads map[int]*Thread
 var LOCALHOST = []byte{0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f, 0x73, 0x74}
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.
-func HashNameToFwThread(name enc.Name) int {
+func HashNameToFwThread(name *enc.Name) int {
 	// Dispatch all management requests to thread 0
 	// this is fine, all it does is make sure the pitcs table in thread 0 has the management stuff.
 	// This is not actually touching management.
-	if len(name) > 0 && bytes.Equal((name)[0].Val, LOCALHOST) {
+	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
 		return 0
 	}
 	// to prevent negative modulos because we converted from uint to int
@@ -40,9 +40,9 @@ func HashNameToFwThread(name enc.Name) int {
 }
 
 // HashNameToAllPrefixFwThreads hashes an NDN name to all forwarding threads for all prefixes of the name.
-func HashNameToAllPrefixFwThreads(name enc.Name) []int {
+func HashNameToAllPrefixFwThreads(name *enc.Name) []int {
 	// Dispatch all management requests to thread 0
-	if len(name) > 0 && bytes.Equal(name[0].Val, LOCALHOST) {
+	if len(*name) > 0 && bytes.Equal((*name)[0].Val, LOCALHOST) {
 		return []int{0}
 	}
 
@@ -180,7 +180,6 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 	}
 
 	if pendingPacket.EncPacket.Interest.HopLimitV != nil && *pendingPacket.EncPacket.Interest.HopLimitV == 0 {
-		// core.LogDebug(t, "Received Interest=", , " with HopLimit=0 - DROP")
 		return
 	} else if pendingPacket.EncPacket.Interest.HopLimitV != nil {
 		*pendingPacket.EncPacket.Interest.HopLimitV -= 1
@@ -243,15 +242,10 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 		core.LogInfo(t, "Interest ", pendingPacket.NameCache, " is looping - DROP")
 		return
 	}
-	core.LogDebug(t, "Found or updated PIT entry for Interest=", pendingPacket.NameCache, ", PitToken=",
-		uint64(pitEntry.Token()))
 
 	// Get strategy for name
-	// getting strategy for name seems generic enough that it will be easy
 	strategyName := table.FibStrategyTable.FindStrategyEnc(pendingPacket.EncPacket.Interest.NameV)
 	strategy := t.strategies[strategyName.Hash()]
-	core.LogDebug(t, "Using Strategy=", "/localhost/nfd/strategy/best-route/v=1", " for Interest=",
-		pendingPacket.NameCache)
 
 	// Add in-record and determine if already pending
 	// this looks like custom interest again, but again can be changed without much issue?
@@ -277,7 +271,6 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 
 	// Update PIT entry expiration timer
 	table.UpdateExpirationTimer(pitEntry)
-	// pitEntry.UpdateExpirationTimer()
 
 	// If NextHopFaceId set, forward to that face (if it exists) or drop
 	if pendingPacket.NextHopFaceID != nil {
@@ -291,16 +284,14 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 	}
 
 	// Pass to strategy AfterReceiveInterest pipeline
-	var trash []*table.FibNextHopEntry
-	//var nexthop []*table.FibNextHopEntry
+	var nexthops []*table.FibNextHopEntry
 	if fhName == nil {
-		trash = table.FibStrategyTable.FindNextHopsEnc(pendingPacket.EncPacket.Interest.NameV)
+		nexthops = table.FibStrategyTable.FindNextHopsEnc(pendingPacket.EncPacket.Interest.NameV)
 	} else {
-		trash = table.FibStrategyTable.FindNextHopsEnc(fhName)
+		nexthops = table.FibStrategyTable.FindNextHopsEnc(fhName)
 	}
 
-	strategy.AfterReceiveInterest(pendingPacket, pitEntry, incomingFace.FaceID(), trash)
-	//strategy.AfterReceiveInterest(pendingPacket, pitEntry, incomingFace.FaceID(), interest, nexthop)
+	strategy.AfterReceiveInterest(pendingPacket, pitEntry, incomingFace.FaceID(), nexthops)
 }
 
 func (t *Thread) processOutgoingInterest(
@@ -343,8 +334,6 @@ func (t *Thread) processOutgoingInterest(
 }
 
 func (t *Thread) finalizeInterest(pitEntry table.PitEntry) {
-	//core.LogTrace(t, "OnFinalizeInterest: ", pitEntry.Name())
-
 	// Check for nonces to insert into dead nonce list
 	for _, outRecord := range pitEntry.OutRecords() {
 		t.deadNonceList.Insert(outRecord.LatestEncInterest.EncPacket.Interest.NameV, outRecord.LatestEncNonce)

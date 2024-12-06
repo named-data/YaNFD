@@ -230,7 +230,7 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 	switch {
 	case netPacket.EncPacket.Interest != nil:
 		netPacket.NameCache = netPacket.EncPacket.Interest.NameV.String()
-		thread := fw.HashNameToFwThread(netPacket.EncPacket.Interest.NameV)
+		thread := fw.HashNameToFwThread(&netPacket.EncPacket.Interest.NameV)
 		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case netPacket.EncPacket.Data != nil:
@@ -249,13 +249,13 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 		} else if l.Scope() == ndn_defn.Local {
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.EncPacket.Data.NameV) {
+			for _, thread := range fw.HashNameToAllPrefixFwThreads(&netPacket.EncPacket.Data.NameV) {
 				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
 		} else {
 			// Only exact-match for now (no CanBePrefix)
-			thread := fw.HashNameToFwThread(netPacket.EncPacket.Data.NameV)
+			thread := fw.HashNameToFwThread(&netPacket.EncPacket.Data.NameV)
 			core.LogTrace(l, "Dispatched Data to thread ", thread)
 			dispatch.GetFWThread(thread).QueueData(netPacket)
 		}
