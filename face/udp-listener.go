@@ -77,7 +77,7 @@ func (l *UDPListener) Run() {
 			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
 			continue
 		}
-		portInt, _ := strconv.ParseUint(port, 10, 16)
+		portInt, err := strconv.ParseUint(port, 10, 16)
 		if err != nil {
 			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
 			continue

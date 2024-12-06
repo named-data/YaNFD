@@ -24,9 +24,8 @@ import (
 
 // FaceModule is the module that handles Face Management.
 type FaceModule struct {
-	manager                   *Thread
-	nextFaceDatasetVersion    uint64
-	nextChannelDatasetVersion uint64
+	manager                *Thread
+	nextFaceDatasetVersion uint64
 }
 
 func (f *FaceModule) String() string {
@@ -520,7 +519,7 @@ func (f *FaceModule) destroy(interest *spec.Interest, pitToken []byte, inFace ui
 	f.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > f.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return
@@ -549,7 +548,7 @@ func (f *FaceModule) list(interest *spec.Interest, pitToken []byte, inFace uint6
 	f.nextFaceDatasetVersion++
 }
 
-func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (f *FaceModule) query(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) < f.manager.prefixLength()+3 {
 		// Name not long enough to contain FaceQueryFilter
 		core.LogWarn(f, "Missing FaceQueryFilter in ", interest.Name())

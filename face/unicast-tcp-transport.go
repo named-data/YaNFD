@@ -36,7 +36,7 @@ func MakeUnicastTCPTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, pe
 		return nil, core.ErrNotCanonical
 	}
 	if localURI != nil {
-		return nil, errors.New("Do not specify localURI for TCP.")
+		return nil, errors.New("do not specify localURI for TCP")
 	}
 
 	t := new(UnicastTCPTransport)
@@ -54,12 +54,7 @@ func MakeUnicastTCPTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, pe
 	}
 
 	// Set local and remote addresses
-	if localURI != nil {
-		t.localAddr.IP = net.ParseIP(localURI.Path())
-		t.localAddr.Port = int(localURI.Port())
-	} else {
-		t.localAddr.Port = int(TCPUnicastPort)
-	}
+	t.localAddr.Port = int(TCPUnicastPort)
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())
 
@@ -74,11 +69,6 @@ func MakeUnicastTCPTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, pe
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
 	t.conn = conn.(*net.TCPConn)
-
-	if localURI == nil {
-		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-		t.localURI = ndn_defn.DecodeURIString("tcp://" + t.localAddr.String())
-	}
 
 	t.changeState(ndn_defn.Up)
 
@@ -96,7 +86,7 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn_defn.URI, pers
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
 		return nil, err
 	}
-	portInt, _ := strconv.ParseUint(port, 10, 16)
+	portInt, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		core.LogWarn("UnicastTCPTransport", "Unable to create face from ", remoteAddr, ": could not split host from port")
 		return nil, err
@@ -136,7 +126,7 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *ndn_defn.URI, pers
 	t.conn, success = remoteConn.(*net.TCPConn)
 	if !success {
 		core.LogError("UnicastTCPTransport", "Specified connection ", remoteConn, " is not a net.TCPConn")
-		return nil, errors.New("Specified connection is not a net.TCPConn")
+		return nil, errors.New("specified connection is not a net.TCPConn")
 	}
 
 	if localURI == nil {

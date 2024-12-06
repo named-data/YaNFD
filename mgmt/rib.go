@@ -224,7 +224,7 @@ func (r *RIBModule) announce(interest *spec.Interest, pitToken []byte, inFace ui
 	r.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (r *RIBModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > r.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return

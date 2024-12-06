@@ -181,7 +181,7 @@ func (s *StrategyChoiceModule) unset(interest *spec.Interest, pitToken []byte, i
 	s.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > s.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return

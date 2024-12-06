@@ -231,14 +231,9 @@ func (l *linkServiceBase) SendPacket(packet *ndn_defn.PendingPacket) {
 
 func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPacket) {
 	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
-	var err error
 	switch {
 	case netPacket.EncPacket.Interest != nil:
 		netPacket.NameCache = netPacket.EncPacket.Interest.NameV.String()
-		if err != nil {
-			core.LogError(l, "Unable to decode Interest (", err, ") - DROP")
-			break
-		}
 		thread := fw.HashNameToFwThread(netPacket.EncPacket.Interest.NameV)
 		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
@@ -262,17 +257,12 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
 			core.LogDebug(l, "Missing PIT token from local origin Data packet - performing prefix dispatching")
-			if err != nil {
-				core.LogError(l, "Unable to decode Data (", err, ") - DROP")
-				break
-			}
 			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.EncPacket.Data.NameV) {
 				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
 		}
 	default:
-		//change this
 		core.LogError(l, "Cannot dispatch packet of unknown type ")
 	}
 }
