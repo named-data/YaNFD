@@ -15,8 +15,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // MulticastUDPTransport is a multicast UDP transport.
@@ -30,7 +29,7 @@ type MulticastUDPTransport struct {
 }
 
 // MakeMulticastUDPTransport creates a new multicast UDP transport.
-func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error) {
+func MakeMulticastUDPTransport(localURI *ndn_defn.URI) (*MulticastUDPTransport, error) {
 	// Validate local URI
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
@@ -46,15 +45,15 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 
 	if localURI.Scheme() == "udp4" {
 		t.makeTransportBase(
-			ndn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)),
-			localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
+			ndn_defn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)),
+			localURI, PersistencyPermanent, ndn_defn.NonLocal, ndn_defn.MultiAccess, ndn_defn.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
 		t.makeTransportBase(
-			ndn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+
+			ndn_defn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+
 				strconv.FormatUint(uint64(UDPMulticastPort), 10)),
-			localURI, PersistencyPermanent, ndn.NonLocal, ndn.MultiAccess, tlv.MaxNDNPacketSize)
+			localURI, PersistencyPermanent, ndn_defn.NonLocal, ndn_defn.MultiAccess, ndn_defn.MaxNDNPacketSize)
 	}
-	t.scope = ndn.NonLocal
+	t.scope = ndn_defn.NonLocal
 
 	// Format group and local addresses
 	t.groupAddr.IP = net.ParseIP(t.remoteURI.PathHost())
@@ -81,7 +80,7 @@ func MakeMulticastUDPTransport(localURI *ndn.URI) (*MulticastUDPTransport, error
 			localIf.Name + ": " + err.Error())
 	}
 
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 
 	return t, nil
 }
@@ -139,13 +138,13 @@ func (t *MulticastUDPTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
-				t.changeState(ndn.Down)
+				t.changeState(ndn_defn.Down)
 				break
 			} else {
 				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
@@ -161,7 +160,7 @@ func (t *MulticastUDPTransport) runReceive() {
 		core.LogTrace(t, "Receive of size ", readSize, " from ", remoteAddr)
 		t.nInBytes += uint64(readSize)
 
-		if readSize > tlv.MaxNDNPacketSize {
+		if readSize > ndn_defn.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 		}
 		if readSize <= 0 {
@@ -169,20 +168,12 @@ func (t *MulticastUDPTransport) runReceive() {
 			continue
 		}
 
-		// Determine whether valid packet received
-		_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[:readSize])
-		if err != nil {
-			core.LogInfo(t, "Unable to process received packet: ", err)
-		} else if readSize >= tlvSize {
-			// Packet was successfully received, send up to link service
-			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
-		} else {
-			core.LogInfo(t, "Received packet is incomplete")
-		}
+		// Packet was successfully received, send up to link service
+		t.linkService.handleIncomingFrame(recvBuf[:readSize])
 	}
 }
 
-func (t *MulticastUDPTransport) changeState(new ndn.State) {
+func (t *MulticastUDPTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -190,7 +181,7 @@ func (t *MulticastUDPTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		core.LogInfo(t, "Closing UDP socket")
 		t.hasQuit <- true
 		t.sendConn.Close()

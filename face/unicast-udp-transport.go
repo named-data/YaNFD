@@ -16,8 +16,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // UnicastUDPTransport is a unicast UDP transport.
@@ -31,7 +30,7 @@ type UnicastUDPTransport struct {
 
 // MakeUnicastUDPTransport creates a new unicast UDP transport.
 func MakeUnicastUDPTransport(
-	remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency,
+	remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, persistency Persistency,
 ) (*UnicastUDPTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") ||
@@ -41,16 +40,16 @@ func MakeUnicastUDPTransport(
 
 	t := new(UnicastUDPTransport)
 	// All persistencies are accepted
-	t.makeTransportBase(remoteURI, localURI, persistency, ndn.NonLocal, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, persistency, ndn_defn.NonLocal, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(udpLifetime)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
 	if ip.IsLoopback() {
-		t.scope = ndn.Local
+		t.scope = ndn_defn.Local
 	} else {
-		t.scope = ndn.NonLocal
+		t.scope = ndn_defn.NonLocal
 	}
 
 	// Set local and remote addresses
@@ -76,10 +75,10 @@ func MakeUnicastUDPTransport(
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.UDPAddr)
-		t.localURI = ndn.DecodeURIString("udp://" + t.localAddr.String())
+		t.localURI = ndn_defn.DecodeURIString("udp://" + t.localAddr.String())
 	}
 
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 
 	go t.expirationHandler()
 
@@ -130,7 +129,7 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 			go t.runReceive()
 		}
 	default:
-		t.changeState(ndn.Down)
+		t.changeState(ndn_defn.Down)
 	}
 }
 
@@ -138,13 +137,13 @@ func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
 func (t *UnicastUDPTransport) expirationHandler() {
 	for {
 		time.Sleep(time.Duration(10) * time.Second)
-		if t.state == ndn.Down {
+		if t.state == ndn_defn.Down {
 			break
 		}
 		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) ||
 			t.expirationTime.Equal(time.Now())) {
 			core.LogInfo(t, "Face expired")
-			t.changeState(ndn.Down)
+			t.changeState(ndn_defn.Down)
 			break
 		}
 	}
@@ -172,7 +171,7 @@ func (t *UnicastUDPTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
@@ -189,7 +188,7 @@ func (t *UnicastUDPTransport) runReceive() {
 		t.nInBytes += uint64(readSize)
 		*t.expirationTime = time.Now().Add(udpLifetime)
 
-		if readSize > tlv.MaxNDNPacketSize {
+		if readSize > ndn_defn.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 			continue
 		}
@@ -199,7 +198,7 @@ func (t *UnicastUDPTransport) runReceive() {
 	}
 }
 
-func (t *UnicastUDPTransport) changeState(new ndn.State) {
+func (t *UnicastUDPTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -207,7 +206,7 @@ func (t *UnicastUDPTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		core.LogInfo(t, "Closing UDP socket")
 		t.hasQuit <- true
 		t.conn.Close()

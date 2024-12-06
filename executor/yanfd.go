@@ -19,7 +19,7 @@ import (
 	"github.com/named-data/YaNFD/face"
 	"github.com/named-data/YaNFD/fw"
 	"github.com/named-data/YaNFD/mgmt"
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 )
 
@@ -27,7 +27,6 @@ import (
 type YaNFDConfig struct {
 	Version           string
 	ConfigFileName    string
-	DisableEthernet   bool
 	DisableUnix       bool
 	LogFile           string
 	CpuProfile        string
@@ -104,13 +103,10 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 func (y *YaNFD) Start() {
 	core.LogInfo("Main", "Starting YaNFD")
 
-	// Load strategies
-	//core.LogInfo("Main", "Loading strategies")
-	//fw.LoadStrategies()
-
 	// Initialize FIB table
 	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
 	table.CreateFIBTable(fibTableAlgorithm)
+
 	// Create null face
 	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
 	face.FaceTable.Add(nullFace)
@@ -119,10 +115,13 @@ func (y *YaNFD) Start() {
 	// Start management thread
 	management := mgmt.MakeMgmtThread()
 	go management.Run()
+
 	// Create forwarding threads
 	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
 		core.LogFatal("Main", "Number of forwarding threads must be in range [1, ", fw.MaxFwThreads, "]")
+		os.Exit(2)
 	}
+
 	fw.Threads = make(map[int]*fw.Thread)
 	var fwForDispatch []dispatch.FWThread
 	for i := 0; i < fw.NumFwThreads; i++ {
@@ -136,12 +135,10 @@ func (y *YaNFD) Start() {
 	// Perform setup operations for each network interface
 	faceCnt := 0
 	ifaces, err := net.Interfaces()
-	multicastEthURI := ndn.DecodeURIString("ether://[" + face.EthernetMulticastAddress + "]")
 	if err != nil {
 		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
-	ethEnabled := core.GetConfigBoolDefault("faces.ethernet.enabled", true) && !y.config.DisableEthernet
 	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
 	tcpPort := face.TCPUnicastPort
 	y.tcpListeners = make([]*face.TCPListener, 0)
@@ -149,23 +146,6 @@ func (y *YaNFD) Start() {
 		if iface.Flags&net.FlagUp == 0 {
 			core.LogInfo("Main", "Skipping interface ", iface.Name, " because not up")
 			continue
-		}
-
-		if ethEnabled && iface.Flags&net.FlagMulticast != 0 {
-			// Create multicast Ethernet face for interface
-			multicastEthTransport, err := face.MakeMulticastEthernetTransport(multicastEthURI, ndn.MakeDevFaceURI(iface.Name))
-			if err != nil {
-				core.LogError("Main", "Unable to create MulticastEthernetTransport for ", iface.Name, ": ", err)
-			} else {
-				multicastEthFace := face.MakeNDNLPLinkService(multicastEthTransport, face.MakeNDNLPLinkServiceOptions())
-				face.FaceTable.Add(multicastEthFace)
-				faceCnt += 1
-				go multicastEthFace.Run(nil)
-				core.LogInfo("Main", "Created multicast Ethernet face for ", iface.Name)
-
-				// Create Ethernet listener for interface
-				// TODO
-			}
 		}
 
 		// Create UDP/TCP listener and multicast UDP interface for every address on interface
@@ -185,7 +165,7 @@ func (y *YaNFD) Start() {
 
 			if !addr.(*net.IPNet).IP.IsLoopback() {
 				multicastUDPTransport, err := face.MakeMulticastUDPTransport(
-					ndn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
+					ndn_defn.MakeUDPFaceURI(ipVersion, path, face.UDPMulticastPort))
 				if err != nil {
 					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
 					continue
@@ -197,7 +177,7 @@ func (y *YaNFD) Start() {
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
-			udpListener, err := face.MakeUDPListener(ndn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort))
+			udpListener, err := face.MakeUDPListener(ndn_defn.MakeUDPFaceURI(ipVersion, path, face.UDPUnicastPort))
 			if err != nil {
 				core.LogError("Main", "Unable to create UDP listener for ", path, " on ", iface.Name, ": ", err)
 				continue
@@ -207,7 +187,7 @@ func (y *YaNFD) Start() {
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
 
 			if tcpEnabled {
-				tcpListener, err := face.MakeTCPListener(ndn.MakeTCPFaceURI(ipVersion, path, tcpPort))
+				tcpListener, err := face.MakeTCPListener(ndn_defn.MakeTCPFaceURI(ipVersion, path, tcpPort))
 				if err != nil {
 					core.LogError("Main", "Unable to create TCP listener for ", path, " on ", iface.Name, ": ", err)
 					continue
@@ -221,7 +201,7 @@ func (y *YaNFD) Start() {
 	}
 	if core.GetConfigBoolDefault("faces.unix.enabled", true) && !y.config.DisableUnix {
 		// Set up Unix stream listener
-		y.unixListener, err = face.MakeUnixStreamListener(ndn.MakeUnixFaceURI(face.UnixSocketPath))
+		y.unixListener, err = face.MakeUnixStreamListener(ndn_defn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
 			core.LogError("Main", "Unable to create Unix stream listener at ", face.UnixSocketPath, ": ", err)
 		} else {
@@ -288,12 +268,12 @@ func (y *YaNFD) Stop() {
 	}
 
 	// Tell all faces to quit
-	for _, face := range face.FaceTable.Faces {
+	for _, face := range face.FaceTable.GetAll() {
 		face.Close()
 	}
 
 	// Wait for all faces to quit
-	for _, face := range face.FaceTable.Faces {
+	for _, face := range face.FaceTable.GetAll() {
 		core.LogTrace("Main", "Waiting for face ", face, " to quit")
 		<-face.GetHasQuit()
 	}

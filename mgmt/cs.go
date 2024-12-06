@@ -115,7 +115,7 @@ func (c *ContentStoreModule) config(interest *spec.Interest, pitToken []byte, in
 	c.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (c *ContentStoreModule) info(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (c *ContentStoreModule) info(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > c.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return

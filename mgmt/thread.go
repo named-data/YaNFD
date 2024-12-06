@@ -133,10 +133,7 @@ func (m *Thread) Run() {
 		}
 
 		core.LogTrace(m, "Received management Interest ", interest.Name())
-		var e error
-		if e != nil {
-			core.LogWarn("Failed to parse packet in LpPacket: %v", e)
-		}
+
 		// Dispatch interest based on name
 		moduleName := interest.NameV[len(m.localPrefix)].String()
 		if module, ok := m.modules[moduleName]; ok {

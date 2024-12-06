@@ -13,19 +13,19 @@ import (
 	"path"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // UnixStreamListener listens for incoming Unix stream connections.
 type UnixStreamListener struct {
 	conn     net.Listener
-	localURI *ndn.URI
+	localURI *ndn_defn.URI
 	nextFD   int // We can't (at least easily) access the actual FD through net.Conn, so we'll make our own
 	HasQuit  chan bool
 }
 
 // MakeUnixStreamListener constructs a UnixStreamListener.
-func MakeUnixStreamListener(localURI *ndn.URI) (*UnixStreamListener, error) {
+func MakeUnixStreamListener(localURI *ndn_defn.URI) (*UnixStreamListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
@@ -52,8 +52,6 @@ func (l *UnixStreamListener) Run() {
 	sockPath := l.localURI.Path()
 	dirPath := path.Dir(sockPath)
 	os.MkdirAll(dirPath, os.ModePerm)
-	// Note: YaNFD will not link the old path /var/run/nfd.sock
-	// Please handle consistency yourself.
 
 	// Create listener
 	var err error
@@ -81,7 +79,7 @@ func (l *UnixStreamListener) Run() {
 		}
 
 		// Construct remote URI
-		remoteURI := ndn.MakeFDFaceURI(l.nextFD)
+		remoteURI := ndn_defn.MakeFDFaceURI(l.nextFD)
 		l.nextFD++
 		if !remoteURI.IsCanonical() {
 			core.LogWarn(l, "Unable to create face from ", remoteURI, " as remote URI is not canonical")
@@ -94,7 +92,7 @@ func (l *UnixStreamListener) Run() {
 			continue
 		}
 		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
-		if err != nil {
+		if newLinkService == nil {
 			core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
 			continue
 		}

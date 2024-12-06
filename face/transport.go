@@ -10,7 +10,7 @@ package face
 import (
 	"time"
 
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // transport provides an interface for transports for specific face types
@@ -19,15 +19,15 @@ type transport interface {
 	setFaceID(faceID uint64)
 	setLinkService(linkService LinkService)
 
-	RemoteURI() *ndn.URI
-	LocalURI() *ndn.URI
+	RemoteURI() *ndn_defn.URI
+	LocalURI() *ndn_defn.URI
 	Persistency() Persistency
 	SetPersistency(persistency Persistency) bool
-	Scope() ndn.Scope
-	LinkType() ndn.LinkType
+	Scope() ndn_defn.Scope
+	LinkType() ndn_defn.LinkType
 	MTU() int
 	SetMTU(mtu int)
-	State() ndn.State
+	State() ndn_defn.State
 	ExpirationPeriod() time.Duration
 
 	GetSendQueueSize() uint64
@@ -36,7 +36,7 @@ type transport interface {
 
 	sendFrame([]byte)
 
-	changeState(newState ndn.State)
+	changeState(newState ndn_defn.State)
 
 	// Counters
 	NInBytes() uint64
@@ -48,15 +48,15 @@ type transportBase struct {
 	linkService LinkService
 
 	faceID         uint64
-	remoteURI      *ndn.URI
-	localURI       *ndn.URI
-	scope          ndn.Scope
+	remoteURI      *ndn_defn.URI
+	localURI       *ndn_defn.URI
+	scope          ndn_defn.Scope
 	persistency    Persistency
-	linkType       ndn.LinkType
+	linkType       ndn_defn.LinkType
 	mtu            int
 	expirationTime *time.Time
 
-	state ndn.State
+	state ndn_defn.State
 
 	hasQuit chan bool
 
@@ -65,13 +65,13 @@ type transportBase struct {
 	nOutBytes uint64
 }
 
-func (t *transportBase) makeTransportBase(remoteURI *ndn.URI, localURI *ndn.URI, persistency Persistency, scope ndn.Scope, linkType ndn.LinkType, mtu int) {
+func (t *transportBase) makeTransportBase(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, persistency Persistency, scope ndn_defn.Scope, linkType ndn_defn.LinkType, mtu int) {
 	t.remoteURI = remoteURI
 	t.localURI = localURI
 	t.persistency = persistency
 	t.scope = scope
 	t.linkType = linkType
-	t.state = ndn.Down
+	t.state = ndn_defn.Down
 	t.mtu = mtu
 	t.hasQuit = make(chan bool, 2)
 }
@@ -89,12 +89,12 @@ func (t *transportBase) setLinkService(linkService LinkService) {
 //
 
 // LocalURI returns the local URI of the transport.
-func (t *transportBase) LocalURI() *ndn.URI {
+func (t *transportBase) LocalURI() *ndn_defn.URI {
 	return t.localURI
 }
 
 // RemoteURI returns the remote URI of the transport.
-func (t *transportBase) RemoteURI() *ndn.URI {
+func (t *transportBase) RemoteURI() *ndn_defn.URI {
 	return t.remoteURI
 }
 
@@ -104,12 +104,12 @@ func (t *transportBase) Persistency() Persistency {
 }
 
 // Scope returns the scope of the transport.
-func (t *transportBase) Scope() ndn.Scope {
+func (t *transportBase) Scope() ndn_defn.Scope {
 	return t.scope
 }
 
 // LinkType returns the type of the transport.
-func (t *transportBase) LinkType() ndn.LinkType {
+func (t *transportBase) LinkType() ndn_defn.LinkType {
 	return t.linkType
 }
 
@@ -132,7 +132,7 @@ func (t *transportBase) ExpirationPeriod() time.Duration {
 }
 
 // State returns the state of the transport.
-func (t *transportBase) State() ndn.State {
+func (t *transportBase) State() ndn_defn.State {
 	return t.state
 }
 

@@ -9,10 +9,11 @@ package face
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/ndn"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 )
 
@@ -21,87 +22,61 @@ var FaceTable Table
 
 // Table hold all faces used by the forwarder.
 type Table struct {
-	Faces      map[uint64]LinkService
-	mutex      sync.RWMutex
-	nextFaceID uint64
+	faces      sync.Map
+	nextFaceID atomic.Uint64
 }
 
 func init() {
-	FaceTable.Faces = make(map[uint64]LinkService)
-	FaceTable.nextFaceID = 1
+	FaceTable.faces = sync.Map{}
+	FaceTable.nextFaceID.Store(1)
 }
 
 // Add adds a face to the face table.
 func (t *Table) Add(face LinkService) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	faceID := uint64(0)
-	isExistingFaceID := true
-	for isExistingFaceID {
-		faceID = t.nextFaceID
-		t.nextFaceID++
-		_, isExistingFaceID = t.Faces[faceID]
-	}
-	t.Faces[faceID] = face
+	faceID := t.nextFaceID.Add(1) - 1
 	face.SetFaceID(faceID)
-
-	// Add to dispatch
+	t.faces.Store(faceID, face)
 	dispatch.AddFace(faceID, face)
-
 	core.LogDebug("FaceTable", "Registered FaceID=", faceID)
-	EmitFaceEvent(FaceEventCreated, face)
 }
 
 // Get gets the face with the specified ID (if any) from the face table.
 func (t *Table) Get(id uint64) LinkService {
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-	face, ok := t.Faces[id]
+	face, ok := t.faces.Load(id)
 
 	if ok {
-		return face
+		return face.(LinkService)
 	}
 	return nil
 }
 
 // GetByURI gets the face with the specified remote URI (if any) from the face table.
-func (t *Table) GetByURI(remoteURI *ndn.URI) LinkService {
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-	for _, face := range t.Faces {
-		if face.RemoteURI().String() == remoteURI.String() {
-
-			return face
+func (t *Table) GetByURI(remoteURI *ndn_defn.URI) LinkService {
+	var found LinkService
+	t.faces.Range(func(_, face interface{}) bool {
+		if face.(LinkService).RemoteURI().String() == remoteURI.String() {
+			found = face.(LinkService)
+			return false
 		}
-	}
-	return nil
+		return true
+	})
+	return found
 }
 
 // GetAll returns points to all faces.
 func (t *Table) GetAll() []LinkService {
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-	faces := make([]LinkService, 0, len(t.Faces))
-	for _, face := range t.Faces {
-		faces = append(faces, face)
-	}
+	faces := make([]LinkService, 0)
+	t.faces.Range(func(_, face interface{}) bool {
+		faces = append(faces, face.(LinkService))
+		return true
+	})
 	return faces
 }
 
 // Remove removes a face from the face table.
 func (t *Table) Remove(id uint64) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	EmitFaceEvent(FaceEventDestroyed, t.Faces[id])
-	delete(t.Faces, id)
-
-	// Remove from dispatch
+	t.faces.Delete(id)
 	dispatch.RemoveFace(id)
-
-	// Remove this face in RIB
-	// Referential:
-	// https://github.com/named-data/NFD/blob/7249fb4d5225cbe99a3901f9485a8ad99a7abceb/daemon/table/cleanup.cpp#L36-L40
 	table.Rib.CleanUpFace(id)
-
 	core.LogDebug("FaceTable", "Unregistered FaceID=", id)
 }

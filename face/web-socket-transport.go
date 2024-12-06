@@ -14,8 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // WebSocketTransport communicates with web applications via WebSocket.
@@ -27,18 +26,18 @@ type WebSocketTransport struct {
 var _ transport = &WebSocketTransport{}
 
 // NewWebSocketTransport creates a Unix stream transport.
-func NewWebSocketTransport(localURI *ndn.URI, c *websocket.Conn) (t *WebSocketTransport) {
-	remoteURI := ndn.MakeWebSocketClientFaceURI(c.RemoteAddr())
+func NewWebSocketTransport(localURI *ndn_defn.URI, c *websocket.Conn) (t *WebSocketTransport) {
+	remoteURI := ndn_defn.MakeWebSocketClientFaceURI(c.RemoteAddr())
 	t = &WebSocketTransport{c: c}
 
-	scope := ndn.NonLocal
+	scope := ndn_defn.NonLocal
 	ip := net.ParseIP(remoteURI.PathHost())
 	if ip != nil && ip.IsLoopback() {
-		scope = ndn.Local
+		scope = ndn_defn.Local
 	}
 
-	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, scope, ndn.PointToPoint, tlv.MaxNDNPacketSize)
-	t.changeState(ndn.Up)
+	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, scope, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
+	t.changeState(ndn_defn.Up)
 	return t
 }
 
@@ -67,7 +66,7 @@ func (t *WebSocketTransport) sendFrame(frame []byte) {
 	e := t.c.WriteMessage(websocket.BinaryMessage, frame)
 	if e != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(ndn.Down)
+		t.changeState(ndn_defn.Down)
 	}
 
 	t.nOutBytes += uint64(len(frame))
@@ -84,7 +83,7 @@ func (t *WebSocketTransport) runReceive() {
 		mt, message, e := t.c.ReadMessage()
 		if e != nil {
 			core.LogWarn(t, "Unable to read from socket (", e, ") - DROP and Face DOWN")
-			t.changeState(ndn.Down)
+			t.changeState(ndn_defn.Down)
 			break
 		}
 
@@ -96,7 +95,7 @@ func (t *WebSocketTransport) runReceive() {
 		core.LogTrace(t, "Receive of size ", len(message))
 		t.nInBytes += uint64(len(message))
 
-		if len(message) > tlv.MaxNDNPacketSize {
+		if len(message) > ndn_defn.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 			continue
 		}
@@ -106,7 +105,7 @@ func (t *WebSocketTransport) runReceive() {
 	}
 }
 
-func (t *WebSocketTransport) changeState(new ndn.State) {
+func (t *WebSocketTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -114,7 +113,7 @@ func (t *WebSocketTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		core.LogInfo(t, "Closing Unix stream socket")
 		t.hasQuit <- true
 		t.c.Close()

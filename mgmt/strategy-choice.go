@@ -10,7 +10,7 @@ package mgmt
 import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/fw"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
@@ -130,7 +130,7 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		return
 	} else if len(params.Strategy.Name) > len(s.strategyPrefix)+1 {
 		strategyVersionBytes := params.Strategy.Name[len(s.strategyPrefix)+1].Val
-		strategyVersion, err := tlv.DecodeNNI(strategyVersionBytes)
+		strategyVersion, err := ndn_defn.ParseNat(strategyVersionBytes)
 		if err != nil {
 			core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1],
 				" for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
@@ -140,7 +140,7 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		}
 		foundMatchingVersion := false
 		for _, version := range availableVersions {
-			if version == strategyVersion {
+			if version == uint64(strategyVersion) {
 				foundMatchingVersion = true
 			}
 		}
@@ -205,7 +205,7 @@ func (s *StrategyChoiceModule) unset(interest *spec.Interest, pitToken []byte, i
 	s.manager.sendResponse(response, interest, pitToken, inFace)
 }
 
-func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, inFace uint64) {
+func (s *StrategyChoiceModule) list(interest *spec.Interest, pitToken []byte, _ uint64) {
 	if len(interest.NameV) > s.manager.prefixLength()+2 {
 		// Ignore because contains version and/or segment components
 		return

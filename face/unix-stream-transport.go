@@ -8,36 +8,41 @@
 package face
 
 import (
+	"bufio"
+	"io"
 	"net"
 	"runtime"
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
-	"github.com/named-data/YaNFD/ndn"
-	"github.com/named-data/YaNFD/ndn/tlv"
+	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
+
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	conn *net.UnixConn
+	conn   *net.UnixConn
+	reader *bufio.Reader
 	transportBase
 }
 
 // MakeUnixStreamTransport creates a Unix stream transport.
-func MakeUnixStreamTransport(remoteURI *ndn.URI, localURI *ndn.URI, conn net.Conn) (*UnixStreamTransport, error) {
+func MakeUnixStreamTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, conn net.Conn) (*UnixStreamTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "fd" || !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
 	}
 
 	t := new(UnixStreamTransport)
-	t.makeTransportBase(remoteURI, localURI, PersistencyPersistent, ndn.Local, ndn.PointToPoint, tlv.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, PersistencyPersistent, ndn_defn.Local, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
 
 	// Set connection
 	t.conn = conn.(*net.UnixConn)
+	t.reader = bufio.NewReaderSize(t.conn, 32*ndn_defn.MaxNDNPacketSize)
 
-	t.changeState(ndn.Up)
+	t.changeState(ndn_defn.Up)
 
 	return t, nil
 }
@@ -80,7 +85,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(ndn.Down)
+		t.changeState(ndn_defn.Down)
 	}
 
 	t.nOutBytes += uint64(len(frame))
@@ -88,66 +93,51 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 
 func (t *UnixStreamTransport) runReceive() {
 	core.LogTrace(t, "Starting receive thread")
-	//also maybe an area of improvement? for reading buf?
+
 	if lockThreadsToCores {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, tlv.MaxNDNPacketSize)
-	startPos := 0
+	handleError := func(err error) {
+		if err.Error() == "EOF" {
+			core.LogDebug(t, "EOF - Face DOWN")
+		} else {
+			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
+		}
+		t.changeState(ndn_defn.Down)
+	}
+
+	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
-		core.LogTrace(t, "Reading from socket")
-		readSize, err := t.conn.Read(recvBuf[startPos:])
-		startPos += readSize
+		typ, err := enc.ReadTLNum(t.reader)
 		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
-			} else {
-				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
-			}
-			t.changeState(ndn.Down)
+			handleError(err)
 			break
 		}
-		core.LogTrace(t, "Receive of size ", readSize)
-		t.nInBytes += uint64(readSize)
-		if startPos > tlv.MaxNDNPacketSize {
-			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
-			continue
+
+		len, err := enc.ReadTLNum(t.reader)
+		if err != nil {
+			handleError(err)
+			break
 		}
 
-		// Determine whether valid packet received
-		tlvPos := 0
-		for {
-			if tlvPos >= startPos {
-				startPos = 0
-				break
-			}
+		cursor := 0
+		cursor += typ.EncodeInto(recvBuf[cursor:])
+		cursor += len.EncodeInto(recvBuf[cursor:])
 
-			_, _, tlvSize, err := tlv.DecodeTypeLength(recvBuf[tlvPos:])
-			if err != nil {
-				core.LogInfo(t, "Unable to process received packet: ", err)
-				startPos = 0
-				break
-			} else if startPos >= tlvPos+tlvSize {
-				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(recvBuf[tlvPos : tlvPos+tlvSize])
-				tlvPos += tlvSize
-			} else {
-				if tlvPos > 0 {
-					if startPos > tlvPos {
-						// Move remaining data to beginning of buffer
-						copy(recvBuf, recvBuf[tlvPos:startPos])
-					}
-					startPos -= tlvPos
-				}
-				core.LogTrace(t, "Received packet is incomplete")
-				break
-			}
+		lenRead, err := io.ReadFull(t.reader, recvBuf[cursor:cursor+int(len)])
+		if err != nil {
+			handleError(err)
+			break
 		}
+		cursor += lenRead
+
+		t.linkService.handleIncomingFrame(recvBuf[:cursor])
+		t.nInBytes += uint64(cursor)
 	}
 }
 
-func (t *UnixStreamTransport) changeState(new ndn.State) {
+func (t *UnixStreamTransport) changeState(new ndn_defn.State) {
 	if t.state == new {
 		return
 	}
@@ -155,7 +145,7 @@ func (t *UnixStreamTransport) changeState(new ndn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn.Up {
+	if t.state != ndn_defn.Up {
 		core.LogInfo(t, "Closing Unix stream socket")
 		t.hasQuit <- true
 		t.conn.Close()

@@ -27,9 +27,6 @@ func main() {
 	flag.BoolVar(&shouldPrintVersion, "version", false, "Print version and exit")
 	var configFileName string
 	flag.StringVar(&configFileName, "config", "/usr/local/etc/ndn/yanfd.toml", "Configuration file location")
-	var disableEthernet bool
-	flag.BoolVar(&disableEthernet, "disable-ethernet", false,
-		"Disable Ethernet transports (deprecated; set.faces.ethernet.enabled=false in config file instead)")
 	var disableUnix bool
 	flag.BoolVar(&disableUnix, "disable-unix", false,
 		"Disable Unix stream transports (deprecated; set.faces.unix.enabled=false in config file instead)")
@@ -55,7 +52,6 @@ func main() {
 	config := executor.YaNFDConfig{
 		Version:           Version,
 		ConfigFileName:    configFileName,
-		DisableEthernet:   disableEthernet,
 		DisableUnix:       disableUnix,
 		LogFile:           "",
 		CpuProfile:        cpuProfile,

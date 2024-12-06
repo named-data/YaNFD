@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/named-data/YaNFD/ndn"
+	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/stretchr/testify/assert"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
@@ -95,7 +95,7 @@ func TestInsertInRecord(t *testing.T) {
 		NameV:  name,
 		NonceV: val,
 	}
-	netPacket := new(ndn.PendingPacket)
+	netPacket := new(ndn_defn.PendingPacket)
 	netPacket.EncPacket = new(spec_2022.Packet)
 	netPacket.EncPacket.Interest = interest
 	pitToken := []byte("abc")
@@ -136,7 +136,7 @@ func TestInsertInRecord(t *testing.T) {
 		NameV:  name2,
 		NonceV: val,
 	}
-	netPacket2 := new(ndn.PendingPacket)
+	netPacket2 := new(ndn_defn.PendingPacket)
 	netPacket2.EncPacket = new(spec_2022.Packet)
 	netPacket2.EncPacket.Interest = interest2
 	pitToken2 := []byte("xyz")

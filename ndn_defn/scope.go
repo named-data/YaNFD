@@ -5,7 +5,7 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package ndn
+package ndn_defn
 
 // Scope indicates the scope of a face
 type Scope int
