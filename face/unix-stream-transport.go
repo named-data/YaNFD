@@ -17,6 +17,8 @@ import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face/impl"
 	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
+
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
@@ -107,7 +109,13 @@ func (t *UnixStreamTransport) runReceive() {
 
 	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
 	for {
-		typ, len, err := ndn_defn.ReadTypeLength(t.reader)
+		typ, err := enc.ReadTLNum(t.reader)
+		if err != nil {
+			handleError(err)
+			break
+		}
+
+		len, err := enc.ReadTLNum(t.reader)
 		if err != nil {
 			handleError(err)
 			break
