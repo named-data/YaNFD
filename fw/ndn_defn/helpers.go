@@ -7,22 +7,20 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
-func DecodeTypeLength(buf []byte) (uint32, int, int, error) {
+func DecodeTypeLength(buf []byte) (enc.TLNum, enc.TLNum, error) {
 	return ReadTypeLength(bytes.NewReader(buf))
 }
 
-func ReadTypeLength(reader io.ByteReader) (uint32, int, int, error) {
+func ReadTypeLength(reader io.ByteReader) (enc.TLNum, enc.TLNum, error) {
 	typ, err := enc.ReadTLNum(reader)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
 	len, err := enc.ReadTLNum(reader)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
-	tlvSize := typ.EncodingLength() + len.EncodingLength() + int(len)
-
-	return uint32(typ), int(len), tlvSize, nil
+	return typ, len, nil
 }

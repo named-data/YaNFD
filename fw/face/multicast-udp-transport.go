@@ -168,16 +168,8 @@ func (t *MulticastUDPTransport) runReceive() {
 			continue
 		}
 
-		// Determine whether valid packet received
-		_, _, tlvSize, err := ndn_defn.DecodeTypeLength(recvBuf[:readSize])
-		if err != nil {
-			core.LogInfo(t, "Unable to process received packet: ", err)
-		} else if readSize >= tlvSize {
-			// Packet was successfully received, send up to link service
-			t.linkService.handleIncomingFrame(recvBuf[:tlvSize])
-		} else {
-			core.LogInfo(t, "Received packet is incomplete")
-		}
+		// Packet was successfully received, send up to link service
+		t.linkService.handleIncomingFrame(recvBuf[:readSize])
 	}
 }
 
