@@ -13,8 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apex/log"
-	"github.com/apex/log/handlers/text"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 )
 
 var shouldPrintTraceLogs = false
@@ -24,14 +23,14 @@ var logFileObj *os.File
 // InitializeLogger initializes the logger.
 func InitializeLogger(logFile string) {
 	if logFile == "" {
-		log.SetHandler(text.New(os.Stdout))
+		log.SetHandler(log.NewText(os.Stdout))
 	} else {
 		var err error
 		logFileObj, err = os.Create(logFile)
 		if err != nil {
 			os.Exit(1)
 		}
-		log.SetHandler(text.New(logFileObj))
+		log.SetHandler(log.NewText(logFileObj))
 	}
 
 	logLevelString := GetConfigStringDefault("core.log_level", "INFO")
