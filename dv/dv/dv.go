@@ -1,6 +1,7 @@
 package dv
 
 import (
+	"sync"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -24,24 +25,31 @@ type DV struct {
 	stop chan bool
 	// heartbeat for outgoing Advertisements
 	heartbeat *time.Ticker
+	// single mutex for all operations
+	mutex sync.Mutex
 
 	// global Prefix
 	globalPrefix enc.Name
 	// router Prefix
 	routerPrefix enc.Name
 
-	// advertisement sequence number
+	// advertisement sequence number for self
 	advSeq uint64
+	// advertisement sequence numbers for neighbors
+	neighborAdvSeq map[uint64]uint64
 }
 
 // Create a new DV router.
 func NewDV(config *Config, engine *basic_engine.Engine) *DV {
 	return &DV{
-		engine:    engine,
-		config:    config,
+		engine: engine,
+		config: config,
+
 		stop:      make(chan bool),
 		heartbeat: time.NewTicker(2 * time.Second), // TODO: configurable
-		advSeq:    0,
+
+		advSeq:         uint64(time.Now().UnixMilli()), // TODO: not efficient
+		neighborAdvSeq: make(map[uint64]uint64),
 	}
 }
 
@@ -82,22 +90,22 @@ func (dv *DV) register() (err error) {
 		return err
 	}
 
-	// Advertisement Data
-	prefixAdv := append(dv.routerPrefix,
-		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
-		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
-	)
-	err = dv.engine.AttachHandler(prefixAdv, dv.onAdvertisementInterest)
-	if err != nil {
-		return err
-	}
-
 	// Advertisement Sync
 	prefixAdvSync := append(dv.globalPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)
-	err = dv.engine.AttachHandler(prefixAdvSync, dv.onAdvertisementSyncInterest)
+	err = dv.engine.AttachHandler(prefixAdvSync, dv.onAdvSyncInterest)
+	if err != nil {
+		return err
+	}
+
+	// Advertisement Data
+	prefixAdv := append(dv.routerPrefix,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
+	)
+	err = dv.engine.AttachHandler(prefixAdv, dv.onAdvInterest)
 	if err != nil {
 		return err
 	}

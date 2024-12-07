@@ -5,6 +5,7 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
@@ -50,23 +51,113 @@ func (dv *DV) Advertise() (err error) {
 	return nil
 }
 
-func (dv *DV) onAdvertisementSyncInterest(
+func (dv *DV) onAdvSyncInterest(
 	interest ndn.Interest,
 	rawInterest enc.Wire,
 	sigCovered enc.Wire,
 	reply ndn.ReplyFunc,
 	deadline time.Time,
 ) {
-	fmt.Println("Received Sync Interest")
+	// TODO: verify signature on Sync Interest
+
+	// Parse the state vector from app parameters
+	if interest.AppParam() == nil {
+		log.Warn("onAdvSyncInterest: Received Sync Interest with no AppParam, ignoring")
+		return
+	}
+
+	sv, err := svs.ParseStateVec(enc.NewWireReader(interest.AppParam()), true)
+	if err != nil {
+		log.Warnf("onAdvSyncInterest: Failed to parse StateVec: %+v", err)
+		return
+	}
+
+	// Process each entry in the state vector
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	for _, entry := range sv.Entries {
+		// Parse name from NodeId
+		nodeId, err := enc.NameFromBytes(entry.NodeId)
+		if err != nil {
+			log.Warnf("onAdvSyncInterest: Failed to parse NodeId: %+v", err)
+			continue
+		}
+
+		hash := nodeId.Hash()
+		if known, ok := dv.neighborAdvSeq[hash]; ok {
+			// TODO: check if the entry is newer. This is currently not
+			// possible because a restarted neighbor cannot learn its
+			// previous sequence number.
+			if known == entry.SeqNo {
+				// Nothing has changed, skip
+				continue
+			}
+		}
+
+		dv.neighborAdvSeq[hash] = entry.SeqNo
+		go dv.scheduleAdvFetch(nodeId, entry.SeqNo)
+	}
 }
 
-// Global Interest handler
-func (dv *DV) onAdvertisementInterest(
+func (dv *DV) scheduleAdvFetch(nodeId enc.Name, seqNo uint64) {
+	// debounce; wait before fetching, then check if this is still the latest
+	// sequence number known for this neighbor
+	time.Sleep(10 * time.Millisecond)
+	if known, ok := dv.neighborAdvSeq[nodeId.Hash()]; !ok || known != seqNo {
+		return
+	}
+
+	advName := append(nodeId,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
+		enc.NewSequenceNumComponent(seqNo), // unused for now
+	)
+
+	// Fetch the advertisement
+	cfg := &ndn.InterestConfig{
+		MustBeFresh: true,
+		Lifetime:    utils.IdPtr(4 * time.Second),
+		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
+	}
+
+	wire, _, finalName, err := dv.engine.Spec().MakeInterest(advName, cfg, nil, nil)
+	if err != nil {
+		log.Warnf("scheduleAdvFetch: Failed to make Interest: %+v", err)
+		return
+	}
+
+	// Fetch the advertisement
+	err = dv.engine.Express(finalName, cfg, wire, func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
+		if result != ndn.InterestResultData {
+			// Keep retrying until we get the advertisement
+			// If the router is dead, we break out of this by checking
+			// that the sequence number is gone (above)
+			log.Warnf("scheduleAdvFetch: Retrying: %+v", result)
+			go dv.scheduleAdvFetch(nodeId, seqNo)
+			return
+		}
+
+		// Process the advertisement
+		go dv.onAdvData(data)
+	})
+	if err != nil {
+		log.Warnf("scheduleAdvFetch: Failed to express Interest: %+v", err)
+	}
+}
+
+// Received advertisement Interest
+func (dv *DV) onAdvInterest(
 	interest ndn.Interest,
 	rawInterest enc.Wire,
 	sigCovered enc.Wire,
 	reply ndn.ReplyFunc,
 	deadline time.Time,
 ) {
-	fmt.Println("Received Interest")
+	fmt.Println("Received Advertisement Interest")
+}
+
+// Received advertisement Data
+func (dv *DV) onAdvData(data ndn.Data) {
+	fmt.Println("Received Advertisement")
 }

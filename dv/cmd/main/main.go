@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/pulsejet/go-ndn-dv/dv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
@@ -35,8 +37,8 @@ func main() {
 
 	// Create a new DV router
 	config := &dv.Config{
-		GlobalPrefix: "/ndn",
-		RouterPrefix: "/router2",
+		GlobalPrefix: os.Args[1],
+		RouterPrefix: os.Args[2],
 	}
 
 	router := dv.NewDV(config, app)
