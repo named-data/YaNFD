@@ -64,6 +64,15 @@ func (n Name) EncodingLength() int {
 	return ret
 }
 
+// Clone returns a deep copy of a Name
+func (n Name) Clone() Name {
+	ret := make(Name, len(n))
+	for i, c := range n {
+		ret[i] = c.Clone()
+	}
+	return ret
+}
+
 // ReadName reads a Name from a Wire **excluding** the TL prefix.
 func ReadName(r ParseReader) (Name, error) {
 	var err error
