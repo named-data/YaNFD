@@ -34,7 +34,12 @@ func main() {
 	defer app.Shutdown()
 
 	// Create a new DV router
-	router := dv.NewDV(app)
+	config := &dv.Config{
+		GlobalPrefix: "/ndn",
+		RouterPrefix: "/router2",
+	}
+
+	router := dv.NewDV(config, app)
 	err = router.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start DV router: %+v", err)

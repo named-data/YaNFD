@@ -7,21 +7,41 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 )
 
+type Config struct {
+	// GlobalPrefix should be the same for all routers in the network.
+	GlobalPrefix string
+	// RouterPrefix should be unique for each router in the network.
+	RouterPrefix string
+}
+
 type DV struct {
 	// go-ndn app that this router is attached to
 	engine *basic_engine.Engine
+	// config for this router
+	config *Config
+
 	// channel to stop the DV
 	stop chan bool
 	// heartbeat for outgoing Advertisements
 	heartbeat *time.Ticker
+
+	// global Prefix
+	globalPrefix enc.Name
+	// router Prefix
+	routerPrefix enc.Name
+
+	// advertisement sequence number
+	advSeq uint64
 }
 
 // Create a new DV router.
-func NewDV(engine *basic_engine.Engine) *DV {
+func NewDV(config *Config, engine *basic_engine.Engine) *DV {
 	return &DV{
 		engine:    engine,
+		config:    config,
 		stop:      make(chan bool),
-		heartbeat: time.NewTicker(5 * time.Second), // TODO: configurable
+		heartbeat: time.NewTicker(2 * time.Second), // TODO: configurable
+		advSeq:    0,
 	}
 }
 
@@ -29,7 +49,7 @@ func NewDV(engine *basic_engine.Engine) *DV {
 func (dv *DV) Start() (err error) {
 	// Register interest handlers
 	// TODO: make this configurable
-	err = dv.register("/ndn", "/router1")
+	err = dv.register()
 	if err != nil {
 		return err
 	}
@@ -51,42 +71,43 @@ func (dv *DV) Stop() {
 }
 
 // Register interest handlers for DV prefixes.
-func (dv *DV) register(
-	globalPrefix string,
-	routerPrefix string,
-) (err error) {
+func (dv *DV) register() (err error) {
 	// Parse prefixes
-	globalPrefixN, err := enc.NameFromStr(globalPrefix)
+	dv.globalPrefix, err = enc.NameFromStr(dv.config.GlobalPrefix)
 	if err != nil {
 		return err
 	}
-	routerPrefixN, err := enc.NameFromStr(routerPrefix)
+	dv.routerPrefix, err = enc.NameFromStr(dv.config.RouterPrefix)
 	if err != nil {
 		return err
 	}
 
 	// Advertisement Data
-	advPrefix := append(routerPrefixN,
+	prefixAdv := append(dv.routerPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 	)
-	err = dv.engine.AttachHandler(advPrefix, dv.onAdvertisementInterest)
+	err = dv.engine.AttachHandler(prefixAdv, dv.onAdvertisementInterest)
 	if err != nil {
 		return err
 	}
 
 	// Advertisement Sync
-	advSyncPrefix := append(globalPrefixN,
+	prefixAdvSync := append(dv.globalPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)
-	err = dv.engine.AttachHandler(advSyncPrefix, dv.onAdvertisementSyncInterest)
+	err = dv.engine.AttachHandler(prefixAdvSync, dv.onAdvertisementSyncInterest)
 	if err != nil {
 		return err
 	}
 
 	// Register routes to forwarder
-	for _, prefix := range []enc.Name{advPrefix, advSyncPrefix} {
+	pfxs := []enc.Name{
+		prefixAdv,
+		prefixAdvSync,
+	}
+	for _, prefix := range pfxs {
 		err = dv.engine.RegisterRoute(prefix)
 		if err != nil {
 			return err
