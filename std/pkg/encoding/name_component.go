@@ -290,6 +290,13 @@ func (c Component) ComponentPatternTrait() ComponentPattern {
 	return c
 }
 
+func (c Component) Clone() Component {
+	return Component{
+		Typ: c.Typ,
+		Val: append([]byte(nil), c.Val...),
+	}
+}
+
 func (p Pattern) ComponentPatternTrait() ComponentPattern {
 	return p
 }
