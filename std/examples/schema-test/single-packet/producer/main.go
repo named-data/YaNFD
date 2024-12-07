@@ -50,7 +50,7 @@ func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 
 func onInterest(event *schema.Event) any {
 	mNode := event.Target
-	timestamp, _ := enc.ParseNat(mNode.Matching["time"])
+	timestamp, _, _ := enc.ParseNat(mNode.Matching["time"])
 	fmt.Printf(">> I: timestamp: %d\n", timestamp)
 	content := []byte("Hello, world!")
 	dataWire := mNode.Call("Provide", enc.Wire{content}).(enc.Wire)

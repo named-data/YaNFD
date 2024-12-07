@@ -133,7 +133,7 @@ func (v Nat) Bytes() []byte {
 	return buf
 }
 
-func ParseNat(buf Buffer) (val Nat, pos int) {
+func ParseNat(buf Buffer) (val Nat, pos int, err error) {
 	switch pos = len(buf); pos {
 	case 1:
 		val = Nat(buf[0])
@@ -144,9 +144,9 @@ func ParseNat(buf Buffer) (val Nat, pos int) {
 	case 8:
 		val = Nat(binary.BigEndian.Uint64(buf))
 	default:
-		panic(ErrFormat{"Natural number lenght is not 1, 2, 4 or 8"})
+		return 0, 0, ErrFormat{"natural number length is not 1, 2, 4 or 8"}
 	}
-	return
+	return val, pos, nil
 }
 
 // Shrink length reduce the L by `shrink“ in a TLV encoded buffer `buf`
