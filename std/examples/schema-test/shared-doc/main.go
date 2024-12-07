@@ -15,11 +15,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/apex/log"
 	"github.com/gorilla/websocket"
 	"github.com/zjkmxy/go-ndn/examples/schema-test/shared-doc/crdt"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/schema/svs"

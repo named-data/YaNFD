@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"syscall/js"
 
-	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 )
 
 type WasmWsFace struct {

@@ -3,9 +3,9 @@ package sqlitepib
 import (
 	"database/sql"
 
-	"github.com/apex/log"
 	_ "github.com/mattn/go-sqlite3"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )

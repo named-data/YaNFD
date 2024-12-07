@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/utils"

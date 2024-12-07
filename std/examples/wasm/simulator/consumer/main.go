@@ -5,9 +5,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"

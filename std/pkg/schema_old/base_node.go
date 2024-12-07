@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 

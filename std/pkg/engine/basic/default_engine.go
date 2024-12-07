@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apex/log"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"

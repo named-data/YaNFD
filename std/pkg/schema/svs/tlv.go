@@ -15,5 +15,5 @@ type StateVec struct {
 
 type StateVecAppParam struct {
 	//+field:struct:StateVec
-	Entries []*StateVec `tlv:"0xc9"`
+	Entries *StateVec `tlv:"0xc9"`
 }
