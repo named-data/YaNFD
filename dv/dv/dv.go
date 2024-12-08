@@ -143,7 +143,7 @@ func (dv *DV) configureFace() (err error) {
 			Mask:  utils.IdPtr(uint64(0x01)),
 			Flags: utils.IdPtr(uint64(0x01)),
 		},
-		retries: 0,
+		retries: -1,
 	})
 
 	return nil
@@ -200,6 +200,7 @@ func (dv *DV) register() (err error) {
 					Name: mcast,
 				},
 			},
+			retries: -1,
 		})
 	}
 

@@ -12,7 +12,7 @@ type mgmt_cmd struct {
 	module  string
 	cmd     string
 	args    *mgmt.ControlArgs
-	retries uint
+	retries int
 }
 
 type mgmt_thread struct {
@@ -36,13 +36,14 @@ func (m *mgmt_thread) Start() {
 	for {
 		select {
 		case cmd := <-m.channel:
-			for i := uint(1); i < cmd.retries+2; i++ {
+			for i := 0; i < cmd.retries; i++ {
 				err := m.engine.ExecMgmtCmd(cmd.module, cmd.cmd, cmd.args)
 				if err != nil {
 					log.Errorf("NFD Management command failed: %+v", err)
 					time.Sleep(100 * time.Millisecond)
 				} else {
 					time.Sleep(10 * time.Millisecond)
+					break
 				}
 			}
 		case <-m.stop:

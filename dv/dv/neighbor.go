@@ -59,6 +59,7 @@ func (dv *DV) neighborPing(ns *neighbor_state, faceId uint64) error {
 			FaceId: utils.IdPtr(faceId),
 			Name:   ns.name,
 		},
+		retries: 8,
 	})
 
 	return nil
@@ -76,6 +77,7 @@ func (dv *DV) neighborPrune(ns *neighbor_state) {
 					FaceId: utils.IdPtr(face.faceId),
 					Name:   ns.name,
 				},
+				retries: 3,
 			})
 		}
 	}
