@@ -10,6 +10,8 @@ import (
 
 // Routing Information Base (RIB)
 type Rib struct {
+	// main router configuration
+	config *config.Config
 	// destination hash -> entry
 	entries map[uint64]*RibEntry
 	// neighbor hash -> neighbor name
@@ -31,8 +33,9 @@ type RibEntry struct {
 	dirty bool
 }
 
-func NewRib() *Rib {
+func NewRib(config *config.Config) *Rib {
 	return &Rib{
+		config:    config,
 		entries:   make(map[uint64]*RibEntry),
 		neighbors: make(map[uint64]enc.Name),
 	}

@@ -71,7 +71,7 @@ func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, err
 		routerPrefix: routerPrefix,
 
 		neighbors: table.NewNeighborTable(config, nfdc),
-		rib:       table.NewRib(),
+		rib:       table.NewRib(config),
 
 		advertSyncSeq: uint64(time.Now().UnixMilli()),
 	}, nil
