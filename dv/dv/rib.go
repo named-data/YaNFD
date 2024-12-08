@@ -155,14 +155,17 @@ func (e *rib_entry) refresh() bool {
 	lowest1 := CostInfinity
 	lowest2 := CostInfinity
 	nextHop1 := uint64(0)
+	nextHop2 := uint64(0)
 
 	for hop, cost := range e.costs {
-		if cost < lowest1 {
+		if cost < lowest1 || (cost == lowest1 && hop < nextHop1) {
 			lowest2 = lowest1
+			nextHop2 = nextHop1
 			lowest1 = cost
 			nextHop1 = hop
-		} else if cost < lowest2 {
+		} else if cost < lowest2 || (cost == lowest2 && hop < nextHop2) {
 			lowest2 = cost
+			nextHop2 = hop
 		}
 	}
 
