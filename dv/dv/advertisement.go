@@ -11,7 +11,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func (dv *DV) Advertise() (err error) {
+func (dv *DV) syncAdvertisement() (err error) {
 	// SVS v2 Sync Interest
 	syncName := append(dv.globalPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),

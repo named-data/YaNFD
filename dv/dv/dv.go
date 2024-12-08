@@ -65,7 +65,7 @@ func (dv *DV) Start() (err error) {
 	for {
 		select {
 		case <-dv.heartbeat.C:
-			dv.Advertise()
+			dv.syncAdvertisement()
 		case <-dv.stop:
 			return
 		}
