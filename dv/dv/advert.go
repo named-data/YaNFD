@@ -38,7 +38,7 @@ func (dv *DV) sendAdvertSyncInterest() (err error) {
 		MustBeFresh: true,
 		Lifetime:    utils.IdPtr(1 * time.Millisecond),
 		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
-		HopLimit:    utils.IdPtr(uint(1)), // TODO: use localhop instead
+		HopLimit:    utils.IdPtr(uint(2)), // TODO: use localhop w/ this
 	}
 
 	// State Vector for our group
@@ -156,12 +156,15 @@ func (dv *DV) scheduleAdvertFetch(neighbor enc.Name, seqNo uint64) {
 	}
 
 	// Fetch the advertisement
-	err = dv.engine.Express(finalName, cfg, wire, func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
+	err = dv.engine.Express(finalName, cfg, wire, func(
+		result ndn.InterestResult, data ndn.Data,
+		_ enc.Wire, _ enc.Wire, _ uint64,
+	) {
 		if result != ndn.InterestResultData {
 			// Keep retrying until we get the advertisement
 			// If the router is dead, we break out of this by checking
 			// that the sequence number is gone (above)
-			log.Warnf("scheduleAdvertFetch: Retrying: %+v", result)
+			log.Warnf("scheduleAdvertFetch: Retrying %s: %+v", finalName.String(), result)
 			go dv.scheduleAdvertFetch(neighbor, seqNo)
 			return
 		}

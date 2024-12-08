@@ -18,7 +18,11 @@ func noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
 
 func main() {
 	// Create face to forwarder
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
+	sock := "/var/run/nfd/nfd.sock"
+	if len(os.Args) > 3 {
+		sock = os.Args[3]
+	}
+	face := basic_engine.NewStreamFace("unix", sock, true)
 
 	// Start NDN app
 	timer := basic_engine.NewTimer()

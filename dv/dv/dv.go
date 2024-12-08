@@ -6,9 +6,12 @@ import (
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 const CostInfinity = uint64(16)
+const MulticastStrategy = "/localhost/nfd/strategy/multicast"
 
 type Config struct {
 	// GlobalPrefix should be the same for all routers in the network.
@@ -86,6 +89,12 @@ func (dv *DV) Start() (err error) {
 	// Add self to the RIB
 	dv.rib.set(dv.routerPrefix, dv.routerPrefix, 0)
 
+	// Configure face
+	err = dv.configureFace()
+	if err != nil {
+		return err
+	}
+
 	// Register interest handlers
 	err = dv.register()
 	if err != nil {
@@ -112,8 +121,26 @@ func (dv *DV) Stop() {
 	dv.stop <- true
 }
 
+// Configure the face to forwarder.
+func (dv *DV) configureFace() (err error) {
+	// TODO: retry when these fail
+
+	// Enable local fields on face. This includes incoming face indication.
+	err = dv.engine.ExecMgmtCmd("faces", "update", &mgmt.ControlArgs{
+		Mask:  utils.IdPtr(uint64(0x01)),
+		Flags: utils.IdPtr(uint64(0x01)),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Register interest handlers for DV prefixes.
 func (dv *DV) register() (err error) {
+	// TODO: retry when these fail
+
 	// Advertisement Sync
 	prefixAdvSync := append(dv.globalPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
@@ -141,6 +168,23 @@ func (dv *DV) register() (err error) {
 	}
 	for _, prefix := range pfxs {
 		err = dv.engine.RegisterRoute(prefix)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set strategy to multicast for sync prefixes
+	mcast, _ := enc.NameFromStr(MulticastStrategy)
+	pfxs = []enc.Name{
+		prefixAdvSync,
+	}
+	for _, prefix := range pfxs {
+		err = dv.engine.ExecMgmtCmd("strategy-choice", "set", &mgmt.ControlArgs{
+			Name: prefix,
+			Strategy: &mgmt.Strategy{
+				Name: mcast,
+			},
+		})
 		if err != nil {
 			return err
 		}
