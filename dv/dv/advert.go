@@ -15,6 +15,8 @@ import (
 type neighbor_state struct {
 	// neighbor name
 	name enc.Name
+	// time of last sync interest
+	lastSeen time.Time
 	// advertisement sequence number for neighbor
 	advertSeq uint64
 	// most recent advertisement
@@ -101,23 +103,27 @@ func (dv *DV) onAdvertSyncInterest(
 		}
 
 		// Check if the entry is newer than what we know
-		hash := neighbor.Hash()
-		if ns, ok := dv.neighbors[hash]; ok {
+		nhash := neighbor.Hash()
+		ns := dv.neighbors[nhash]
+		if ns != nil {
 			if ns.advertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
+				ns.lastSeen = time.Now()
 				continue
 			}
 		} else {
 			// Create new neighbor entry cause none found
 			// This is the ONLY place where neighbors are created
 			// In all other places, quit if not found
-			dv.neighbors[hash] = &neighbor_state{
-				name:      neighbor.Clone(),
-				advertSeq: entry.SeqNo,
+			ns = &neighbor_state{
+				name: neighbor.Clone(),
 			}
+			dv.neighbors[nhash] = ns
 		}
 
-		dv.neighbors[hash].advertSeq = entry.SeqNo
+		ns.advertSeq = entry.SeqNo
+		ns.lastSeen = time.Now()
+
 		go dv.scheduleAdvertFetch(neighbor, entry.SeqNo)
 	}
 }
@@ -254,6 +260,9 @@ func (dv *DV) UpdateRIB(ns *neighbor_state) {
 	// TODO: use cost to neighbor
 	localCost := uint64(1)
 
+	// Trigger our own advertisement if needed
+	var dirty bool = false
+
 	for _, entry := range ns.advert.Entries {
 		// Use the advertised cost by default
 		cost := entry.Cost + localCost
@@ -272,7 +281,41 @@ func (dv *DV) UpdateRIB(ns *neighbor_state) {
 			continue
 		}
 
-		// TODO: check advertisement changes
-		dv.rib.set(entry.Destination.Name, ns.name, cost)
+		// Check advertisement changes
+		dirty = dv.rib.set(entry.Destination.Name, ns.name, cost) || dirty
 	}
+
+	// If advert changed, increment sequence number
+	if dirty {
+		go dv.notifyNewAdvert()
+	}
+}
+
+// Check for dead neighbors
+func (dv *DV) checkDeadNeighbors() {
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	dirty := false
+	for nhash, ns := range dv.neighbors {
+		if time.Since(ns.lastSeen) > dv.config.RouterDeadInterval {
+			log.Infof("checkDeadNeighbors: Neighbor %s is dead", ns.name.String())
+			delete(dv.neighbors, nhash)
+			dirty = dv.rib.removeNextHop(ns.name) || dirty
+		}
+	}
+
+	if dirty {
+		go dv.notifyNewAdvert()
+	}
+}
+
+func (dv *DV) notifyNewAdvert() {
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	dv.rib.Print()
+
+	dv.advertSeq++
+	go dv.sendAdvertSyncInterest()
 }

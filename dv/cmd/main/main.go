@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/pulsejet/go-ndn-dv/dv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -37,8 +38,10 @@ func main() {
 
 	// Create a new DV router
 	config := &dv.Config{
-		GlobalPrefix: os.Args[1],
-		RouterPrefix: os.Args[2],
+		GlobalPrefix:              os.Args[1],
+		RouterPrefix:              os.Args[2],
+		AdvertisementSyncInterval: 2 * time.Second,
+		RouterDeadInterval:        5 * time.Second,
 	}
 
 	router, err := dv.NewDV(config, app)

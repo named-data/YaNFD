@@ -15,11 +15,17 @@ type Config struct {
 	GlobalPrefix string
 	// RouterPrefix should be unique for each router in the network.
 	RouterPrefix string
+	// Period of sending Advertisement Sync Interests.
+	AdvertisementSyncInterval time.Duration
+	// Time after which a neighbor is considered dead.
+	RouterDeadInterval time.Duration
 }
 
 type DV struct {
 	// go-ndn app that this router is attached to
 	engine *basic_engine.Engine
+	// single mutex for all operations
+	mutex sync.Mutex
 
 	// config for this router
 	config *Config
@@ -32,8 +38,8 @@ type DV struct {
 	stop chan bool
 	// heartbeat for outgoing Advertisements
 	heartbeat *time.Ticker
-	// single mutex for all operations
-	mutex sync.Mutex
+	// deadcheck for neighbors
+	deadcheck *time.Ticker
 
 	// advertisement sequence number for self
 	advertSeq uint64
@@ -66,10 +72,11 @@ func NewDV(config *Config, engine *basic_engine.Engine) (*DV, error) {
 		routerPrefix: routerPrefix,
 
 		stop:      make(chan bool),
-		heartbeat: time.NewTicker(2 * time.Second), // TODO: configurable
+		heartbeat: time.NewTicker(config.AdvertisementSyncInterval),
+		deadcheck: time.NewTicker(config.RouterDeadInterval),
 
 		advertSeq: uint64(time.Now().UnixMilli()), // TODO: not efficient
-		rib:       newRib(),
+		rib:       NewRib(),
 		neighbors: make(map[uint64]*neighbor_state),
 	}, nil
 }
@@ -91,6 +98,8 @@ func (dv *DV) Start() (err error) {
 		select {
 		case <-dv.heartbeat.C:
 			dv.sendAdvertSyncInterest()
+		case <-dv.deadcheck.C:
+			dv.checkDeadNeighbors()
 		case <-dv.stop:
 			return
 		}
