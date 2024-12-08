@@ -1,21 +1,22 @@
-package dv
+package table
 
 import (
 	"fmt"
 
+	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // Routing Information Base (RIB)
-type rib struct {
+type Rib struct {
 	// destination hash -> entry
-	entries map[uint64]*rib_entry
+	entries map[uint64]*RibEntry
 	// neighbor hash -> neighbor name
 	neighbors map[uint64]enc.Name
 }
 
-type rib_entry struct {
+type RibEntry struct {
 	// full name of destination router
 	name enc.Name
 	// neighbor hash -> cost
@@ -30,19 +31,19 @@ type rib_entry struct {
 	dirty bool
 }
 
-func NewRib() *rib {
-	return &rib{
-		entries:   make(map[uint64]*rib_entry),
+func NewRib() *Rib {
+	return &Rib{
+		entries:   make(map[uint64]*RibEntry),
 		neighbors: make(map[uint64]enc.Name),
 	}
 }
 
 // Print the RIB to the console (for debugging).
-func (r *rib) Print() {
+func (r *Rib) Print() {
 	for _, entry := range r.entries {
 		fmt.Printf("=> Destination: %s\n", entry.name.String())
 		for hop, cost := range entry.costs {
-			if cost < CostInfinity {
+			if cost < config.CostInfinity {
 				fmt.Printf("===> NextHop: %s, Cost: %d\n", r.neighbors[hop].String(), cost)
 			}
 		}
@@ -50,14 +51,14 @@ func (r *rib) Print() {
 }
 
 // Set a destination in the RIB. Returns true if the Advertisement might change.
-func (r *rib) set(destName enc.Name, nextHop enc.Name, cost uint64) bool {
+func (r *Rib) Set(destName enc.Name, nextHop enc.Name, cost uint64) bool {
 	destHash := destName.Hash()
 	nextHopHash := nextHop.Hash()
 
 	// Create RIB entry if it doesn't exist
 	entry, ok := r.entries[destHash]
 	if !ok {
-		entry = &rib_entry{
+		entry = &RibEntry{
 			name:  destName.Clone(),
 			costs: make(map[uint64]uint64),
 		}
@@ -69,12 +70,12 @@ func (r *rib) set(destName enc.Name, nextHop enc.Name, cost uint64) bool {
 		r.neighbors[nextHopHash] = nextHop.Clone()
 	}
 
-	return entry.set(nextHopHash, cost)
+	return entry.Set(nextHopHash, cost)
 }
 
 // Remove all entries with a given next hop.
 // Returns true if the Advertisement might change.
-func (r *rib) removeNextHop(nextHop enc.Name) bool {
+func (r *Rib) RemoveNextHop(nextHop enc.Name) bool {
 	nextHopHash := nextHop.Hash()
 	dirty := false
 
@@ -91,10 +92,10 @@ func (r *rib) removeNextHop(nextHop enc.Name) bool {
 // Resets all entries for a given next hop to infinity without
 // refreshing any entry. This is specifically intended for the
 // RIB update algorithm to avoid unnecessary changes.
-func (r *rib) dirtyResetNextHop(nextHop enc.Name) {
+func (r *Rib) DirtyResetNextHop(nextHop enc.Name) {
 	nextHopHash := nextHop.Hash()
 	for _, entry := range r.entries {
-		entry.costs[nextHopHash] = CostInfinity
+		entry.costs[nextHopHash] = config.CostInfinity
 		entry.dirty = true
 	}
 }
@@ -102,7 +103,7 @@ func (r *rib) dirtyResetNextHop(nextHop enc.Name) {
 // Whenever the RIB is changed, this must be called manually
 // to remove unreachable destinations.
 // Returns true if the Advertisement might change.
-func (r *rib) prune() bool {
+func (r *Rib) Prune() bool {
 	dirty := false
 	for _, entry := range r.entries {
 		// Refresh entry if dirty
@@ -111,7 +112,7 @@ func (r *rib) prune() bool {
 		}
 
 		// Remove if no valid next hops
-		if entry.lowest1 == CostInfinity {
+		if entry.lowest1 == config.CostInfinity {
 			delete(r.entries, entry.name.Hash())
 			dirty = true
 		}
@@ -120,7 +121,7 @@ func (r *rib) prune() bool {
 }
 
 // Get all advertisement entries in the RIB.
-func (r *rib) advert() *tlv.Advertisement {
+func (r *Rib) Advert() *tlv.Advertisement {
 	advert := &tlv.Advertisement{
 		Entries: make([]*tlv.AdvEntry, 0, len(r.entries)),
 	}
@@ -139,7 +140,7 @@ func (r *rib) advert() *tlv.Advertisement {
 	return advert
 }
 
-func (e *rib_entry) set(nextHop uint64, cost uint64) bool {
+func (e *RibEntry) Set(nextHop uint64, cost uint64) bool {
 	if known, ok := e.costs[nextHop]; !ok || known != cost {
 		e.costs[nextHop] = cost
 		return e.refresh()
@@ -150,10 +151,10 @@ func (e *rib_entry) set(nextHop uint64, cost uint64) bool {
 }
 
 // Update lowest and second lowest costs for the entry.
-func (e *rib_entry) refresh() bool {
+func (e *RibEntry) refresh() bool {
 	e.dirty = false
-	lowest1 := CostInfinity
-	lowest2 := CostInfinity
+	lowest1 := config.CostInfinity
+	lowest2 := config.CostInfinity
 	nextHop1 := uint64(0)
 	nextHop2 := uint64(0)
 

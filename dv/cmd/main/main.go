@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/dv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
@@ -41,14 +42,14 @@ func main() {
 	defer app.Shutdown()
 
 	// Create a new DV router
-	config := &dv.Config{
+	config := &config.Config{
 		GlobalPrefix:              os.Args[1],
 		RouterPrefix:              os.Args[2],
 		AdvertisementSyncInterval: 2 * time.Second,
 		RouterDeadInterval:        5 * time.Second,
 	}
 
-	router, err := dv.NewDV(config, app)
+	router, err := dv.NewRouter(config, app)
 	if err != nil {
 		logger.Fatalf("Unable to create DV router: %+v", err)
 		return

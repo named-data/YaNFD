@@ -1,4 +1,4 @@
-package dv
+package nfdc
 
 import (
 	"time"
@@ -8,36 +8,36 @@ import (
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 )
 
-type mgmt_cmd struct {
-	module  string
-	cmd     string
-	args    *mgmt.ControlArgs
-	retries int
+type NfdMgmtCmd struct {
+	Module  string
+	Cmd     string
+	Args    *mgmt.ControlArgs
+	Retries int
 }
 
-type mgmt_thread struct {
+type NfdMgmtThread struct {
 	// engine
 	engine *basic_engine.Engine
 	// channel for management commands
-	channel chan mgmt_cmd
+	channel chan NfdMgmtCmd
 	// stop the management thread
 	stop chan bool
 }
 
-func newMgmtThread(engine *basic_engine.Engine) *mgmt_thread {
-	return &mgmt_thread{
+func NewNfdMgmtThread(engine *basic_engine.Engine) *NfdMgmtThread {
+	return &NfdMgmtThread{
 		engine:  engine,
-		channel: make(chan mgmt_cmd, 4096), // TODO: deadlocks if full
+		channel: make(chan NfdMgmtCmd, 4096), // TODO: deadlocks if full
 		stop:    make(chan bool),
 	}
 }
 
-func (m *mgmt_thread) Start() {
+func (m *NfdMgmtThread) Start() {
 	for {
 		select {
 		case cmd := <-m.channel:
-			for i := 0; i < cmd.retries || cmd.retries < 0; i++ {
-				err := m.engine.ExecMgmtCmd(cmd.module, cmd.cmd, cmd.args)
+			for i := 0; i < cmd.Retries || cmd.Retries < 0; i++ {
+				err := m.engine.ExecMgmtCmd(cmd.Module, cmd.Cmd, cmd.Args)
 				if err != nil {
 					log.Errorf("NFD Management command failed: %+v", err)
 					time.Sleep(100 * time.Millisecond)
@@ -52,12 +52,12 @@ func (m *mgmt_thread) Start() {
 	}
 }
 
-func (m *mgmt_thread) Stop() {
+func (m *NfdMgmtThread) Stop() {
 	m.stop <- true
 	close(m.channel)
 	close(m.stop)
 }
 
-func (m *mgmt_thread) Exec(mgmt_cmd mgmt_cmd) {
+func (m *NfdMgmtThread) Exec(mgmt_cmd NfdMgmtCmd) {
 	m.channel <- mgmt_cmd
 }
