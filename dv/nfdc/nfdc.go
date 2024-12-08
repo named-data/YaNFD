@@ -27,7 +27,7 @@ type NfdMgmtThread struct {
 func NewNfdMgmtThread(engine *basic_engine.Engine) *NfdMgmtThread {
 	return &NfdMgmtThread{
 		engine:  engine,
-		channel: make(chan NfdMgmtCmd, 4096), // TODO: deadlocks if full
+		channel: make(chan NfdMgmtCmd, 4096),
 		stop:    make(chan bool),
 	}
 }
