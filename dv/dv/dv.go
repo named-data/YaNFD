@@ -8,6 +8,8 @@ import (
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 )
 
+const CostInfinity = uint64(16)
+
 type Config struct {
 	// GlobalPrefix should be the same for all routers in the network.
 	GlobalPrefix string
@@ -34,12 +36,12 @@ type DV struct {
 	mutex sync.Mutex
 
 	// advertisement sequence number for self
-	advSeq uint64
-	// advertisement sequence numbers for neighbors
-	// neighbor name hash -> sequence number
-	neighborAdvSeq map[uint64]uint64
+	advertSeq uint64
 	// routing information base
 	rib *rib
+	// state of our neighbors
+	// neighbor name hash -> neighbor
+	neighbors map[uint64]*neighbor_state
 }
 
 // Create a new DV router.
@@ -66,16 +68,16 @@ func NewDV(config *Config, engine *basic_engine.Engine) (*DV, error) {
 		stop:      make(chan bool),
 		heartbeat: time.NewTicker(2 * time.Second), // TODO: configurable
 
-		advSeq:         uint64(time.Now().UnixMilli()), // TODO: not efficient
-		neighborAdvSeq: make(map[uint64]uint64),
-		rib:            newRib(),
+		advertSeq: uint64(time.Now().UnixMilli()), // TODO: not efficient
+		rib:       newRib(),
+		neighbors: make(map[uint64]*neighbor_state),
 	}, nil
 }
 
 // Start the DV router. Blocks until Stop() is called.
 func (dv *DV) Start() (err error) {
-	// Register self into the RIB
-	dv.rib.set(dv.routerPrefix, 0, 0)
+	// Add self to the RIB
+	dv.rib.set(dv.routerPrefix, dv.routerPrefix, 0)
 
 	// Register interest handlers
 	err = dv.register()
@@ -83,10 +85,12 @@ func (dv *DV) Start() (err error) {
 		return err
 	}
 
+	// TODO: set strategy to multicast
+
 	for {
 		select {
 		case <-dv.heartbeat.C:
-			dv.syncAdvertisement()
+			dv.sendAdvertSyncInterest()
 		case <-dv.stop:
 			return
 		}
@@ -106,7 +110,7 @@ func (dv *DV) register() (err error) {
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)
-	err = dv.engine.AttachHandler(prefixAdvSync, dv.onAdvSyncInterest)
+	err = dv.engine.AttachHandler(prefixAdvSync, dv.onAdvertSyncInterest)
 	if err != nil {
 		return err
 	}
@@ -116,7 +120,7 @@ func (dv *DV) register() (err error) {
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 	)
-	err = dv.engine.AttachHandler(prefixAdv, dv.onAdvInterest)
+	err = dv.engine.AttachHandler(prefixAdv, dv.onAdvertInterest)
 	if err != nil {
 		return err
 	}

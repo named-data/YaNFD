@@ -11,29 +11,15 @@ type Packet struct {
 }
 
 type Advertisement struct {
-	//+field:sequence:*Link:struct:Link
-	Links []*Link `tlv:"0xCA"`
 	//+field:sequence:*AdvEntry:struct:AdvEntry
-	AdvEntries []*AdvEntry `tlv:"0xCD"`
-}
-
-type Link struct {
-	//+field:natural
-	Interface uint64 `tlv:"0xCB"`
-	//+field:struct:Neighbor
-	Neighbor *Neighbor `tlv:"0xCC"`
-}
-
-type Neighbor struct {
-	//+field:name
-	Name enc.Name `tlv:"0x07"`
+	Entries []*AdvEntry `tlv:"0xCD"`
 }
 
 type AdvEntry struct {
 	//+field:struct:Destination
 	Destination *Destination `tlv:"0xCE"`
-	//+field:natural
-	Interface uint64 `tlv:"0xCF"`
+	//+field:struct:Destination
+	NextHop *Destination `tlv:"0xCC"`
 	//+field:natural
 	Cost uint64 `tlv:"0xD0"`
 	//+field:natural

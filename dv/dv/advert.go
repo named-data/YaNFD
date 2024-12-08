@@ -3,6 +3,7 @@ package dv
 import (
 	"time"
 
+	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
@@ -11,7 +12,18 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func (dv *DV) syncAdvertisement() (err error) {
+type neighbor_state struct {
+	// neighbor name
+	name enc.Name
+	// advertisement sequence number for neighbor
+	advertSeq uint64
+	// most recent advertisement
+	advert *tlv.Advertisement
+	// most recent advertisement (wire)
+	advertWire []byte
+}
+
+func (dv *DV) sendAdvertSyncInterest() (err error) {
 	// SVS v2 Sync Interest
 	syncName := append(dv.globalPrefix,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
@@ -24,14 +36,14 @@ func (dv *DV) syncAdvertisement() (err error) {
 		MustBeFresh: true,
 		Lifetime:    utils.IdPtr(1 * time.Millisecond),
 		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
-		HopLimit:    utils.IdPtr(uint(1)),
+		HopLimit:    utils.IdPtr(uint(1)), // TODO: use localhop instead
 	}
 
 	// State Vector for our group
 	sv := &svs.StateVec{
 		Entries: []*svs.StateVecEntry{{
 			NodeId: dv.routerPrefix.Bytes(),
-			SeqNo:  dv.advSeq,
+			SeqNo:  dv.advertSeq,
 		}},
 	}
 
@@ -51,24 +63,28 @@ func (dv *DV) syncAdvertisement() (err error) {
 	return nil
 }
 
-func (dv *DV) onAdvSyncInterest(
+func (dv *DV) onAdvertSyncInterest(
 	interest ndn.Interest,
-	rawInterest enc.Wire,
-	sigCovered enc.Wire,
 	reply ndn.ReplyFunc,
-	deadline time.Time,
+	extra ndn.InterestHandlerExtra,
 ) {
-	// TODO: verify signature on Sync Interest
-
-	// Parse the state vector from app parameters
+	// Check if app param is present
 	if interest.AppParam() == nil {
-		log.Warn("onAdvSyncInterest: Received Sync Interest with no AppParam, ignoring")
+		log.Warn("onAdvertSyncInterest: Received Sync Interest with no AppParam, ignoring")
 		return
 	}
 
+	// If there is no incoming face ID, we can't use this
+	if extra.IncomingFaceId == nil {
+		log.Warn("onAdvertSyncInterest: Received Sync Interest with no incoming face ID, ignoring")
+		return
+	}
+
+	// TODO: verify signature on Sync Interest
+
 	sv, err := svs.ParseStateVec(enc.NewWireReader(interest.AppParam()), true)
 	if err != nil {
-		log.Warnf("onAdvSyncInterest: Failed to parse StateVec: %+v", err)
+		log.Warnf("onAdvertSyncInterest: Failed to parse StateVec: %+v", err)
 		return
 	}
 
@@ -80,29 +96,37 @@ func (dv *DV) onAdvSyncInterest(
 		// Parse name from NodeId
 		neighbor, err := enc.NameFromBytes(entry.NodeId)
 		if err != nil {
-			log.Warnf("onAdvSyncInterest: Failed to parse NodeId: %+v", err)
+			log.Warnf("onAdvertSyncInterest: Failed to parse NodeId: %+v", err)
 			continue
 		}
 
 		// Check if the entry is newer than what we know
 		hash := neighbor.Hash()
-		if known, ok := dv.neighborAdvSeq[hash]; ok {
-			if known >= entry.SeqNo {
+		if ns, ok := dv.neighbors[hash]; ok {
+			if ns.advertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
 				continue
 			}
+		} else {
+			// Create new neighbor entry cause none found
+			// This is the ONLY place where neighbors are created
+			// In all other places, quit if not found
+			dv.neighbors[hash] = &neighbor_state{
+				name:      neighbor.Clone(),
+				advertSeq: entry.SeqNo,
+			}
 		}
 
-		dv.neighborAdvSeq[hash] = entry.SeqNo
-		go dv.scheduleAdvFetch(neighbor, entry.SeqNo)
+		dv.neighbors[hash].advertSeq = entry.SeqNo
+		go dv.scheduleAdvertFetch(neighbor, entry.SeqNo)
 	}
 }
 
-func (dv *DV) scheduleAdvFetch(neighbor enc.Name, seqNo uint64) {
+func (dv *DV) scheduleAdvertFetch(neighbor enc.Name, seqNo uint64) {
 	// debounce; wait before fetching, then check if this is still the latest
 	// sequence number known for this neighbor
 	time.Sleep(10 * time.Millisecond)
-	if known, ok := dv.neighborAdvSeq[neighbor.Hash()]; !ok || known != seqNo {
+	if ns, ok := dv.neighbors[neighbor.Hash()]; !ok || ns.advertSeq != seqNo {
 		return
 	}
 
@@ -121,7 +145,7 @@ func (dv *DV) scheduleAdvFetch(neighbor enc.Name, seqNo uint64) {
 
 	wire, _, finalName, err := dv.engine.Spec().MakeInterest(advName, cfg, nil, nil)
 	if err != nil {
-		log.Warnf("scheduleAdvFetch: Failed to make Interest: %+v", err)
+		log.Warnf("scheduleAdvertFetch: Failed to make Interest: %+v", err)
 		return
 	}
 
@@ -131,26 +155,24 @@ func (dv *DV) scheduleAdvFetch(neighbor enc.Name, seqNo uint64) {
 			// Keep retrying until we get the advertisement
 			// If the router is dead, we break out of this by checking
 			// that the sequence number is gone (above)
-			log.Warnf("scheduleAdvFetch: Retrying: %+v", result)
-			go dv.scheduleAdvFetch(neighbor, seqNo)
+			log.Warnf("scheduleAdvertFetch: Retrying: %+v", result)
+			go dv.scheduleAdvertFetch(neighbor, seqNo)
 			return
 		}
 
 		// Process the advertisement
-		go dv.onAdvData(data)
+		go dv.onAdvertData(data)
 	})
 	if err != nil {
-		log.Warnf("scheduleAdvFetch: Failed to express Interest: %+v", err)
+		log.Warnf("scheduleAdvertFetch: Failed to express Interest: %+v", err)
 	}
 }
 
 // Received advertisement Interest
-func (dv *DV) onAdvInterest(
+func (dv *DV) onAdvertInterest(
 	interest ndn.Interest,
-	rawInterest enc.Wire,
-	sigCovered enc.Wire,
 	reply ndn.ReplyFunc,
-	deadline time.Time,
+	extra ndn.InterestHandlerExtra,
 ) {
 	// For now, just send the latest advertisement at all times
 	// This will need to change if we switch to differential updates
@@ -158,44 +180,99 @@ func (dv *DV) onAdvInterest(
 	// TODO: sign the advertisement
 	signer := security.NewSha256Signer()
 
-	// TODO: encode the advertisement
-	content := []byte("Hello, world!")
+	// Encode latest advertisement
+	content := func() *tlv.Advertisement {
+		dv.mutex.Lock()
+		defer dv.mutex.Unlock()
+		return dv.rib.advert()
+	}().Encode()
 
-	// Make the Data packet
 	wire, _, err := dv.engine.Spec().MakeData(
 		interest.Name(),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 			Freshness:   utils.IdPtr(10 * time.Second),
 		},
-		enc.Wire{content},
+		content,
 		signer)
 	if err != nil {
-		log.Warnf("onAdvInterest: Failed to make Data: %+v", err)
+		log.Warnf("onAdvertInterest: Failed to make Data: %+v", err)
 		return
 	}
 
 	// Send the Data packet
 	err = reply(wire)
 	if err != nil {
-		log.Warnf("onAdvInterest: Failed to reply: %+v", err)
+		log.Warnf("onAdvertInterest: Failed to reply: %+v", err)
 		return
 	}
 }
 
 // Received advertisement Data
-func (dv *DV) onAdvData(data ndn.Data) {
+func (dv *DV) onAdvertData(data ndn.Data) {
 	name := data.Name()
 	neighbor := name[:len(name)-3]
 	seqNo := name[len(name)-1].NumberVal()
+	nhash := neighbor.Hash()
 
 	// Check if this is the latest advertisement
-	if known, ok := dv.neighborAdvSeq[neighbor.Hash()]; !ok || known != seqNo {
-		log.Warnf("onAdvData: Received old advertisement for %s, seqNo %d", neighbor.String(), seqNo)
+	if ns, ok := dv.neighbors[nhash]; !ok || ns.advertSeq != seqNo {
+		log.Warnf("onAdvertData: Received old advertisement for %s, seqNo %d", neighbor.String(), seqNo)
 		return
 	}
 
 	// TODO: verify signature on Advertisement
+	log.Infof("onAdvertData: Received Advertisement: %s", data.Name().String())
 
-	log.Infof("onAdvData: Received Advertisement: %s", data.Name().String())
+	// Parse the advertisement
+	raw := data.Content().Join() // clone
+	advert, err := tlv.ParseAdvertisement(enc.NewWireReader(enc.Wire{raw}), false)
+	if err != nil {
+		log.Warnf("onAdvertData: Failed to parse Advertisement: %+v", err)
+		return
+	}
+
+	// Update the local advertisement list
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+	dv.neighbors[nhash].advert = advert
+	dv.neighbors[nhash].advertWire = raw
+	go dv.UpdateRIB(dv.neighbors[nhash])
+}
+
+// Compute the RIB
+func (dv *DV) UpdateRIB(ns *neighbor_state) {
+	log.Infof("UpdateRIB: Triggered for %s", ns.name.String())
+
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	if ns.advert == nil {
+		return
+	}
+
+	// TODO: use cost to neighbor
+	localCost := uint64(1)
+
+	for _, entry := range ns.advert.Entries {
+		// Use the advertised cost by default
+		cost := entry.Cost + localCost
+
+		// Poison reverse - try other cost if next hop is us
+		if entry.NextHop.Name.Equal(dv.routerPrefix) {
+			if entry.OtherCost < CostInfinity {
+				cost = entry.OtherCost + localCost
+			} else {
+				cost = CostInfinity
+			}
+		}
+
+		// Skip unreachable destinations
+		if cost >= CostInfinity {
+			continue
+		}
+
+		// TODO: check advertisement changes
+		dv.rib.set(entry.Destination.Name, ns.name, cost)
+	}
 }

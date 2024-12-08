@@ -224,62 +224,33 @@ func ParsePacket(reader enc.ParseReader, ignoreCritical bool) (*Packet, error) {
 type AdvertisementEncoder struct {
 	length uint
 
-	Links_subencoder []struct {
-		Links_encoder LinkEncoder
-	}
-
-	AdvEntries_subencoder []struct {
-		AdvEntries_encoder AdvEntryEncoder
+	Entries_subencoder []struct {
+		Entries_encoder AdvEntryEncoder
 	}
 }
 
 type AdvertisementParsingContext struct {
-	Links_context      LinkParsingContext
-	AdvEntries_context AdvEntryParsingContext
+	Entries_context AdvEntryParsingContext
 }
 
 func (encoder *AdvertisementEncoder) Init(value *Advertisement) {
 	{
-		Links_l := len(value.Links)
-		encoder.Links_subencoder = make([]struct {
-			Links_encoder LinkEncoder
-		}, Links_l)
-		for i := 0; i < Links_l; i++ {
-			pseudoEncoder := &encoder.Links_subencoder[i]
+		Entries_l := len(value.Entries)
+		encoder.Entries_subencoder = make([]struct {
+			Entries_encoder AdvEntryEncoder
+		}, Entries_l)
+		for i := 0; i < Entries_l; i++ {
+			pseudoEncoder := &encoder.Entries_subencoder[i]
 			pseudoValue := struct {
-				Links *Link
+				Entries *AdvEntry
 			}{
-				Links: value.Links[i],
+				Entries: value.Entries[i],
 			}
 			{
 				encoder := pseudoEncoder
 				value := &pseudoValue
-				if value.Links != nil {
-					encoder.Links_encoder.Init(value.Links)
-				}
-				_ = encoder
-				_ = value
-			}
-		}
-	}
-
-	{
-		AdvEntries_l := len(value.AdvEntries)
-		encoder.AdvEntries_subencoder = make([]struct {
-			AdvEntries_encoder AdvEntryEncoder
-		}, AdvEntries_l)
-		for i := 0; i < AdvEntries_l; i++ {
-			pseudoEncoder := &encoder.AdvEntries_subencoder[i]
-			pseudoValue := struct {
-				AdvEntries *AdvEntry
-			}{
-				AdvEntries: value.AdvEntries[i],
-			}
-			{
-				encoder := pseudoEncoder
-				value := &pseudoValue
-				if value.AdvEntries != nil {
-					encoder.AdvEntries_encoder.Init(value.AdvEntries)
+				if value.Entries != nil {
+					encoder.Entries_encoder.Init(value.Entries)
 				}
 				_ = encoder
 				_ = value
@@ -288,20 +259,20 @@ func (encoder *AdvertisementEncoder) Init(value *Advertisement) {
 	}
 
 	l := uint(0)
-	if value.Links != nil {
-		for seq_i, seq_v := range value.Links {
-			pseudoEncoder := &encoder.Links_subencoder[seq_i]
+	if value.Entries != nil {
+		for seq_i, seq_v := range value.Entries {
+			pseudoEncoder := &encoder.Entries_subencoder[seq_i]
 			pseudoValue := struct {
-				Links *Link
+				Entries *AdvEntry
 			}{
-				Links: seq_v,
+				Entries: seq_v,
 			}
 			{
 				encoder := pseudoEncoder
 				value := &pseudoValue
-				if value.Links != nil {
+				if value.Entries != nil {
 					l += 1
-					switch x := encoder.Links_encoder.length; {
+					switch x := encoder.Entries_encoder.length; {
 					case x <= 0xfc:
 						l += 1
 					case x <= 0xffff:
@@ -311,39 +282,7 @@ func (encoder *AdvertisementEncoder) Init(value *Advertisement) {
 					default:
 						l += 9
 					}
-					l += encoder.Links_encoder.length
-				}
-
-				_ = encoder
-				_ = value
-			}
-		}
-	}
-
-	if value.AdvEntries != nil {
-		for seq_i, seq_v := range value.AdvEntries {
-			pseudoEncoder := &encoder.AdvEntries_subencoder[seq_i]
-			pseudoValue := struct {
-				AdvEntries *AdvEntry
-			}{
-				AdvEntries: seq_v,
-			}
-			{
-				encoder := pseudoEncoder
-				value := &pseudoValue
-				if value.AdvEntries != nil {
-					l += 1
-					switch x := encoder.AdvEntries_encoder.length; {
-					case x <= 0xfc:
-						l += 1
-					case x <= 0xffff:
-						l += 3
-					case x <= 0xffffffff:
-						l += 5
-					default:
-						l += 9
-					}
-					l += encoder.AdvEntries_encoder.length
+					l += encoder.Entries_encoder.length
 				}
 
 				_ = encoder
@@ -357,71 +296,27 @@ func (encoder *AdvertisementEncoder) Init(value *Advertisement) {
 }
 
 func (context *AdvertisementParsingContext) Init() {
-	context.Links_context.Init()
-	context.AdvEntries_context.Init()
+	context.Entries_context.Init()
 }
 
 func (encoder *AdvertisementEncoder) EncodeInto(value *Advertisement, buf []byte) {
 
 	pos := uint(0)
-	if value.Links != nil {
-		for seq_i, seq_v := range value.Links {
-			pseudoEncoder := &encoder.Links_subencoder[seq_i]
+	if value.Entries != nil {
+		for seq_i, seq_v := range value.Entries {
+			pseudoEncoder := &encoder.Entries_subencoder[seq_i]
 			pseudoValue := struct {
-				Links *Link
+				Entries *AdvEntry
 			}{
-				Links: seq_v,
+				Entries: seq_v,
 			}
 			{
 				encoder := pseudoEncoder
 				value := &pseudoValue
-				if value.Links != nil {
-					buf[pos] = byte(202)
-					pos += 1
-					switch x := encoder.Links_encoder.length; {
-					case x <= 0xfc:
-						buf[pos] = byte(x)
-						pos += 1
-					case x <= 0xffff:
-						buf[pos] = 0xfd
-						binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-						pos += 3
-					case x <= 0xffffffff:
-						buf[pos] = 0xfe
-						binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-						pos += 5
-					default:
-						buf[pos] = 0xff
-						binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-						pos += 9
-					}
-					if encoder.Links_encoder.length > 0 {
-						encoder.Links_encoder.EncodeInto(value.Links, buf[pos:])
-						pos += encoder.Links_encoder.length
-					}
-				}
-
-				_ = encoder
-				_ = value
-			}
-		}
-	}
-
-	if value.AdvEntries != nil {
-		for seq_i, seq_v := range value.AdvEntries {
-			pseudoEncoder := &encoder.AdvEntries_subencoder[seq_i]
-			pseudoValue := struct {
-				AdvEntries *AdvEntry
-			}{
-				AdvEntries: seq_v,
-			}
-			{
-				encoder := pseudoEncoder
-				value := &pseudoValue
-				if value.AdvEntries != nil {
+				if value.Entries != nil {
 					buf[pos] = byte(205)
 					pos += 1
-					switch x := encoder.AdvEntries_encoder.length; {
+					switch x := encoder.Entries_encoder.length; {
 					case x <= 0xfc:
 						buf[pos] = byte(x)
 						pos += 1
@@ -438,9 +333,9 @@ func (encoder *AdvertisementEncoder) EncodeInto(value *Advertisement, buf []byte
 						binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
 						pos += 9
 					}
-					if encoder.AdvEntries_encoder.length > 0 {
-						encoder.AdvEntries_encoder.EncodeInto(value.AdvEntries, buf[pos:])
-						pos += encoder.AdvEntries_encoder.length
+					if encoder.Entries_encoder.length > 0 {
+						encoder.Entries_encoder.EncodeInto(value.Entries, buf[pos:])
+						pos += encoder.Entries_encoder.length
 					}
 				}
 
@@ -488,42 +383,22 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 		err = nil
 		for handled := false; !handled; progress++ {
 			switch typ {
-			case 202:
+			case 205:
 				if progress+1 == 0 {
 					handled = true
-					if value.Links == nil {
-						value.Links = make([]*Link, 0)
+					if value.Entries == nil {
+						value.Entries = make([]*AdvEntry, 0)
 					}
 					{
 						pseudoValue := struct {
-							Links *Link
+							Entries *AdvEntry
 						}{}
 						{
 							value := &pseudoValue
-							value.Links, err = context.Links_context.Parse(reader.Delegate(int(l)), ignoreCritical)
+							value.Entries, err = context.Entries_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 							_ = value
 						}
-						value.Links = append(value.Links, pseudoValue.Links)
-					}
-					progress--
-
-				}
-			case 205:
-				if progress+1 == 1 {
-					handled = true
-					if value.AdvEntries == nil {
-						value.AdvEntries = make([]*AdvEntry, 0)
-					}
-					{
-						pseudoValue := struct {
-							AdvEntries *AdvEntry
-						}{}
-						{
-							value := &pseudoValue
-							value.AdvEntries, err = context.AdvEntries_context.Parse(reader.Delegate(int(l)), ignoreCritical)
-							_ = value
-						}
-						value.AdvEntries = append(value.AdvEntries, pseudoValue.AdvEntries)
+						value.Entries = append(value.Entries, pseudoValue.Entries)
 					}
 					progress--
 
@@ -539,8 +414,6 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 				switch progress {
 				case 0 - 1:
 
-				case 1 - 1:
-
 				}
 			}
 			if err != nil {
@@ -549,11 +422,9 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 		}
 	}
 	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
+	for ; progress < 1; progress++ {
 		switch progress {
 		case 0 - 1:
-
-		case 1 - 1:
 
 		}
 	}
@@ -579,412 +450,24 @@ func ParseAdvertisement(reader enc.ParseReader, ignoreCritical bool) (*Advertise
 	return context.Parse(reader, ignoreCritical)
 }
 
-type LinkEncoder struct {
-	length uint
-
-	Neighbor_encoder NeighborEncoder
-}
-
-type LinkParsingContext struct {
-	Neighbor_context NeighborParsingContext
-}
-
-func (encoder *LinkEncoder) Init(value *Link) {
-
-	if value.Neighbor != nil {
-		encoder.Neighbor_encoder.Init(value.Neighbor)
-	}
-	l := uint(0)
-	l += 1
-	switch x := value.Interface; {
-	case x <= 0xff:
-		l += 2
-	case x <= 0xffff:
-		l += 3
-	case x <= 0xffffffff:
-		l += 5
-	default:
-		l += 9
-	}
-
-	if value.Neighbor != nil {
-		l += 1
-		switch x := encoder.Neighbor_encoder.length; {
-		case x <= 0xfc:
-			l += 1
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-		l += encoder.Neighbor_encoder.length
-	}
-
-	encoder.length = l
-
-}
-
-func (context *LinkParsingContext) Init() {
-
-	context.Neighbor_context.Init()
-}
-
-func (encoder *LinkEncoder) EncodeInto(value *Link, buf []byte) {
-
-	pos := uint(0)
-	buf[pos] = byte(203)
-	pos += 1
-	switch x := value.Interface; {
-	case x <= 0xff:
-		buf[pos] = 1
-		buf[pos+1] = byte(x)
-		pos += 2
-	case x <= 0xffff:
-		buf[pos] = 2
-		binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-		pos += 3
-	case x <= 0xffffffff:
-		buf[pos] = 4
-		binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-		pos += 5
-	default:
-		buf[pos] = 8
-		binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-		pos += 9
-	}
-
-	if value.Neighbor != nil {
-		buf[pos] = byte(204)
-		pos += 1
-		switch x := encoder.Neighbor_encoder.length; {
-		case x <= 0xfc:
-			buf[pos] = byte(x)
-			pos += 1
-		case x <= 0xffff:
-			buf[pos] = 0xfd
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 0xfe
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 0xff
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-		if encoder.Neighbor_encoder.length > 0 {
-			encoder.Neighbor_encoder.EncodeInto(value.Neighbor, buf[pos:])
-			pos += encoder.Neighbor_encoder.length
-		}
-	}
-
-}
-
-func (encoder *LinkEncoder) Encode(value *Link) enc.Wire {
-
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
-	encoder.EncodeInto(value, buf)
-
-	return wire
-}
-
-func (context *LinkParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*Link, error) {
-	if reader == nil {
-		return nil, enc.ErrBufferOverflow
-	}
-	progress := -1
-	value := &Link{}
-	var err error
-	var startPos int
-	for {
-		startPos = reader.Pos()
-		if startPos >= reader.Length() {
-			break
-		}
-		typ := enc.TLNum(0)
-		l := enc.TLNum(0)
-		typ, err = enc.ReadTLNum(reader)
-		if err != nil {
-			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
-		}
-		l, err = enc.ReadTLNum(reader)
-		if err != nil {
-			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
-		}
-		err = nil
-		for handled := false; !handled; progress++ {
-			switch typ {
-			case 203:
-				if progress+1 == 0 {
-					handled = true
-					value.Interface = uint64(0)
-					{
-						for i := 0; i < int(l); i++ {
-							x := byte(0)
-							x, err = reader.ReadByte()
-							if err != nil {
-								if err == io.EOF {
-									err = io.ErrUnexpectedEOF
-								}
-								break
-							}
-							value.Interface = uint64(value.Interface<<8) | uint64(x)
-						}
-					}
-				}
-			case 204:
-				if progress+1 == 1 {
-					handled = true
-					value.Neighbor, err = context.Neighbor_context.Parse(reader.Delegate(int(l)), ignoreCritical)
-				}
-			default:
-				handled = true
-				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
-					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
-				}
-				err = reader.Skip(int(l))
-			}
-			if err == nil && !handled {
-				switch progress {
-				case 0 - 1:
-					err = enc.ErrSkipRequired{Name: "Interface", TypeNum: 203}
-				case 1 - 1:
-					value.Neighbor = nil
-				}
-			}
-			if err != nil {
-				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
-			}
-		}
-	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Interface", TypeNum: 203}
-		case 1 - 1:
-			value.Neighbor = nil
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	return value, nil
-}
-
-func (value *Link) Encode() enc.Wire {
-	encoder := LinkEncoder{}
-	encoder.Init(value)
-	return encoder.Encode(value)
-}
-
-func (value *Link) Bytes() []byte {
-	return value.Encode().Join()
-}
-
-func ParseLink(reader enc.ParseReader, ignoreCritical bool) (*Link, error) {
-	context := LinkParsingContext{}
-	context.Init()
-	return context.Parse(reader, ignoreCritical)
-}
-
-type NeighborEncoder struct {
-	length uint
-
-	Name_length uint
-}
-
-type NeighborParsingContext struct {
-}
-
-func (encoder *NeighborEncoder) Init(value *Neighbor) {
-	if value.Name != nil {
-		encoder.Name_length = 0
-		for _, c := range value.Name {
-			encoder.Name_length += uint(c.EncodingLength())
-		}
-	}
-
-	l := uint(0)
-	if value.Name != nil {
-		l += 1
-		switch x := encoder.Name_length; {
-		case x <= 0xfc:
-			l += 1
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-		l += encoder.Name_length
-	}
-
-	encoder.length = l
-
-}
-
-func (context *NeighborParsingContext) Init() {
-
-}
-
-func (encoder *NeighborEncoder) EncodeInto(value *Neighbor, buf []byte) {
-
-	pos := uint(0)
-	if value.Name != nil {
-		buf[pos] = byte(7)
-		pos += 1
-		switch x := encoder.Name_length; {
-		case x <= 0xfc:
-			buf[pos] = byte(x)
-			pos += 1
-		case x <= 0xffff:
-			buf[pos] = 0xfd
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 0xfe
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 0xff
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-		for _, c := range value.Name {
-			pos += uint(c.EncodeInto(buf[pos:]))
-		}
-	}
-
-}
-
-func (encoder *NeighborEncoder) Encode(value *Neighbor) enc.Wire {
-
-	wire := make(enc.Wire, 1)
-	wire[0] = make([]byte, encoder.length)
-	buf := wire[0]
-	encoder.EncodeInto(value, buf)
-
-	return wire
-}
-
-func (context *NeighborParsingContext) Parse(reader enc.ParseReader, ignoreCritical bool) (*Neighbor, error) {
-	if reader == nil {
-		return nil, enc.ErrBufferOverflow
-	}
-	progress := -1
-	value := &Neighbor{}
-	var err error
-	var startPos int
-	for {
-		startPos = reader.Pos()
-		if startPos >= reader.Length() {
-			break
-		}
-		typ := enc.TLNum(0)
-		l := enc.TLNum(0)
-		typ, err = enc.ReadTLNum(reader)
-		if err != nil {
-			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
-		}
-		l, err = enc.ReadTLNum(reader)
-		if err != nil {
-			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
-		}
-		err = nil
-		for handled := false; !handled; progress++ {
-			switch typ {
-			case 7:
-				if progress+1 == 0 {
-					handled = true
-					value.Name = make(enc.Name, l/2+1)
-					startName := reader.Pos()
-					endName := startName + int(l)
-					for j := range value.Name {
-						if reader.Pos() >= endName {
-							value.Name = value.Name[:j]
-							break
-						}
-						var err1, err3 error
-						value.Name[j].Typ, err1 = enc.ReadTLNum(reader)
-						l, err2 := enc.ReadTLNum(reader)
-						value.Name[j].Val, err3 = reader.ReadBuf(int(l))
-						if err1 != nil || err2 != nil || err3 != nil {
-							err = io.ErrUnexpectedEOF
-							break
-						}
-					}
-					if err == nil && reader.Pos() != endName {
-						err = enc.ErrBufferOverflow
-					}
-
-				}
-			default:
-				handled = true
-				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
-					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
-				}
-				err = reader.Skip(int(l))
-			}
-			if err == nil && !handled {
-				switch progress {
-				case 0 - 1:
-					value.Name = nil
-				}
-			}
-			if err != nil {
-				return nil, enc.ErrFailToParse{TypeNum: typ, Err: err}
-			}
-		}
-	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	return value, nil
-}
-
-func (value *Neighbor) Encode() enc.Wire {
-	encoder := NeighborEncoder{}
-	encoder.Init(value)
-	return encoder.Encode(value)
-}
-
-func (value *Neighbor) Bytes() []byte {
-	return value.Encode().Join()
-}
-
-func ParseNeighbor(reader enc.ParseReader, ignoreCritical bool) (*Neighbor, error) {
-	context := NeighborParsingContext{}
-	context.Init()
-	return context.Parse(reader, ignoreCritical)
-}
-
 type AdvEntryEncoder struct {
 	length uint
 
 	Destination_encoder DestinationEncoder
+	NextHop_encoder     DestinationEncoder
 }
 
 type AdvEntryParsingContext struct {
 	Destination_context DestinationParsingContext
+	NextHop_context     DestinationParsingContext
 }
 
 func (encoder *AdvEntryEncoder) Init(value *AdvEntry) {
 	if value.Destination != nil {
 		encoder.Destination_encoder.Init(value.Destination)
+	}
+	if value.NextHop != nil {
+		encoder.NextHop_encoder.Init(value.NextHop)
 	}
 
 	l := uint(0)
@@ -1003,16 +486,19 @@ func (encoder *AdvEntryEncoder) Init(value *AdvEntry) {
 		l += encoder.Destination_encoder.length
 	}
 
-	l += 1
-	switch x := value.Interface; {
-	case x <= 0xff:
-		l += 2
-	case x <= 0xffff:
-		l += 3
-	case x <= 0xffffffff:
-		l += 5
-	default:
-		l += 9
+	if value.NextHop != nil {
+		l += 1
+		switch x := encoder.NextHop_encoder.length; {
+		case x <= 0xfc:
+			l += 1
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+		l += encoder.NextHop_encoder.length
 	}
 
 	l += 1
@@ -1045,6 +531,7 @@ func (encoder *AdvEntryEncoder) Init(value *AdvEntry) {
 
 func (context *AdvEntryParsingContext) Init() {
 	context.Destination_context.Init()
+	context.NextHop_context.Init()
 
 }
 
@@ -1077,25 +564,30 @@ func (encoder *AdvEntryEncoder) EncodeInto(value *AdvEntry, buf []byte) {
 		}
 	}
 
-	buf[pos] = byte(207)
-	pos += 1
-	switch x := value.Interface; {
-	case x <= 0xff:
-		buf[pos] = 1
-		buf[pos+1] = byte(x)
-		pos += 2
-	case x <= 0xffff:
-		buf[pos] = 2
-		binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-		pos += 3
-	case x <= 0xffffffff:
-		buf[pos] = 4
-		binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-		pos += 5
-	default:
-		buf[pos] = 8
-		binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-		pos += 9
+	if value.NextHop != nil {
+		buf[pos] = byte(204)
+		pos += 1
+		switch x := encoder.NextHop_encoder.length; {
+		case x <= 0xfc:
+			buf[pos] = byte(x)
+			pos += 1
+		case x <= 0xffff:
+			buf[pos] = 0xfd
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 0xfe
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 0xff
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+		if encoder.NextHop_encoder.length > 0 {
+			encoder.NextHop_encoder.EncodeInto(value.NextHop, buf[pos:])
+			pos += encoder.NextHop_encoder.length
+		}
 	}
 
 	buf[pos] = byte(208)
@@ -1183,23 +675,10 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 					handled = true
 					value.Destination, err = context.Destination_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
-			case 207:
+			case 204:
 				if progress+1 == 1 {
 					handled = true
-					value.Interface = uint64(0)
-					{
-						for i := 0; i < int(l); i++ {
-							x := byte(0)
-							x, err = reader.ReadByte()
-							if err != nil {
-								if err == io.EOF {
-									err = io.ErrUnexpectedEOF
-								}
-								break
-							}
-							value.Interface = uint64(value.Interface<<8) | uint64(x)
-						}
-					}
+					value.NextHop, err = context.NextHop_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 208:
 				if progress+1 == 2 {
@@ -1249,7 +728,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				case 0 - 1:
 					value.Destination = nil
 				case 1 - 1:
-					err = enc.ErrSkipRequired{Name: "Interface", TypeNum: 207}
+					value.NextHop = nil
 				case 2 - 1:
 					err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 208}
 				case 3 - 1:
@@ -1267,7 +746,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		case 0 - 1:
 			value.Destination = nil
 		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Interface", TypeNum: 207}
+			value.NextHop = nil
 		case 2 - 1:
 			err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 208}
 		case 3 - 1:
