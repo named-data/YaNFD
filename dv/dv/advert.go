@@ -12,19 +12,6 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-type neighbor_state struct {
-	// neighbor name
-	name enc.Name
-	// time of last sync interest
-	lastSeen time.Time
-	// advertisement sequence number for neighbor
-	advertSeq uint64
-	// most recent advertisement
-	advert *tlv.Advertisement
-	// most recent advertisement (wire)
-	advertWire []byte
-}
-
 func (dv *DV) sendAdvertSyncInterest() (err error) {
 	// SVS v2 Sync Interest
 	syncName := append(dv.globalPrefix,
@@ -108,7 +95,7 @@ func (dv *DV) onAdvertSyncInterest(
 		if ns != nil {
 			if ns.advertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
-				ns.lastSeen = time.Now()
+				dv.neighborPing(ns, *extra.IncomingFaceId)
 				continue
 			}
 		} else {
@@ -121,8 +108,8 @@ func (dv *DV) onAdvertSyncInterest(
 			dv.neighbors[nhash] = ns
 		}
 
+		dv.neighborPing(ns, *extra.IncomingFaceId)
 		ns.advertSeq = entry.SeqNo
-		ns.lastSeen = time.Now()
 
 		go dv.scheduleAdvertFetch(neighbor, entry.SeqNo)
 	}
@@ -160,17 +147,27 @@ func (dv *DV) scheduleAdvertFetch(neighbor enc.Name, seqNo uint64) {
 		result ndn.InterestResult, data ndn.Data,
 		_ enc.Wire, _ enc.Wire, _ uint64,
 	) {
-		if result != ndn.InterestResultData {
-			// Keep retrying until we get the advertisement
-			// If the router is dead, we break out of this by checking
-			// that the sequence number is gone (above)
-			log.Warnf("scheduleAdvertFetch: Retrying %s: %+v", finalName.String(), result)
-			go dv.scheduleAdvertFetch(neighbor, seqNo)
-			return
-		}
+		go func() { // Don't block the main loop
+			if result != ndn.InterestResultData {
+				// If this wasn't a timeout, wait for 2s before retrying
+				// This prevents excessive retries in case of NACKs
+				if result != ndn.InterestResultTimeout {
+					time.Sleep(2 * time.Second)
+				} else {
+					time.Sleep(100 * time.Millisecond)
+				}
 
-		// Process the advertisement
-		go dv.onAdvertData(data)
+				// Keep retrying until we get the advertisement
+				// If the router is dead, we break out of this by checking
+				// that the sequence number is gone (above)
+				log.Warnf("scheduleAdvertFetch: Retrying %s: %+v", finalName.String(), result)
+				dv.scheduleAdvertFetch(neighbor, seqNo)
+				return
+			}
+
+			// Process the advertisement
+			dv.onAdvertData(data)
+		}()
 	})
 	if err != nil {
 		log.Warnf("scheduleAdvertFetch: Failed to express Interest: %+v", err)
@@ -251,8 +248,6 @@ func (dv *DV) onAdvertData(data ndn.Data) {
 
 // Compute the RIB
 func (dv *DV) UpdateRIB(ns *neighbor_state) {
-	log.Infof("UpdateRIB: Triggered for %s", ns.name.String())
-
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
@@ -307,7 +302,11 @@ func (dv *DV) checkDeadNeighbors() {
 
 	dirty := false
 	for nhash, ns := range dv.neighbors {
-		if time.Since(ns.lastSeen) > dv.config.RouterDeadInterval {
+		// Remove any dead router routes
+		dv.neighborPrune(ns)
+
+		// Check if the neighbor is entirely dead
+		if dv.neighborIsDead(ns) {
 			log.Infof("checkDeadNeighbors: Neighbor %s is dead", ns.name.String())
 
 			// Remove neighbor from RIB and prune
@@ -329,6 +328,7 @@ func (dv *DV) notifyNewAdvert() {
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
+	// TODO: remove this debug print
 	dv.rib.Print()
 
 	dv.advertSeq++

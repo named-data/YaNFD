@@ -51,6 +51,9 @@ type DV struct {
 	// state of our neighbors
 	// neighbor name hash -> neighbor
 	neighbors map[uint64]*neighbor_state
+
+	// management thread
+	mgmt *mgmt_thread
 }
 
 // Create a new DV router.
@@ -74,20 +77,27 @@ func NewDV(config *Config, engine *basic_engine.Engine) (*DV, error) {
 		globalPrefix: globalPrefix,
 		routerPrefix: routerPrefix,
 
-		stop:      make(chan bool),
-		heartbeat: time.NewTicker(config.AdvertisementSyncInterval),
-		deadcheck: time.NewTicker(config.RouterDeadInterval),
-
 		advertSeq: uint64(time.Now().UnixMilli()), // TODO: not efficient
 		rib:       NewRib(),
 		neighbors: make(map[uint64]*neighbor_state),
+
+		mgmt: newMgmtThread(engine),
 	}, nil
 }
 
 // Start the DV router. Blocks until Stop() is called.
 func (dv *DV) Start() (err error) {
-	// Add self to the RIB
-	dv.rib.set(dv.routerPrefix, dv.routerPrefix, 0)
+	dv.stop = make(chan bool)
+
+	// Start timers
+	dv.heartbeat = time.NewTicker(dv.config.AdvertisementSyncInterval)
+	dv.deadcheck = time.NewTicker(dv.config.RouterDeadInterval)
+	defer dv.heartbeat.Stop()
+	defer dv.deadcheck.Stop()
+
+	// Start management thread
+	go dv.mgmt.Start()
+	defer dv.mgmt.Stop()
 
 	// Configure face
 	err = dv.configureFace()
@@ -101,7 +111,8 @@ func (dv *DV) Start() (err error) {
 		return err
 	}
 
-	// TODO: set strategy to multicast
+	// Add self to the RIB
+	dv.rib.set(dv.routerPrefix, dv.routerPrefix, 0)
 
 	for {
 		select {
@@ -110,14 +121,13 @@ func (dv *DV) Start() (err error) {
 		case <-dv.deadcheck.C:
 			dv.checkDeadNeighbors()
 		case <-dv.stop:
-			return
+			return nil
 		}
 	}
 }
 
 // Stop the DV router.
 func (dv *DV) Stop() {
-	dv.heartbeat.Stop()
 	dv.stop <- true
 }
 
@@ -126,13 +136,15 @@ func (dv *DV) configureFace() (err error) {
 	// TODO: retry when these fail
 
 	// Enable local fields on face. This includes incoming face indication.
-	err = dv.engine.ExecMgmtCmd("faces", "update", &mgmt.ControlArgs{
-		Mask:  utils.IdPtr(uint64(0x01)),
-		Flags: utils.IdPtr(uint64(0x01)),
+	dv.mgmt.Exec(mgmt_cmd{
+		module: "faces",
+		cmd:    "update",
+		args: &mgmt.ControlArgs{
+			Mask:  utils.IdPtr(uint64(0x01)),
+			Flags: utils.IdPtr(uint64(0x01)),
+		},
+		retries: 0,
 	})
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -179,15 +191,16 @@ func (dv *DV) register() (err error) {
 		prefixAdvSync,
 	}
 	for _, prefix := range pfxs {
-		err = dv.engine.ExecMgmtCmd("strategy-choice", "set", &mgmt.ControlArgs{
-			Name: prefix,
-			Strategy: &mgmt.Strategy{
-				Name: mcast,
+		dv.mgmt.Exec(mgmt_cmd{
+			module: "strategy-choice",
+			cmd:    "set",
+			args: &mgmt.ControlArgs{
+				Name: prefix,
+				Strategy: &mgmt.Strategy{
+					Name: mcast,
+				},
 			},
 		})
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
