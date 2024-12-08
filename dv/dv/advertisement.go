@@ -1,7 +1,6 @@
 package dv
 
 import (
-	"fmt"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -85,12 +84,10 @@ func (dv *DV) onAdvSyncInterest(
 			continue
 		}
 
+		// Check if the entry is newer than what we know
 		hash := nodeId.Hash()
 		if known, ok := dv.neighborAdvSeq[hash]; ok {
-			// TODO: check if the entry is newer. This is currently not
-			// possible because a restarted neighbor cannot learn its
-			// previous sequence number.
-			if known == entry.SeqNo {
+			if known >= entry.SeqNo {
 				// Nothing has changed, skip
 				continue
 			}
@@ -188,7 +185,18 @@ func (dv *DV) onAdvInterest(
 
 // Received advertisement Data
 func (dv *DV) onAdvData(data ndn.Data) {
+	name := data.Name()
+	neighbor := name[:len(name)-3]
+	seqNo := name[len(name)-1].NumberVal()
+
+	// Check if this is the latest advertisement
+	if known, ok := dv.neighborAdvSeq[neighbor.Hash()]; !ok || known != seqNo {
+		// This is an old advertisement, sad
+		log.Warnf("onAdvData: Received old advertisement for %s, seqNo %d", neighbor.String(), seqNo)
+		return
+	}
+
 	// TODO: verify signature on Advertisement
-	// TODO: check if this is the latest advertisement
-	fmt.Println("Received Advertisement", data.Name().String())
+
+	log.Infof("onAdvData: Received Advertisement: %s", data.Name().String())
 }
