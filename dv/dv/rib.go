@@ -26,6 +26,8 @@ type rib_entry struct {
 	lowest1 uint64
 	// second lowest cost in this entry
 	lowest2 uint64
+	// needs refresh
+	dirty bool
 }
 
 func NewRib() *rib {
@@ -38,9 +40,11 @@ func NewRib() *rib {
 // Print the RIB to the console (for debugging).
 func (r *rib) Print() {
 	for _, entry := range r.entries {
-		fmt.Printf("Destination: %s\n", entry.name.String())
+		fmt.Printf("=> Destination: %s\n", entry.name.String())
 		for hop, cost := range entry.costs {
-			fmt.Printf("  NextHop: %s, Cost: %d\n", r.neighbors[hop].String(), cost)
+			if cost < CostInfinity {
+				fmt.Printf("===> NextHop: %s, Cost: %d\n", r.neighbors[hop].String(), cost)
+			}
 		}
 	}
 }
@@ -76,18 +80,42 @@ func (r *rib) removeNextHop(nextHop enc.Name) bool {
 
 	for _, entry := range r.entries {
 		if _, ok := entry.costs[nextHopHash]; ok {
-			// Remove the next hop from the entry
 			delete(entry.costs, nextHopHash)
 			dirty = entry.refresh() || dirty
-
-			// Prune entry if it has no path
-			if entry.lowest1 >= CostInfinity {
-				delete(r.entries, entry.name.Hash())
-				dirty = true
-			}
 		}
 	}
 
+	return dirty
+}
+
+// Resets all entries for a given next hop to infinity without
+// refreshing any entry. This is specifically intended for the
+// RIB update algorithm to avoid unnecessary changes.
+func (r *rib) dirtyResetNextHop(nextHop enc.Name) {
+	nextHopHash := nextHop.Hash()
+	for _, entry := range r.entries {
+		entry.costs[nextHopHash] = CostInfinity
+		entry.dirty = true
+	}
+}
+
+// Whenever the RIB is changed, this must be called manually
+// to remove unreachable destinations.
+// Returns true if the Advertisement might change.
+func (r *rib) prune() bool {
+	dirty := false
+	for _, entry := range r.entries {
+		// Refresh entry if dirty
+		if entry.dirty {
+			dirty = entry.refresh() || dirty
+		}
+
+		// Remove if no valid next hops
+		if entry.lowest1 == CostInfinity {
+			delete(r.entries, entry.name.Hash())
+			dirty = true
+		}
+	}
 	return dirty
 }
 
@@ -123,6 +151,7 @@ func (e *rib_entry) set(nextHop uint64, cost uint64) bool {
 
 // Update lowest and second lowest costs for the entry.
 func (e *rib_entry) refresh() bool {
+	e.dirty = false
 	lowest1 := CostInfinity
 	lowest2 := CostInfinity
 	nextHop1 := uint64(0)

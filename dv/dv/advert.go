@@ -263,6 +263,9 @@ func (dv *DV) UpdateRIB(ns *neighbor_state) {
 	// Trigger our own advertisement if needed
 	var dirty bool = false
 
+	// Reset destinations for this neighbor
+	dv.rib.dirtyResetNextHop(ns.name)
+
 	for _, entry := range ns.advert.Entries {
 		// Use the advertised cost by default
 		cost := entry.Cost + localCost
@@ -285,6 +288,9 @@ func (dv *DV) UpdateRIB(ns *neighbor_state) {
 		dirty = dv.rib.set(entry.Destination.Name, ns.name, cost) || dirty
 	}
 
+	// Drop dead entries
+	dirty = dv.rib.prune() || dirty
+
 	// If advert changed, increment sequence number
 	if dirty {
 		go dv.notifyNewAdvert()
@@ -300,8 +306,14 @@ func (dv *DV) checkDeadNeighbors() {
 	for nhash, ns := range dv.neighbors {
 		if time.Since(ns.lastSeen) > dv.config.RouterDeadInterval {
 			log.Infof("checkDeadNeighbors: Neighbor %s is dead", ns.name.String())
-			delete(dv.neighbors, nhash)
+
+			// Remove neighbor from RIB and prune
 			dirty = dv.rib.removeNextHop(ns.name) || dirty
+			dirty = dv.rib.prune() || dirty
+
+			// This is the ONLY place that can remove the neighbor
+			// from the state list.
+			delete(dv.neighbors, nhash)
 		}
 	}
 
