@@ -36,7 +36,7 @@ func (m *mgmt_thread) Start() {
 	for {
 		select {
 		case cmd := <-m.channel:
-			for i := 0; i < cmd.retries; i++ {
+			for i := 0; i < cmd.retries || cmd.retries < 0; i++ {
 				err := m.engine.ExecMgmtCmd(cmd.module, cmd.cmd, cmd.args)
 				if err != nil {
 					log.Errorf("NFD Management command failed: %+v", err)
