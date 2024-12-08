@@ -29,7 +29,7 @@ func (dv *Router) ribUpdate(ns *table.NeighborState) {
 		cost := entry.Cost + localCost
 
 		// Poison reverse - try other cost if next hop is us
-		if entry.NextHop.Name.Equal(dv.routerPrefix) {
+		if entry.NextHop.Name.Equal(dv.config.RouterPfxN) {
 			if entry.OtherCost < config.CostInfinity {
 				cost = entry.OtherCost + localCost
 			} else {

@@ -16,17 +16,12 @@ import (
 type Router struct {
 	// go-ndn app that this router is attached to
 	engine *basic_engine.Engine
+	// config for this router
+	config *config.Config
 	// nfd management thread
 	nfdc *nfdc.NfdMgmtThread
 	// single mutex for all operations
 	mutex sync.Mutex
-
-	// config for this router
-	config *config.Config
-	// global Prefix
-	globalPrefix enc.Name
-	// router Prefix
-	routerPrefix enc.Name
 
 	// channel to stop the DV
 	stop chan bool
@@ -46,29 +41,21 @@ type Router struct {
 
 // Create a new DV router.
 func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, error) {
-	// Validate and parse configuration
-	globalPrefix, err := enc.NameFromStr(config.GlobalPrefix)
+	// Validate configuration
+	err := config.Parse()
 	if err != nil {
 		return nil, err
 	}
 
-	routerPrefix, err := enc.NameFromStr(config.RouterPrefix)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the NFD management thread
+	// Initialize all threads here
 	nfdc := nfdc.NewNfdMgmtThread(engine)
 
 	// Create the DV router
 	return &Router{
 		engine: engine,
+		config: config,
 		nfdc:   nfdc,
 		mutex:  sync.Mutex{},
-
-		config:       config,
-		globalPrefix: globalPrefix,
-		routerPrefix: routerPrefix,
 
 		neighbors: table.NewNeighborTable(config, nfdc),
 		rib:       table.NewRib(config),
@@ -104,7 +91,7 @@ func (dv *Router) Start() (err error) {
 	}
 
 	// Add self to the RIB
-	dv.rib.Set(dv.routerPrefix, dv.routerPrefix, 0)
+	dv.rib.Set(dv.config.RouterPfxN, dv.config.RouterPfxN, 0)
 
 	for {
 		select {
@@ -144,7 +131,7 @@ func (dv *Router) register() (err error) {
 	// TODO: retry when these fail
 
 	// Advertisement Sync
-	prefixAdvSync := append(dv.globalPrefix,
+	prefixAdvSync := append(dv.config.GlobalPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)
@@ -154,7 +141,7 @@ func (dv *Router) register() (err error) {
 	}
 
 	// Advertisement Data
-	prefixAdv := append(dv.routerPrefix,
+	prefixAdv := append(dv.config.RouterPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 	)

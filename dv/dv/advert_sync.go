@@ -12,7 +12,7 @@ import (
 
 func (dv *Router) advertSyncSendInterest() (err error) {
 	// SVS v2 Sync Interest
-	syncName := append(dv.globalPrefix,
+	syncName := append(dv.config.GlobalPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 		enc.NewVersionComponent(2),
@@ -29,7 +29,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	// State Vector for our group
 	sv := &svs.StateVec{
 		Entries: []*svs.StateVecEntry{{
-			NodeId: dv.routerPrefix.Bytes(),
+			NodeId: dv.config.RouterPfxN.Bytes(),
 			SeqNo:  dv.advertSyncSeq,
 		}},
 	}
