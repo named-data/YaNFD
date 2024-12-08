@@ -78,14 +78,14 @@ func (dv *DV) onAdvSyncInterest(
 
 	for _, entry := range sv.Entries {
 		// Parse name from NodeId
-		nodeId, err := enc.NameFromBytes(entry.NodeId)
+		neighbor, err := enc.NameFromBytes(entry.NodeId)
 		if err != nil {
 			log.Warnf("onAdvSyncInterest: Failed to parse NodeId: %+v", err)
 			continue
 		}
 
 		// Check if the entry is newer than what we know
-		hash := nodeId.Hash()
+		hash := neighbor.Hash()
 		if known, ok := dv.neighborAdvSeq[hash]; ok {
 			if known >= entry.SeqNo {
 				// Nothing has changed, skip
@@ -94,19 +94,19 @@ func (dv *DV) onAdvSyncInterest(
 		}
 
 		dv.neighborAdvSeq[hash] = entry.SeqNo
-		go dv.scheduleAdvFetch(nodeId, entry.SeqNo)
+		go dv.scheduleAdvFetch(neighbor, entry.SeqNo)
 	}
 }
 
-func (dv *DV) scheduleAdvFetch(nodeId enc.Name, seqNo uint64) {
+func (dv *DV) scheduleAdvFetch(neighbor enc.Name, seqNo uint64) {
 	// debounce; wait before fetching, then check if this is still the latest
 	// sequence number known for this neighbor
 	time.Sleep(10 * time.Millisecond)
-	if known, ok := dv.neighborAdvSeq[nodeId.Hash()]; !ok || known != seqNo {
+	if known, ok := dv.neighborAdvSeq[neighbor.Hash()]; !ok || known != seqNo {
 		return
 	}
 
-	advName := append(nodeId,
+	advName := append(neighbor,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 		enc.NewSequenceNumComponent(seqNo), // unused for now
@@ -132,7 +132,7 @@ func (dv *DV) scheduleAdvFetch(nodeId enc.Name, seqNo uint64) {
 			// If the router is dead, we break out of this by checking
 			// that the sequence number is gone (above)
 			log.Warnf("scheduleAdvFetch: Retrying: %+v", result)
-			go dv.scheduleAdvFetch(nodeId, seqNo)
+			go dv.scheduleAdvFetch(neighbor, seqNo)
 			return
 		}
 
@@ -191,7 +191,6 @@ func (dv *DV) onAdvData(data ndn.Data) {
 
 	// Check if this is the latest advertisement
 	if known, ok := dv.neighborAdvSeq[neighbor.Hash()]; !ok || known != seqNo {
-		// This is an old advertisement, sad
 		log.Warnf("onAdvData: Received old advertisement for %s, seqNo %d", neighbor.String(), seqNo)
 		return
 	}

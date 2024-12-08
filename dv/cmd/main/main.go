@@ -41,7 +41,12 @@ func main() {
 		RouterPrefix: os.Args[2],
 	}
 
-	router := dv.NewDV(config, app)
+	router, err := dv.NewDV(config, app)
+	if err != nil {
+		logger.Fatalf("Unable to create DV router: %+v", err)
+		return
+	}
+
 	err = router.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start DV router: %+v", err)
