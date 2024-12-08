@@ -270,12 +270,12 @@ func TestRoute(t *testing.T) {
 		spec := engine.Spec()
 
 		handler := func(
-			interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire, reply ndn.ReplyFunc, deadline time.Time,
+			interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra,
 		) {
 			hitCnt += 1
 			require.Equal(t, []byte(
 				"\x05\x15\x07\x10\x08\x03not\x08\timportant\x0c\x01\x05",
-			), rawInterest.Join())
+			), extra.RawInterest.Join())
 			require.True(t, interest.Signature().SigType() == ndn.SignatureNone)
 			data, _, err := spec.MakeData(
 				interest.Name(),
@@ -306,7 +306,7 @@ func TestPitToken(t *testing.T) {
 		spec := engine.Spec()
 
 		handler := func(
-			interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire, reply ndn.ReplyFunc, deadline time.Time,
+			interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra,
 		) {
 			hitCnt += 1
 			data, _, err := spec.MakeData(

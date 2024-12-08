@@ -157,10 +157,21 @@ type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire
 // It should create a go routine to avoid blocking the main thread, if either
 // 1) Data is not ready to send; or
 // 2) Validation is required.
-type InterestHandler func(
-	interest Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ReplyFunc, deadline time.Time,
-)
+type InterestHandler func(interest Interest, reply ReplyFunc, extra InterestHandlerExtra)
+
+// Extra information passed to the InterestHandler
+type InterestHandlerExtra struct {
+	// Raw Interest packet wire
+	RawInterest enc.Wire
+	// Signature covered part of the Interest
+	SigCovered enc.Wire
+	// Deadline of the Interest
+	Deadline time.Time
+	// PIT token
+	PitToken []byte
+	// Incoming face ID (if available)
+	IncomingFaceId *uint64
+}
 
 // SigChecker is a basic function to check the signature of a packet.
 // In NTSchema, policies&sub-trees are supposed to be used for validation;

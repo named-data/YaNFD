@@ -15,6 +15,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema_old"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -22,28 +23,28 @@ import (
 // ContentKeyNode is a proof-of-concept demo to show how NTSchema can support NAC
 // For simplicity we don't use KEK and KDK here.
 type ContentKeyNode struct {
-	schema.BaseNode
+	schema_old.BaseNode
 
-	leaf *schema.LeafNode
+	leaf *schema_old.LeafNode
 }
 
-func (n *ContentKeyNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
+func (n *ContentKeyNode) Init(parent schema_old.NTNode, edge enc.ComponentPattern) {
 	n.BaseNode.Init(parent, edge)
 
 	pat, _ := enc.NamePatternFromStr("/<ckid>")
-	n.leaf = &schema.LeafNode{}
+	n.leaf = &schema_old.LeafNode{}
 	n.PutNode(pat, n.leaf)
 
 	// The following setting is simply a default. One may overwrite it by policies after construction of the schema tree.
-	n.leaf.Set(schema.PropCanBePrefix, false)
-	n.leaf.Set(schema.PropMustBeFresh, false)
-	n.leaf.Set(schema.PropFreshness, 876000*time.Hour)
-	n.leaf.Set(schema.PropValidDuration, 876000*time.Hour)
+	n.leaf.Set(schema_old.PropCanBePrefix, false)
+	n.leaf.Set(schema_old.PropMustBeFresh, false)
+	n.leaf.Set(schema_old.PropFreshness, 876000*time.Hour)
+	n.leaf.Set(schema_old.PropValidDuration, 876000*time.Hour)
 	// n.leaf.Set(schema.PropDataSigner, sec.NewSha256Signer())
-	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema.Context) schema.ValidRes {
+	passAllChecker := func(enc.Matching, enc.Name, ndn.Signature, enc.Wire, schema_old.Context) schema.ValidRes {
 		return schema.VrPass
 	}
-	schema.AddEventListener(n.leaf, schema.PropOnValidateData, passAllChecker)
+	schema_old.AddEventListener(n.leaf, schema_old.PropOnValidateData, passAllChecker)
 
 	n.Self = n
 }
@@ -55,7 +56,7 @@ func (n *ContentKeyNode) GenKey(matching enc.Matching) []byte {
 	rand.Read(ckid)
 	matching["ckid"] = ckid
 	// Produce the key. Storage policies will decide where to store the key
-	n.leaf.Provide(matching, nil, enc.Wire{keybits}, schema.Context{})
+	n.leaf.Provide(matching, nil, enc.Wire{keybits}, schema_old.Context{})
 	return ckid
 }
 
@@ -64,7 +65,7 @@ func (n *ContentKeyNode) Encrypt(matching enc.Matching, ckid []byte, content enc
 		return nil, fmt.Errorf("invalid content key id: %v", hex.EncodeToString(ckid))
 	}
 	matching["ckid"] = ckid
-	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema.Context{schema.CkSupressInt: true})).Get()
+	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema_old.Context{schema_old.CkSupressInt: true})).Get()
 	if res != ndn.InterestResultData {
 		return nil, fmt.Errorf("unable to get required content key for id: %v", hex.EncodeToString(ckid))
 	}
@@ -97,7 +98,7 @@ func (n *ContentKeyNode) Decrypt(matching enc.Matching, content enc.Wire) (enc.W
 	l := binary.LittleEndian.Uint64(buf[0:8])
 	ckid := buf[8 : 8+8]
 	matching["ckid"] = ckid
-	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema.Context{})).Get()
+	res, keyWire := (<-n.leaf.Need(matching, nil, nil, schema_old.Context{})).Get()
 	if res != ndn.InterestResultData {
 		return nil, fmt.Errorf("unable to get required content key for id: %v", hex.EncodeToString(ckid))
 	}
@@ -123,31 +124,31 @@ func (n *ContentKeyNode) Decrypt(matching enc.Matching, content enc.Wire) (enc.W
 // TODO: Is it a better idea to let the user specify what `seg` is, instead of using fixed LeafNode?
 // That may be way more complicated, and I'm not sure about the use case. (#BLACKBOX)
 type GroupSigNode struct {
-	schema.BaseNode
+	schema_old.BaseNode
 
-	seg  *schema.LeafNode
-	meta *schema.LeafNode
+	seg  *schema_old.LeafNode
+	meta *schema_old.LeafNode
 
 	// nRoutines int
 	// Segmentation threshold
 	threshold int
 }
 
-func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
+func (n *GroupSigNode) Init(parent schema_old.NTNode, edge enc.ComponentPattern) {
 	n.BaseNode.Init(parent, edge)
 
 	// Segment packet
 	pat, _ := enc.NamePatternFromStr("/seg/<8=seghash>")
-	n.seg = &schema.LeafNode{}
+	n.seg = &schema_old.LeafNode{}
 	n.PutNode(pat, n.seg)
-	n.seg.Set(schema.PropCanBePrefix, false)
-	n.seg.Set(schema.PropMustBeFresh, false)
-	n.seg.Set(schema.PropFreshness, 876000*time.Hour)
-	n.seg.Set(schema.PropValidDuration, 876000*time.Hour)
+	n.seg.Set(schema_old.PropCanBePrefix, false)
+	n.seg.Set(schema_old.PropMustBeFresh, false)
+	n.seg.Set(schema_old.PropFreshness, 876000*time.Hour)
+	n.seg.Set(schema_old.PropValidDuration, 876000*time.Hour)
 	// n.seg.Set(schema.PropDataSigner, sec.NewSha256Signer())
 	passAllChecker := func(
-		matching enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, context schema.Context,
-	) schema.ValidRes {
+		matching enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, context schema_old.Context,
+	) schema_old.ValidRes {
 		if sig.SigType() != ndn.SignatureDigestSha256 {
 			return schema.VrFail
 		}
@@ -155,7 +156,7 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 		if !ok || seghash == nil {
 			return schema.VrFail
 		}
-		content, ok := context[schema.CkContent].(enc.Wire)
+		content, ok := context[schema_old.CkContent].(enc.Wire)
 		if !ok {
 			return schema.VrFail
 		}
@@ -183,15 +184,15 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 			return schema.VrFail
 		}
 	}
-	schema.AddEventListener(n.seg, schema.PropOnValidateData, passAllChecker)
+	schema_old.AddEventListener(n.seg, schema_old.PropOnValidateData, passAllChecker)
 
 	pat, _ = enc.NamePatternFromStr("/32=meta")
-	n.meta = &schema.LeafNode{} // This demo is not RDR and we don't handle version discovery
+	n.meta = &schema_old.LeafNode{} // This demo is not RDR and we don't handle version discovery
 	n.PutNode(pat, n.meta)
-	n.meta.Set(schema.PropCanBePrefix, false)
-	n.meta.Set(schema.PropMustBeFresh, true)
-	n.meta.Set(schema.PropFreshness, 10*time.Second)
-	n.meta.Set(schema.PropValidDuration, 876000*time.Hour)
+	n.meta.Set(schema_old.PropCanBePrefix, false)
+	n.meta.Set(schema_old.PropMustBeFresh, true)
+	n.meta.Set(schema_old.PropFreshness, 10*time.Second)
+	n.meta.Set(schema_old.PropValidDuration, 876000*time.Hour)
 	// The signer and validator is set by the user
 
 	n.threshold = 5000
@@ -199,21 +200,21 @@ func (n *GroupSigNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
 	n.Self = n
 }
 
-func (n *GroupSigNode) Need(matching enc.Matching, context schema.Context) chan schema.NeedResult {
-	retCh := make(chan schema.NeedResult, 1)
+func (n *GroupSigNode) Need(matching enc.Matching, context schema_old.Context) chan schema_old.NeedResult {
+	retCh := make(chan schema_old.NeedResult, 1)
 	go func() {
 		// First obtain the metadata
 		intRet, metaWire := (<-n.meta.Need(matching, nil, nil, context)).Get()
 		if intRet != ndn.InterestResultData {
 			n.Log.WithField("name", n.Apply(matching)).Warnf("Unable to fetch metadata: %v", intRet)
-			retCh <- schema.NeedResult{Status: intRet, Content: nil}
+			retCh <- schema_old.NeedResult{Status: intRet, Content: nil}
 			close(retCh)
 			return
 		}
 		metaData := metaWire.Join()
 		if len(metaData)%32 != 0 {
 			n.Log.WithField("name", n.Apply(matching)).Warnf("The metadata is invalid")
-			retCh <- schema.NeedResult{Status: ndn.InterestResultNone, Content: nil}
+			retCh <- schema_old.NeedResult{Status: ndn.InterestResultNone, Content: nil}
 			close(retCh)
 			return
 		}
@@ -228,22 +229,22 @@ func (n *GroupSigNode) Need(matching enc.Matching, context schema.Context) chan 
 			// 1. To avoid pollute from n.meta.Need
 			// 2. Users have no need to override the setting for hashed segments
 			// 3. To avoid race hazard
-			intRet, segData := (<-n.seg.Need(matching, nil, nil, schema.Context{})).Get()
+			intRet, segData := (<-n.seg.Need(matching, nil, nil, schema_old.Context{})).Get()
 			if intRet != ndn.InterestResultData {
 				n.Log.WithField("name", n.seg.Apply(matching)).Warnf("Failed to fetch segment")
-				retCh <- schema.NeedResult{Status: intRet, Content: nil}
+				retCh <- schema_old.NeedResult{Status: intRet, Content: nil}
 				close(retCh)
 				return
 			}
 			ret = append(ret, segData...)
 		}
-		retCh <- schema.NeedResult{Status: ndn.InterestResultData, Content: ret}
+		retCh <- schema_old.NeedResult{Status: ndn.InterestResultData, Content: ret}
 		close(retCh)
 	}()
 	return retCh
 }
 
-func (n *GroupSigNode) Provide(matching enc.Matching, content enc.Wire, context schema.Context) {
+func (n *GroupSigNode) Provide(matching enc.Matching, content enc.Wire, context schema_old.Context) {
 	// Segmentation
 	data := content.Join()
 	nSegs := (len(data) + n.threshold - 1) / n.threshold
@@ -255,7 +256,7 @@ func (n *GroupSigNode) Provide(matching enc.Matching, content enc.Wire, context 
 		h.Write(data[st:ed])
 		segHash := h.Sum(nil)
 		matching["seghash"] = segHash
-		dataWire := n.seg.Provide(matching, nil, enc.Wire{data[st:ed]}, schema.Context{})
+		dataWire := n.seg.Provide(matching, nil, enc.Wire{data[st:ed]}, schema_old.Context{})
 		if dataWire == nil {
 			n.Log.WithField("name", n.seg.Apply(matching)).Warnf("Failed to provide segment data")
 			return
@@ -272,7 +273,7 @@ func (n *GroupSigNode) Provide(matching enc.Matching, content enc.Wire, context 
 }
 
 // Get a property or callback event
-func (n *GroupSigNode) Get(propName schema.PropKey) any {
+func (n *GroupSigNode) Get(propName schema_old.PropKey) any {
 	if ret := n.BaseNode.Get(propName); ret != nil {
 		return ret
 	}
@@ -284,13 +285,13 @@ func (n *GroupSigNode) Get(propName schema.PropKey) any {
 }
 
 // Set a property. Use Get() to update callback events.
-func (n *GroupSigNode) Set(propName schema.PropKey, value any) error {
+func (n *GroupSigNode) Set(propName schema_old.PropKey, value any) error {
 	if ret := n.BaseNode.Set(propName, value); ret == nil {
 		return ret
 	}
 	switch propName {
 	case "Threshold":
-		return schema.PropertySet(&n.threshold, propName, value)
+		return schema_old.PropertySet(&n.threshold, propName, value)
 	}
 	return ndn.ErrNotSupported{Item: string(propName)}
 }
@@ -302,7 +303,7 @@ func (n *GroupSigNode) OnAttach(path enc.NamePattern, engine ndn.Engine) error {
 	}
 	// Recover the data signer to SHA256
 	// There are also other ways to do it, such as using Context
-	schema.AddEventListener(n.seg, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+	schema_old.AddEventListener(n.seg, schema_old.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema_old.Context) ndn.Signer {
 		return sec.NewSha256Signer()
 	})
 	return nil

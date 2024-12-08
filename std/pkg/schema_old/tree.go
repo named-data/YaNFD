@@ -1,9 +1,8 @@
-package schema
+package schema_old
 
 import (
 	"errors"
 	"sync"
-	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
@@ -65,8 +64,9 @@ func (t *Tree) Match(name enc.Name) (NTNode, enc.Matching) {
 }
 
 func (t *Tree) intHandler(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time,
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
 ) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -91,7 +91,7 @@ func (t *Tree) intHandler(
 			matching["sha256digest"] = extraComp.Val
 		}
 	}
-	node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
+	node.OnInterest(interest, reply, extra, matching)
 }
 
 // At the path return the node. Path does not include the attached prefix.

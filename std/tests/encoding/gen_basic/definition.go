@@ -34,7 +34,7 @@ type WireNameField struct {
 	Name enc.Name `tlv:"0x02"`
 }
 
-//+tlv-model:private
+// +tlv-model:private,ordered
 type Markers struct {
 	//+field:offsetMarker
 	startMarker enc.PlaceHolder
@@ -76,7 +76,7 @@ func ParseMarkers(buf []byte, arg int) *Markers {
 	}
 }
 
-//+tlv-model:nocopy
+// +tlv-model:nocopy
 type NoCopyStruct struct {
 	//+field:wire
 	Wire1 enc.Wire `tlv:"0x01"`

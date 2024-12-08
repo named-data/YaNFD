@@ -137,17 +137,18 @@ func (context *StateVecEntryParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.NodeId = make([]byte, l)
 					_, err = io.ReadFull(reader, value.NodeId)
 
 				}
 			case 204:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.SeqNo = uint64(0)
 					{
@@ -184,15 +185,7 @@ func (context *StateVecEntryParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.NodeId = nil
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "SeqNo", TypeNum: 204}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -375,10 +368,11 @@ func (context *StateVecParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 202:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Entries == nil {
 						value.Entries = make([]*StateVecEntry, 0)
@@ -415,13 +409,7 @@ func (context *StateVecParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}

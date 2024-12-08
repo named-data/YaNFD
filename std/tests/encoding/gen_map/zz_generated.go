@@ -203,10 +203,11 @@ func (context *StringMapParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 133:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Params == nil {
 						value.Params = make(map[string][]byte)
@@ -267,13 +268,7 @@ func (context *StringMapParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -386,10 +381,11 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Num = uint64(0)
 					{
@@ -424,13 +420,7 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Num", TypeNum: 1}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -653,10 +643,11 @@ func (context *IntStructMapParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 133:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Params == nil {
 						value.Params = make(map[uint64]*Inner)
@@ -721,13 +712,7 @@ func (context *IntStructMapParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}

@@ -20,6 +20,10 @@ type TlvModel struct {
 	// GenDict indicates whether to generate ToDict/FromDict for this model.
 	GenDict bool
 
+	// Ordered indicates whether fields require ordering. False by default.
+	// Enabled by `ordered` annotation.
+	Ordered bool
+
 	// WithParsingContext is true if any field has a non-trivial GenParsingContextStruct()
 	WithParsingContext bool
 
@@ -35,6 +39,10 @@ func (m *TlvModel) ProcessOption(option string) {
 		m.NoCopy = true
 	case "dict":
 		m.GenDict = true
+	case "ordered":
+		m.Ordered = true
+	default:
+		panic("unknown TlvModel option: " + option)
 	}
 }
 
@@ -162,12 +170,22 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 			{{call .GenTlvNumberDecode "typ"}}
 			{{call .GenTlvNumberDecode "l"}}
 			err = nil
-			for handled := false; !handled; progress ++ {
+
+			{{- if (eq $.Model.Ordered true)}}
+			for handled := false; !handled && progress < {{len .Model.Fields}}; progress ++ {
+			{{- else}}
+			if true {
+				handled := false
+			{{- end}}
 				switch typ {
-					{{- range $i, $f := .Model.Fields}}
+					{{- range $i, $f := $.Model.Fields}}
 					{{- if (ne $f.TypeNum 0)}}
 				case {{$f.TypeNum}}:
+						{{- if (eq $.Model.Ordered true)}}
 					if progress + 1 == {{$i}} {
+						{{- else}}
+					if true {
+						{{- end}}
 						handled = true
 						{{$f.GenReadFrom}}
 					}
@@ -193,6 +211,8 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 				}
 			}
 		}
+
+		{{- if (eq $.Model.Ordered true)}}
 		startPos = reader.Pos()
 		for ; progress < {{len .Model.Fields}}; progress ++ {
 			switch progress {
@@ -202,6 +222,8 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 				{{- end}}
 			}
 		}
+		{{- end}}
+
 		if err != nil {
 			return nil, err
 		}

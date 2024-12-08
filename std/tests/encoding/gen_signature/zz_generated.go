@@ -360,7 +360,7 @@ func (context *T1ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		for handled := false; !handled && progress < 6; progress++ {
 			switch typ {
 			case 1:
 				if progress+1 == 0 {
@@ -464,6 +464,7 @@ func (context *T1ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 
 		}
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -839,10 +840,11 @@ func (context *T2ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						value.Name = make(enc.Name, l/2+1)
@@ -878,13 +880,13 @@ func (context *T2ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 
 				}
 			case 3:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.C, err = reader.ReadWire(int(l))
 
 				}
 			case 4:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.Sig, err = reader.ReadWire(int(l))
 					if err == nil {
@@ -923,25 +925,7 @@ func (context *T2ParsingContext) Parse(reader enc.ParseReader, ignoreCritical bo
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 7; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
-			context.sigCoverStart = int(startPos)
-		case 2 - 1:
-			context.digestCoverStart = int(startPos)
-		case 3 - 1:
-			value.C = nil
-		case 4 - 1:
-			value.Sig = nil
-		case 5 - 1:
-			context.digestCoverEnd = int(startPos)
-		case 6 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,7 @@
-package schema
+package schema_old
 
 import (
 	"errors"
-	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
@@ -136,8 +135,8 @@ func (n *BaseNode) ConstructName(matching enc.Matching, ret enc.Name) error {
 // OnInterest is the function called when an Interest comes.
 // A base node shouldn't receive any Interest, so drops it.
 func (n *BaseNode) OnInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+	interest ndn.Interest, reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra, matching enc.Matching,
 ) {
 	n.Log.WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 }

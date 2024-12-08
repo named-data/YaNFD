@@ -10,7 +10,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema_old"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -31,19 +31,19 @@ type SvsOnMissingEvent = func([]byte, uint64, uint64)
 
 // SvsNode represents a subtree supports a simplified state-vector-sync protocol.
 // TODO: How to return the missing data to the user? Channel or callback?
-// TODO: How can the user express the trust schema here? The `notif` node mat have different requirements
+// TODO: How can the user express the trust schema_old here? The `notif` node mat have different requirements
 // as the `leaf` node. (#BLACKBOX)
 type SvsNode struct {
-	schema.BaseNode
+	schema_old.BaseNode
 
-	notif *schema.ExpressPoint
-	leaf  *schema.LeafNode
+	notif *schema_old.ExpressPoint
+	leaf  *schema_old.LeafNode
 
 	localSv StateVec
 	aggSv   StateVec
 	// calledSv StateVec
 	state SyncState
-	// onMiss       *schema.Event[*SvsOnMissingEvent]
+	// onMiss       *schema_old.Event[*SvsOnMissingEvent]
 	// sigChan      chan struct{}
 	// quitChan     chan struct{}
 	missChan     chan MissingData
@@ -60,32 +60,32 @@ type SvsNode struct {
 	selfSeq     uint64
 }
 
-func (n *SvsNode) Init(parent schema.NTNode, edge enc.ComponentPattern) {
+func (n *SvsNode) Init(parent schema_old.NTNode, edge enc.ComponentPattern) {
 	n.BaseNode.Init(parent, edge)
-	schema.AddEventListener(n, schema.PropOnAttach, n.onAttach)
-	schema.AddEventListener(n, schema.PropOnDetach, n.onDetach)
+	schema_old.AddEventListener(n, schema_old.PropOnAttach, n.onAttach)
+	schema_old.AddEventListener(n, schema_old.PropOnDetach, n.onDetach)
 
 	// Namespace:
 	// - [/prefix]/32=notif -> Notification Interest
 	// - [/prefix]/<8=nodeId>/<seq=seqNo>
 
 	pat, _ := enc.NamePatternFromStr("/<8=nodeId>/<seq=seqNo>")
-	n.leaf = &schema.LeafNode{}
+	n.leaf = &schema_old.LeafNode{}
 	n.PutNode(pat, n.leaf)
 	// TODO: Discuss if this is a good design. This will be overwritten by the policy setting in onAttach.
-	n.leaf.Set(schema.PropCanBePrefix, false)
-	n.leaf.Set(schema.PropMustBeFresh, false)
-	n.leaf.Set(schema.PropLifetime, 4*time.Second)
-	n.leaf.Set(schema.PropFreshness, 60*time.Second)
-	n.leaf.Set(schema.PropValidDuration, 876000*time.Hour)
+	n.leaf.Set(schema_old.PropCanBePrefix, false)
+	n.leaf.Set(schema_old.PropMustBeFresh, false)
+	n.leaf.Set(schema_old.PropLifetime, 4*time.Second)
+	n.leaf.Set(schema_old.PropFreshness, 60*time.Second)
+	n.leaf.Set(schema_old.PropValidDuration, 876000*time.Hour)
 
 	pat, _ = enc.NamePatternFromStr("/32=notif")
-	n.notif = &schema.ExpressPoint{}
+	n.notif = &schema_old.ExpressPoint{}
 	n.PutNode(pat, n.notif)
-	n.notif.Set(schema.PropCanBePrefix, true)
-	n.notif.Set(schema.PropMustBeFresh, true)
-	n.notif.Set(schema.PropLifetime, 1*time.Second)
-	schema.AddEventListener(n.notif, schema.PropOnInterest, n.onSyncInt)
+	n.notif.Set(schema_old.PropCanBePrefix, true)
+	n.notif.Set(schema_old.PropMustBeFresh, true)
+	n.notif.Set(schema_old.PropLifetime, 1*time.Second)
+	schema_old.AddEventListener(n.notif, schema_old.PropOnInterest, n.onSyncInt)
 
 	n.baseMatching = enc.Matching{}
 	n.channelSize = 1000
@@ -102,11 +102,11 @@ func (v *StateVec) findSvsEntry(nodeId []byte) int {
 }
 
 func (n *SvsNode) onSyncInt(
-	matching enc.Matching, appParam enc.Wire, reply ndn.ReplyFunc, context schema.Context,
+	matching enc.Matching, appParam enc.Wire, reply ndn.ReplyFunc, context schema_old.Context,
 ) bool {
 	remoteSv, err := ParseStateVec(enc.NewWireReader(appParam), true)
 	if err != nil {
-		name := context[schema.CkName].(enc.Name) // Always succeed
+		name := context[schema_old.CkName].(enc.Name) // Always succeed
 		n.Log.WithField("name", name.String()).Error("Unable to parse state vector. Drop.")
 	}
 
@@ -247,7 +247,7 @@ func (n *SvsNode) onSyncTimer() {
 }
 
 func (n *SvsNode) expressStateVec() {
-	n.notif.Need(n.baseMatching, nil, n.localSv.Encode(), schema.Context{})
+	n.notif.Need(n.baseMatching, nil, n.localSv.Encode(), schema_old.Context{})
 }
 
 // func (n *SvsNode) callbackRoutine() {
@@ -300,7 +300,7 @@ func (n *SvsNode) MySequence() uint64 {
 	return n.selfSeq
 }
 
-func (n *SvsNode) NewData(content enc.Wire, context schema.Context) enc.Wire {
+func (n *SvsNode) NewData(content enc.Wire, context schema_old.Context) enc.Wire {
 	n.dataLock.Lock()
 	defer n.dataLock.Unlock()
 
@@ -339,7 +339,7 @@ func (n *SvsNode) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 
 	n.localSv = StateVec{Entries: make([]*StateVecEntry, 0)}
 	n.aggSv = StateVec{Entries: make([]*StateVecEntry, 0)}
-	// n.onMiss = schema.NewEvent[*SvsOnMissingEvent]()
+	// n.onMiss = schema_old.NewEvent[*SvsOnMissingEvent]()
 	n.state = SyncSteady
 	n.missChan = make(chan MissingData, n.channelSize)
 	// The first sync Interest should be sent out ASAP
@@ -364,7 +364,7 @@ func (n *SvsNode) onDetach(engine ndn.Engine) {
 }
 
 // Get a property or callback event
-func (n *SvsNode) Get(propName schema.PropKey) any {
+func (n *SvsNode) Get(propName schema_old.PropKey) any {
 	if ret := n.BaseNode.Get(propName); ret != nil {
 		return ret
 	}
@@ -384,28 +384,28 @@ func (n *SvsNode) Get(propName schema.PropKey) any {
 }
 
 // Set a property. Use Get() to update callback events.
-func (n *SvsNode) Set(propName schema.PropKey, value any) error {
+func (n *SvsNode) Set(propName schema_old.PropKey, value any) error {
 	if ret := n.BaseNode.Set(propName, value); ret == nil {
 		return ret
 	}
 	switch propName {
 	case "SelfNodeId":
-		return schema.PropertySet(&n.selfNodeId, propName, value)
+		return schema_old.PropertySet(&n.selfNodeId, propName, value)
 	case "ChannelSize":
-		return schema.PropertySet(&n.channelSize, propName, value)
+		return schema_old.PropertySet(&n.channelSize, propName, value)
 	case "BaseMatching":
-		return schema.PropertySet(&n.baseMatching, propName, value)
+		return schema_old.PropertySet(&n.baseMatching, propName, value)
 	case "SyncInterval":
-		return schema.PropertySet(&n.syncIntv, propName, value)
+		return schema_old.PropertySet(&n.syncIntv, propName, value)
 	case "AggregateInterval":
-		return schema.PropertySet(&n.aggIntv, propName, value)
+		return schema_old.PropertySet(&n.aggIntv, propName, value)
 	}
 	return ndn.ErrNotSupported{Item: string(propName)}
 }
 
 func (n *SvsNode) Need(
-	nodeId []byte, seq uint64, matching enc.Matching, context schema.Context,
-) chan schema.NeedResult {
+	nodeId []byte, seq uint64, matching enc.Matching, context schema_old.Context,
+) chan schema_old.NeedResult {
 	matching["nodeId"] = nodeId
 	matching["seqNo"] = enc.Nat(n.selfSeq).Bytes()
 	return n.leaf.Need(matching, nil, nil, context)

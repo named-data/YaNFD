@@ -112,6 +112,7 @@ func (e *Engine) DetachHandler(prefix enc.Name) error {
 func (e *Engine) onPacket(reader enc.ParseReader) error {
 	var nackReason uint64 = spec.NackReasonNone
 	var pitToken []byte = nil
+	var incomingFaceId *uint64 = nil
 	var raw enc.Wire = nil
 
 	if e.log.Level <= log.DebugLevel {
@@ -154,6 +155,7 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			nackReason = lpPkt.Nack.Reason
 		}
 		pitToken = lpPkt.PitToken
+		incomingFaceId = lpPkt.IncomingFaceId
 	} else {
 		raw = reader.Range(0, reader.Length())
 	}
@@ -173,7 +175,12 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			nameStr := pkt.Interest.NameV.String()
 			e.log.WithField("name", nameStr).Info("Interest received.")
 		}
-		e.onInterest(pkt.Interest, ctx.Interest_context.SigCovered(), raw, pitToken)
+		e.onInterest(pkt.Interest, ndn.InterestHandlerExtra{
+			RawInterest:    raw,
+			SigCovered:     ctx.Interest_context.SigCovered(),
+			PitToken:       pitToken,
+			IncomingFaceId: incomingFaceId,
+		})
 	} else if pkt.Data != nil {
 		if e.log.Level <= log.InfoLevel {
 			nameStr := pkt.Data.NameV.String()
@@ -187,13 +194,13 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 	return nil
 }
 
-func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
+func (e *Engine) onInterest(pkt *spec.Interest, extra ndn.InterestHandlerExtra) {
 	// Compute deadline
-	deadline := e.timer.Now()
+	extra.Deadline = e.timer.Now()
 	if pkt.InterestLifetimeV != nil {
-		deadline = deadline.Add(*pkt.InterestLifetimeV)
+		extra.Deadline = extra.Deadline.Add(*pkt.InterestLifetimeV)
 	} else {
-		deadline = deadline.Add(DefaultInterestLife)
+		extra.Deadline = extra.Deadline.Add(DefaultInterestLife)
 	}
 
 	// Match node
@@ -221,7 +228,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 	// The reply callback function
 	reply := func(encodedData enc.Wire) error {
 		now := e.timer.Now()
-		if deadline.Before(now) {
+		if extra.Deadline.Before(now) {
 			e.log.WithField("name", pkt.NameV.String()).Warn("Deadline exceeded. Drop.")
 			return ndn.ErrDeadlineExceed
 		}
@@ -229,10 +236,10 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 			e.log.WithField("name", pkt.NameV.String()).Error("Cannot send through a closed face. Drop.")
 			return ndn.ErrFaceDown
 		}
-		if pitToken != nil {
+		if extra.PitToken != nil {
 			lpPkt := &spec.Packet{
 				LpPacket: &spec.LpPacket{
-					PitToken: pitToken,
+					PitToken: extra.PitToken,
 					Fragment: encodedData,
 				},
 			}
@@ -250,7 +257,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 
 	// Call the handler. The handler should create goroutine to avoid blocking.
 	// Do not `go` here because if Data is ready at hand, creating a go routine may be slower. Not tested though.
-	handler(pkt, raw, sigCovered, reply, deadline)
+	handler(pkt, reply, extra)
 }
 
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
@@ -425,14 +432,13 @@ func (e *Engine) Express(
 	return err
 }
 
-func (e *Engine) RegisterRoute(prefix enc.Name) error {
+func (e *Engine) ExecMgmtCmd(module string, cmd string, args *mgmt.ControlArgs) error {
 	intCfg := &ndn.InterestConfig{
 		Lifetime: utils.IdPtr(1 * time.Second),
 		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
 	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	name, cmdWire, err := e.mgmtConf.MakeCmd(module, cmd, args, intCfg)
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
 		return err
 	}
 	ch := make(chan error)
@@ -456,7 +462,7 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 								ch <- nil
 							} else {
 								errText := ret.Val.StatusText
-								ch <- fmt.Errorf("registration failed due to error %d: %s", ret.Val.StatusCode, errText)
+								ch <- fmt.Errorf("command failed due to error %d: %s", ret.Val.StatusCode, errText)
 							}
 						} else {
 							ch <- fmt.Errorf("improper response")
@@ -469,10 +475,17 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 			close(ch)
 		})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
 		return err
 	}
 	err = <-ch
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Engine) RegisterRoute(prefix enc.Name) error {
+	err := e.ExecMgmtCmd("rib", "register", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
 		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
 		return err
@@ -483,21 +496,12 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 }
 
 func (e *Engine) UnregisterRoute(prefix enc.Name) error {
-	intCfg := &ndn.InterestConfig{
-		Lifetime: utils.IdPtr(1 * time.Second),
-		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
-	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	err := e.ExecMgmtCmd("rib", "unregister", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
-		return err
-	}
-	err = e.Express(name, intCfg, cmdWire, nil)
-	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
+		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
 		return err
 	} else {
-		e.log.WithField("name", prefix.String()).Info("Prefix unregistered.")
+		e.log.WithField("name", prefix.String()).Info("Prefix registered.")
 	}
 	return nil
 }

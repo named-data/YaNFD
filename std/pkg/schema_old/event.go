@@ -1,4 +1,4 @@
-package schema
+package schema_old
 
 // Event is a chain of callback functions for an event.
 // The execution order is supposed to be the addition order.
