@@ -36,6 +36,7 @@ type DV struct {
 	// advertisement sequence number for self
 	advSeq uint64
 	// advertisement sequence numbers for neighbors
+	// neighbor name hash -> sequence number
 	neighborAdvSeq map[uint64]uint64
 	// routing information base
 	rib *rib
@@ -77,7 +78,6 @@ func (dv *DV) Start() (err error) {
 	dv.rib.set(dv.routerPrefix, 0, 0)
 
 	// Register interest handlers
-	// TODO: make this configurable
 	err = dv.register()
 	if err != nil {
 		return err

@@ -9,13 +9,13 @@ const Infinity = uint64(65535)
 
 // Routing Information Base (RIB)
 type rib struct {
-	// destination hash -> name
-	destinations map[uint64]enc.Name
 	// destination hash -> entry
 	entries map[uint64]*rib_entry
 }
 
 type rib_entry struct {
+	// full name of destination router
+	name enc.Name
 	// next hop face -> cost
 	costs map[uint64]uint64
 	// next hop for lowest cost
@@ -28,19 +28,18 @@ type rib_entry struct {
 
 func newRib() *rib {
 	return &rib{
-		destinations: make(map[uint64]enc.Name),
-		entries:      make(map[uint64]*rib_entry),
+		entries: make(map[uint64]*rib_entry),
 	}
 }
 
 // Set a destination in the RIB. Returns true if the Advertisement might change.
 func (r *rib) set(destName enc.Name, nextHop uint64, cost uint64) bool {
 	destHash := destName.Hash()
-	r.destinations[destHash] = destName.Clone()
 
 	entry, ok := r.entries[destHash]
 	if !ok {
 		entry = &rib_entry{
+			name:  destName.Clone(),
 			costs: make(map[uint64]uint64),
 		}
 		r.entries[destHash] = entry
@@ -53,16 +52,12 @@ func (r *rib) set(destName enc.Name, nextHop uint64, cost uint64) bool {
 func (r *rib) advEntries() []*tlv.AdvEntry {
 	entries := make([]*tlv.AdvEntry, 0, len(r.entries))
 
-	for destHash, entry := range r.entries {
-		destName := r.destinations[destHash]
-
+	for _, entry := range r.entries {
 		entries = append(entries, &tlv.AdvEntry{
-			Destination: &tlv.Destination{
-				Name: destName,
-			},
-			Interface: entry.nextHop1,
-			Cost:      entry.lowest1,
-			OtherCost: entry.lowest2,
+			Destination: &tlv.Destination{Name: entry.name},
+			Interface:   entry.nextHop1,
+			Cost:        entry.lowest1,
+			OtherCost:   entry.lowest2,
 		})
 	}
 
