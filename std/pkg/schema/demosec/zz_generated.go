@@ -315,24 +315,25 @@ func (context *EncryptedContentParsingContext) Parse(reader enc.ParseReader, ign
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 130:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.KeyId = make([]byte, l)
 					_, err = io.ReadFull(reader, value.KeyId)
 
 				}
 			case 132:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Iv = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Iv)
 
 				}
 			case 134:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.ContentLength = uint64(0)
 					{
@@ -350,7 +351,7 @@ func (context *EncryptedContentParsingContext) Parse(reader enc.ParseReader, ign
 					}
 				}
 			case 136:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.CipherText, err = reader.ReadWire(int(l))
 
@@ -379,19 +380,7 @@ func (context *EncryptedContentParsingContext) Parse(reader enc.ParseReader, ign
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 4; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.KeyId = nil
-		case 1 - 1:
-			value.Iv = nil
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "ContentLength", TypeNum: 134}
-		case 3 - 1:
-			value.CipherText = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

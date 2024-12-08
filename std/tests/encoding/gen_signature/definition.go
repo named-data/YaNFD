@@ -8,7 +8,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private,ordered
 type T1 struct {
 	//+field:natural
 	H1 uint64 `tlv:"0x01"`
@@ -52,7 +52,7 @@ func ReadT1(reader enc.ParseReader) (*T1, enc.Wire, error) {
 	return ret, context.sigCovered, nil
 }
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private
 type T2 struct {
 	//+field:interestName:sigCovered
 	Name enc.Name `tlv:"0x01"`

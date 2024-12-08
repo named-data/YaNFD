@@ -138,10 +138,11 @@ func (context *ManifestDigestParsingContext) Parse(reader enc.ParseReader, ignor
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 204:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.SegNo = uint64(0)
 					{
@@ -159,7 +160,7 @@ func (context *ManifestDigestParsingContext) Parse(reader enc.ParseReader, ignor
 					}
 				}
 			case 206:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Digest = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Digest)
@@ -185,15 +186,7 @@ func (context *ManifestDigestParsingContext) Parse(reader enc.ParseReader, ignor
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "SegNo", TypeNum: 204}
-		case 1 - 1:
-			value.Digest = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -376,10 +369,11 @@ func (context *ManifestDataParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 202:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Entries == nil {
 						value.Entries = make([]*ManifestDigest, 0)
@@ -416,13 +410,7 @@ func (context *ManifestDataParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -895,10 +883,11 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -923,14 +912,14 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 26:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.FinalBlockID = make([]byte, l)
 					_, err = io.ReadFull(reader, value.FinalBlockID)
 
 				}
 			case 62720:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -953,7 +942,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62722:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -976,7 +965,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62724:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -999,7 +988,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62726:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1022,7 +1011,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62728:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1045,7 +1034,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62730:
-				if progress+1 == 7 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1068,7 +1057,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62732:
-				if progress+1 == 8 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1091,7 +1080,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 62734:
-				if progress+1 == 9 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1139,31 +1128,7 @@ func (context *MetaDataParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 10; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
-			value.FinalBlockID = nil
-		case 2 - 1:
-			value.SegmentSize = nil
-		case 3 - 1:
-			value.Size = nil
-		case 4 - 1:
-			value.Mode = nil
-		case 5 - 1:
-			value.Atime = nil
-		case 6 - 1:
-			value.Btime = nil
-		case 7 - 1:
-			value.Ctime = nil
-		case 8 - 1:
-			value.Mtime = nil
-		case 9 - 1:
-			value.ObjectType = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

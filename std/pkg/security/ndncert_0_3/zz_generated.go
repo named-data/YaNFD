@@ -325,10 +325,11 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 129:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.CaPrefix = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -353,7 +354,7 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 
 				}
 			case 131:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -365,7 +366,7 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 
 				}
 			case 133:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					if value.ParamKey == nil {
 						value.ParamKey = make([]string, 0)
@@ -392,7 +393,7 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 
 				}
 			case 139:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.MaxValidPeriod = uint64(0)
 					{
@@ -410,7 +411,7 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 					}
 				}
 			case 137:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.CaCert, err = reader.ReadWire(int(l))
 
@@ -441,21 +442,7 @@ func (context *CaProfileParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 5; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.CaPrefix = nil
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "CaInfo", TypeNum: 131}
-		case 2 - 1:
 
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "MaxValidPeriod", TypeNum: 139}
-		case 4 - 1:
-			value.CaCert = nil
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -672,10 +659,11 @@ func (context *ProbeIntAppParamParsingContext) Parse(reader enc.ParseReader, ign
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 133:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Params == nil {
 						value.Params = make(map[string][]byte)
@@ -736,13 +724,7 @@ func (context *ProbeIntAppParamParsingContext) Parse(reader enc.ParseReader, ign
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -907,10 +889,11 @@ func (context *ProbeResParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Response = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -954,15 +937,7 @@ func (context *ProbeResParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Response = nil
-		case 1 - 1:
-			value.MaxSuffixLength = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1145,10 +1120,11 @@ func (context *ProbeResContentParsingContext) Parse(reader enc.ParseReader, igno
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 141:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Vals == nil {
 						value.Vals = make([]*ProbeRes, 0)
@@ -1185,13 +1161,7 @@ func (context *ProbeResContentParsingContext) Parse(reader enc.ParseReader, igno
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -1349,17 +1319,18 @@ func (context *CmdNewIntParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 145:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.EcdhPub = make([]byte, l)
 					_, err = io.ReadFull(reader, value.EcdhPub)
 
 				}
 			case 147:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.CertReq = make([]byte, l)
 					_, err = io.ReadFull(reader, value.CertReq)
@@ -1385,15 +1356,7 @@ func (context *CmdNewIntParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.EcdhPub = nil
-		case 1 - 1:
-			value.CertReq = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1683,31 +1646,32 @@ func (context *CmdNewDataParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 145:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.EcdhPub = make([]byte, l)
 					_, err = io.ReadFull(reader, value.EcdhPub)
 
 				}
 			case 149:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Salt = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Salt)
 
 				}
 			case 151:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.ReqId = make([]byte, l)
 					_, err = io.ReadFull(reader, value.ReqId)
 
 				}
 			case 153:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					if value.Challenge == nil {
 						value.Challenge = make([]string, 0)
@@ -1757,19 +1721,7 @@ func (context *CmdNewDataParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 4; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.EcdhPub = nil
-		case 1 - 1:
-			value.Salt = nil
-		case 2 - 1:
-			value.ReqId = nil
-		case 3 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -1966,24 +1918,25 @@ func (context *CipherMsgParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 157:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.InitVec = make([]byte, l)
 					_, err = io.ReadFull(reader, value.InitVec)
 
 				}
 			case 175:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.AuthNTag = make([]byte, l)
 					_, err = io.ReadFull(reader, value.AuthNTag)
 
 				}
 			case 159:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Payload = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Payload)
@@ -2011,17 +1964,7 @@ func (context *CipherMsgParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.InitVec = nil
-		case 1 - 1:
-			value.AuthNTag = nil
-		case 2 - 1:
-			value.Payload = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2274,10 +2217,11 @@ func (context *ChallengeIntPlainParsingContext) Parse(reader enc.ParseReader, ig
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 161:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -2289,7 +2233,7 @@ func (context *ChallengeIntPlainParsingContext) Parse(reader enc.ParseReader, ig
 
 				}
 			case 133:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					if value.Params == nil {
 						value.Params = make(map[string][]byte)
@@ -2352,15 +2296,7 @@ func (context *ChallengeIntPlainParsingContext) Parse(reader enc.ParseReader, ig
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "SelectedChal", TypeNum: 161}
-		case 1 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -2820,10 +2756,11 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 155:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Status = uint64(0)
 					{
@@ -2841,7 +2778,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 					}
 				}
 			case 163:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -2854,7 +2791,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 165:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -2877,7 +2814,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 167:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -2900,7 +2837,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 169:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.CertName = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -2925,7 +2862,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 30:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					value.ForwardingHint = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -2950,7 +2887,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 133:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					if value.Params == nil {
 						value.Params = make(map[string][]byte)
@@ -3023,25 +2960,7 @@ func (context *ChallengeDataPlainParsingContext) Parse(reader enc.ParseReader, i
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 7; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Status", TypeNum: 155}
-		case 1 - 1:
-			value.ChalStatus = nil
-		case 2 - 1:
-			value.RemainTries = nil
-		case 3 - 1:
-			value.RemainTime = nil
-		case 4 - 1:
-			value.CertName = nil
-		case 5 - 1:
-			value.ForwardingHint = nil
-		case 6 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -3189,10 +3108,11 @@ func (context *ErrorMsgDataParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 171:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.ErrCode = uint64(0)
 					{
@@ -3210,7 +3130,7 @@ func (context *ErrorMsgDataParsingContext) Parse(reader enc.ParseReader, ignoreC
 					}
 				}
 			case 173:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -3241,15 +3161,7 @@ func (context *ErrorMsgDataParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "ErrCode", TypeNum: 171}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "ErrInfo", TypeNum: 173}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

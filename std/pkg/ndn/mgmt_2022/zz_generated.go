@@ -114,10 +114,11 @@ func (context *StrategyParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -159,13 +160,7 @@ func (context *StrategyParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -893,10 +888,11 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -921,7 +917,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 105:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -944,7 +940,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 114:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -957,7 +953,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 129:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -970,7 +966,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 111:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -993,7 +989,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 106:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1016,7 +1012,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 131:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1039,7 +1035,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 132:
-				if progress+1 == 7 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1062,7 +1058,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 135:
-				if progress+1 == 8 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1085,7 +1081,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 136:
-				if progress+1 == 9 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1108,7 +1104,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 137:
-				if progress+1 == 10 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1131,7 +1127,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 108:
-				if progress+1 == 11 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1154,7 +1150,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 112:
-				if progress+1 == 12 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1177,12 +1173,12 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 107:
-				if progress+1 == 13 {
+				if true {
 					handled = true
 					value.Strategy, err = context.Strategy_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 109:
-				if progress+1 == 14 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1205,7 +1201,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 133:
-				if progress+1 == 15 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1275,43 +1271,7 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 16; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
-			value.FaceId = nil
-		case 2 - 1:
-			value.Uri = nil
-		case 3 - 1:
-			value.LocalUri = nil
-		case 4 - 1:
-			value.Origin = nil
-		case 5 - 1:
-			value.Cost = nil
-		case 6 - 1:
-			value.Capacity = nil
-		case 7 - 1:
-			value.Count = nil
-		case 8 - 1:
-			value.BaseCongestionMarkInterval = nil
-		case 9 - 1:
-			value.DefaultCongestionThreshold = nil
-		case 10 - 1:
-			value.Mtu = nil
-		case 11 - 1:
-			value.Flags = nil
-		case 12 - 1:
-			value.Mask = nil
-		case 13 - 1:
-			value.Strategy = nil
-		case 14 - 1:
-			value.ExpirationPeriod = nil
-		case 15 - 1:
-			value.FacePersistency = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1790,10 +1750,11 @@ func (context *ControlResponseValParsingContext) Parse(reader enc.ParseReader, i
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 102:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.StatusCode = uint64(0)
 					{
@@ -1811,7 +1772,7 @@ func (context *ControlResponseValParsingContext) Parse(reader enc.ParseReader, i
 					}
 				}
 			case 103:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1823,7 +1784,7 @@ func (context *ControlResponseValParsingContext) Parse(reader enc.ParseReader, i
 
 				}
 			case 104:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Params, err = context.Params_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -1849,17 +1810,7 @@ func (context *ControlResponseValParsingContext) Parse(reader enc.ParseReader, i
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "StatusCode", TypeNum: 102}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "StatusText", TypeNum: 103}
-		case 2 - 1:
-			value.Params = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2043,10 +1994,11 @@ func (context *ControlParametersParsingContext) Parse(reader enc.ParseReader, ig
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 104:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -2068,13 +2020,7 @@ func (context *ControlParametersParsingContext) Parse(reader enc.ParseReader, ig
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Val = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2200,10 +2146,11 @@ func (context *ControlResponseParsingContext) Parse(reader enc.ParseReader, igno
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 101:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -2225,13 +2172,7 @@ func (context *ControlResponseParsingContext) Parse(reader enc.ParseReader, igno
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Val = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2579,10 +2520,11 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 193:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.FaceEventKind = uint64(0)
 					{
@@ -2600,7 +2542,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 					}
 				}
 			case 105:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.FaceId = uint64(0)
 					{
@@ -2618,7 +2560,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 					}
 				}
 			case 114:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -2630,7 +2572,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 
 				}
 			case 129:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -2642,7 +2584,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 
 				}
 			case 132:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.FaceScope = uint64(0)
 					{
@@ -2660,7 +2602,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 					}
 				}
 			case 133:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					value.FacePersistency = uint64(0)
 					{
@@ -2678,7 +2620,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 					}
 				}
 			case 134:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					value.LinkType = uint64(0)
 					{
@@ -2696,7 +2638,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 					}
 				}
 			case 108:
-				if progress+1 == 7 {
+				if true {
 					handled = true
 					value.Flags = uint64(0)
 					{
@@ -2745,27 +2687,7 @@ func (context *FaceEventNotificationValueParsingContext) Parse(reader enc.ParseR
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 8; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceEventKind", TypeNum: 193}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceId", TypeNum: 105}
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "Uri", TypeNum: 114}
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "LocalUri", TypeNum: 129}
-		case 4 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceScope", TypeNum: 132}
-		case 5 - 1:
-			err = enc.ErrSkipRequired{Name: "FacePersistency", TypeNum: 133}
-		case 6 - 1:
-			err = enc.ErrSkipRequired{Name: "LinkType", TypeNum: 134}
-		case 7 - 1:
-			err = enc.ErrSkipRequired{Name: "Flags", TypeNum: 108}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2891,10 +2813,11 @@ func (context *FaceEventNotificationParsingContext) Parse(reader enc.ParseReader
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 192:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -2916,13 +2839,7 @@ func (context *FaceEventNotificationParsingContext) Parse(reader enc.ParseReader
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Val = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -3865,10 +3782,11 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -3880,7 +3798,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 129:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.StartTimestamp = uint64(0)
 					{
@@ -3898,7 +3816,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 130:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.CurrentTimestamp = uint64(0)
 					{
@@ -3916,7 +3834,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 131:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.NNameTreeEntries = uint64(0)
 					{
@@ -3934,7 +3852,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 132:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.NFibEntries = uint64(0)
 					{
@@ -3952,7 +3870,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 133:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					value.NPitEntries = uint64(0)
 					{
@@ -3970,7 +3888,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 134:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					value.NMeasurementsEntries = uint64(0)
 					{
@@ -3988,7 +3906,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 135:
-				if progress+1 == 7 {
+				if true {
 					handled = true
 					value.NCsEntries = uint64(0)
 					{
@@ -4006,7 +3924,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 144:
-				if progress+1 == 8 {
+				if true {
 					handled = true
 					value.NInInterests = uint64(0)
 					{
@@ -4024,7 +3942,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 145:
-				if progress+1 == 9 {
+				if true {
 					handled = true
 					value.NInData = uint64(0)
 					{
@@ -4042,7 +3960,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 151:
-				if progress+1 == 10 {
+				if true {
 					handled = true
 					value.NInNacks = uint64(0)
 					{
@@ -4060,7 +3978,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 146:
-				if progress+1 == 11 {
+				if true {
 					handled = true
 					value.NOutInterests = uint64(0)
 					{
@@ -4078,7 +3996,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 147:
-				if progress+1 == 12 {
+				if true {
 					handled = true
 					value.NOutData = uint64(0)
 					{
@@ -4096,7 +4014,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 152:
-				if progress+1 == 13 {
+				if true {
 					handled = true
 					value.NOutNacks = uint64(0)
 					{
@@ -4114,7 +4032,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 153:
-				if progress+1 == 14 {
+				if true {
 					handled = true
 					value.NSatisfiedInterests = uint64(0)
 					{
@@ -4132,7 +4050,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 154:
-				if progress+1 == 15 {
+				if true {
 					handled = true
 					value.NUnsatisfiedInterests = uint64(0)
 					{
@@ -4150,7 +4068,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 200:
-				if progress+1 == 16 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4173,7 +4091,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 201:
-				if progress+1 == 17 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4196,7 +4114,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 202:
-				if progress+1 == 18 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4219,7 +4137,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 203:
-				if progress+1 == 19 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4242,7 +4160,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 204:
-				if progress+1 == 20 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4265,7 +4183,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 205:
-				if progress+1 == 21 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4288,7 +4206,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 206:
-				if progress+1 == 22 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4311,7 +4229,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 207:
-				if progress+1 == 23 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4334,7 +4252,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 
 				}
 			case 208:
-				if progress+1 == 24 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -4422,61 +4340,7 @@ func (context *GeneralStatusParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 25; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "NfdVersion", TypeNum: 128}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "StartTimestamp", TypeNum: 129}
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "CurrentTimestamp", TypeNum: 130}
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "NNameTreeEntries", TypeNum: 131}
-		case 4 - 1:
-			err = enc.ErrSkipRequired{Name: "NFibEntries", TypeNum: 132}
-		case 5 - 1:
-			err = enc.ErrSkipRequired{Name: "NPitEntries", TypeNum: 133}
-		case 6 - 1:
-			err = enc.ErrSkipRequired{Name: "NMeasurementsEntries", TypeNum: 134}
-		case 7 - 1:
-			err = enc.ErrSkipRequired{Name: "NCsEntries", TypeNum: 135}
-		case 8 - 1:
-			err = enc.ErrSkipRequired{Name: "NInInterests", TypeNum: 144}
-		case 9 - 1:
-			err = enc.ErrSkipRequired{Name: "NInData", TypeNum: 145}
-		case 10 - 1:
-			err = enc.ErrSkipRequired{Name: "NInNacks", TypeNum: 151}
-		case 11 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutInterests", TypeNum: 146}
-		case 12 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutData", TypeNum: 147}
-		case 13 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutNacks", TypeNum: 152}
-		case 14 - 1:
-			err = enc.ErrSkipRequired{Name: "NSatisfiedInterests", TypeNum: 153}
-		case 15 - 1:
-			err = enc.ErrSkipRequired{Name: "NUnsatisfiedInterests", TypeNum: 154}
-		case 16 - 1:
-			value.NFragmentationError = nil
-		case 17 - 1:
-			value.NOutOverMtu = nil
-		case 18 - 1:
-			value.NInLpInvalid = nil
-		case 19 - 1:
-			value.NReassemblyTimeouts = nil
-		case 20 - 1:
-			value.NInNetInvalid = nil
-		case 21 - 1:
-			value.NAcknowledged = nil
-		case 22 - 1:
-			value.NRetransmitted = nil
-		case 23 - 1:
-			value.NRetxExhausted = nil
-		case 24 - 1:
-			value.NConngestionMarked = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -5203,10 +5067,11 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 105:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.FaceId = uint64(0)
 					{
@@ -5224,7 +5089,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 114:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -5236,7 +5101,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 129:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -5248,7 +5113,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 109:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -5271,7 +5136,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 132:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.FaceScope = uint64(0)
 					{
@@ -5289,7 +5154,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 133:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					value.FacePersistency = uint64(0)
 					{
@@ -5307,7 +5172,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 134:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					value.LinkType = uint64(0)
 					{
@@ -5325,7 +5190,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 135:
-				if progress+1 == 7 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -5348,7 +5213,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 136:
-				if progress+1 == 8 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -5371,7 +5236,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 137:
-				if progress+1 == 9 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -5394,7 +5259,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 
 				}
 			case 144:
-				if progress+1 == 10 {
+				if true {
 					handled = true
 					value.NInInterests = uint64(0)
 					{
@@ -5412,7 +5277,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 145:
-				if progress+1 == 11 {
+				if true {
 					handled = true
 					value.NInData = uint64(0)
 					{
@@ -5430,7 +5295,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 151:
-				if progress+1 == 12 {
+				if true {
 					handled = true
 					value.NInNacks = uint64(0)
 					{
@@ -5448,7 +5313,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 146:
-				if progress+1 == 13 {
+				if true {
 					handled = true
 					value.NOutInterests = uint64(0)
 					{
@@ -5466,7 +5331,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 147:
-				if progress+1 == 14 {
+				if true {
 					handled = true
 					value.NOutData = uint64(0)
 					{
@@ -5484,7 +5349,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 152:
-				if progress+1 == 15 {
+				if true {
 					handled = true
 					value.NOutNacks = uint64(0)
 					{
@@ -5502,7 +5367,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 148:
-				if progress+1 == 16 {
+				if true {
 					handled = true
 					value.NInBytes = uint64(0)
 					{
@@ -5520,7 +5385,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 149:
-				if progress+1 == 17 {
+				if true {
 					handled = true
 					value.NOutBytes = uint64(0)
 					{
@@ -5538,7 +5403,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 108:
-				if progress+1 == 18 {
+				if true {
 					handled = true
 					value.Flags = uint64(0)
 					{
@@ -5609,49 +5474,7 @@ func (context *FaceStatusParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 19; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceId", TypeNum: 105}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Uri", TypeNum: 114}
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "LocalUri", TypeNum: 129}
-		case 3 - 1:
-			value.ExpirationPeriod = nil
-		case 4 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceScope", TypeNum: 132}
-		case 5 - 1:
-			err = enc.ErrSkipRequired{Name: "FacePersistency", TypeNum: 133}
-		case 6 - 1:
-			err = enc.ErrSkipRequired{Name: "LinkType", TypeNum: 134}
-		case 7 - 1:
-			value.BaseCongestionMarkInterval = nil
-		case 8 - 1:
-			value.DefaultCongestionThreshold = nil
-		case 9 - 1:
-			value.Mtu = nil
-		case 10 - 1:
-			err = enc.ErrSkipRequired{Name: "NInInterests", TypeNum: 144}
-		case 11 - 1:
-			err = enc.ErrSkipRequired{Name: "NInData", TypeNum: 145}
-		case 12 - 1:
-			err = enc.ErrSkipRequired{Name: "NInNacks", TypeNum: 151}
-		case 13 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutInterests", TypeNum: 146}
-		case 14 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutData", TypeNum: 147}
-		case 15 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutNacks", TypeNum: 152}
-		case 16 - 1:
-			err = enc.ErrSkipRequired{Name: "NInBytes", TypeNum: 148}
-		case 17 - 1:
-			err = enc.ErrSkipRequired{Name: "NOutBytes", TypeNum: 149}
-		case 18 - 1:
-			err = enc.ErrSkipRequired{Name: "Flags", TypeNum: 108}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -5834,10 +5657,11 @@ func (context *FaceStatusMsgParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Vals == nil {
 						value.Vals = make([]*FaceStatus, 0)
@@ -5874,13 +5698,7 @@ func (context *FaceStatusMsgParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -6225,10 +6043,11 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 105:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -6251,7 +6070,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 131:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -6264,7 +6083,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 114:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -6277,7 +6096,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 129:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -6290,7 +6109,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 132:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -6313,7 +6132,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 133:
-				if progress+1 == 5 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -6336,7 +6155,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 
 				}
 			case 134:
-				if progress+1 == 6 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -6388,25 +6207,7 @@ func (context *FaceQueryFilterValueParsingContext) Parse(reader enc.ParseReader,
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 7; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.FaceId = nil
-		case 1 - 1:
-			value.UriScheme = nil
-		case 2 - 1:
-			value.Uri = nil
-		case 3 - 1:
-			value.LocalUri = nil
-		case 4 - 1:
-			value.FaceScope = nil
-		case 5 - 1:
-			value.FacePersistency = nil
-		case 6 - 1:
-			value.LinkType = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -6532,10 +6333,11 @@ func (context *FaceQueryFilterParsingContext) Parse(reader enc.ParseReader, igno
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 150:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -6557,13 +6359,7 @@ func (context *FaceQueryFilterParsingContext) Parse(reader enc.ParseReader, igno
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Val = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -6812,10 +6608,11 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 105:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.FaceId = uint64(0)
 					{
@@ -6833,7 +6630,7 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 					}
 				}
 			case 111:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Origin = uint64(0)
 					{
@@ -6851,7 +6648,7 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 					}
 				}
 			case 106:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Cost = uint64(0)
 					{
@@ -6869,7 +6666,7 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 					}
 				}
 			case 108:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.Flags = uint64(0)
 					{
@@ -6887,7 +6684,7 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 					}
 				}
 			case 109:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -6935,21 +6732,7 @@ func (context *RouteParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 5; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceId", TypeNum: 105}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Origin", TypeNum: 111}
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 106}
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "Flags", TypeNum: 108}
-		case 4 - 1:
-			value.ExpirationPeriod = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -7181,10 +6964,11 @@ func (context *RibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -7209,7 +6993,7 @@ func (context *RibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 129:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					if value.Routes == nil {
 						value.Routes = make([]*Route, 0)
@@ -7248,15 +7032,7 @@ func (context *RibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -7439,10 +7215,11 @@ func (context *RibStatusParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Entries == nil {
 						value.Entries = make([]*RibEntry, 0)
@@ -7479,13 +7256,7 @@ func (context *RibStatusParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -7631,10 +7402,11 @@ func (context *NextHopRecordParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 105:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.FaceId = uint64(0)
 					{
@@ -7652,7 +7424,7 @@ func (context *NextHopRecordParsingContext) Parse(reader enc.ParseReader, ignore
 					}
 				}
 			case 106:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Cost = uint64(0)
 					{
@@ -7689,15 +7461,7 @@ func (context *NextHopRecordParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "FaceId", TypeNum: 105}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 106}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -7929,10 +7693,11 @@ func (context *FibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -7957,7 +7722,7 @@ func (context *FibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 129:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					if value.NextHopRecords == nil {
 						value.NextHopRecords = make([]*NextHopRecord, 0)
@@ -7996,15 +7761,7 @@ func (context *FibEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -8187,10 +7944,11 @@ func (context *FibStatusParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Entries == nil {
 						value.Entries = make([]*FibEntry, 0)
@@ -8227,13 +7985,7 @@ func (context *FibStatusParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -8408,10 +8160,11 @@ func (context *StrategyChoiceParsingContext) Parse(reader enc.ParseReader, ignor
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -8436,7 +8189,7 @@ func (context *StrategyChoiceParsingContext) Parse(reader enc.ParseReader, ignor
 
 				}
 			case 107:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Strategy, err = context.Strategy_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -8460,15 +8213,7 @@ func (context *StrategyChoiceParsingContext) Parse(reader enc.ParseReader, ignor
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
-			value.Strategy = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -8651,10 +8396,11 @@ func (context *StrategyChoiceMsgParsingContext) Parse(reader enc.ParseReader, ig
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.StrategyChoices == nil {
 						value.StrategyChoices = make([]*StrategyChoice, 0)
@@ -8691,13 +8437,7 @@ func (context *StrategyChoiceMsgParsingContext) Parse(reader enc.ParseReader, ig
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -8942,10 +8682,11 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 131:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Capacity = uint64(0)
 					{
@@ -8963,7 +8704,7 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 108:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Flags = uint64(0)
 					{
@@ -8981,7 +8722,7 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 135:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.NCsEntries = uint64(0)
 					{
@@ -8999,7 +8740,7 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 129:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.NHits = uint64(0)
 					{
@@ -9017,7 +8758,7 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 130:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					value.NMisses = uint64(0)
 					{
@@ -9060,21 +8801,7 @@ func (context *CsInfoParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 5; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Capacity", TypeNum: 131}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Flags", TypeNum: 108}
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "NCsEntries", TypeNum: 135}
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "NHits", TypeNum: 129}
-		case 4 - 1:
-			err = enc.ErrSkipRequired{Name: "NMisses", TypeNum: 130}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -9200,10 +8927,11 @@ func (context *CsInfoMsgParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 128:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.CsInfo, err = context.CsInfo_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -9225,13 +8953,7 @@ func (context *CsInfoMsgParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.CsInfo = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

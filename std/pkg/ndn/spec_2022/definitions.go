@@ -81,7 +81,7 @@ type CachePolicy struct {
 	CachePolicyType uint64 `tlv:"0x0335"`
 }
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private
 type LpPacket struct {
 	//+field:fixedUint:uint64:optional
 	Sequence *uint64 `tlv:"0x51"`
@@ -114,7 +114,7 @@ type LpPacket struct {
 	Fragment enc.Wire `tlv:"0x50"`
 }
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private,ordered
 type Interest struct {
 	//+field:procedureArgument:enc.Wire
 	sigCovered enc.PlaceHolder
@@ -152,7 +152,7 @@ type Interest struct {
 	digestCoverEnd enc.PlaceHolder
 }
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private,ordered
 type Data struct {
 	//+field:procedureArgument:enc.Wire
 	sigCovered enc.PlaceHolder
@@ -171,7 +171,7 @@ type Data struct {
 	SignatureValue enc.Wire `tlv:"0x17"`
 }
 
-//+tlv-model:nocopy,private
+// +tlv-model:nocopy,private
 type Packet struct {
 	//+field:struct:Interest:nocopy
 	Interest *Interest `tlv:"0x05"`

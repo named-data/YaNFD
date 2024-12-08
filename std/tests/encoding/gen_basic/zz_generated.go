@@ -172,10 +172,11 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 24:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Number = uint64(0)
 					{
@@ -193,7 +194,7 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 					}
 				}
 			case 25:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						timeInt := uint64(0)
@@ -216,7 +217,7 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 
 				}
 			case 26:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Binary = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Binary)
@@ -244,17 +245,7 @@ func (context *FakeMetaInfoParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Number", TypeNum: 24}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Time", TypeNum: 25}
-		case 2 - 1:
-			value.Binary = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -459,10 +450,11 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 24:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -485,7 +477,7 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 25:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						timeInt := uint64(0)
@@ -509,14 +501,14 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 26:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Binary = make([]byte, l)
 					_, err = io.ReadFull(reader, value.Binary)
 
 				}
 			case 48:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.Bool = true
 				}
@@ -544,19 +536,7 @@ func (context *OptFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 4; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Number = nil
-		case 1 - 1:
-			value.Time = nil
-		case 2 - 1:
-			value.Binary = nil
-		case 3 - 1:
-			value.Bool = false
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -733,16 +713,17 @@ func (context *WireNameFieldParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Wire, err = reader.ReadWire(int(l))
 
 				}
 			case 2:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -786,15 +767,7 @@ func (context *WireNameFieldParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Wire = nil
-		case 1 - 1:
-			value.Name = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -989,7 +962,7 @@ func (context *MarkersParsingContext) Parse(reader enc.ParseReader, ignoreCritic
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		for handled := false; !handled && progress < 5; progress++ {
 			switch typ {
 			case 1:
 				if progress+1 == 1 {
@@ -1063,6 +1036,7 @@ func (context *MarkersParsingContext) Parse(reader enc.ParseReader, ignoreCritic
 			context.endMarker = int(startPos)
 		}
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1350,16 +1324,17 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Wire1, err = reader.ReadWire(int(l))
 
 				}
 			case 2:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Number = uint64(0)
 					{
@@ -1377,7 +1352,7 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 					}
 				}
 			case 3:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Wire2, err = reader.ReadWire(int(l))
 
@@ -1404,17 +1379,7 @@ func (context *NoCopyStructParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Wire1 = nil
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Number", TypeNum: 2}
-		case 2 - 1:
-			value.Wire2 = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1568,10 +1533,11 @@ func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1583,7 +1549,7 @@ func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 
 				}
 			case 2:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -1615,15 +1581,7 @@ func (context *StrFieldParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Str1", TypeNum: 1}
-		case 1 - 1:
-			value.Str2 = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1743,10 +1701,11 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Byte, err = reader.ReadByte()
 
@@ -1758,7 +1717,7 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 
 				}
 			case 2:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						tempVal := uint32(0)
@@ -1781,7 +1740,7 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 
 				}
 			case 3:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1825,17 +1784,7 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Byte", TypeNum: 1}
-		case 1 - 1:
-			value.U32 = nil
-		case 2 - 1:
-			value.U64 = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

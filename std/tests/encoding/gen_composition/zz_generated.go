@@ -155,10 +155,11 @@ func (context *IntArrayParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Words == nil {
 						value.Words = make([]uint64, 0)
@@ -208,13 +209,7 @@ func (context *IntArrayParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -399,10 +394,11 @@ func (context *NameArrayParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Names == nil {
 						value.Names = make([]enc.Name, 0)
@@ -459,13 +455,7 @@ func (context *NameArrayParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -578,10 +568,11 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Num = uint64(0)
 					{
@@ -616,13 +607,7 @@ func (context *InnerParsingContext) Parse(reader enc.ParseReader, ignoreCritical
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Num", TypeNum: 1}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -748,10 +733,11 @@ func (context *NestedParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 2:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Val, err = context.Val_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -773,13 +759,7 @@ func (context *NestedParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Val = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -962,10 +942,11 @@ func (context *NestedSeqParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 3:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Vals == nil {
 						value.Vals = make([]*Inner, 0)
@@ -1002,13 +983,7 @@ func (context *NestedSeqParsingContext) Parse(reader enc.ParseReader, ignoreCrit
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -1235,16 +1210,17 @@ func (context *InnerWire1ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 1:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Wire1, err = reader.ReadWire(int(l))
 
 				}
 			case 2:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					{
 						tempVal := uint64(0)
@@ -1286,15 +1262,7 @@ func (context *InnerWire1ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Wire1 = nil
-		case 1 - 1:
-			value.Num = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1454,10 +1422,11 @@ func (context *InnerWire2ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 3:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Wire2, err = reader.ReadWire(int(l))
 
@@ -1480,13 +1449,7 @@ func (context *InnerWire2ParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Wire2 = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1808,15 +1771,16 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 4:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.W1, err = context.W1_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 5:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.N = uint64(0)
 					{
@@ -1834,7 +1798,7 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 					}
 				}
 			case 6:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.W2, err = context.W2_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -1860,17 +1824,7 @@ func (context *NestedWireParsingContext) Parse(reader enc.ParseReader, ignoreCri
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 3; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.W1 = nil
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "N", TypeNum: 5}
-		case 2 - 1:
-			value.W2 = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}

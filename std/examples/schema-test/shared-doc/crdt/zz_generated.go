@@ -132,10 +132,11 @@ func (context *IDTypeParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 161:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Producer = uint64(0)
 					{
@@ -153,7 +154,7 @@ func (context *IDTypeParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 163:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Clock = uint64(0)
 					{
@@ -190,15 +191,7 @@ func (context *IDTypeParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "Producer", TypeNum: 161}
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Clock", TypeNum: 163}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -490,10 +483,11 @@ func (context *RecordParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 165:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.RecordType = uint64(0)
 					{
@@ -511,22 +505,22 @@ func (context *RecordParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					}
 				}
 			case 167:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.ID, err = context.ID_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 169:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Origin, err = context.Origin_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 170:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.RightOrigin, err = context.RightOrigin_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 172:
-				if progress+1 == 4 {
+				if true {
 					handled = true
 					{
 						var builder strings.Builder
@@ -563,21 +557,7 @@ func (context *RecordParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 5; progress++ {
-		switch progress {
-		case 0 - 1:
-			err = enc.ErrSkipRequired{Name: "RecordType", TypeNum: 165}
-		case 1 - 1:
-			value.ID = nil
-		case 2 - 1:
-			value.Origin = nil
-		case 3 - 1:
-			value.RightOrigin = nil
-		case 4 - 1:
-			err = enc.ErrSkipRequired{Name: "Content", TypeNum: 172}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
