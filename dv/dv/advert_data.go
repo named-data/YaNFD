@@ -11,15 +11,15 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func (dv *Router) advertDataFetch(neighbor enc.Name, seqNo uint64) {
+func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 	// debounce; wait before fetching, then check if this is still the latest
 	// sequence number known for this neighbor
 	time.Sleep(10 * time.Millisecond)
-	if ns := dv.neighbors.Get(neighbor); ns == nil || ns.AdvertSeq != seqNo {
+	if ns := dv.neighbors.Get(nodeId); ns == nil || ns.AdvertSeq != seqNo {
 		return
 	}
 
-	advName := append(neighbor,
+	advName := append(nodeId,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 		enc.NewSequenceNumComponent(seqNo), // unused for now
@@ -57,7 +57,7 @@ func (dv *Router) advertDataFetch(neighbor enc.Name, seqNo uint64) {
 				// If the router is dead, we break out of this by checking
 				// that the sequence number is gone (above)
 				log.Warnf("advertDataFetch: Retrying %s: %+v", finalName.String(), result)
-				dv.advertDataFetch(neighbor, seqNo)
+				dv.advertDataFetch(nodeId, seqNo)
 				return
 			}
 

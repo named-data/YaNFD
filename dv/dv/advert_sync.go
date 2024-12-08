@@ -81,14 +81,14 @@ func (dv *Router) advertSyncOnInterest(
 
 	for _, entry := range sv.Entries {
 		// Parse name from NodeId
-		neighbor, err := enc.NameFromBytes(entry.NodeId)
+		nodeId, err := enc.NameFromBytes(entry.NodeId)
 		if err != nil {
 			log.Warnf("advertSyncOnInterest: Failed to parse NodeId: %+v", err)
 			continue
 		}
 
 		// Check if the entry is newer than what we know
-		ns := dv.neighbors.Get(neighbor)
+		ns := dv.neighbors.Get(nodeId)
 		if ns != nil {
 			if ns.AdvertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
@@ -99,13 +99,13 @@ func (dv *Router) advertSyncOnInterest(
 			// Create new neighbor entry cause none found
 			// This is the ONLY place where neighbors are created
 			// In all other places, quit if not found
-			ns = dv.neighbors.Add(neighbor)
+			ns = dv.neighbors.Add(nodeId)
 		}
 
 		ns.RecvPing(*extra.IncomingFaceId)
 		ns.AdvertSeq = entry.SeqNo
 
-		go dv.advertDataFetch(neighbor, entry.SeqNo)
+		go dv.advertDataFetch(nodeId, entry.SeqNo)
 	}
 }
 
