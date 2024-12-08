@@ -112,6 +112,7 @@ func (e *Engine) DetachHandler(prefix enc.Name) error {
 func (e *Engine) onPacket(reader enc.ParseReader) error {
 	var nackReason uint64 = spec.NackReasonNone
 	var pitToken []byte = nil
+	var incomingFaceId *uint64 = nil
 	var raw enc.Wire = nil
 
 	if e.log.Level <= log.DebugLevel {
@@ -154,6 +155,7 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			nackReason = lpPkt.Nack.Reason
 		}
 		pitToken = lpPkt.PitToken
+		incomingFaceId = lpPkt.IncomingFaceId
 	} else {
 		raw = reader.Range(0, reader.Length())
 	}
@@ -174,9 +176,10 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			e.log.WithField("name", nameStr).Info("Interest received.")
 		}
 		e.onInterest(pkt.Interest, ndn.InterestHandlerExtra{
-			RawInterest: raw,
-			SigCovered:  ctx.Interest_context.SigCovered(),
-			PitToken:    pitToken,
+			RawInterest:    raw,
+			SigCovered:     ctx.Interest_context.SigCovered(),
+			PitToken:       pitToken,
+			IncomingFaceId: incomingFaceId,
 		})
 	} else if pkt.Data != nil {
 		if e.log.Level <= log.InfoLevel {

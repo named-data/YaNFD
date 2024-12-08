@@ -169,6 +169,8 @@ type InterestHandlerExtra struct {
 	Deadline time.Time
 	// PIT token
 	PitToken []byte
+	// Incoming face ID (if available)
+	IncomingFaceId *uint64
 }
 
 // SigChecker is a basic function to check the signature of a packet.
