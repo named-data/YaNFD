@@ -8,6 +8,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
+	"github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -154,10 +155,40 @@ func (dv *DV) onAdvInterest(
 	reply ndn.ReplyFunc,
 	deadline time.Time,
 ) {
-	fmt.Println("Received Advertisement Interest")
+	// For now, just send the latest advertisement at all times
+	// This will need to change if we switch to differential updates
+
+	// TODO: sign the advertisement
+	signer := security.NewSha256Signer()
+
+	// TODO: encode the advertisement
+	content := []byte("Hello, world!")
+
+	// Make the Data packet
+	wire, _, err := dv.engine.Spec().MakeData(
+		interest.Name(),
+		&ndn.DataConfig{
+			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
+			Freshness:   utils.IdPtr(10 * time.Second),
+		},
+		enc.Wire{content},
+		signer)
+	if err != nil {
+		log.Warnf("onAdvInterest: Failed to make Data: %+v", err)
+		return
+	}
+
+	// Send the Data packet
+	err = reply(wire)
+	if err != nil {
+		log.Warnf("onAdvInterest: Failed to reply: %+v", err)
+		return
+	}
 }
 
 // Received advertisement Data
 func (dv *DV) onAdvData(data ndn.Data) {
-	fmt.Println("Received Advertisement")
+	// TODO: verify signature on Advertisement
+	// TODO: check if this is the latest advertisement
+	fmt.Println("Received Advertisement", data.Name().String())
 }
