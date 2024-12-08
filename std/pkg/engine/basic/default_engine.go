@@ -432,14 +432,13 @@ func (e *Engine) Express(
 	return err
 }
 
-func (e *Engine) RegisterRoute(prefix enc.Name) error {
+func (e *Engine) ExecMgmtCmd(module string, cmd string, args *mgmt.ControlArgs) error {
 	intCfg := &ndn.InterestConfig{
 		Lifetime: utils.IdPtr(1 * time.Second),
 		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
 	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	name, cmdWire, err := e.mgmtConf.MakeCmd(module, cmd, args, intCfg)
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
 		return err
 	}
 	ch := make(chan error)
@@ -463,7 +462,7 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 								ch <- nil
 							} else {
 								errText := ret.Val.StatusText
-								ch <- fmt.Errorf("registration failed due to error %d: %s", ret.Val.StatusCode, errText)
+								ch <- fmt.Errorf("command failed due to error %d: %s", ret.Val.StatusCode, errText)
 							}
 						} else {
 							ch <- fmt.Errorf("improper response")
@@ -476,10 +475,17 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 			close(ch)
 		})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
 		return err
 	}
 	err = <-ch
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Engine) RegisterRoute(prefix enc.Name) error {
+	err := e.ExecMgmtCmd("rib", "register", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
 		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
 		return err
@@ -490,21 +496,12 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 }
 
 func (e *Engine) UnregisterRoute(prefix enc.Name) error {
-	intCfg := &ndn.InterestConfig{
-		Lifetime: utils.IdPtr(1 * time.Second),
-		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
-	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd("rib", "register", &mgmt.ControlArgs{Name: prefix}, intCfg)
+	err := e.ExecMgmtCmd("rib", "unregister", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to generate command Interest: %v", err)
-		return err
-	}
-	err = e.Express(name, intCfg, cmdWire, nil)
-	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to express command Interest: %v", err)
+		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
 		return err
 	} else {
-		e.log.WithField("name", prefix.String()).Info("Prefix unregistered.")
+		e.log.WithField("name", prefix.String()).Info("Prefix registered.")
 	}
 	return nil
 }
