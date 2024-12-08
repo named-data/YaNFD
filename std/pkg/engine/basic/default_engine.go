@@ -173,7 +173,11 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			nameStr := pkt.Interest.NameV.String()
 			e.log.WithField("name", nameStr).Info("Interest received.")
 		}
-		e.onInterest(pkt.Interest, ctx.Interest_context.SigCovered(), raw, pitToken)
+		e.onInterest(pkt.Interest, ndn.InterestHandlerExtra{
+			RawInterest: raw,
+			SigCovered:  ctx.Interest_context.SigCovered(),
+			PitToken:    pitToken,
+		})
 	} else if pkt.Data != nil {
 		if e.log.Level <= log.InfoLevel {
 			nameStr := pkt.Data.NameV.String()
@@ -187,13 +191,13 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 	return nil
 }
 
-func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
+func (e *Engine) onInterest(pkt *spec.Interest, extra ndn.InterestHandlerExtra) {
 	// Compute deadline
-	deadline := e.timer.Now()
+	extra.Deadline = e.timer.Now()
 	if pkt.InterestLifetimeV != nil {
-		deadline = deadline.Add(*pkt.InterestLifetimeV)
+		extra.Deadline = extra.Deadline.Add(*pkt.InterestLifetimeV)
 	} else {
-		deadline = deadline.Add(DefaultInterestLife)
+		extra.Deadline = extra.Deadline.Add(DefaultInterestLife)
 	}
 
 	// Match node
@@ -221,7 +225,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 	// The reply callback function
 	reply := func(encodedData enc.Wire) error {
 		now := e.timer.Now()
-		if deadline.Before(now) {
+		if extra.Deadline.Before(now) {
 			e.log.WithField("name", pkt.NameV.String()).Warn("Deadline exceeded. Drop.")
 			return ndn.ErrDeadlineExceed
 		}
@@ -229,10 +233,10 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 			e.log.WithField("name", pkt.NameV.String()).Error("Cannot send through a closed face. Drop.")
 			return ndn.ErrFaceDown
 		}
-		if pitToken != nil {
+		if extra.PitToken != nil {
 			lpPkt := &spec.Packet{
 				LpPacket: &spec.LpPacket{
-					PitToken: pitToken,
+					PitToken: extra.PitToken,
 					Fragment: encodedData,
 				},
 			}
@@ -250,7 +254,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, sigCovered enc.Wire, raw enc.Wir
 
 	// Call the handler. The handler should create goroutine to avoid blocking.
 	// Do not `go` here because if Data is ready at hand, creating a go routine may be slower. Not tested though.
-	handler(pkt, raw, sigCovered, reply, deadline)
+	handler(pkt, reply, extra)
 }
 
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {

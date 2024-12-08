@@ -24,9 +24,7 @@ func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
 
-func onInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire, reply ndn.ReplyFunc, deadline time.Time,
-) {
+func onInterest(interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra) {
 	fmt.Printf(">> I: %s\n", interest.Name().String())
 	content := []byte("Hello, world!")
 

@@ -76,8 +76,8 @@ func (n *ExpressPoint) SearchCache(event *Event) enc.Wire {
 }
 
 func (n *ExpressPoint) OnInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+	interest ndn.Interest, reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra, matching enc.Matching,
 ) {
 	node := n.Node
 	event := &Event{
@@ -87,12 +87,12 @@ func (n *ExpressPoint) OnInterest(
 			Matching: matching,
 			Name:     interest.Name(),
 		},
-		RawPacket:  rawInterest,
-		SigCovered: sigCovered,
+		RawPacket:  extra.RawInterest,
+		SigCovered: extra.SigCovered,
 		Interest:   interest,
 		Signature:  interest.Signature(),
 		Reply:      reply,
-		Deadline:   &deadline,
+		Deadline:   &extra.Deadline,
 		Content:    interest.AppParam(),
 	}
 	logger := event.Target.Logger("ExpressPoint")

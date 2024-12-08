@@ -1,4 +1,4 @@
-package schema
+package schema_old
 
 import (
 	"time"
@@ -50,8 +50,8 @@ type NTNode interface {
 	ConstructName(matching enc.Matching, ret enc.Name) error
 
 	// OnInterest is the callback function when there is an incoming Interest.
-	OnInterest(interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-		reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching)
+	OnInterest(interest ndn.Interest, reply ndn.ReplyFunc,
+		extra ndn.InterestHandlerExtra, matching enc.Matching)
 
 	// OnAttach is called when the node is attached to an engine
 	OnAttach(path enc.NamePattern, engine ndn.Engine) error

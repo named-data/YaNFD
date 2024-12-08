@@ -3,7 +3,6 @@ package schema
 import (
 	"errors"
 	"sync"
-	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
@@ -74,8 +73,9 @@ func (t *Tree) Match(name enc.Name) *MatchedNode {
 
 // intHandler is the callback called by the engine that handles an incoming Interest.
 func (t *Tree) intHandler(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time,
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
 ) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -86,7 +86,7 @@ func (t *Tree) intHandler(
 		log.WithField("module", "schema").WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 		return
 	}
-	mNode.Node.OnInterest(interest, rawInterest, sigCovered, reply, deadline, mNode.Matching)
+	mNode.Node.OnInterest(interest, reply, extra, mNode.Matching)
 }
 
 // At the path return the node. Path does not include the attached prefix.

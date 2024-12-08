@@ -1,4 +1,4 @@
-package schema
+package schema_old
 
 import (
 	"time"
@@ -45,14 +45,13 @@ func (n *ExpressPoint) SearchCache(
 
 // OnInterest is the function called when an Interest comes.
 func (n *ExpressPoint) OnInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+	interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra, matching enc.Matching,
 ) {
 	context := Context{
 		CkInterest:   interest,
-		CkDeadline:   deadline,
-		CkRawPacket:  rawInterest,
-		CkSigCovered: sigCovered,
+		CkDeadline:   extra.Deadline,
+		CkRawPacket:  extra.RawInterest,
+		CkSigCovered: extra.SigCovered,
 		CkName:       interest.Name(),
 		CkEngine:     n.engine,
 		CkContent:    interest.AppParam(),
@@ -78,7 +77,7 @@ func (n *ExpressPoint) OnInterest(
 			validRes := VrSilence
 			context[CkLastValidResult] = validRes
 			for _, evt := range n.onValidateInt.val {
-				res := (*evt)(matching, interest.Name(), interest.Signature(), sigCovered, context)
+				res := (*evt)(matching, interest.Name(), interest.Signature(), extra.SigCovered, context)
 				if res < VrSilence {
 					n.Log.WithField("name", interest.Name().String()).Warn("Verification failed for Interest. Drop.")
 					return

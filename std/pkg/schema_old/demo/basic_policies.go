@@ -12,7 +12,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/schema"
+	"github.com/zjkmxy/go-ndn/pkg/schema_old"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -21,7 +21,7 @@ import (
 // TODO: Handle the path "/prefix/<node-id>" with a given <node-id>. (#ENV)
 type RegisterPolicy struct{}
 
-func (p *RegisterPolicy) PolicyTrait() schema.NTPolicy {
+func (p *RegisterPolicy) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
@@ -37,11 +37,11 @@ func (*RegisterPolicy) onAttach(path enc.NamePattern, engine ndn.Engine) error {
 	return engine.RegisterRoute(prefix)
 }
 
-func (p *RegisterPolicy) Apply(node schema.NTNode) error {
-	return schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
+func (p *RegisterPolicy) Apply(node schema_old.NTNode) error {
+	return schema_old.AddEventListener(node, schema_old.PropOnAttach, p.onAttach)
 }
 
-func NewRegisterPolicy() schema.NTPolicy {
+func NewRegisterPolicy() schema_old.NTPolicy {
 	return &RegisterPolicy{}
 }
 
@@ -50,7 +50,7 @@ type RegisterPolicy2 struct {
 	matching enc.Matching
 }
 
-func (p *RegisterPolicy2) PolicyTrait() schema.NTPolicy {
+func (p *RegisterPolicy2) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
@@ -67,11 +67,11 @@ func (p *RegisterPolicy2) onAttach(path enc.NamePattern, engine ndn.Engine) erro
 	return engine.RegisterRoute(prefix)
 }
 
-func (p *RegisterPolicy2) Apply(node schema.NTNode) error {
-	return schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
+func (p *RegisterPolicy2) Apply(node schema_old.NTNode) error {
+	return schema_old.AddEventListener(node, schema_old.PropOnAttach, p.onAttach)
 }
 
-func NewRegisterPolicy2(matching enc.Matching) schema.NTPolicy {
+func NewRegisterPolicy2(matching enc.Matching) schema_old.NTPolicy {
 	return &RegisterPolicy2{matching}
 }
 
@@ -79,12 +79,12 @@ func NewRegisterPolicy2(matching enc.Matching) schema.NTPolicy {
 // TODO: Is this secure? Do we need to consider the case where PropSuppressInt is overwritten by another policy?
 type LocalOnlyPolicy struct{}
 
-func (p *LocalOnlyPolicy) PolicyTrait() schema.NTPolicy {
+func (p *LocalOnlyPolicy) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
-func (p *LocalOnlyPolicy) Apply(node schema.NTNode) error {
-	node.Set(schema.PropSuppressInt, true) // Ignore error on non-expressible points
+func (p *LocalOnlyPolicy) Apply(node schema_old.NTNode) error {
+	node.Set(schema_old.PropSuppressInt, true) // Ignore error on non-expressible points
 	chd := node.Children()
 	for _, c := range chd {
 		p.Apply(c)
@@ -92,7 +92,7 @@ func (p *LocalOnlyPolicy) Apply(node schema.NTNode) error {
 	return nil
 }
 
-func NewLocalOnlyPolicy() schema.NTPolicy {
+func NewLocalOnlyPolicy() schema_old.NTPolicy {
 	return &LocalOnlyPolicy{}
 }
 
@@ -109,7 +109,7 @@ type MemStoragePolicy struct {
 	tree  *basic_engine.NameTrie[CacheEntry]
 }
 
-func (p *MemStoragePolicy) PolicyTrait() schema.NTPolicy {
+func (p *MemStoragePolicy) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
@@ -156,21 +156,21 @@ func (p *MemStoragePolicy) onAttach(path enc.NamePattern, engine ndn.Engine) err
 }
 
 func (p *MemStoragePolicy) onSearch(
-	matching enc.Matching, name enc.Name, canBePrefix bool, mustBeFresh bool, context schema.Context,
+	matching enc.Matching, name enc.Name, canBePrefix bool, mustBeFresh bool, context schema_old.Context,
 ) enc.Wire {
 	return p.Get(name, canBePrefix, mustBeFresh)
 }
 
 func (p *MemStoragePolicy) onSave(
-	matching enc.Matching, name enc.Name, rawData enc.Wire, validity time.Time, context schema.Context,
+	matching enc.Matching, name enc.Name, rawData enc.Wire, validity time.Time, context schema_old.Context,
 ) {
 	p.Put(name, rawData, validity)
 }
 
-func (p *MemStoragePolicy) Apply(node schema.NTNode) error {
-	schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
-	schema.AddEventListener(node, schema.PropOnSearchStorage, p.onSearch)
-	schema.AddEventListener(node, schema.PropOnSaveStorage, p.onSave)
+func (p *MemStoragePolicy) Apply(node schema_old.NTNode) error {
+	schema_old.AddEventListener(node, schema_old.PropOnAttach, p.onAttach)
+	schema_old.AddEventListener(node, schema_old.PropOnSearchStorage, p.onSearch)
+	schema_old.AddEventListener(node, schema_old.PropOnSaveStorage, p.onSave)
 	chd := node.Children()
 	for _, c := range chd {
 		p.Apply(c)
@@ -178,7 +178,7 @@ func (p *MemStoragePolicy) Apply(node schema.NTNode) error {
 	return nil
 }
 
-func NewMemStoragePolicy() schema.NTPolicy {
+func NewMemStoragePolicy() schema_old.NTPolicy {
 	return &MemStoragePolicy{
 		tree: basic_engine.NewNameTrie[CacheEntry](),
 	}
@@ -188,13 +188,13 @@ func NewMemStoragePolicy() schema.NTPolicy {
 // TODO: This has a problem with group signature node:
 // The group signature node (subtree) has two leaves: the segmented data, and meta data.
 // The segmented data has its own validation (SHA256 sig), but how to validate the meta data is specified by
-// the trust schema (i.e. user). Then, is it still a good idea to make group sig node a blackbox?
+// the trust schema_old (i.e. user). Then, is it still a good idea to make group sig node a blackbox?
 // If yes, what is the best way to let the user specify how the packet is signed/validated? (#BLACKBOX)
 type FixedKeySigner struct {
 	key []byte
 }
 
-func (p *FixedKeySigner) PolicyTrait() schema.NTPolicy {
+func (p *FixedKeySigner) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
@@ -221,28 +221,28 @@ func (p *FixedKeySigner) ComputeSigValue(covered enc.Wire) ([]byte, error) {
 }
 
 func (p *FixedKeySigner) onValidateData(
-	_ enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, _ schema.Context,
-) schema.ValidRes {
+	_ enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, _ schema_old.Context,
+) schema_old.ValidRes {
 	if sig.SigType() != ndn.SignatureHmacWithSha256 {
-		return schema.VrFail
+		return schema_old.VrFail
 	}
 	mac := hmac.New(sha256.New, p.key)
 	for _, buf := range covered {
 		_, err := mac.Write(buf)
 		if err != nil {
-			return schema.VrFail
+			return schema_old.VrFail
 		}
 	}
 	if hmac.Equal(mac.Sum(nil), sig.SigValue()) {
-		return schema.VrPass
+		return schema_old.VrPass
 	} else {
-		return schema.VrFail
+		return schema_old.VrFail
 	}
 }
 
-func (p *FixedKeySigner) Apply(node schema.NTNode) error {
-	schema.AddEventListener(node, schema.PropOnValidateData, p.onValidateData)
-	schema.AddEventListener(node, schema.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+func (p *FixedKeySigner) Apply(node schema_old.NTNode) error {
+	schema_old.AddEventListener(node, schema_old.PropOnValidateData, p.onValidateData)
+	schema_old.AddEventListener(node, schema_old.PropOnGetDataSigner, func(enc.Matching, enc.Name, schema_old.Context) ndn.Signer {
 		return ndn.Signer(p)
 	})
 	chd := node.Children()
@@ -252,7 +252,7 @@ func (p *FixedKeySigner) Apply(node schema.NTNode) error {
 	return nil
 }
 
-func NewFixedKeySigner(key []byte) schema.NTPolicy {
+func NewFixedKeySigner(key []byte) schema_old.NTPolicy {
 	return &FixedKeySigner{
 		key: key,
 	}
@@ -265,7 +265,7 @@ type FixedKeyIntSigner struct {
 	seq   uint64
 }
 
-func (p *FixedKeyIntSigner) PolicyTrait() schema.NTPolicy {
+func (p *FixedKeyIntSigner) PolicyTrait() schema_old.NTPolicy {
 	return p
 }
 
@@ -296,36 +296,36 @@ func (p *FixedKeyIntSigner) ComputeSigValue(covered enc.Wire) ([]byte, error) {
 }
 
 func (p *FixedKeyIntSigner) onValidateInt(
-	_ enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, _ schema.Context,
-) schema.ValidRes {
+	_ enc.Matching, _ enc.Name, sig ndn.Signature, covered enc.Wire, _ schema_old.Context,
+) schema_old.ValidRes {
 	if sig.SigType() != ndn.SignatureHmacWithSha256 {
-		return schema.VrFail
+		return schema_old.VrFail
 	}
 	mac := hmac.New(sha256.New, p.key)
 	for _, buf := range covered {
 		_, err := mac.Write(buf)
 		if err != nil {
-			return schema.VrFail
+			return schema_old.VrFail
 		}
 	}
 	if hmac.Equal(mac.Sum(nil), sig.SigValue()) {
-		return schema.VrPass
+		return schema_old.VrPass
 	} else {
-		return schema.VrFail
+		return schema_old.VrFail
 	}
 }
 
-func (p *FixedKeyIntSigner) Apply(node schema.NTNode) error {
+func (p *FixedKeyIntSigner) Apply(node schema_old.NTNode) error {
 	// TODO: Does not look good but I cannot come up with a better design
 	// This is to avoid leaf nodes, as they represent not-on-demand-produced data
-	if _, ok := node.(*schema.LeafNode); ok {
+	if _, ok := node.(*schema_old.LeafNode); ok {
 		return nil
 	}
-	schema.AddEventListener(node, schema.PropOnValidateInt, p.onValidateInt)
-	schema.AddEventListener(node, schema.PropOnGetIntSigner, func(enc.Matching, enc.Name, schema.Context) ndn.Signer {
+	schema_old.AddEventListener(node, schema_old.PropOnValidateInt, p.onValidateInt)
+	schema_old.AddEventListener(node, schema_old.PropOnGetIntSigner, func(enc.Matching, enc.Name, schema_old.Context) ndn.Signer {
 		return ndn.Signer(p)
 	})
-	schema.AddEventListener(node, schema.PropOnAttach, p.onAttach)
+	schema_old.AddEventListener(node, schema_old.PropOnAttach, p.onAttach)
 	chd := node.Children()
 	for _, c := range chd {
 		p.Apply(c)
@@ -339,7 +339,7 @@ func (p *FixedKeyIntSigner) onAttach(path enc.NamePattern, engine ndn.Engine) er
 	return nil
 }
 
-func NewFixedKeyIntSigner(key []byte) schema.NTPolicy {
+func NewFixedKeyIntSigner(key []byte) schema_old.NTPolicy {
 	return &FixedKeyIntSigner{
 		key: key,
 	}

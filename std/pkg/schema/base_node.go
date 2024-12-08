@@ -3,7 +3,6 @@ package schema
 import (
 	"errors"
 	"reflect"
-	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
@@ -196,13 +195,15 @@ func (n *Node) ConstructName(matching enc.Matching, ret enc.Name) error {
 // OnInterest is the function called when an Interest comes.
 // A base node shouldn't receive any Interest, so drops it.
 func (n *Node) OnInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
+	matching enc.Matching,
 ) {
 	if n.impl == nil {
 		n.log.WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 	} else {
-		n.impl.OnInterest(interest, rawInterest, sigCovered, reply, deadline, matching)
+		n.impl.OnInterest(interest, reply, extra, matching)
 	}
 }
 
@@ -350,8 +351,8 @@ func (n *BaseNodeImpl) NodeImplTrait() NodeImpl {
 
 // OnInterest is the callback function when there is an incoming Interest.
 func (n *BaseNodeImpl) OnInterest(
-	interest ndn.Interest, rawInterest enc.Wire, sigCovered enc.Wire,
-	reply ndn.ReplyFunc, deadline time.Time, matching enc.Matching,
+	interest ndn.Interest, reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra, matching enc.Matching,
 ) {
 	n.Node.Log().WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
 }
