@@ -136,7 +136,10 @@ func (t *InternalTransport) sendFrame(frame []byte) {
 	t.nOutBytes += uint64(len(frame))
 
 	core.LogDebug(t, "Sending frame of size ", len(frame))
-	t.recvQueue <- frame
+
+	frameCopy := make([]byte, len(frame))
+	copy(frameCopy, frame)
+	t.recvQueue <- frameCopy
 }
 
 func (t *InternalTransport) runReceive() {
