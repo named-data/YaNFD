@@ -132,7 +132,8 @@ func (e *nameTreePitEntry) PitCs() PitCsTable {
 // InsertInterest inserts an entry in the PIT upon receipt of an Interest.
 // Returns tuple of PIT entry and whether the Nonce is a duplicate.
 func (p *PitCsTree) InsertInterest(pendingPacket *ndn_defn.PendingPacket, hint enc.Name, inFace uint64) (PitEntry, bool) {
-	node := p.root.fillTreeToPrefixEnc(pendingPacket.EncPacket.Interest.NameV)
+	name := pendingPacket.EncPacket.Interest.NameV.Clone()
+	node := p.root.fillTreeToPrefixEnc(name)
 	var entry *nameTreePitEntry
 	for _, curEntry := range node.pitEntries {
 		if curEntry.CanBePrefix() == pendingPacket.EncPacket.Interest.CanBePrefixV &&
@@ -148,7 +149,7 @@ func (p *PitCsTree) InsertInterest(pendingPacket *ndn_defn.PendingPacket, hint e
 		entry = new(nameTreePitEntry)
 		entry.node = node
 		entry.pitCsTable = p
-		entry.encname = pendingPacket.EncPacket.Interest.NameV
+		entry.encname = name
 		entry.canBePrefix = pendingPacket.EncPacket.Interest.CanBePrefixV
 		entry.mustBeFresh = pendingPacket.EncPacket.Interest.MustBeFreshV
 		entry.forwardingHintNew = hint

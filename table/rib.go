@@ -69,7 +69,7 @@ func (r *RibTable) fillTreeToPrefixEnc(name enc.Name) *RibEntry {
 	for depth := entry.depth + 1; depth <= len(name); depth++ {
 		child := &RibEntry{
 			depth:     depth,
-			component: At(name, depth-1),
+			component: At(name, depth-1).Clone(),
 			parent:    entry,
 			children:  map[*RibEntry]bool{},
 		}
@@ -130,6 +130,7 @@ func (r *RibEntry) updateNexthopsEnc() {
 func (r *RibTable) AddEncRoute(
 	name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration,
 ) {
+	name = name.Clone()
 	node := r.fillTreeToPrefixEnc(name)
 	if node.Name == nil {
 		node.Name = name
