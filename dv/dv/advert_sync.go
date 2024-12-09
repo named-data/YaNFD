@@ -27,11 +27,13 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	}
 
 	// State Vector for our group
-	sv := &svs.StateVec{
-		Entries: []*svs.StateVecEntry{{
-			NodeId: dv.config.RouterPfxN.Bytes(),
-			SeqNo:  dv.advertSyncSeq,
-		}},
+	sv := &svs.StateVecAppParam{
+		Entries: &svs.StateVec{
+			Entries: []*svs.StateVecEntry{{
+				NodeId: dv.config.RouterPfxN.Bytes(),
+				SeqNo:  dv.advertSyncSeq,
+			}},
+		},
 	}
 
 	// TODO: sign the sync interest
@@ -69,8 +71,8 @@ func (dv *Router) advertSyncOnInterest(
 
 	// TODO: verify signature on Sync Interest
 
-	sv, err := svs.ParseStateVec(enc.NewWireReader(interest.AppParam()), true)
-	if err != nil {
+	params, err := svs.ParseStateVecAppParam(enc.NewWireReader(interest.AppParam()), true)
+	if err != nil || params.Entries == nil {
 		log.Warnf("advertSyncOnInterest: Failed to parse StateVec: %+v", err)
 		return
 	}
@@ -79,7 +81,7 @@ func (dv *Router) advertSyncOnInterest(
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
-	for _, entry := range sv.Entries {
+	for _, entry := range params.Entries.Entries {
 		// Parse name from NodeId
 		nodeId, err := enc.NameFromBytes(entry.NodeId)
 		if err != nil {
