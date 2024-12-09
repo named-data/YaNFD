@@ -10,7 +10,6 @@ package mgmt
 import (
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/fw"
-	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
@@ -130,7 +129,7 @@ func (s *StrategyChoiceModule) set(interest *spec.Interest, pitToken []byte, inF
 		return
 	} else if len(params.Strategy.Name) > len(s.strategyPrefix)+1 {
 		strategyVersionBytes := params.Strategy.Name[len(s.strategyPrefix)+1].Val
-		strategyVersion, err := ndn_defn.ParseNat(strategyVersionBytes)
+		strategyVersion, _, err := enc.ParseNat(strategyVersionBytes)
 		if err != nil {
 			core.LogWarn(s, "Unknown Version=", params.Strategy.Name[len(s.strategyPrefix)+1],
 				" for Strategy=", params.Strategy, " in ControlParameters for Interest=", interest.Name())
