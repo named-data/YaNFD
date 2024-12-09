@@ -52,11 +52,7 @@ func (nt *NeighborTable) Get(name enc.Name) *NeighborState {
 }
 
 func (nt *NeighborTable) GetH(nameHash uint64) *NeighborState {
-	neighbor, ok := nt.neighbors[nameHash]
-	if !ok {
-		return nil
-	}
-	return neighbor
+	return nt.neighbors[nameHash]
 }
 
 func (nt *NeighborTable) Add(name enc.Name) *NeighborState {
