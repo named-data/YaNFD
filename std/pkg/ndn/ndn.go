@@ -214,6 +214,9 @@ type Engine interface {
 	// To simplify the implementation, finalName needs to be the final Interest name given by MakeInterest.
 	// The callback should create go routine or channel back to another routine to avoid blocking the main thread.
 	Express(finalName enc.Name, config *InterestConfig, rawInterest enc.Wire, callback ExpressCallbackFunc) error
+	// ExecMgmtCmd executes a management command.
+	// args is a pointer to mgmt.ControlArgs
+	ExecMgmtCmd(module string, cmd string, args any) error
 }
 
 type ErrInvalidValue struct {
@@ -234,16 +237,16 @@ func (e ErrNotSupported) Error() string {
 }
 
 // ErrFailedToEncode is returned when encoding fails but the input arguments are valid.
-var ErrFailedToEncode = errors.New("Failed to encode an NDN packet.")
+var ErrFailedToEncode = errors.New("failed to encode an NDN packet")
 
 // ErrWrongType is returned when the type of the packet to parse is not expected.
-var ErrWrongType = errors.New("Packet to parse is not of desired type.")
+var ErrWrongType = errors.New("packet to parse is not of desired type")
 
 // ErrPrefixPropViolation is returned when the prefix property is violated during handler registration.
-var ErrPrefixPropViolation = errors.New("A prefix or extention of the given handler prefix is already attached.")
+var ErrPrefixPropViolation = errors.New("a prefix or extention of the given handler prefix is already attached")
 
 // ErrDeadlineExceed is returned when the deadline of the Interest passed.
-var ErrDeadlineExceed = errors.New("Interest deadline exceeded.")
+var ErrDeadlineExceed = errors.New("interest deadline exceeded")
 
 // ErrFaceDown is returned when the face is closed.
-var ErrFaceDown = errors.New("Face is down. Unable to send packet.")
+var ErrFaceDown = errors.New("face is down. Unable to send packet")
