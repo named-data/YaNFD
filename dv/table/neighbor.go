@@ -111,6 +111,7 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 		}
 
 		// Register new face
+		ns.faceId = faceId
 		ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
 			Module: "rib",
 			Cmd:    "register",
