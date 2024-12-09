@@ -158,15 +158,16 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 201:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Advertisement, err = context.Advertisement_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 221:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.PrefixOpList, err = context.PrefixOpList_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
@@ -190,15 +191,7 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Advertisement = nil
-		case 1 - 1:
-			value.PrefixOpList = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -381,10 +374,11 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 205:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					if value.Entries == nil {
 						value.Entries = make([]*AdvEntry, 0)
@@ -421,13 +415,7 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
 
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -668,20 +656,21 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 206:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Destination, err = context.Destination_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 204:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.NextHop, err = context.NextHop_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 208:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					value.Cost = uint64(0)
 					{
@@ -699,7 +688,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 					}
 				}
 			case 209:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					value.OtherCost = uint64(0)
 					{
@@ -740,19 +729,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 4; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Destination = nil
-		case 1 - 1:
-			value.NextHop = nil
-		case 2 - 1:
-			err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 208}
-		case 3 - 1:
-			err = enc.ErrSkipRequired{Name: "OtherCost", TypeNum: 209}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -880,10 +857,11 @@ func (context *DestinationParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -925,13 +903,7 @@ func (context *DestinationParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1282,20 +1254,21 @@ func (context *PrefixOpListParsingContext) Parse(reader enc.ParseReader, ignoreC
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 206:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.ExitRouter, err = context.ExitRouter_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
 			case 222:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.PrefixOpReset = true
 				}
 			case 223:
-				if progress+1 == 2 {
+				if true {
 					handled = true
 					if value.PrefixOpAdds == nil {
 						value.PrefixOpAdds = make([]*PrefixOpAdd, 0)
@@ -1315,7 +1288,7 @@ func (context *PrefixOpListParsingContext) Parse(reader enc.ParseReader, ignoreC
 
 				}
 			case 224:
-				if progress+1 == 3 {
+				if true {
 					handled = true
 					if value.PrefixOpRemoves == nil {
 						value.PrefixOpRemoves = make([]*PrefixOpRemove, 0)
@@ -1358,19 +1331,7 @@ func (context *PrefixOpListParsingContext) Parse(reader enc.ParseReader, ignoreC
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 4; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.ExitRouter = nil
-		case 1 - 1:
-			value.PrefixOpReset = false
-		case 2 - 1:
 
-		case 3 - 1:
-
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -1531,10 +1492,11 @@ func (context *PrefixOpAddParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -1559,7 +1521,7 @@ func (context *PrefixOpAddParsingContext) Parse(reader enc.ParseReader, ignoreCr
 
 				}
 			case 208:
-				if progress+1 == 1 {
+				if true {
 					handled = true
 					value.Cost = uint64(0)
 					{
@@ -1596,15 +1558,7 @@ func (context *PrefixOpAddParsingContext) Parse(reader enc.ParseReader, ignoreCr
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 2; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		case 1 - 1:
-			err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 208}
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1732,10 +1686,11 @@ func (context *PrefixOpRemoveParsingContext) Parse(reader enc.ParseReader, ignor
 			return nil, enc.ErrFailToParse{TypeNum: 0, Err: err}
 		}
 		err = nil
-		for handled := false; !handled; progress++ {
+		if true {
+			handled := false
 			switch typ {
 			case 7:
-				if progress+1 == 0 {
+				if true {
 					handled = true
 					value.Name = make(enc.Name, l/2+1)
 					startName := reader.Pos()
@@ -1777,13 +1732,7 @@ func (context *PrefixOpRemoveParsingContext) Parse(reader enc.ParseReader, ignor
 			}
 		}
 	}
-	startPos = reader.Pos()
-	for ; progress < 1; progress++ {
-		switch progress {
-		case 0 - 1:
-			value.Name = nil
-		}
-	}
+
 	if err != nil {
 		return nil, err
 	}
