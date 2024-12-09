@@ -27,6 +27,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	}
 
 	// State Vector for our group
+	// TODO: switch to new TLV types
 	sv := &svs.StateVecAppParam{
 		Entries: &svs.StateVec{
 			Entries: []*svs.StateVecEntry{{
