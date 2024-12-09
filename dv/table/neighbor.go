@@ -35,8 +35,6 @@ type NeighborState struct {
 	lastSeen time.Time
 	// latest known face ID
 	faceId uint64
-	// most recent advertisement (wire)
-	advertWire []byte
 }
 
 func NewNeighborTable(config *config.Config, nfdc *nfdc.NfdMgmtThread) *NeighborTable {
@@ -63,9 +61,8 @@ func (nt *NeighborTable) Add(name enc.Name) *NeighborState {
 		AdvertSeq: 0,
 		Advert:    nil,
 
-		lastSeen:   time.Now(),
-		faceId:     0,
-		advertWire: nil,
+		lastSeen: time.Now(),
+		faceId:   0,
 	}
 	nt.neighbors[name.Hash()] = neighbor
 	return neighbor
@@ -85,11 +82,6 @@ func (nt *NeighborTable) GetAll() []*NeighborState {
 		neighbors = append(neighbors, neighbor)
 	}
 	return neighbors
-}
-
-func (ns *NeighborState) SetAdvert(advert *tlv.Advertisement, wire []byte) {
-	ns.Advert = advert
-	ns.advertWire = wire
 }
 
 func (ns *NeighborState) IsDead() bool {

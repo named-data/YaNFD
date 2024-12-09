@@ -140,6 +140,6 @@ func (dv *Router) advertDataHandler(data ndn.Data) {
 	}
 
 	// Update the local advertisement list
-	ns.SetAdvert(advert, raw)
+	ns.Advert = advert
 	go dv.ribUpdate(ns)
 }
