@@ -21,6 +21,9 @@ type NeighborTable struct {
 }
 
 type NeighborState struct {
+	// pointer to the neighbor table
+	nt *NeighborTable
+
 	// neighbor name
 	Name enc.Name
 	// advertisement sequence number for neighbor
@@ -28,21 +31,12 @@ type NeighborState struct {
 	// most recent advertisement
 	Advert *tlv.Advertisement
 
-	// pointer to the neighbor table
-	nt *NeighborTable
 	// time of last sync interest
 	lastSeen time.Time
-	// list of faces that are registered to this neighbor
-	faces []*NeighborFace
+	// latest known face ID
+	faceId uint64
 	// most recent advertisement (wire)
 	advertWire []byte
-}
-
-type NeighborFace struct {
-	// face ID
-	faceId uint64
-	// time of last sync interest
-	lastSeen time.Time
 }
 
 func NewNeighborTable(config *config.Config, nfdc *nfdc.NfdMgmtThread) *NeighborTable {
@@ -67,8 +61,15 @@ func (nt *NeighborTable) GetH(nameHash uint64) *NeighborState {
 
 func (nt *NeighborTable) Add(name enc.Name) *NeighborState {
 	neighbor := &NeighborState{
-		Name: name.Clone(),
-		nt:   nt,
+		nt: nt,
+
+		Name:      name.Clone(),
+		AdvertSeq: 0,
+		Advert:    nil,
+
+		lastSeen:   time.Now(),
+		faceId:     0,
+		advertWire: nil,
 	}
 	nt.neighbors[name.Hash()] = neighbor
 	return neighbor
@@ -77,7 +78,7 @@ func (nt *NeighborTable) Add(name enc.Name) *NeighborState {
 func (nt *NeighborTable) Remove(name enc.Name) {
 	hash := name.Hash()
 	if ns := nt.GetH(hash); ns != nil {
-		ns.Advert = nil
+		ns.delete()
 	}
 	delete(nt.neighbors, hash)
 }
@@ -95,6 +96,10 @@ func (ns *NeighborState) SetAdvert(advert *tlv.Advertisement, wire []byte) {
 	ns.advertWire = wire
 }
 
+func (ns *NeighborState) IsDead() bool {
+	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval
+}
+
 // Call this when a ping is received from a face.
 // This will automatically register the face route with the neighbor
 // and update the last seen time for the neighbor.
@@ -102,51 +107,49 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 	// Update last seen time for neighbor
 	ns.lastSeen = time.Now()
 
-	// Check if already registered.
-	// This likely has only one entry; iterating is faster than a map.
-	for _, face := range ns.faces {
-		if face.faceId == faceId {
-			face.lastSeen = ns.lastSeen
-			return nil
-		}
-	}
-
-	// Mark face as registered
-	ns.faces = append(ns.faces, &NeighborFace{
-		faceId:   faceId,
-		lastSeen: ns.lastSeen,
-	})
-
-	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-		Module: "rib",
-		Cmd:    "register",
-		Args: &mgmt.ControlArgs{
-			FaceId: utils.IdPtr(faceId),
-			Name:   ns.Name,
-		},
-		Retries: 8,
-	})
-
-	return nil
-}
-
-func (ns *NeighborState) Prune() {
-	// Prune faces that have not been seen in a while
-	for _, face := range ns.faces {
-		if time.Since(face.lastSeen) > ns.nt.config.RouterDeadInterval {
+	// If face ID has changed, re-register face.
+	if ns.faceId != faceId {
+		// Unregister old face if needed
+		if ns.faceId != 0 {
 			ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
 				Module: "rib",
 				Cmd:    "unregister",
 				Args: &mgmt.ControlArgs{
-					FaceId: utils.IdPtr(face.faceId),
+					FaceId: utils.IdPtr(ns.faceId),
 					Name:   ns.Name,
 				},
 				Retries: 3,
 			})
 		}
+
+		// Register new face
+		ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+			Module: "rib",
+			Cmd:    "register",
+			Args: &mgmt.ControlArgs{
+				FaceId: utils.IdPtr(faceId),
+				Name:   ns.Name,
+			},
+			Retries: 3,
+		})
 	}
+
+	return nil
 }
 
-func (ns *NeighborState) IsDead() bool {
-	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval
+// Called when the neighbor is removed from the neighbor table.
+func (ns *NeighborState) delete() {
+	// Just in case
+	ns.Advert = nil
+
+	// Single attempt to unregister the face
+	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+		Module: "rib",
+		Cmd:    "unregister",
+		Args: &mgmt.ControlArgs{
+			FaceId: utils.IdPtr(ns.faceId),
+			Name:   ns.Name,
+		},
+		Retries: 3,
+	})
 }

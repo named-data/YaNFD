@@ -62,19 +62,16 @@ func (dv *Router) checkDeadNeighbors() {
 
 	dirty := false
 	for _, ns := range dv.neighbors.GetAll() {
-		// Remove any dead router routes
-		ns.Prune()
-
 		// Check if the neighbor is entirely dead
 		if ns.IsDead() {
 			log.Infof("checkDeadNeighbors: Neighbor %s is dead", ns.Name.String())
 
+			// This is the ONLY place that can remove neighbors
+			dv.neighbors.Remove(ns.Name)
+
 			// Remove neighbor from RIB and prune
 			dirty = dv.rib.RemoveNextHop(ns.Name) || dirty
 			dirty = dv.rib.Prune() || dirty
-
-			// This is the ONLY place that can remove neighbors
-			dv.neighbors.Remove(ns.Name)
 		}
 	}
 
