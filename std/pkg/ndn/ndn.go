@@ -214,6 +214,9 @@ type Engine interface {
 	// To simplify the implementation, finalName needs to be the final Interest name given by MakeInterest.
 	// The callback should create go routine or channel back to another routine to avoid blocking the main thread.
 	Express(finalName enc.Name, config *InterestConfig, rawInterest enc.Wire, callback ExpressCallbackFunc) error
+	// ExecMgmtCmd executes a management command.
+	// args is a pointer to mgmt.ControlArgs
+	ExecMgmtCmd(module string, cmd string, args any) error
 }
 
 type ErrInvalidValue struct {

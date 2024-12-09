@@ -432,12 +432,17 @@ func (e *Engine) Express(
 	return err
 }
 
-func (e *Engine) ExecMgmtCmd(module string, cmd string, args *mgmt.ControlArgs) error {
+func (e *Engine) ExecMgmtCmd(module string, cmd string, args any) error {
+	cmdArgs, ok := args.(*mgmt.ControlArgs)
+	if !ok {
+		return ndn.ErrInvalidValue{Item: "args", Value: args}
+	}
+
 	intCfg := &ndn.InterestConfig{
 		Lifetime: utils.IdPtr(1 * time.Second),
 		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
 	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd(module, cmd, args, intCfg)
+	name, cmdWire, err := e.mgmtConf.MakeCmd(module, cmd, cmdArgs, intCfg)
 	if err != nil {
 		return err
 	}
