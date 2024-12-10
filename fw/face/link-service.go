@@ -225,43 +225,57 @@ func (l *linkServiceBase) SendPacket(packet *defn.Pkt) {
 	}
 }
 
-func (l *linkServiceBase) dispatchIncomingPacket(netPacket *defn.Pkt) {
-	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
-	switch {
-	case netPacket.L3.Interest != nil:
-		netPacket.Name = netPacket.L3.Interest.NameV
-		thread := fw.HashNameToFwThread(netPacket.L3.Interest.NameV)
-		core.LogTrace(l, "Dispatched Interest to thread ", thread)
-		dispatch.GetFWThread(thread).QueueInterest(netPacket)
-	case netPacket.L3.Data != nil:
-		netPacket.Name = netPacket.L3.Data.NameV
-		if len(netPacket.PitToken) == 6 {
-			// Decode PitToken. If it's for us, it's a uint16 + uint32.
-			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
-			fwThread := dispatch.GetFWThread(int(pitTokenThread))
-			if fwThread == nil { // invalid PIT token present
-				core.LogError(l, "Invalid PIT token attached to Data packet - DROP")
-				break
-			}
-
-			core.LogTrace(l, "Dispatched Data to thread ", pitTokenThread)
-			fwThread.QueueData(netPacket)
-		} else if l.Scope() == defn.Local {
-			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
-			// We need to do this because producers do not attach PIT tokens to their data packets.
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.L3.Data.NameV) {
-				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
-				dispatch.GetFWThread(thread).QueueData(netPacket)
-			}
-		} else {
-			// Only exact-match for now (no CanBePrefix)
-			thread := fw.HashNameToFwThread(netPacket.L3.Data.NameV)
-			core.LogTrace(l, "Dispatched Data to thread ", thread)
-			dispatch.GetFWThread(thread).QueueData(netPacket)
-		}
-	default:
-		core.LogError(l, "Cannot dispatch packet of unknown type ")
+func (l *linkServiceBase) dispatchInterest(pkt *defn.Pkt) {
+	if pkt.L3.Interest == nil {
+		panic("dispatchInterest called with packet that is not Interest")
 	}
+
+	// Store name for easy access
+	pkt.Name = pkt.L3.Interest.NameV
+
+	// Hash name to thread
+	thread := fw.HashNameToFwThread(pkt.Name)
+	core.LogTrace(l, "Dispatched Interest to thread ", thread)
+	dispatch.GetFWThread(thread).QueueInterest(pkt)
+}
+
+func (l *linkServiceBase) dispatchData(pkt *defn.Pkt) {
+	if pkt.L3.Data == nil {
+		panic("dispatchData called with packet that is not Data")
+	}
+
+	// Store name for easy access
+	pkt.Name = pkt.L3.Data.NameV
+
+	// Decode PitToken. If it's for us, it's a uint16 + uint32.
+	if len(pkt.PitToken) == 6 {
+		thread := binary.BigEndian.Uint16(pkt.PitToken)
+		fwThread := dispatch.GetFWThread(int(thread))
+		if fwThread == nil {
+			core.LogError(l, "Invalid PIT token attached to Data packet - DROP")
+			return
+		}
+
+		core.LogTrace(l, "Dispatched Data to thread ", thread)
+		fwThread.QueueData(pkt)
+		return
+	}
+
+	// Only if from a local face (and therefore from a producer), dispatch to
+	// threads matching every prefix. We need to do this because producers do
+	// not attach PIT tokens to their data packets.
+	if l.Scope() == defn.Local {
+		for _, thread := range fw.HashNameToAllPrefixFwThreads(pkt.Name) {
+			core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
+			dispatch.GetFWThread(thread).QueueData(pkt)
+		}
+		return
+	}
+
+	// Only exact-match for now (no CanBePrefix)
+	thread := fw.HashNameToFwThread(pkt.Name)
+	core.LogTrace(l, "Dispatched Data to thread ", thread)
+	dispatch.GetFWThread(thread).QueueData(pkt)
 }
 
 func (l *linkServiceBase) Close() {

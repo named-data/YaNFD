@@ -143,8 +143,8 @@ func (l *NDNLPLinkService) Run(optNewFrame []byte) {
 	<-l.hasImplQuit
 	l.HasQuit <- true
 }
-func sendPacket(l *NDNLPLinkService, netPacket *defn.Pkt) {
-	wire := netPacket.Raw
+func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
+	wire := pkt.Raw
 
 	if l.transport.State() != defn.Up {
 		core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
@@ -152,19 +152,19 @@ func sendPacket(l *NDNLPLinkService, netPacket *defn.Pkt) {
 		return
 	}
 	// Counters
-	if netPacket.L3.Interest != nil {
+	if pkt.L3.Interest != nil {
 		l.nOutInterests++
-	} else if netPacket.L3.Data != nil {
+	} else if pkt.L3.Data != nil {
 		l.nOutData++
 	}
 
 	now := time.Now()
 
 	effectiveMtu := l.transport.MTU() - l.headerOverhead
-	if netPacket.PitToken != nil {
+	if pkt.PitToken != nil {
 		effectiveMtu -= pitTokenOverhead
 	}
-	if netPacket.CongestionMark != nil {
+	if pkt.CongestionMark != nil {
 		effectiveMtu -= congestionMarkOverhead
 	}
 
@@ -234,18 +234,18 @@ func sendPacket(l *NDNLPLinkService, netPacket *defn.Pkt) {
 	}
 
 	// PIT tokens
-	if len(netPacket.PitToken) > 0 {
-		fragments[0].PitToken = netPacket.PitToken
+	if len(pkt.PitToken) > 0 {
+		fragments[0].PitToken = pkt.PitToken
 	}
 
 	// Incoming face indication
-	if l.options.IsIncomingFaceIndicationEnabled && netPacket.IncomingFaceID != nil {
-		fragments[0].IncomingFaceId = netPacket.IncomingFaceID
+	if l.options.IsIncomingFaceIndicationEnabled && pkt.IncomingFaceID != nil {
+		fragments[0].IncomingFaceId = pkt.IncomingFaceID
 	}
 
 	// Congestion marking
-	if netPacket.CongestionMark != nil {
-		fragments[0].CongestionMark = netPacket.CongestionMark
+	if pkt.CongestionMark != nil {
+		fragments[0].CongestionMark = pkt.CongestionMark
 	}
 
 	// Send fragment(s)
@@ -278,8 +278,8 @@ func (l *NDNLPLinkService) runSend() {
 
 	for {
 		select {
-		case netPacket := <-l.sendQueue:
-			sendPacket(l, netPacket)
+		case pkt := <-l.sendQueue:
+			sendPacket(l, pkt)
 		case <-l.hasTransportQuit:
 			l.hasImplQuit <- true
 			return
@@ -287,27 +287,31 @@ func (l *NDNLPLinkService) runSend() {
 	}
 }
 
-func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
+func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 	// We have to copy so receive transport buffer can be reused
-	wire := make([]byte, len(rawFrame))
-	copy(wire, rawFrame)
+	wire := make([]byte, len(frame))
+	copy(wire, frame)
 
 	// All incoming frames come through a link service
 	// Attempt to decode buffer into LpPacket
-	netPacket := &defn.Pkt{
+	pkt := &defn.Pkt{
 		IncomingFaceID: utils.IdPtr(l.faceID),
 	}
-	packet, _, e := spec.ReadPacket(enc.NewBufferReader(wire))
-	if e != nil {
-		core.LogError(l, e)
+
+	L2, _, err := spec.ReadPacket(enc.NewBufferReader(wire))
+	if err != nil {
+		core.LogError(l, err)
 		return
 	}
-	if packet.LpPacket == nil {
+
+	if L2.LpPacket == nil {
 		// Bare Data or Interest packet
-		netPacket.Raw = wire
-		netPacket.L3 = packet
+		pkt.Raw = wire
+		pkt.L3 = L2
 	} else {
-		fragment := packet.LpPacket.Fragment
+		// NDNLPv2 frame
+		LP := L2.LpPacket
+		fragment := LP.Fragment
 
 		// If there is no fragment, then IDLE packet, drop.
 		if len(fragment) == 0 {
@@ -317,52 +321,52 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 
 		// Reassembly
 		if l.options.IsReassemblyEnabled {
-			if packet.LpPacket.Sequence == nil {
+			if LP.Sequence == nil {
 				core.LogInfo(l, "Received NDNLPv2 frame without Sequence but reassembly requires it - DROP")
 				return
 			}
 
 			fragIndex := uint64(0)
-			if packet.LpPacket.FragIndex != nil {
-				fragIndex = *packet.LpPacket.FragIndex
+			if LP.FragIndex != nil {
+				fragIndex = *LP.FragIndex
 			}
 			fragCount := uint64(1)
-			if packet.LpPacket.FragCount != nil {
-				fragCount = *packet.LpPacket.FragCount
+			if LP.FragCount != nil {
+				fragCount = *LP.FragCount
 			}
-			baseSequence := *packet.LpPacket.Sequence - fragIndex
+			baseSequence := *LP.Sequence - fragIndex
 
 			core.LogTrace(l, "Received fragment ", fragIndex, " of ", fragCount, " for ", baseSequence)
 			if fragIndex == 0 && fragCount == 1 {
 				// Bypass reassembly since only one fragment
 			} else {
-				fragment = l.reassemblePacket(packet.LpPacket, baseSequence, fragIndex, fragCount)
+				fragment = l.reassemblePacket(LP, baseSequence, fragIndex, fragCount)
 				if fragment == nil {
 					// Nothing more to be done, so return
 					return
 				}
 			}
-		} else if packet.LpPacket.FragCount != nil || packet.LpPacket.FragIndex != nil {
+		} else if LP.FragCount != nil || LP.FragIndex != nil {
 			core.LogWarn(l, "Received NDNLPv2 frame containing fragmentation fields but reassembly disabled - DROP")
 			return
 		}
 
 		// Congestion mark
-		netPacket.CongestionMark = packet.LpPacket.CongestionMark
+		pkt.CongestionMark = LP.CongestionMark
 
 		// Consumer-controlled forwarding (NextHopFaceId)
-		if l.options.IsConsumerControlledForwardingEnabled && packet.LpPacket.NextHopFaceId != nil {
-			netPacket.NextHopFaceID = packet.LpPacket.NextHopFaceId
+		if l.options.IsConsumerControlledForwardingEnabled && LP.NextHopFaceId != nil {
+			pkt.NextHopFaceID = LP.NextHopFaceId
 		}
 
 		// Local cache policy
-		if l.options.IsLocalCachePolicyEnabled && packet.LpPacket.CachePolicy != nil {
-			netPacket.CachePolicy = &packet.LpPacket.CachePolicy.CachePolicyType
+		if l.options.IsLocalCachePolicyEnabled && LP.CachePolicy != nil {
+			pkt.CachePolicy = &LP.CachePolicy.CachePolicyType
 		}
 
 		// PIT Token
-		if len(packet.LpPacket.PitToken) > 0 {
-			netPacket.PitToken = packet.LpPacket.PitToken
+		if len(LP.PitToken) > 0 {
+			pkt.PitToken = LP.PitToken
 		}
 
 		// Copy fragment to wire buffer
@@ -372,24 +376,31 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		}
 
 		// Parse inner packet in place
-		packet, _, e = spec.ReadPacket(enc.NewBufferReader(wire))
-		if e != nil {
+		L3, _, err := spec.ReadPacket(enc.NewBufferReader(wire))
+		if err != nil {
 			return
 		}
-		netPacket.Raw = wire
-		netPacket.L3 = packet
+		pkt.Raw = wire
+		pkt.L3 = L3
 	}
-	// Counters
-	if netPacket.L3.Interest != nil {
+
+	// Dispatch and update counters
+	if pkt.L3.Interest != nil {
 		l.nInInterests++
-	} else if netPacket.L3.Data != nil {
+		l.dispatchInterest(pkt)
+	} else if pkt.L3.Data != nil {
 		l.nInData++
+		l.dispatchData(pkt)
+	} else {
+		core.LogError(l, "Attempted dispatch packet of unknown type")
 	}
-	l.dispatchIncomingPacket(netPacket)
 }
 
 func (l *NDNLPLinkService) reassemblePacket(
-	frame *spec.LpPacket, baseSequence uint64, fragIndex uint64, fragCount uint64,
+	frame *spec.LpPacket,
+	baseSequence uint64,
+	fragIndex uint64,
+	fragCount uint64,
 ) enc.Wire {
 	_, hasSequence := l.partialMessageStore[baseSequence]
 	if !hasSequence {
