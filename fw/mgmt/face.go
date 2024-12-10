@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
+	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face"
-	"github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
@@ -93,7 +93,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		return
 	}
 
-	URI := ndn_defn.DecodeURIString(*params.Uri)
+	URI := defn.DecodeURIString(*params.Uri)
 	if URI == nil || URI.Canonize() != nil {
 		core.LogWarn(f, "Cannot canonize remote URI in ControlParameters for ", interest.Name())
 		response = makeControlResponse(406, "URI could not be canonized", nil)
@@ -165,8 +165,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 		if params.Mtu != nil {
 			mtu := int(*params.Mtu)
-			if *params.Mtu > ndn_defn.MaxNDNPacketSize {
-				mtu = ndn_defn.MaxNDNPacketSize
+			if *params.Mtu > defn.MaxNDNPacketSize {
+				mtu = defn.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
 		}
@@ -248,8 +248,8 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 		if params.Mtu != nil {
 			mtu := int(*params.Mtu)
-			if *params.Mtu > ndn_defn.MaxNDNPacketSize {
-				mtu = ndn_defn.MaxNDNPacketSize
+			if *params.Mtu > defn.MaxNDNPacketSize {
+				mtu = defn.MaxNDNPacketSize
 			}
 			transport.SetMTU(mtu)
 		}
@@ -415,8 +415,8 @@ func (f *FaceModule) update(interest *spec.Interest, pitToken []byte, inFace uin
 	if params.Mtu != nil {
 		oldMTU := selectedFace.MTU()
 		newMTU := int(*params.Mtu)
-		if *params.Mtu > ndn_defn.MaxNDNPacketSize {
-			newMTU = ndn_defn.MaxNDNPacketSize
+		if *params.Mtu > defn.MaxNDNPacketSize {
+			newMTU = defn.MaxNDNPacketSize
 		}
 		selectedFace.SetMTU(newMTU)
 		core.LogInfo(f, "FaceID=", faceID, ", MTU ", oldMTU, " -> ", newMTU)

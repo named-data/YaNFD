@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
+	defn "github.com/named-data/YaNFD/defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
@@ -85,7 +85,7 @@ func MakeNDNLPLinkService(transport transport, options NDNLPLinkServiceOptions) 
 	l.nextSequence = 0
 	l.nextTxSequence = 0
 	l.congestionCheck = 0
-	l.outFrame = make([]byte, ndn_defn.MaxNDNPacketSize)
+	l.outFrame = make([]byte, defn.MaxNDNPacketSize)
 	return l
 }
 
@@ -143,18 +143,18 @@ func (l *NDNLPLinkService) Run(optNewFrame []byte) {
 	<-l.hasImplQuit
 	l.HasQuit <- true
 }
-func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
-	wire := netPacket.RawBytes
+func sendPacket(l *NDNLPLinkService, netPacket *defn.Pkt) {
+	wire := netPacket.Raw
 
-	if l.transport.State() != ndn_defn.Up {
+	if l.transport.State() != defn.Up {
 		core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
 		l.hasImplQuit <- true
 		return
 	}
 	// Counters
-	if netPacket.EncPacket.Interest != nil {
+	if netPacket.L3.Interest != nil {
 		l.nOutInterests++
-	} else if netPacket.EncPacket.Data != nil {
+	} else if netPacket.L3.Data != nil {
 		l.nOutData++
 	}
 
@@ -294,7 +294,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 
 	// All incoming frames come through a link service
 	// Attempt to decode buffer into LpPacket
-	netPacket := &ndn_defn.PendingPacket{
+	netPacket := &defn.Pkt{
 		IncomingFaceID: utils.IdPtr(l.faceID),
 	}
 	packet, _, e := spec.ReadPacket(enc.NewBufferReader(wire))
@@ -304,8 +304,8 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	}
 	if packet.LpPacket == nil {
 		// Bare Data or Interest packet
-		netPacket.RawBytes = wire
-		netPacket.EncPacket = packet
+		netPacket.Raw = wire
+		netPacket.L3 = packet
 	} else {
 		fragment := packet.LpPacket.Fragment
 
@@ -376,13 +376,13 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 		if e != nil {
 			return
 		}
-		netPacket.RawBytes = wire
-		netPacket.EncPacket = packet
+		netPacket.Raw = wire
+		netPacket.L3 = packet
 	}
 	// Counters
-	if netPacket.EncPacket.Interest != nil {
+	if netPacket.L3.Interest != nil {
 		l.nInInterests++
-	} else if netPacket.EncPacket.Data != nil {
+	} else if netPacket.L3.Data != nil {
 		l.nInData++
 	}
 	l.dispatchIncomingPacket(netPacket)

@@ -21,7 +21,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/named-data/YaNFD/core"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
+	defn "github.com/named-data/YaNFD/defn"
 )
 
 // WebSocketListenerConfig contains WebSocketListener configuration.
@@ -64,7 +64,7 @@ func NewWebSocketListener(cfg WebSocketListenerConfig) (*WebSocketListener, erro
 			WriteBufferPool: &sync.Pool{},
 			CheckOrigin:     func(r *http.Request) bool { return true },
 		},
-		localURI: ndn_defn.MakeWebSocketServerFaceURI(localURI),
+		localURI: defn.MakeWebSocketServerFaceURI(localURI),
 	}
 	if cfg.TLSEnabled {
 		cert, e := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
@@ -84,7 +84,7 @@ func NewWebSocketListener(cfg WebSocketListenerConfig) (*WebSocketListener, erro
 type WebSocketListener struct {
 	server   http.Server
 	upgrader websocket.Upgrader
-	localURI *ndn_defn.URI
+	localURI *defn.URI
 }
 
 var _ Listener = &WebSocketListener{}

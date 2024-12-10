@@ -5,19 +5,19 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package ndn_defn
+package defn
 
 import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
-// PendingPacket represents a pending network-layer packet to be sent
-// or recently received on the link, plus any associated metadata.
-type PendingPacket struct {
-	Name      enc.Name
-	EncPacket *spec.Packet
-	RawBytes  []byte
+// Pkt represents a pending packet to be sent or recently
+// received on the link, plus any associated metadata.
+type Pkt struct {
+	Name enc.Name
+	L3   *spec.Packet
+	Raw  []byte
 
 	PitToken       []byte
 	CongestionMark *uint64
