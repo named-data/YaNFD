@@ -39,7 +39,7 @@ func (s *BestRoute) AfterContentStoreHit(
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", packet.NameCache, " to FaceID=", inFace)
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", packet.Name, " to FaceID=", inFace)
 	s.SendData(packet, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
@@ -50,7 +50,7 @@ func (s *BestRoute) AfterReceiveData(
 ) {
 	core.LogTrace(s, "AfterReceiveData: Data=", ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", packet.NameCache, " to FaceID=", faceID)
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", packet.Name, " to FaceID=", faceID)
 		s.SendData(packet, pitEntry, faceID, inFace)
 	}
 }
@@ -63,13 +63,13 @@ func (s *BestRoute) AfterReceiveInterest(
 ) {
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.NameCache, " to FaceID=", nh.Nexthop)
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nh.Nexthop)
 		if sent := s.SendInterest(packet, pitEntry, nh.Nexthop, inFace); sent {
 			return
 		}
 	}
 
-	core.LogDebug(s, "AfterReceiveInterest: No usable nexthop for Interest=", packet.NameCache, " - DROP")
+	core.LogDebug(s, "AfterReceiveInterest: No usable nexthop for Interest=", packet.Name, " - DROP")
 }
 
 func (s *BestRoute) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64) {

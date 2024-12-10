@@ -37,7 +37,7 @@ func (s *Multicast) AfterContentStoreHit(
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", packet.NameCache, " to FaceID=", inFace)
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", packet.Name, " to FaceID=", inFace)
 	s.SendData(packet, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
@@ -46,9 +46,9 @@ func (s *Multicast) AfterReceiveData(
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
-	core.LogTrace(s, "AfterReceiveData: Data=", packet.NameCache, ", ", len(pitEntry.InRecords()), " In-Records")
+	core.LogTrace(s, "AfterReceiveData: Data=", packet.Name, ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", packet.NameCache, " to FaceID=", faceID)
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", packet.Name, " to FaceID=", faceID)
 		s.SendData(packet, pitEntry, faceID, inFace)
 	}
 }
@@ -60,12 +60,12 @@ func (s *Multicast) AfterReceiveInterest(
 	nexthops []*table.FibNextHopEntry,
 ) {
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", packet.NameCache, " - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", packet.Name, " - DROP")
 		return
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.NameCache, " to FaceID=", nexthop.Nexthop)
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nexthop.Nexthop)
 		s.SendInterest(packet, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
