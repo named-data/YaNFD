@@ -180,7 +180,7 @@ func sendPacket(l *NDNLPLinkService, netPacket *ndn_defn.PendingPacket) {
 		nFragments := int((len(wire) + effectiveMtu - 1) / effectiveMtu)
 		lastFragSize := len(wire) - effectiveMtu*(nFragments-1)
 		fragments = make([]*spec.LpPacket, nFragments)
-		reader := enc.NewWireReader(enc.Wire{wire})
+		reader := enc.NewBufferReader(wire)
 		for i := 0; i < nFragments; i++ {
 			if i < nFragments-1 {
 				frag, err := reader.ReadWire(effectiveMtu)
@@ -367,11 +367,19 @@ func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
 		if len(packet.LpPacket.PitToken) > 0 {
 			netPacket.PitToken = packet.LpPacket.PitToken
 		}
-		packet, _, e = spec.ReadPacket(enc.NewWireReader(fragment))
+
+		// Copy fragment to wire buffer
+		wire = wire[:0]
+		for _, b := range fragment {
+			wire = append(wire, b...)
+		}
+
+		// Parse inner packet in place
+		packet, _, e = spec.ReadPacket(enc.NewBufferReader(wire))
 		if e != nil {
 			return
 		}
-		netPacket.RawBytes = fragment.Join()
+		netPacket.RawBytes = wire
 		netPacket.EncPacket = packet
 	}
 	// Counters
