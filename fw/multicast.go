@@ -11,7 +11,7 @@ import (
 	"reflect"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn_defn"
+	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -33,7 +33,7 @@ func (s *Multicast) Instantiate(fwThread *Thread) {
 }
 
 func (s *Multicast) AfterContentStoreHit(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
@@ -42,7 +42,7 @@ func (s *Multicast) AfterContentStoreHit(
 }
 
 func (s *Multicast) AfterReceiveData(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
@@ -54,7 +54,7 @@ func (s *Multicast) AfterReceiveData(
 }
 
 func (s *Multicast) AfterReceiveInterest(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 	nexthops []*table.FibNextHopEntry,

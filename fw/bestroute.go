@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn_defn"
+	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -35,7 +35,7 @@ func (s *BestRoute) Instantiate(fwThread *Thread) {
 }
 
 func (s *BestRoute) AfterContentStoreHit(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
@@ -44,7 +44,7 @@ func (s *BestRoute) AfterContentStoreHit(
 }
 
 func (s *BestRoute) AfterReceiveData(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 ) {
@@ -56,7 +56,7 @@ func (s *BestRoute) AfterReceiveData(
 }
 
 func (s *BestRoute) AfterReceiveInterest(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	inFace uint64,
 	nexthops []*table.FibNextHopEntry,

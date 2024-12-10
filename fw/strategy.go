@@ -10,7 +10,7 @@ package fw
 import (
 	"strconv"
 
-	"github.com/named-data/YaNFD/ndn_defn"
+	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -25,15 +25,15 @@ type Strategy interface {
 	GetName() enc.Name
 
 	AfterContentStoreHit(
-		packet *ndn_defn.PendingPacket,
+		packet *defn.Pkt,
 		pitEntry table.PitEntry,
 		inFace uint64)
 	AfterReceiveData(
-		packet *ndn_defn.PendingPacket,
+		packet *defn.Pkt,
 		pitEntry table.PitEntry,
 		inFace uint64)
 	AfterReceiveInterest(
-		packet *ndn_defn.PendingPacket,
+		packet *defn.Pkt,
 		pitEntry table.PitEntry,
 		inFace uint64,
 		nexthops []*table.FibNextHopEntry)
@@ -83,7 +83,7 @@ func (s *StrategyBase) GetName() enc.Name {
 
 // SendInterest sends an Interest on the specified face.
 func (s *StrategyBase) SendInterest(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	nexthop uint64,
 	inFace uint64,
@@ -93,7 +93,7 @@ func (s *StrategyBase) SendInterest(
 
 // SendData sends a Data packet on the specified face.
 func (s *StrategyBase) SendData(
-	packet *ndn_defn.PendingPacket,
+	packet *defn.Pkt,
 	pitEntry table.PitEntry,
 	nexthop uint64,
 	inFace uint64,

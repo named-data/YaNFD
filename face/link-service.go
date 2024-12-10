@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
+	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/dispatch"
 	"github.com/named-data/YaNFD/fw"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // LinkService is an interface for link service implementations
@@ -25,24 +25,24 @@ type LinkService interface {
 	SetFaceID(faceID uint64)
 
 	FaceID() uint64
-	LocalURI() *ndn_defn.URI
-	RemoteURI() *ndn_defn.URI
+	LocalURI() *defn.URI
+	RemoteURI() *defn.URI
 	Persistency() Persistency
 	SetPersistency(persistency Persistency)
-	Scope() ndn_defn.Scope
-	LinkType() ndn_defn.LinkType
+	Scope() defn.Scope
+	LinkType() defn.LinkType
 	MTU() int
 	SetMTU(mtu int)
 
 	ExpirationPeriod() time.Duration
-	State() ndn_defn.State
+	State() defn.State
 
 	// Run is the main entry point for running face thread
 	// optNewFrame is optional new incoming frame
 	Run(optNewFrame []byte)
 
 	// SendPacket Add a packet to the send queue for this link service
-	SendPacket(packet *ndn_defn.PendingPacket)
+	SendPacket(packet *defn.Pkt)
 	handleIncomingFrame(frame []byte)
 
 	Close()
@@ -65,7 +65,7 @@ type linkServiceBase struct {
 	HasQuit          chan bool
 	hasImplQuit      chan bool
 	hasTransportQuit chan bool
-	sendQueue        chan *ndn_defn.PendingPacket
+	sendQueue        chan *defn.Pkt
 
 	// Counters
 	nInInterests  uint64
@@ -106,7 +106,7 @@ func (l *linkServiceBase) makeLinkServiceBase() {
 	l.HasQuit = make(chan bool)
 	l.hasImplQuit = make(chan bool)
 	l.hasTransportQuit = make(chan bool)
-	l.sendQueue = make(chan *ndn_defn.PendingPacket, faceQueueSize)
+	l.sendQueue = make(chan *defn.Pkt, faceQueueSize)
 }
 
 //
@@ -124,12 +124,12 @@ func (l *linkServiceBase) FaceID() uint64 {
 }
 
 // LocalURI returns the local URI of the underlying transport
-func (l *linkServiceBase) LocalURI() *ndn_defn.URI {
+func (l *linkServiceBase) LocalURI() *defn.URI {
 	return l.transport.LocalURI()
 }
 
 // RemoteURI returns the remote URI of the underlying transport
-func (l *linkServiceBase) RemoteURI() *ndn_defn.URI {
+func (l *linkServiceBase) RemoteURI() *defn.URI {
 	return l.transport.RemoteURI()
 }
 
@@ -144,12 +144,12 @@ func (l *linkServiceBase) SetPersistency(persistency Persistency) {
 }
 
 // Scope returns the scope of the underlying transport.
-func (l *linkServiceBase) Scope() ndn_defn.Scope {
+func (l *linkServiceBase) Scope() defn.Scope {
 	return l.transport.Scope()
 }
 
 // LinkType returns the type of the link.
-func (l *linkServiceBase) LinkType() ndn_defn.LinkType {
+func (l *linkServiceBase) LinkType() defn.LinkType {
 	return l.transport.LinkType()
 }
 
@@ -169,7 +169,7 @@ func (l *linkServiceBase) ExpirationPeriod() time.Duration {
 }
 
 // State returns the state of the underlying transport.
-func (l *linkServiceBase) State() ndn_defn.State {
+func (l *linkServiceBase) State() defn.State {
 	return l.transport.State()
 }
 
@@ -212,7 +212,7 @@ func (l *linkServiceBase) NOutBytes() uint64 {
 //
 
 // SendPacket adds a packet to the send queue for this link service
-func (l *linkServiceBase) SendPacket(packet *ndn_defn.PendingPacket) {
+func (l *linkServiceBase) SendPacket(packet *defn.Pkt) {
 	select {
 	case l.sendQueue <- packet:
 		// Packet queued successfully
@@ -225,16 +225,16 @@ func (l *linkServiceBase) SendPacket(packet *ndn_defn.PendingPacket) {
 	}
 }
 
-func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPacket) {
+func (l *linkServiceBase) dispatchIncomingPacket(netPacket *defn.Pkt) {
 	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
 	switch {
-	case netPacket.EncPacket.Interest != nil:
-		netPacket.Name = netPacket.EncPacket.Interest.NameV
-		thread := fw.HashNameToFwThread(netPacket.EncPacket.Interest.NameV)
+	case netPacket.L3.Interest != nil:
+		netPacket.Name = netPacket.L3.Interest.NameV
+		thread := fw.HashNameToFwThread(netPacket.L3.Interest.NameV)
 		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
-	case netPacket.EncPacket.Data != nil:
-		netPacket.Name = netPacket.EncPacket.Data.NameV
+	case netPacket.L3.Data != nil:
+		netPacket.Name = netPacket.L3.Data.NameV
 		if len(netPacket.PitToken) == 6 {
 			// Decode PitToken. If it's for us, it's a uint16 + uint32.
 			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
@@ -246,16 +246,16 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 
 			core.LogTrace(l, "Dispatched Data to thread ", pitTokenThread)
 			fwThread.QueueData(netPacket)
-		} else if l.Scope() == ndn_defn.Local {
+		} else if l.Scope() == defn.Local {
 			// Only if from a local face (and therefore from a producer), dispatch to threads matching every prefix.
 			// We need to do this because producers do not attach PIT tokens to their data packets.
-			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.EncPacket.Data.NameV) {
+			for _, thread := range fw.HashNameToAllPrefixFwThreads(netPacket.L3.Data.NameV) {
 				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
 				dispatch.GetFWThread(thread).QueueData(netPacket)
 			}
 		} else {
 			// Only exact-match for now (no CanBePrefix)
-			thread := fw.HashNameToFwThread(netPacket.EncPacket.Data.NameV)
+			thread := fw.HashNameToFwThread(netPacket.L3.Data.NameV)
 			core.LogTrace(l, "Dispatched Data to thread ", thread)
 			dispatch.GetFWThread(thread).QueueData(netPacket)
 		}
@@ -265,5 +265,5 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 }
 
 func (l *linkServiceBase) Close() {
-	l.transport.changeState(ndn_defn.Down)
+	l.transport.changeState(defn.Down)
 }
