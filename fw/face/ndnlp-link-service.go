@@ -291,11 +291,8 @@ func (l *NDNLPLinkService) handleIncomingFrame(rawFrame []byte) {
 	// We have to copy so receive transport buffer can be reused
 	wire := make([]byte, len(rawFrame))
 	copy(wire, rawFrame)
-	l.processIncomingFrame(wire)
-}
 
-func (l *NDNLPLinkService) processIncomingFrame(wire []byte) {
-	// all incoming frames come through a link service
+	// All incoming frames come through a link service
 	// Attempt to decode buffer into LpPacket
 	netPacket := &ndn_defn.PendingPacket{
 		IncomingFaceID: utils.IdPtr(l.faceID),
