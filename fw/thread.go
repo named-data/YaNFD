@@ -227,8 +227,16 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 			fhName = nil
 		}
 	}
+
+	// Drop packet if no nonce is found
+	if pendingPacket.EncPacket.Interest.NonceV == nil {
+		core.LogInfo(t, "Interest ", pendingPacket.NameCache, " is missing Nonce - DROP")
+		return
+	}
+
 	if exists := t.deadNonceList.Find(
-		pendingPacket.EncPacket.Interest.NameV, *pendingPacket.EncPacket.Interest.NonceV,
+		pendingPacket.EncPacket.Interest.NameV,
+		*pendingPacket.EncPacket.Interest.NonceV,
 	); exists {
 		core.LogInfo(t, "Interest ", pendingPacket.NameCache, " is dropped by DeadNonce: ",
 			*pendingPacket.EncPacket.Interest.NonceV)
