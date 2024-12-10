@@ -143,6 +143,25 @@ func (l *NDNLPLinkService) Run(optNewFrame []byte) {
 	<-l.hasImplQuit
 	l.HasQuit <- true
 }
+
+func (l *NDNLPLinkService) runSend() {
+	core.LogTrace(l, "Starting send thread")
+
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
+	for {
+		select {
+		case pkt := <-l.sendQueue:
+			sendPacket(l, pkt)
+		case <-l.hasTransportQuit:
+			l.hasImplQuit <- true
+			return
+		}
+	}
+}
+
 func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 	wire := pkt.Raw
 
@@ -267,23 +286,6 @@ func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 			l.outFrame = append(l.outFrame, b...)
 		}
 		l.transport.sendFrame(l.outFrame)
-	}
-}
-func (l *NDNLPLinkService) runSend() {
-	core.LogTrace(l, "Starting send thread")
-
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
-
-	for {
-		select {
-		case pkt := <-l.sendQueue:
-			sendPacket(l, pkt)
-		case <-l.hasTransportQuit:
-			l.hasImplQuit <- true
-			return
-		}
 	}
 }
 
