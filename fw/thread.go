@@ -181,7 +181,7 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 	incomingFace := dispatch.GetFace(*packet.IncomingFaceID)
 	if incomingFace == nil {
 		core.LogError(t, "Non-existent incoming FaceID=", *packet.IncomingFaceID,
-			" for Interest=", packet.NameCache, " - DROP")
+			" for Interest=", packet.Name, " - DROP")
 		return
 	}
 
@@ -197,16 +197,16 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 	if len(packet.PitToken) > 0 {
 		incomingPitToken = make([]byte, len(packet.PitToken))
 		copy(incomingPitToken, packet.PitToken)
-		core.LogTrace(t, "OnIncomingInterest: ", packet.NameCache, ", FaceID=", incomingFace.FaceID(), ", Has PitToken")
+		core.LogTrace(t, "OnIncomingInterest: ", packet.Name, ", FaceID=", incomingFace.FaceID(), ", Has PitToken")
 	} else {
-		core.LogTrace(t, "OnIncomingInterest: ", packet.NameCache, ", FaceID=", incomingFace.FaceID())
+		core.LogTrace(t, "OnIncomingInterest: ", packet.Name, ", FaceID=", incomingFace.FaceID())
 	}
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == ndn_defn.NonLocal &&
 		len(interest.NameV) > 0 &&
 		bytes.Equal(interest.NameV[0].Val, LOCALHOST) {
-		core.LogWarn(t, "Interest ", packet.NameCache, " from non-local face=", incomingFace.FaceID(), " violates /localhost scope - DROP")
+		core.LogWarn(t, "Interest ", packet.Name, " from non-local face=", incomingFace.FaceID(), " violates /localhost scope - DROP")
 		return
 	}
 
@@ -236,12 +236,12 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 
 	// Drop packet if no nonce is found
 	if interest.NonceV == nil {
-		core.LogInfo(t, "Interest ", packet.NameCache, " is missing Nonce - DROP")
+		core.LogInfo(t, "Interest ", packet.Name, " is missing Nonce - DROP")
 		return
 	}
 
 	if exists := t.deadNonceList.Find(interest.NameV, *interest.NonceV); exists {
-		core.LogInfo(t, "Interest ", packet.NameCache, " is dropped by DeadNonce: ", *interest.NonceV)
+		core.LogInfo(t, "Interest ", packet.Name, " is dropped by DeadNonce: ", *interest.NonceV)
 		return
 	}
 	// Check if any matching PIT entries (and if duplicate)
@@ -249,7 +249,7 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 	pitEntry, isDuplicate := t.pitCS.InsertInterest(interest, fhName, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
-		core.LogInfo(t, "Interest ", packet.NameCache, " is looping - DROP")
+		core.LogInfo(t, "Interest ", packet.Name, " is looping - DROP")
 		return
 	}
 
@@ -262,7 +262,7 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 	_, isAlreadyPending := pitEntry.InsertInRecord(interest, incomingFace.FaceID(), incomingPitToken)
 
 	if !isAlreadyPending {
-		core.LogTrace(t, "Interest ", packet.NameCache, " is not pending")
+		core.LogTrace(t, "Interest ", packet.Name, " is not pending")
 
 		// Check CS for matching entry
 		if t.pitCS.IsCsServing() {
@@ -276,7 +276,7 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 					packet.EncPacket.Data = csData
 					packet.EncPacket.Interest = nil
 					packet.RawBytes = csWire
-					packet.NameCache = csData.NameV.String()
+					packet.Name = csData.NameV
 					strategy.AfterContentStoreHit(packet, pitEntry, incomingFace.FaceID())
 					return
 				} else if err != nil {
@@ -288,7 +288,7 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 			}
 		}
 	} else {
-		core.LogTrace(t, "Interest ", packet.NameCache, " is already pending")
+		core.LogTrace(t, "Interest ", packet.Name, " is already pending")
 	}
 
 	// Update PIT entry expiration timer
@@ -297,10 +297,10 @@ func (t *Thread) processIncomingInterest(packet *ndn_defn.PendingPacket) {
 	// If NextHopFaceId set, forward to that face (if it exists) or drop
 	if packet.NextHopFaceID != nil {
 		if dispatch.GetFace(*packet.NextHopFaceID) != nil {
-			core.LogTrace(t, "NextHopFaceId is set for Interest ", packet.NameCache, " - dispatching directly to face")
+			core.LogTrace(t, "NextHopFaceId is set for Interest ", packet.Name, " - dispatching directly to face")
 			dispatch.GetFace(*packet.NextHopFaceID).SendPacket(packet)
 		} else {
-			core.LogInfo(t, "Non-existent face specified in NextHopFaceId for Interest ", packet.NameCache, " - DROP")
+			core.LogInfo(t, "Non-existent face specified in NextHopFaceId for Interest ", packet.Name, " - DROP")
 		}
 		return
 	}
@@ -332,18 +332,18 @@ func (t *Thread) processOutgoingInterest(
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", packet.NameCache, " - DROP")
+		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Interest=", packet.Name, " - DROP")
 		return false
 	}
 	if outgoingFace.FaceID() == inFace && outgoingFace.LinkType() != ndn_defn.AdHoc {
-		core.LogDebug(t, "Attempting to send Interest=", packet.NameCache, " back to incoming face - DROP")
+		core.LogDebug(t, "Attempting to send Interest=", packet.Name, " back to incoming face - DROP")
 		return false
 	}
 
 	// Drop if HopLimit (if present) on Interest going to non-local face is 0. If so, drop
 	if interest.HopLimitV != nil && int(*interest.HopLimitV) == 0 &&
 		outgoingFace.Scope() == ndn_defn.NonLocal {
-		core.LogDebug(t, "Attempting to send Interest=", packet.NameCache, " with HopLimit=0 to non-local face - DROP")
+		core.LogDebug(t, "Attempting to send Interest=", packet.Name, " with HopLimit=0 to non-local face - DROP")
 		return false
 	}
 
@@ -400,16 +400,16 @@ func (t *Thread) processIncomingData(packet *ndn_defn.PendingPacket) {
 	// Get incoming face
 	incomingFace := dispatch.GetFace(*packet.IncomingFaceID)
 	if incomingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID=", *packet.IncomingFaceID, " for Data=", packet.NameCache, " DROP")
+		core.LogError(t, "Non-existent nexthop FaceID=", *packet.IncomingFaceID, " for Data=", packet.Name, " DROP")
 		return
 	}
 
 	t.NInData++
 
 	// Check if violates /localhost
-	if incomingFace.Scope() == ndn_defn.NonLocal && len(packet.NameCache) > 0 &&
+	if incomingFace.Scope() == ndn_defn.NonLocal && len(packet.Name) > 0 &&
 		bytes.Equal(data.NameV[0].Val, LOCALHOST) {
-		core.LogWarn(t, "Data ", packet.NameCache, " from non-local FaceID=", *packet.IncomingFaceID, " violates /localhost scope - DROP")
+		core.LogWarn(t, "Data ", packet.Name, " from non-local FaceID=", *packet.IncomingFaceID, " violates /localhost scope - DROP")
 		return
 	}
 
@@ -422,7 +422,7 @@ func (t *Thread) processIncomingData(packet *ndn_defn.PendingPacket) {
 	pitEntries := t.pitCS.FindInterestPrefixMatchByDataEnc(data, pitToken)
 	if len(pitEntries) == 0 {
 		// Unsolicated Data - nothing more to do
-		core.LogDebug(t, "Unsolicited data ", packet.NameCache, " - DROP")
+		core.LogDebug(t, "Unsolicited data ", packet.Name, " - DROP")
 		return
 	}
 
@@ -435,7 +435,7 @@ func (t *Thread) processIncomingData(packet *ndn_defn.PendingPacket) {
 		table.SetExpirationTimerToNow(pitEntries[0])
 
 		// Invoke strategy's AfterReceiveData
-		core.LogTrace(t, "Sending Data=", packet.NameCache, " to strategy=", strategyName)
+		core.LogTrace(t, "Sending Data=", packet.Name, " to strategy=", strategyName)
 		strategy.AfterReceiveData(packet, pitEntries[0], *packet.IncomingFaceID)
 
 		// Mark PIT entry as satisfied
@@ -480,7 +480,7 @@ func (t *Thread) processIncomingData(packet *ndn_defn.PendingPacket) {
 
 			// Call outoing Data pipeline for each pending downstream
 			for downstreamFaceID, downstreamPITToken := range downstreams {
-				core.LogTrace(t, "Multiple matching PIT entries for ", packet.NameCache, ": sending to OnOutgoingData pipeline")
+				core.LogTrace(t, "Multiple matching PIT entries for ", packet.Name, ": sending to OnOutgoingData pipeline")
 				t.processOutgoingData(packet, downstreamFaceID, downstreamPITToken, *packet.IncomingFaceID)
 			}
 		}
@@ -498,18 +498,18 @@ func (t *Thread) processOutgoingData(
 		panic("processOutgoingData called with non-Data packet")
 	}
 
-	core.LogTrace(t, "OnOutgoingData: ", packet.NameCache, ", FaceID=", nexthop)
+	core.LogTrace(t, "OnOutgoingData: ", packet.Name, ", FaceID=", nexthop)
 
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
 	if outgoingFace == nil {
-		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Data=", packet.NameCache, " - DROP")
+		core.LogError(t, "Non-existent nexthop FaceID=", nexthop, " for Data=", packet.Name, " - DROP")
 		return
 	}
 
 	// Check if violates /localhost
 	if outgoingFace.Scope() == ndn_defn.NonLocal && len(data.NameV) > 0 && bytes.Equal(data.NameV[0].Val, LOCALHOST) {
-		core.LogWarn(t, "Data ", packet.NameCache, " cannot be sent to non-local FaceID=", nexthop, " since violates /localhost scope - DROP")
+		core.LogWarn(t, "Data ", packet.Name, " cannot be sent to non-local FaceID=", nexthop, " since violates /localhost scope - DROP")
 		return
 	}
 

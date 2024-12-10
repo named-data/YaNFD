@@ -229,12 +229,12 @@ func (l *linkServiceBase) dispatchIncomingPacket(netPacket *ndn_defn.PendingPack
 	// Hand off to network layer by dispatching to appropriate forwarding thread(s)
 	switch {
 	case netPacket.EncPacket.Interest != nil:
-		netPacket.NameCache = netPacket.EncPacket.Interest.NameV.String()
+		netPacket.Name = netPacket.EncPacket.Interest.NameV
 		thread := fw.HashNameToFwThread(netPacket.EncPacket.Interest.NameV)
 		core.LogTrace(l, "Dispatched Interest to thread ", thread)
 		dispatch.GetFWThread(thread).QueueInterest(netPacket)
 	case netPacket.EncPacket.Data != nil:
-		netPacket.NameCache = netPacket.EncPacket.Data.NameV.String()
+		netPacket.Name = netPacket.EncPacket.Data.NameV
 		if len(netPacket.PitToken) == 6 {
 			// Decode PitToken. If it's for us, it's a uint16 + uint32.
 			pitTokenThread := binary.BigEndian.Uint16(netPacket.PitToken)
