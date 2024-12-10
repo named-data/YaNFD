@@ -179,9 +179,10 @@ func (t *Thread) processIncomingInterest(pendingPacket *ndn_defn.PendingPacket) 
 		return
 	}
 
-	if pendingPacket.EncPacket.Interest.HopLimitV != nil && *pendingPacket.EncPacket.Interest.HopLimitV == 0 {
-		return
-	} else if pendingPacket.EncPacket.Interest.HopLimitV != nil {
+	if pendingPacket.EncPacket.Interest.HopLimitV != nil {
+		if *pendingPacket.EncPacket.Interest.HopLimitV == 0 {
+			return
+		}
 		*pendingPacket.EncPacket.Interest.HopLimitV -= 1
 	}
 
