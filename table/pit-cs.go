@@ -10,21 +10,21 @@ package table
 import (
 	"time"
 
-	"github.com/named-data/YaNFD/ndn_defn"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // PitCsTable dictates what functionality a Pit-Cs table should implement
 // Warning: All functions must be called in the same forwarding goroutine as the creation of the table.
 type PitCsTable interface {
-	InsertInterest(pendingPacket *ndn_defn.PendingPacket, hint enc.Name, inFace uint64) (PitEntry, bool)
+	InsertInterest(interest *spec.Interest, hint enc.Name, inFace uint64) (PitEntry, bool)
 	RemoveInterest(pitEntry PitEntry) bool
-	FindInterestExactMatchEnc(pendingPacket *ndn_defn.PendingPacket) PitEntry
-	FindInterestPrefixMatchByDataEnc(pendingPacket *ndn_defn.PendingPacket, token *uint32) []PitEntry
+	FindInterestExactMatchEnc(interest *spec.Interest) PitEntry
+	FindInterestPrefixMatchByDataEnc(data *spec.Data, token *uint32) []PitEntry
 	PitSize() int
 
-	InsertData(pendingPacket *ndn_defn.PendingPacket)
-	FindMatchingDataFromCS(pendingPacket *ndn_defn.PendingPacket) CsEntry
+	InsertData(data *spec.Data, wire []byte)
+	FindMatchingDataFromCS(interest *spec.Interest) CsEntry
 	CsSize() int
 	IsCsAdmitting() bool
 	IsCsServing() bool
@@ -60,8 +60,8 @@ type PitEntry interface {
 
 	Token() uint32
 
-	InsertInRecord(pendingPacket *ndn_defn.PendingPacket, face uint64, incomingPitToken []byte) (*PitInRecord, bool)
-	InsertOutRecord(pendingPacket *ndn_defn.PendingPacket, face uint64) *PitOutRecord
+	InsertInRecord(interest *spec.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool)
+	InsertOutRecord(interest *spec.Interest, face uint64) *PitOutRecord
 
 	GetOutRecords() []*PitOutRecord
 	ClearOutRecords()
@@ -87,49 +87,51 @@ type basePitEntry struct {
 
 // PitInRecord records an incoming Interest on a given face.
 type PitInRecord struct {
-	Face              uint64
-	LatestTimestamp   time.Time
-	LatestEncInterest *ndn_defn.PendingPacket
-	LatestEncNonce    uint32
-	ExpirationTime    time.Time
-	PitToken          []byte
+	Face            uint64
+	LatestTimestamp time.Time
+	LatestInterest  enc.Name
+	LatestNonce     uint32
+	ExpirationTime  time.Time
+	PitToken        []byte
 }
 
 // PitOutRecord records an outgoing Interest on a given face.
 type PitOutRecord struct {
-	Face              uint64
-	LatestTimestamp   time.Time
-	LatestEncInterest *ndn_defn.PendingPacket
-	LatestEncNonce    uint32
-	ExpirationTime    time.Time
+	Face            uint64
+	LatestTimestamp time.Time
+	LatestInterest  enc.Name
+	LatestNonce     uint32
+	ExpirationTime  time.Time
 }
 
 // CsEntry is an entry in a thread's CS.
 type CsEntry interface {
 	Index() uint64 // the hash of the entry, for fast lookup
 	StaleTime() time.Time
-	EncData() *ndn_defn.PendingPacket
+	Copy() (*spec.Data, []byte, error)
 }
 
 type baseCsEntry struct {
 	index     uint64
 	staleTime time.Time
-	encData   *ndn_defn.PendingPacket
+	wire      []byte
 }
 
 // InsertInRecord finds or inserts an InRecord for the face, updating the
 // metadata and returning whether there was already an in-record in the entry.
 func (bpe *basePitEntry) InsertInRecord(
-	pendingPacket *ndn_defn.PendingPacket, face uint64, incomingPitToken []byte,
+	interest *spec.Interest,
+	face uint64,
+	incomingPitToken []byte,
 ) (*PitInRecord, bool) {
 	var record *PitInRecord
 	var ok bool
 	if record, ok = bpe.inRecords[face]; !ok {
 		record := new(PitInRecord)
 		record.Face = face
-		record.LatestEncNonce = *pendingPacket.EncPacket.Interest.NonceV
+		record.LatestNonce = *interest.NonceV
 		record.LatestTimestamp = time.Now()
-		record.LatestEncInterest = pendingPacket
+		record.LatestInterest = interest.NameV.Clone()
 		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
 		record.PitToken = incomingPitToken
 		bpe.inRecords[face] = record
@@ -137,9 +139,9 @@ func (bpe *basePitEntry) InsertInRecord(
 	}
 
 	// Existing record
-	record.LatestEncNonce = *pendingPacket.EncPacket.Interest.NonceV
+	record.LatestNonce = *interest.NonceV
 	record.LatestTimestamp = time.Now()
-	record.LatestEncInterest = pendingPacket
+	record.LatestInterest = interest.NameV.Clone()
 	record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
 	return record, true
 }
@@ -232,6 +234,14 @@ func (bce *baseCsEntry) StaleTime() time.Time {
 	return bce.staleTime
 }
 
-func (bce *baseCsEntry) EncData() *ndn_defn.PendingPacket {
-	return bce.encData
+func (bce *baseCsEntry) Copy() (*spec.Data, []byte, error) {
+	wire := make([]byte, len(bce.wire))
+	copy(wire, bce.wire)
+
+	data, _, err := spec.ReadPacket(enc.NewBufferReader(wire))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return data.Data, wire, nil
 }

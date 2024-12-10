@@ -7,34 +7,44 @@ import (
 	"testing"
 	"time"
 
-	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/stretchr/testify/assert"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func makeData(name enc.Name, content enc.Wire) *ndn_defn.PendingPacket {
-	data := &spec_2022.Data{
+var VALID_DATA_1 = []byte{
+	0x06, 0x4c, 0x07, 0x1b, 0x08, 0x03, 0x6e, 0x64, 0x6e, 0x08, 0x03, 0x65,
+	0x64, 0x75, 0x08, 0x04, 0x75, 0x63, 0x6c, 0x61, 0x08, 0x04, 0x70, 0x69,
+	0x6e, 0x67, 0x08, 0x03, 0x31, 0x32, 0x33, 0x14, 0x04, 0x19, 0x02, 0x03,
+	0xe8, 0x15, 0x00, 0x16, 0x03, 0x1b, 0x01, 0x00, 0x17, 0x20, 0x8e, 0x94,
+	0xbd, 0xc8, 0xea, 0x4d, 0x7d, 0xba, 0x4a, 0x51, 0x1a, 0x7e, 0xe4, 0x16,
+	0xd4, 0x8f, 0x4d, 0x78, 0x17, 0xca, 0x0e, 0x51, 0xe8, 0x64, 0x05, 0x27,
+	0x01, 0x5b, 0xf7, 0x96, 0xb7, 0x60,
+}
+
+var VALID_DATA_2 = []byte{
+	0x06, 0x4f, 0x07, 0x1e, 0x08, 0x03, 0x6e, 0x64, 0x6e, 0x08, 0x03, 0x65,
+	0x64, 0x75, 0x08, 0x07, 0x61, 0x72, 0x69, 0x7a, 0x6f, 0x6e, 0x61, 0x08,
+	0x04, 0x70, 0x69, 0x6e, 0x67, 0x08, 0x03, 0x31, 0x32, 0x34, 0x14, 0x04,
+	0x19, 0x02, 0x03, 0xe8, 0x15, 0x00, 0x16, 0x03, 0x1b, 0x01, 0x00, 0x17,
+	0x20, 0xc9, 0x9d, 0x60, 0x1a, 0xc3, 0x2a, 0x76, 0xb0, 0x4a, 0x34, 0x80,
+	0xba, 0x14, 0x01, 0x67, 0x17, 0x21, 0x50, 0x80, 0x10, 0xfc, 0x6c, 0x47,
+	0x7d, 0xa9, 0x20, 0xea, 0x8b, 0xda, 0xf6, 0x13, 0xed,
+}
+
+func makeData(name enc.Name, content enc.Wire) *spec.Data {
+	return &spec.Data{
 		NameV:    name,
 		ContentV: content,
 	}
-	netPacket := new(ndn_defn.PendingPacket)
-	netPacket.EncPacket = new(spec_2022.Packet)
-	netPacket.EncPacket.Data = data
-	return netPacket
 }
 
-func makeInterest(name enc.Name) *ndn_defn.PendingPacket {
-	val := new(uint32)
-	*val = rand.Uint32()
-	interest := &spec_2022.Interest{
+func makeInterest(name enc.Name) *spec.Interest {
+	return &spec.Interest{
 		NameV:  name,
-		NonceV: val,
+		NonceV: utils.IdPtr(rand.Uint32()),
 	}
-	netPacket := new(ndn_defn.PendingPacket)
-	netPacket.EncPacket = new(spec_2022.Packet)
-	netPacket.EncPacket.Interest = interest
-	return netPacket
 }
 
 func TestNewPitCSTree(t *testing.T) {
@@ -113,8 +123,8 @@ func TestInsertInterest(t *testing.T) {
 	assert.False(t, duplicateNonce)
 
 	assert.True(t, pitEntry.EncName().Equal(name))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint))
 	assert.False(t, pitEntry.Satisfied())
 
@@ -133,8 +143,8 @@ func TestInsertInterest(t *testing.T) {
 	assert.False(t, duplicateNonce)
 
 	assert.True(t, pitEntry.EncName().Equal(name))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint))
 	assert.False(t, pitEntry.Satisfied())
 
@@ -153,8 +163,8 @@ func TestInsertInterest(t *testing.T) {
 
 	assert.True(t, duplicateNonce)
 	assert.True(t, pitEntry.EncName().Equal(name))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint))
 	assert.False(t, pitEntry.Satisfied())
 
@@ -175,8 +185,8 @@ func TestInsertInterest(t *testing.T) {
 
 	assert.False(t, duplicateNonce)
 	assert.True(t, pitEntry.EncName().Equal(name2))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest2.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest2.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest2.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest2.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint2))
 	assert.False(t, pitEntry.Satisfied())
 
@@ -207,8 +217,8 @@ func TestInsertInterest(t *testing.T) {
 	// assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFresh())
 	// assert.True(t, pitEntry.ForwardingHint().Equals(hint))
 	assert.True(t, pitEntry.EncName().Equal(name))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint))
 	assert.False(t, pitEntry.Satisfied())
 
@@ -224,8 +234,8 @@ func TestInsertInterest(t *testing.T) {
 	// assert.Equal(t, pitEntry2.MustBeFresh(), interest2.MustBeFresh())
 	// assert.True(t, pitEntry2.ForwardingHint().Equals(hint))
 	assert.True(t, pitEntry2.EncName().Equal(name2))
-	assert.Equal(t, pitEntry2.CanBePrefix(), interest2.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry2.MustBeFresh(), interest2.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry2.CanBePrefix(), interest2.CanBePrefixV)
+	assert.Equal(t, pitEntry2.MustBeFresh(), interest2.MustBeFreshV)
 	assert.True(t, pitEntry2.ForwardingHintNew().Equal(hint2))
 	assert.False(t, pitEntry2.Satisfied())
 
@@ -309,8 +319,8 @@ func TestFindInterestExactMatch(t *testing.T) {
 	pitEntry := pitCS.FindInterestExactMatchEnc(interest)
 	assert.NotNil(t, pitEntry)
 	assert.True(t, pitEntry.EncName().Equal(name))
-	assert.Equal(t, pitEntry.CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntry.MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.Equal(t, pitEntry.CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntry.MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntry.ForwardingHintNew().Equal(hint))
 	assert.Equal(t, len(pitEntry.InRecords()), 0)
 	assert.Equal(t, len(pitEntry.OutRecords()), 0)
@@ -345,16 +355,16 @@ func TestFindInterestPrefixMatchByData(t *testing.T) {
 	hint, _ := enc.NameFromStr("/")
 	inFace := uint64(1111)
 	interest := makeInterest(name)
-	interest.EncPacket.Interest.CanBePrefixV = true
+	interest.CanBePrefixV = true
 
 	// Simple insert and find
 	_, _ = pitCS.InsertInterest(interest, hint, inFace)
 
 	pitEntries := pitCS.FindInterestPrefixMatchByDataEnc(data, nil)
 	assert.Equal(t, len(pitEntries), 1)
-	assert.True(t, pitEntries[0].EncName().Equal(interest.EncPacket.Interest.NameV))
-	assert.Equal(t, pitEntries[0].CanBePrefix(), interest.EncPacket.Interest.CanBePrefixV)
-	assert.Equal(t, pitEntries[0].MustBeFresh(), interest.EncPacket.Interest.MustBeFreshV)
+	assert.True(t, pitEntries[0].EncName().Equal(interest.NameV))
+	assert.Equal(t, pitEntries[0].CanBePrefix(), interest.CanBePrefixV)
+	assert.Equal(t, pitEntries[0].MustBeFresh(), interest.MustBeFreshV)
 	assert.True(t, pitEntries[0].ForwardingHintNew().Equal(hint))
 	assert.Equal(t, len(pitEntries[0].InRecords()), 0)
 	assert.Equal(t, len(pitEntries[0].OutRecords()), 0)
@@ -388,32 +398,32 @@ func TestInsertOutRecord(t *testing.T) {
 	hint, _ := enc.NameFromStr("/")
 	inFace := uint64(1111)
 	interest := makeInterest(name)
-	interest.EncPacket.Interest.CanBePrefixV = true
+	interest.CanBePrefixV = true
 
 	// New outrecord
 	pitEntry, _ := pitCS.InsertInterest(interest, hint, inFace)
 	outRecord := pitEntry.InsertOutRecord(interest, inFace)
 	assert.Equal(t, outRecord.Face, inFace)
-	assert.Equal(t, outRecord.LatestEncInterest, interest)
-	assert.True(t, outRecord.LatestEncNonce == *interest.EncPacket.Interest.NonceV)
+	assert.Equal(t, outRecord.LatestInterest, interest.NameV)
+	assert.True(t, outRecord.LatestNonce == *interest.NonceV)
 
 	// Update existing outrecord
 	oldNonce := new(uint32)
 	*oldNonce = 2
-	*interest.EncPacket.Interest.NonceV = *oldNonce
-	*interest.EncPacket.Interest.NonceV = 3
+	*interest.NonceV = *oldNonce
+	*interest.NonceV = 3
 	outRecord = pitEntry.InsertOutRecord(interest, inFace)
 	assert.Equal(t, outRecord.Face, inFace)
-	assert.Equal(t, outRecord.LatestEncInterest, interest)
-	assert.True(t, outRecord.LatestEncNonce == *interest.EncPacket.Interest.NonceV)
-	assert.False(t, outRecord.LatestEncNonce == *oldNonce)
+	assert.Equal(t, outRecord.LatestInterest, interest.NameV)
+	assert.True(t, outRecord.LatestNonce == *interest.NonceV)
+	assert.False(t, outRecord.LatestNonce == *oldNonce)
 
 	// Add new outrecord on a different face
 	inFace2 := uint64(2222)
 	outRecord = pitEntry.InsertOutRecord(interest, inFace2)
 	assert.Equal(t, outRecord.Face, inFace2)
-	assert.Equal(t, outRecord.LatestEncInterest, interest)
-	assert.True(t, outRecord.LatestEncNonce == *interest.EncPacket.Interest.NonceV)
+	assert.Equal(t, outRecord.LatestInterest, interest.NameV)
+	assert.True(t, outRecord.LatestNonce == *interest.NonceV)
 }
 
 func TestGetOutRecords(t *testing.T) {
@@ -423,7 +433,7 @@ func TestGetOutRecords(t *testing.T) {
 	hint, _ := enc.NameFromStr("/")
 	inFace := uint64(1111)
 	interest := makeInterest(name)
-	interest.EncPacket.Interest.CanBePrefixV = true
+	interest.CanBePrefixV = true
 
 	// New outrecord
 	pitEntry, _ := pitCS.InsertInterest(interest, hint, inFace)
@@ -431,20 +441,20 @@ func TestGetOutRecords(t *testing.T) {
 	outRecords := pitEntry.GetOutRecords()
 	assert.Equal(t, len(outRecords), 1)
 	assert.Equal(t, outRecords[0].Face, inFace)
-	assert.Equal(t, outRecords[0].LatestEncInterest, interest)
-	assert.True(t, outRecords[0].LatestEncNonce == *interest.EncPacket.Interest.NonceV)
+	assert.Equal(t, outRecords[0].LatestInterest, interest.NameV)
+	assert.True(t, outRecords[0].LatestNonce == *interest.NonceV)
 
 	// Update existing outrecord
 	oldNonce := new(uint32)
 	*oldNonce = 2
-	*interest.EncPacket.Interest.NonceV = *oldNonce
-	*interest.EncPacket.Interest.NonceV = 3
+	*interest.NonceV = *oldNonce
+	*interest.NonceV = 3
 	_ = pitEntry.InsertOutRecord(interest, inFace)
 	outRecords = pitEntry.GetOutRecords()
 	assert.Equal(t, len(outRecords), 1)
 	assert.Equal(t, outRecords[0].Face, inFace)
-	assert.Equal(t, outRecords[0].LatestEncInterest, interest)
-	assert.True(t, outRecords[0].LatestEncNonce == *interest.EncPacket.Interest.NonceV)
+	assert.Equal(t, outRecords[0].LatestInterest, interest.NameV)
+	assert.True(t, outRecords[0].LatestNonce == *interest.NonceV)
 
 	// Add new outrecord on a different face
 	inFace2 := uint64(2222)
@@ -457,73 +467,12 @@ func TestGetOutRecords(t *testing.T) {
 	assert.Equal(t, len(outRecords), 2)
 
 	assert.Equal(t, outRecords[0].Face, inFace)
-	assert.Equal(t, outRecords[0].LatestEncInterest, interest)
-	assert.True(t, outRecords[0].LatestEncNonce == *interest.EncPacket.Interest.NonceV)
+	assert.Equal(t, outRecords[0].LatestInterest, interest.NameV)
+	assert.True(t, outRecords[0].LatestNonce == *interest.NonceV)
 
 	assert.Equal(t, outRecords[1].Face, inFace2)
-	assert.Equal(t, outRecords[1].LatestEncInterest, interest)
-	assert.True(t, outRecords[1].LatestEncNonce == *interest.EncPacket.Interest.NonceV)
-}
-
-func TestInsertData(t *testing.T) {
-	csReplacementPolicy = "lru"
-	csCapacity = 1024
-	pitCS := NewPitCS(func(PitEntry) {})
-
-	// Data does not already exist
-	name1, _ := enc.NameFromStr("/interest1")
-	interest1 := makeInterest(name1)
-	interest1.EncPacket.Interest.CanBePrefixV = false
-	content := enc.Wire{enc.Buffer("test")}
-	data1 := makeData(name1, content)
-
-	pitCS.InsertData(data1)
-	csEntry1 := pitCS.FindMatchingDataFromCS(interest1)
-	assert.Equal(t, pitCS.CsSize(), 1)
-	assert.True(t, bytes.Equal(csEntry1.EncData().EncPacket.Data.ContentV.Join(), data1.EncPacket.Data.ContentV.Join()))
-
-	// Insert data associated with same name, so we should just update it
-	// Should not result in a new CsEntry
-	pitCS.InsertData(data1)
-	csEntry1 = pitCS.FindMatchingDataFromCS(interest1)
-	assert.Equal(t, pitCS.CsSize(), 1)
-	assert.True(t, bytes.Equal(csEntry1.EncData().EncPacket.Data.ContentV.Join(), data1.EncPacket.Data.ContentV.Join()))
-
-	// Insert some different data, should result in creation of new CsEntry
-	name2, _ := enc.NameFromStr("/interest2")
-	interest2 := makeInterest(name2)
-	interest2.EncPacket.Interest.CanBePrefixV = false
-	content2 := enc.Wire{enc.Buffer("test2")}
-	data2 := makeData(name2, content2)
-	pitCS.InsertData(data2)
-
-	csEntry2 := pitCS.FindMatchingDataFromCS(interest2)
-	assert.Equal(t, pitCS.CsSize(), 2)
-	assert.True(t, bytes.Equal(csEntry2.EncData().EncPacket.Data.ContentV.Join(), data2.EncPacket.Data.ContentV.Join()))
-
-	// PitCS with interest /a/b, data /a/b/v=10
-	// Interest /a/b is prefix allowed
-	// Should return data with name /a/b/v=10
-	pitCS = NewPitCS(func(PitEntry) {})
-
-	name1, _ = enc.NameFromStr("/a/b")
-	interest1 = makeInterest(name1)
-	interest1.EncPacket.Interest.CanBePrefixV = true
-	name2, _ = enc.NameFromStr("/a/b/v=10")
-	data2 = makeData(name2, content2)
-	pitCS.InsertData(data2)
-	csEntry1 = pitCS.FindMatchingDataFromCS(interest1)
-	assert.Equal(t, pitCS.CsSize(), 1)
-	assert.True(t, bytes.Equal(csEntry1.EncData().EncPacket.Data.ContentV.Join(), data2.EncPacket.Data.ContentV.Join()))
-
-	// Reduced CS capacity to check that eviction occurs
-	csCapacity = 1
-	pitCS = NewPitCS(func(PitEntry) {})
-	data1 = makeData(name1, content)
-	data2 = makeData(name2, content2)
-	pitCS.InsertData(data1)
-	pitCS.InsertData(data2)
-	assert.Equal(t, pitCS.CsSize(), 1)
+	assert.Equal(t, outRecords[1].LatestInterest, interest.NameV)
+	assert.True(t, outRecords[1].LatestNonce == *interest.NonceV)
 }
 
 func FindMatchingDataFromCS(t *testing.T) {
@@ -531,58 +480,56 @@ func FindMatchingDataFromCS(t *testing.T) {
 	csCapacity = 1024
 	pitCS := NewPitCS(func(PitEntry) {})
 
-	// Insert data and then fetch it
-	name1, _ := enc.NameFromStr("/interest1")
+	// Data does not already exist
+	name1, _ := enc.NameFromStr("/ndn/edu/ucla/ping/123")
 	interest1 := makeInterest(name1)
-	interest1.EncPacket.Interest.CanBePrefixV = false
-	content := enc.Wire{enc.Buffer("test")}
-	data1 := makeData(name1, content)
+	interest1.CanBePrefixV = false
 
-	pitCS.InsertData(data1)
+	pkt, _, _ := spec.ReadPacket(enc.NewBufferReader(VALID_DATA_1))
+	data1 := pkt.Data
+
+	pitCS.InsertData(data1, VALID_DATA_1)
 	csEntry1 := pitCS.FindMatchingDataFromCS(interest1)
-	assert.True(t, bytes.Equal(csEntry1.EncData().EncPacket.Data.ContentV.Join(), data1.EncPacket.Data.ContentV.Join()))
+	_, csWire, _ := csEntry1.Copy()
+	assert.Equal(t, pitCS.CsSize(), 1)
+	assert.True(t, bytes.Equal(csWire, VALID_DATA_1))
 
-	// Insert some different data
-	name2, _ := enc.NameFromStr("/interest2")
+	// Insert data associated with same name, so we should just update it
+	// Should not result in a new CsEntry
+	pitCS.InsertData(data1, VALID_DATA_1)
+	csEntry1 = pitCS.FindMatchingDataFromCS(interest1)
+	_, csWire, _ = csEntry1.Copy()
+	assert.Equal(t, pitCS.CsSize(), 1)
+	assert.True(t, bytes.Equal(csWire, VALID_DATA_1))
+
+	// Insert some different data, should result in creation of new CsEntry
+	name2, _ := enc.NameFromStr("/ndn/edu/arizona/ping/124")
 	interest2 := makeInterest(name2)
-	interest2.EncPacket.Interest.CanBePrefixV = false
-	content2 := enc.Wire{enc.Buffer("test2")}
-	data2 := makeData(name2, content2)
-	pitCS.InsertData(data2)
+	interest2.CanBePrefixV = false
+
+	pkt, _, _ = spec.ReadPacket(enc.NewBufferReader(VALID_DATA_2))
+	data2 := pkt.Data
+
+	pitCS.InsertData(data2, VALID_DATA_2)
 
 	csEntry2 := pitCS.FindMatchingDataFromCS(interest2)
-	assert.True(t, bytes.Equal(csEntry2.EncData().EncPacket.Data.ContentV.Join(), data2.EncPacket.Data.ContentV.Join()))
+	_, csWire, _ = csEntry2.Copy()
+	assert.Equal(t, pitCS.CsSize(), 2)
+	assert.True(t, bytes.Equal(csWire, VALID_DATA_2))
 
-	// Look for nonexistent data
-	nameNonExistent, _ := enc.NameFromStr("/doesnotexist")
-	interestNonExistent := makeInterest(nameNonExistent)
-	csEntryNonExistent := pitCS.FindMatchingDataFromCS(interestNonExistent)
-	assert.Nil(t, csEntryNonExistent)
+	// Check CanBePrefix flag
+	name3, _ := enc.NameFromStr("/ndn/edu/ucla")
+	interest3 := makeInterest(name3)
+	interest3.CanBePrefixV = true
 
-	// PitCS with interest /a/b, data /a/b/v=10
-	// Interest /a/b is prefix allowed
-	// Should return data with name /a/b/v=10
+	csEntry3 := pitCS.FindMatchingDataFromCS(interest3)
+	_, csWire, _ = csEntry3.Copy()
+	assert.True(t, bytes.Equal(csWire, VALID_DATA_1))
+
+	// Reduced CS capacity to check that eviction occurs
+	csCapacity = 1
 	pitCS = NewPitCS(func(PitEntry) {})
-
-	name1, _ = enc.NameFromStr("/a/b")
-	interest1 = makeInterest(name1)
-	interest1.EncPacket.Interest.CanBePrefixV = true
-	name2, _ = enc.NameFromStr("/a/b/v=10")
-	data2 = makeData(name2, content2)
-
-	pitCS.InsertData(data2)
-	csEntry1 = pitCS.FindMatchingDataFromCS(interest1)
-	assert.True(t, bytes.Equal(csEntry1.EncData().EncPacket.Data.ContentV.Join(), data2.EncPacket.Data.ContentV.Join()))
-	// PitCS with interest /a/b
-	// Now look for interest /a/b with prefix allowed
-	// Should return nil since there is no data
-	pitCS = NewPitCS(func(PitEntry) {})
-
-	name1, _ = enc.NameFromStr("/a/b")
-	interest1 = makeInterest(name1)
-	interest2.EncPacket.Interest.CanBePrefixV = true
-
-	pitCS.InsertInterest(interest1, nil, 0)
-	csEntry1 = pitCS.FindMatchingDataFromCS(interest1)
-	assert.Nil(t, csEntry1)
+	pitCS.InsertData(data1, VALID_DATA_1)
+	pitCS.InsertData(data2, VALID_DATA_2)
+	assert.Equal(t, pitCS.CsSize(), 1)
 }

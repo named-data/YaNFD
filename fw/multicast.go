@@ -11,7 +11,7 @@ import (
 	"reflect"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/ndn_defn"
+	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -26,49 +26,50 @@ func init() {
 	StrategyVersions["multicast"] = []uint64{1}
 }
 
-// Instantiate creates a new instance of the Multicast strategy.
 func (s *Multicast) Instantiate(fwThread *Thread) {
 	s.NewStrategyBase(fwThread, enc.Component{
 		Typ: enc.TypeGenericNameComponent, Val: []byte("multicast"),
 	}, 1, "Multicast")
 }
 
-// AfterContentStoreHit ...
-func (s *Multicast) AfterContentStoreHit(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
-	// Send downstream
-	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", pendingPacket.NameCache,
-		" to FaceID=", inFace)
-	s.SendData(pendingPacket, pitEntry, inFace, 0) // 0 indicates ContentStore is source
+func (s *Multicast) AfterContentStoreHit(
+	packet *defn.Pkt,
+	pitEntry table.PitEntry,
+	inFace uint64,
+) {
+	core.LogTrace(s, "AfterContentStoreHit: Forwarding content store hit Data=", packet.Name, " to FaceID=", inFace)
+	s.SendData(packet, pitEntry, inFace, 0) // 0 indicates ContentStore is source
 }
 
-// AfterReceiveData ...
-func (s *Multicast) AfterReceiveData(pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64) {
-	core.LogTrace(s, "AfterReceiveData: Data=", pendingPacket.EncPacket.Data.NameV, ", ",
-		len(pitEntry.InRecords()), " In-Records")
+func (s *Multicast) AfterReceiveData(
+	packet *defn.Pkt,
+	pitEntry table.PitEntry,
+	inFace uint64,
+) {
+	core.LogTrace(s, "AfterReceiveData: Data=", packet.Name, ", ", len(pitEntry.InRecords()), " In-Records")
 	for faceID := range pitEntry.InRecords() {
-		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", pendingPacket.EncPacket.Data.NameV, " to FaceID=", faceID)
-		s.SendData(pendingPacket, pitEntry, faceID, inFace)
+		core.LogTrace(s, "AfterReceiveData: Forwarding Data=", packet.Name, " to FaceID=", faceID)
+		s.SendData(packet, pitEntry, faceID, inFace)
 	}
 }
 
-// AfterReceiveInterest ...
 func (s *Multicast) AfterReceiveInterest(
-	pendingPacket *ndn_defn.PendingPacket, pitEntry table.PitEntry, inFace uint64, nexthops []*table.FibNextHopEntry,
+	packet *defn.Pkt,
+	pitEntry table.PitEntry,
+	inFace uint64,
+	nexthops []*table.FibNextHopEntry,
 ) {
 	if len(nexthops) == 0 {
-		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", pendingPacket.NameCache,
-			" - DROP")
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", packet.Name, " - DROP")
 		return
 	}
 
 	for _, nexthop := range nexthops {
-		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", pendingPacket.NameCache,
-			" to FaceID=", nexthop.Nexthop)
-		s.SendInterest(pendingPacket, pitEntry, nexthop.Nexthop, inFace)
+		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nexthop.Nexthop)
+		s.SendInterest(packet, pitEntry, nexthop.Nexthop, inFace)
 	}
 }
 
-// BeforeSatisfyInterest ...
 func (s *Multicast) BeforeSatisfyInterest(pitEntry table.PitEntry, inFace uint64) {
 	// This does nothing in Multicast
 }

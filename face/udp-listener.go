@@ -13,19 +13,19 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
+	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // UDPListener listens for incoming UDP unicast connections.
 type UDPListener struct {
 	conn     net.PacketConn
-	localURI *ndn_defn.URI
+	localURI *defn.URI
 	HasQuit  chan bool
 }
 
 // MakeUDPListener constructs a UDPListener.
-func MakeUDPListener(localURI *ndn_defn.URI) (*UDPListener, error) {
+func MakeUDPListener(localURI *defn.URI) (*UDPListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
 		return nil, core.ErrNotCanonical
@@ -62,7 +62,7 @@ func (l *UDPListener) Run() {
 	}
 
 	// Run accept loop
-	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
+	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for !core.ShouldQuit {
 		readSize, remoteAddr, err := l.conn.ReadFrom(recvBuf)
 		if err != nil {
@@ -71,7 +71,7 @@ func (l *UDPListener) Run() {
 		}
 
 		// Construct remote URI
-		var remoteURI *ndn_defn.URI
+		var remoteURI *defn.URI
 		host, port, err := net.SplitHostPort(remoteAddr.String())
 		if err != nil {
 			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
@@ -82,7 +82,7 @@ func (l *UDPListener) Run() {
 			core.LogWarn(l, "Unable to create face from ", remoteAddr, ": could not split host from port")
 			continue
 		}
-		remoteURI = ndn_defn.MakeUDPFaceURI(4, host, uint16(portInt))
+		remoteURI = defn.MakeUDPFaceURI(4, host, uint16(portInt))
 		remoteURI.Canonize()
 		if !remoteURI.IsCanonical() {
 			core.LogWarn(l, "Unable to create face from ", remoteURI, ": remote URI is not canonical")

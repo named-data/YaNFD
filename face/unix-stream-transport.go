@@ -15,8 +15,8 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
+	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
@@ -29,20 +29,20 @@ type UnixStreamTransport struct {
 }
 
 // MakeUnixStreamTransport creates a Unix stream transport.
-func MakeUnixStreamTransport(remoteURI *ndn_defn.URI, localURI *ndn_defn.URI, conn net.Conn) (*UnixStreamTransport, error) {
+func MakeUnixStreamTransport(remoteURI *defn.URI, localURI *defn.URI, conn net.Conn) (*UnixStreamTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || remoteURI.Scheme() != "fd" || !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
 	}
 
 	t := new(UnixStreamTransport)
-	t.makeTransportBase(remoteURI, localURI, PersistencyPersistent, ndn_defn.Local, ndn_defn.PointToPoint, ndn_defn.MaxNDNPacketSize)
+	t.makeTransportBase(remoteURI, localURI, PersistencyPersistent, defn.Local, defn.PointToPoint, defn.MaxNDNPacketSize)
 
 	// Set connection
 	t.conn = conn.(*net.UnixConn)
-	t.reader = bufio.NewReaderSize(t.conn, 32*ndn_defn.MaxNDNPacketSize)
+	t.reader = bufio.NewReaderSize(t.conn, 32*defn.MaxNDNPacketSize)
 
-	t.changeState(ndn_defn.Up)
+	t.changeState(defn.Up)
 
 	return t, nil
 }
@@ -85,7 +85,7 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(ndn_defn.Down)
+		t.changeState(defn.Down)
 	}
 
 	t.nOutBytes += uint64(len(frame))
@@ -104,10 +104,10 @@ func (t *UnixStreamTransport) runReceive() {
 		} else {
 			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
 		}
-		t.changeState(ndn_defn.Down)
+		t.changeState(defn.Down)
 	}
 
-	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
+	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
 		typ, err := enc.ReadTLNum(t.reader)
 		if err != nil {
@@ -137,7 +137,7 @@ func (t *UnixStreamTransport) runReceive() {
 	}
 }
 
-func (t *UnixStreamTransport) changeState(new ndn_defn.State) {
+func (t *UnixStreamTransport) changeState(new defn.State) {
 	if t.state == new {
 		return
 	}
@@ -145,7 +145,7 @@ func (t *UnixStreamTransport) changeState(new ndn_defn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn_defn.Up {
+	if t.state != defn.Up {
 		core.LogInfo(t, "Closing Unix stream socket")
 		t.hasQuit <- true
 		t.conn.Close()

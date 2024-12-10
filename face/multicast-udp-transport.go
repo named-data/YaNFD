@@ -14,8 +14,8 @@ import (
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
+	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 )
 
 // MulticastUDPTransport is a multicast UDP transport.
@@ -29,7 +29,7 @@ type MulticastUDPTransport struct {
 }
 
 // MakeMulticastUDPTransport creates a new multicast UDP transport.
-func MakeMulticastUDPTransport(localURI *ndn_defn.URI) (*MulticastUDPTransport, error) {
+func MakeMulticastUDPTransport(localURI *defn.URI) (*MulticastUDPTransport, error) {
 	// Validate local URI
 	localURI.Canonize()
 	if !localURI.IsCanonical() || (localURI.Scheme() != "udp4" && localURI.Scheme() != "udp6") {
@@ -45,15 +45,15 @@ func MakeMulticastUDPTransport(localURI *ndn_defn.URI) (*MulticastUDPTransport, 
 
 	if localURI.Scheme() == "udp4" {
 		t.makeTransportBase(
-			ndn_defn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)),
-			localURI, PersistencyPermanent, ndn_defn.NonLocal, ndn_defn.MultiAccess, ndn_defn.MaxNDNPacketSize)
+			defn.DecodeURIString("udp4://"+udp4MulticastAddress+":"+strconv.FormatUint(uint64(UDPMulticastPort), 10)),
+			localURI, PersistencyPermanent, defn.NonLocal, defn.MultiAccess, defn.MaxNDNPacketSize)
 	} else if localURI.Scheme() == "udp6" {
 		t.makeTransportBase(
-			ndn_defn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+
+			defn.DecodeURIString("udp6://["+udp6MulticastAddress+"%"+localIf.Name+"]:"+
 				strconv.FormatUint(uint64(UDPMulticastPort), 10)),
-			localURI, PersistencyPermanent, ndn_defn.NonLocal, ndn_defn.MultiAccess, ndn_defn.MaxNDNPacketSize)
+			localURI, PersistencyPermanent, defn.NonLocal, defn.MultiAccess, defn.MaxNDNPacketSize)
 	}
-	t.scope = ndn_defn.NonLocal
+	t.scope = defn.NonLocal
 
 	// Format group and local addresses
 	t.groupAddr.IP = net.ParseIP(t.remoteURI.PathHost())
@@ -80,7 +80,7 @@ func MakeMulticastUDPTransport(localURI *ndn_defn.URI) (*MulticastUDPTransport, 
 			localIf.Name + ": " + err.Error())
 	}
 
-	t.changeState(ndn_defn.Up)
+	t.changeState(defn.Up)
 
 	return t, nil
 }
@@ -138,13 +138,13 @@ func (t *MulticastUDPTransport) runReceive() {
 		runtime.LockOSThread()
 	}
 
-	recvBuf := make([]byte, ndn_defn.MaxNDNPacketSize)
+	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
 			if err.Error() == "EOF" {
 				core.LogDebug(t, "EOF - Face DOWN")
-				t.changeState(ndn_defn.Down)
+				t.changeState(defn.Down)
 				break
 			} else {
 				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
@@ -160,7 +160,7 @@ func (t *MulticastUDPTransport) runReceive() {
 		core.LogTrace(t, "Receive of size ", readSize, " from ", remoteAddr)
 		t.nInBytes += uint64(readSize)
 
-		if readSize > ndn_defn.MaxNDNPacketSize {
+		if readSize > defn.MaxNDNPacketSize {
 			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
 		}
 		if readSize <= 0 {
@@ -173,7 +173,7 @@ func (t *MulticastUDPTransport) runReceive() {
 	}
 }
 
-func (t *MulticastUDPTransport) changeState(new ndn_defn.State) {
+func (t *MulticastUDPTransport) changeState(new defn.State) {
 	if t.state == new {
 		return
 	}
@@ -181,7 +181,7 @@ func (t *MulticastUDPTransport) changeState(new ndn_defn.State) {
 	core.LogInfo(t, "state: ", t.state, " -> ", new)
 	t.state = new
 
-	if t.state != ndn_defn.Up {
+	if t.state != defn.Up {
 		core.LogInfo(t, "Closing UDP socket")
 		t.hasQuit <- true
 		t.sendConn.Close()

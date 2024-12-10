@@ -13,19 +13,19 @@ import (
 	"path"
 
 	"github.com/named-data/YaNFD/core"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
+	defn "github.com/named-data/YaNFD/defn"
 )
 
 // UnixStreamListener listens for incoming Unix stream connections.
 type UnixStreamListener struct {
 	conn     net.Listener
-	localURI *ndn_defn.URI
+	localURI *defn.URI
 	nextFD   int // We can't (at least easily) access the actual FD through net.Conn, so we'll make our own
 	HasQuit  chan bool
 }
 
 // MakeUnixStreamListener constructs a UnixStreamListener.
-func MakeUnixStreamListener(localURI *ndn_defn.URI) (*UnixStreamListener, error) {
+func MakeUnixStreamListener(localURI *defn.URI) (*UnixStreamListener, error) {
 	localURI.Canonize()
 	if !localURI.IsCanonical() || localURI.Scheme() != "unix" {
 		return nil, core.ErrNotCanonical
@@ -79,7 +79,7 @@ func (l *UnixStreamListener) Run() {
 		}
 
 		// Construct remote URI
-		remoteURI := ndn_defn.MakeFDFaceURI(l.nextFD)
+		remoteURI := defn.MakeFDFaceURI(l.nextFD)
 		l.nextFD++
 		if !remoteURI.IsCanonical() {
 			core.LogWarn(l, "Unable to create face from ", remoteURI, " as remote URI is not canonical")
