@@ -366,7 +366,8 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 
 		// PIT Token
 		if len(LP.PitToken) > 0 {
-			pkt.PitToken = LP.PitToken
+			pkt.PitToken = make([]byte, len(LP.PitToken))
+			copy(pkt.PitToken, LP.PitToken)
 		}
 
 		// Copy fragment to wire buffer
