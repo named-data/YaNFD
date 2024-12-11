@@ -83,7 +83,7 @@ func (t *InternalTransport) Send(netWire enc.Wire, pitToken []byte, nextHopFaceI
 		Fragment: netWire,
 	}
 	if len(pitToken) > 0 {
-		lpPkt.PitToken = pitToken
+		lpPkt.PitToken = append([]byte{}, pitToken...)
 	}
 	if nextHopFaceID != nil {
 		lpPkt.NextHopFaceId = utils.IdPtr(*nextHopFaceID)
