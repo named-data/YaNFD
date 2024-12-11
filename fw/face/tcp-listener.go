@@ -39,7 +39,7 @@ func MakeTCPListener(localURI *defn.URI) (*TCPListener, error) {
 }
 
 func (l *TCPListener) String() string {
-	return "TCPListener, " + l.localURI.String()
+	return fmt.Sprintf("TCPListener, %s", l.localURI)
 }
 
 func (l *TCPListener) Run() {
