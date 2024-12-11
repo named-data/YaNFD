@@ -48,10 +48,11 @@ type NDNLPLinkServiceOptions struct {
 }
 
 func MakeNDNLPLinkServiceOptions() NDNLPLinkServiceOptions {
-	var o NDNLPLinkServiceOptions
-	o.BaseCongestionMarkingInterval = time.Duration(100) * time.Millisecond
-	o.DefaultCongestionThresholdBytes = uint64(math.Pow(2, 16))
-	return o
+	return NDNLPLinkServiceOptions{
+		BaseCongestionMarkingInterval:   time.Duration(100) * time.Millisecond,
+		DefaultCongestionThresholdBytes: uint64(math.Pow(2, 16)),
+		IsReassemblyEnabled:             true,
+	}
 }
 
 // NDNLPLinkService is a link service implementing the NDNLPv2 link protocol
@@ -324,12 +325,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 		}
 
 		// Reassembly
-		if l.options.IsReassemblyEnabled {
-			if LP.Sequence == nil {
-				core.LogInfo(l, "Received NDNLPv2 frame without Sequence but reassembly requires it - DROP")
-				return
-			}
-
+		if l.options.IsReassemblyEnabled && LP.Sequence != nil {
 			fragIndex := uint64(0)
 			if LP.FragIndex != nil {
 				fragIndex = *LP.FragIndex
