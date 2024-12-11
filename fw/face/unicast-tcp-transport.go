@@ -10,7 +10,6 @@ package face
 import (
 	"errors"
 	"net"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -73,21 +72,25 @@ func MakeUnicastTCPTransport(remoteURI *defn.URI, localURI *defn.URI, persistenc
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
+
 	t.conn = conn.(*net.TCPConn)
+	t.running.Store(true)
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
 		t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
 	}
 
-	t.changeState(defn.Up)
-
 	go t.expirationHandler()
 
 	return t, nil
 }
 
-func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+func AcceptUnicastTCPTransport(
+	remoteConn net.Conn,
+	localURI *defn.URI,
+	persistency Persistency,
+) (*UnicastTCPTransport, error) {
 	// Construct remote URI
 	var remoteURI *defn.URI
 	remoteAddr := remoteConn.RemoteAddr()
@@ -109,6 +112,8 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persiste
 	}
 
 	t := new(UnicastTCPTransport)
+	t.running.Store(true)
+
 	// All persistencies are accepted.
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
 	t.expirationTime = new(time.Time)
@@ -144,8 +149,6 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persiste
 		t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
 	}
 
-	t.changeState(defn.Up)
-
 	go t.expirationHandler()
 
 	return t, nil
@@ -177,6 +180,7 @@ func (t *UnicastTCPTransport) GetSendQueueSize() uint64 {
 // onTransportFailure modifies the state of the UnicastTCPTransport to indicate
 // a failure in transmission.
 func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
+	// TODO: fully broke
 	switch t.persistency {
 	case PersistencyPermanent:
 		// Restart socket
@@ -195,8 +199,6 @@ func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
 			// Old receive thread will error out, so we need to replace it
 			go t.runReceive()
 		}
-	default:
-		t.changeState(defn.Down)
 	}
 }
 
@@ -204,13 +206,10 @@ func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
 func (t *UnicastTCPTransport) expirationHandler() {
 	for {
 		time.Sleep(time.Duration(10) * time.Second)
-		if t.state == defn.Down {
-			break
-		}
-		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now())) {
+		if t.persistency == PersistencyOnDemand && t.expirationTime.Before(time.Now()) {
 			core.LogInfo(t, "Face expired")
-			t.changeState(defn.Down)
-			break
+			t.Close()
+			return
 		}
 	}
 }
@@ -233,25 +232,17 @@ func (t *UnicastTCPTransport) sendFrame(frame []byte) {
 }
 
 func (t *UnicastTCPTransport) runReceive() {
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
-
 	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
 		readSize, err := t.conn.Read(recvBuf)
 		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
-			} else {
+			if t.running.Load() {
 				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
-				t.onTransportFailure(true)
 			}
-			t.changeState(defn.Down)
-			break
+			t.onTransportFailure(true)
+			return
 		}
 
-		core.LogTrace(t, "Receive of size ", readSize)
 		t.nInBytes += uint64(readSize)
 		*t.expirationTime = time.Now().Add(tcpLifetime)
 
@@ -260,27 +251,13 @@ func (t *UnicastTCPTransport) runReceive() {
 			continue
 		}
 
-		// Send up to link service
 		t.linkService.handleIncomingFrame(recvBuf[:readSize])
 	}
 }
 
-func (t *UnicastTCPTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing TCP socket")
-		t.hasQuit <- true
+func (t *UnicastTCPTransport) Close() {
+	if t.conn != nil && t.running.Swap(false) {
 		t.conn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
+		t.conn = nil
 	}
 }

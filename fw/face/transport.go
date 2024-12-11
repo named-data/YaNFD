@@ -8,6 +8,7 @@
 package face
 
 import (
+	"sync/atomic"
 	"time"
 
 	defn "github.com/named-data/YaNFD/defn"
@@ -27,16 +28,17 @@ type transport interface {
 	LinkType() defn.LinkType
 	MTU() int
 	SetMTU(mtu int)
-	State() defn.State
 	ExpirationPeriod() time.Duration
+	FaceID() uint64
 
+	// Get the number of queued outgoing packets
 	GetSendQueueSize() uint64
-
-	runReceive()
-
+	// Send a frame (make if copy if necessary)
 	sendFrame([]byte)
-
-	changeState(newState defn.State)
+	// Receive frames in an infinite loop
+	runReceive()
+	// Close the transport (runReceive should exit)
+	Close()
 
 	// Counters
 	NInBytes() uint64
@@ -46,6 +48,7 @@ type transport interface {
 // transportBase provides logic common types between transport types
 type transportBase struct {
 	linkService LinkService
+	running     atomic.Bool
 
 	faceID         uint64
 	remoteURI      *defn.URI
@@ -56,24 +59,26 @@ type transportBase struct {
 	mtu            int
 	expirationTime *time.Time
 
-	state defn.State
-
-	hasQuit chan bool
-
 	// Counters
 	nInBytes  uint64
 	nOutBytes uint64
 }
 
-func (t *transportBase) makeTransportBase(remoteURI *defn.URI, localURI *defn.URI, persistency Persistency, scope defn.Scope, linkType defn.LinkType, mtu int) {
+func (t *transportBase) makeTransportBase(
+	remoteURI *defn.URI,
+	localURI *defn.URI,
+	persistency Persistency,
+	scope defn.Scope,
+	linkType defn.LinkType,
+	mtu int,
+) {
+	t.running = atomic.Bool{}
 	t.remoteURI = remoteURI
 	t.localURI = localURI
 	t.persistency = persistency
 	t.scope = scope
 	t.linkType = linkType
-	t.state = defn.Down
 	t.mtu = mtu
-	t.hasQuit = make(chan bool, 2)
 }
 
 func (t *transportBase) setFaceID(faceID uint64) {
@@ -131,9 +136,9 @@ func (t *transportBase) ExpirationPeriod() time.Duration {
 	return time.Until(*t.expirationTime)
 }
 
-// State returns the state of the transport.
-func (t *transportBase) State() defn.State {
-	return t.state
+// Face ID of the transport
+func (t *transportBase) FaceID() uint64 {
+	return t.faceID
 }
 
 //
@@ -148,18 +153,4 @@ func (t *transportBase) NInBytes() uint64 {
 // NOutBytes returns the number of link-layer bytes sent on this transport.
 func (t *transportBase) NOutBytes() uint64 {
 	return t.nOutBytes
-}
-
-//
-// Stubs
-//
-
-func (t *transportBase) runReceive() {
-	// Overridden in specific transport implementation
-}
-
-func (t *transportBase) sendFrame(frame []byte) {
-	// Overridden in specific transport implementation
-
-	t.nOutBytes += uint64(len(frame))
 }

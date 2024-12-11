@@ -38,16 +38,16 @@ type LinkService interface {
 	State() defn.State
 
 	// Run is the main entry point for running face thread
-	// optNewFrame is optional new incoming frame
-	Run(optNewFrame []byte)
+	// initial is optional new incoming frame
+	Run(initial []byte)
 
-	// SendPacket Add a packet to the send queue for this link service
+	// Add a packet to the send queue for this link service
 	SendPacket(packet *defn.Pkt)
+	// Synchronously handle an incoming frame and dispatch to fw
 	handleIncomingFrame(frame []byte)
 
+	// Close the face
 	Close()
-	tellTransportQuit()
-	GetHasQuit() chan bool
 
 	// Counters
 	NInInterests() uint64
@@ -60,12 +60,10 @@ type LinkService interface {
 
 // linkServiceBase is the type upon which all link service implementations should be built
 type linkServiceBase struct {
-	faceID           uint64
-	transport        transport
-	HasQuit          chan bool
-	hasImplQuit      chan bool
-	hasTransportQuit chan bool
-	sendQueue        chan *defn.Pkt
+	faceID    uint64
+	transport transport
+	stopped   chan bool
+	sendQueue chan *defn.Pkt
 
 	// Counters
 	nInInterests  uint64
@@ -89,23 +87,12 @@ func (l *linkServiceBase) SetFaceID(faceID uint64) {
 	}
 }
 
-func (l *linkServiceBase) tellTransportQuit() {
-	l.hasTransportQuit <- true
-}
-
-// GetHasQuit returns the channel that indicates when the face has quit.
-func (l *linkServiceBase) GetHasQuit() chan bool {
-	return l.HasQuit
-}
-
 //
 // "Constructors" and threading
 //
 
 func (l *linkServiceBase) makeLinkServiceBase() {
-	l.HasQuit = make(chan bool)
-	l.hasImplQuit = make(chan bool)
-	l.hasTransportQuit = make(chan bool)
+	l.stopped = make(chan bool)
 	l.sendQueue = make(chan *defn.Pkt, faceQueueSize)
 }
 
@@ -170,7 +157,7 @@ func (l *linkServiceBase) ExpirationPeriod() time.Duration {
 
 // State returns the state of the underlying transport.
 func (l *linkServiceBase) State() defn.State {
-	return l.transport.State()
+	return defn.Up
 }
 
 //
@@ -205,6 +192,11 @@ func (l *linkServiceBase) NOutData() uint64 {
 // NOutBytes returns the number of link-layer bytes sent on this face.
 func (l *linkServiceBase) NOutBytes() uint64 {
 	return l.transport.NOutBytes()
+}
+
+// Close the underlying transport
+func (l *linkServiceBase) Close() {
+	l.transport.Close()
 }
 
 //
@@ -276,8 +268,4 @@ func (l *linkServiceBase) dispatchData(pkt *defn.Pkt) {
 	thread := fw.HashNameToFwThread(pkt.Name)
 	core.LogTrace(l, "Dispatched Data to thread ", thread)
 	dispatch.GetFWThread(thread).QueueData(pkt)
-}
-
-func (l *linkServiceBase) Close() {
-	l.transport.changeState(defn.Down)
 }

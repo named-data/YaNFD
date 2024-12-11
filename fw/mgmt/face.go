@@ -200,11 +200,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
 		}
 
-		linkService = face.MakeNDNLPLinkService(transport, options)
-		face.FaceTable.Add(linkService)
-
-		// Start new face
-		go linkService.Run(nil)
+		face.MakeNDNLPLinkService(transport, options).Run(nil)
 	} else if URI.Scheme() == "tcp4" || URI.Scheme() == "tcp6" {
 		// Check that remote endpoint is not a unicast address
 		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() &&
@@ -283,11 +279,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 			options.DefaultCongestionThresholdBytes = defaultCongestionThresholdBytes
 		}
 
-		linkService = face.MakeNDNLPLinkService(transport, options)
-		face.FaceTable.Add(linkService)
-
-		// Start new face
-		go linkService.Run(nil)
+		face.MakeNDNLPLinkService(transport, options).Run(nil)
 	} else {
 		// Unsupported scheme
 		core.LogWarn(f, "Cannot create face with URI ", URI, ": Unsupported scheme ", URI)
