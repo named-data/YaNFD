@@ -40,7 +40,7 @@ func MakeUDPListener(localURI *defn.URI) (*UDPListener, error) {
 }
 
 func (l *UDPListener) String() string {
-	return fmt.Sprintf("UDPListener, ", l.localURI)
+	return fmt.Sprintf("UDPListener, %s", l.localURI)
 }
 
 // Run starts the UDP listener.
