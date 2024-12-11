@@ -8,23 +8,18 @@
 package face
 
 import (
-	"bufio"
-	"io"
 	"net"
-	"runtime"
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	conn   *net.UnixConn
-	reader *bufio.Reader
+	conn *net.UnixConn
 	transportBase
 }
 
@@ -40,9 +35,7 @@ func MakeUnixStreamTransport(remoteURI *defn.URI, localURI *defn.URI, conn net.C
 
 	// Set connection
 	t.conn = conn.(*net.UnixConn)
-	t.reader = bufio.NewReaderSize(t.conn, 32*defn.MaxNDNPacketSize)
-
-	t.changeState(defn.Up)
+	t.running.Store(true)
 
 	return t, nil
 }
@@ -76,83 +69,86 @@ func (t *UnixStreamTransport) GetSendQueueSize() uint64 {
 }
 
 func (t *UnixStreamTransport) sendFrame(frame []byte) {
+	if !t.running.Load() {
+		return
+	}
+
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(defn.Down)
+		t.Close()
+		return
 	}
 
 	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *UnixStreamTransport) runReceive() {
-	core.LogTrace(t, "Starting receive thread")
+	defer t.Close()
 
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
+	recvBuf := make([]byte, defn.MaxNDNPacketSize*32)
+	recvOff := 0
+	tlvOff := 0
 
-	handleError := func(err error) {
-		if err.Error() == "EOF" {
-			core.LogDebug(t, "EOF - Face DOWN")
-		} else {
-			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
-		}
-		t.changeState(defn.Down)
-	}
-
-	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
-		typ, err := enc.ReadTLNum(t.reader)
+		readSize, err := t.conn.Read(recvBuf[recvOff:])
+		recvOff += readSize
 		if err != nil {
-			handleError(err)
-			break
+			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
+			return
 		}
 
-		len, err := enc.ReadTLNum(t.reader)
-		if err != nil {
-			handleError(err)
-			break
+		t.nInBytes += uint64(readSize)
+
+		// Determine whether valid packet received
+		for {
+			rdr := enc.NewBufferReader(recvBuf[tlvOff:recvOff])
+
+			typ, err := enc.ReadTLNum(rdr)
+			if err != nil {
+				// Probably incomplete packet
+				break
+			}
+
+			len, err := enc.ReadTLNum(rdr)
+			if err != nil {
+				// Probably incomplete packet
+				break
+			}
+
+			tlvSize := typ.EncodingLength() + len.EncodingLength() + int(len)
+
+			if recvOff-tlvOff >= tlvSize {
+				// Packet was successfully received, send up to link service
+				t.linkService.handleIncomingFrame(recvBuf[tlvOff : tlvOff+tlvSize])
+				tlvOff += tlvSize
+			} else if recvOff-tlvOff > defn.MaxNDNPacketSize {
+				// Invalid packet, something went wrong
+				core.LogWarn(t, "Received too much data without valid TLV block")
+				return
+			} else {
+				// Incomplete packet (for sure)
+				break
+			}
 		}
 
-		cursor := 0
-		cursor += typ.EncodeInto(recvBuf[cursor:])
-		cursor += len.EncodeInto(recvBuf[cursor:])
-
-		lenRead, err := io.ReadFull(t.reader, recvBuf[cursor:cursor+int(len)])
-		if err != nil {
-			handleError(err)
-			break
+		// If less than one packet space remains in buffer, shift to beginning
+		if recvOff-tlvOff < defn.MaxNDNPacketSize {
+			copy(recvBuf, recvBuf[tlvOff:recvOff])
+			recvOff -= tlvOff
+			tlvOff = 0
 		}
-		cursor += lenRead
-
-		t.linkService.handleIncomingFrame(recvBuf[:cursor])
-		t.nInBytes += uint64(cursor)
 	}
+
 }
 
-func (t *UnixStreamTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing Unix stream socket")
-		t.hasQuit <- true
+func (t *UnixStreamTransport) Close() {
+	if t.running.Swap(false) {
 		t.conn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
 	}
 }

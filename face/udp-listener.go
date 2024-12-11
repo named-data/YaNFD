@@ -97,11 +97,11 @@ func (l *UDPListener) Run() {
 			core.LogError(l, "Failed to create new unicast UDP transport: ", err)
 			continue
 		}
-		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
 
-		// Add face to table (which assigns FaceID) before passing current frame to link service
-		FaceTable.Add(newLinkService)
-		go newLinkService.Run(recvBuf[:readSize])
+		MakeNDNLPLinkService(
+			newTransport,
+			MakeNDNLPLinkServiceOptions(),
+		).Run(recvBuf[:readSize])
 	}
 
 	l.conn.Close()

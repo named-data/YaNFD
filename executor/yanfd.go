@@ -108,13 +108,10 @@ func (y *YaNFD) Start() {
 	table.CreateFIBTable(fibTableAlgorithm)
 
 	// Create null face
-	nullFace := face.MakeNullLinkService(face.MakeNullTransport())
-	face.FaceTable.Add(nullFace)
-	go nullFace.Run(nil)
+	face.MakeNullLinkService(face.MakeNullTransport()).Run(nil)
 
 	// Start management thread
-	management := mgmt.MakeMgmtThread()
-	go management.Run()
+	go mgmt.MakeMgmtThread().Run()
 
 	// Create forwarding threads
 	if fw.NumFwThreads < 1 || fw.NumFwThreads > fw.MaxFwThreads {
@@ -170,10 +167,13 @@ func (y *YaNFD) Start() {
 					core.LogError("Main", "Unable to create MulticastUDPTransport for ", path, " on ", iface.Name, ": ", err)
 					continue
 				}
-				multicastUDPFace := face.MakeNDNLPLinkService(multicastUDPTransport, face.MakeNDNLPLinkServiceOptions())
-				face.FaceTable.Add(multicastUDPFace)
+
+				face.MakeNDNLPLinkService(
+					multicastUDPTransport,
+					face.MakeNDNLPLinkServiceOptions(),
+				).Run(nil)
+
 				faceCnt += 1
-				go multicastUDPFace.Run(nil)
 				core.LogInfo("Main", "Created multicast UDP face for ", path, " on ", iface.Name)
 			}
 
@@ -256,7 +256,6 @@ func (y *YaNFD) Stop() {
 	// Wait for unix socket listener to quit
 	if y.unixListener != nil {
 		y.unixListener.Close()
-		<-y.unixListener.HasQuit
 	}
 	if y.wsListener != nil {
 		y.wsListener.Close()
@@ -270,12 +269,6 @@ func (y *YaNFD) Stop() {
 	// Tell all faces to quit
 	for _, face := range face.FaceTable.GetAll() {
 		face.Close()
-	}
-
-	// Wait for all faces to quit
-	for _, face := range face.FaceTable.GetAll() {
-		core.LogTrace("Main", "Waiting for face ", face, " to quit")
-		<-face.GetHasQuit()
 	}
 
 	// Tell all forwarding threads to quit
