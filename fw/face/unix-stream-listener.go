@@ -42,7 +42,6 @@ func (l *UnixStreamListener) String() string {
 	return "UnixStreamListener, " + l.localURI.String()
 }
 
-// Run starts the Unix stream listener.
 func (l *UnixStreamListener) Run() {
 	defer func() { l.stopped <- true }()
 
@@ -68,14 +67,13 @@ func (l *UnixStreamListener) Run() {
 	core.LogInfo(l, "Listening")
 
 	// Run accept loop
-	for {
+	for !core.ShouldQuit {
 		newConn, err := l.conn.Accept()
 		if err != nil {
 			core.LogWarn(l, "Unable to accept connection: ", err)
 			return
 		}
 
-		// Construct remote URI
 		remoteURI := defn.MakeFDFaceURI(l.nextFD)
 		l.nextFD++
 		if !remoteURI.IsCanonical() {
@@ -90,16 +88,13 @@ func (l *UnixStreamListener) Run() {
 		}
 
 		core.LogInfo(l, "Accepting new Unix stream face ", remoteURI)
-
-		MakeNDNLPLinkService(
-			newTransport,
-			MakeNDNLPLinkServiceOptions(),
-		).Run(nil)
+		MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions()).Run(nil)
 	}
 }
 
-// Close closes the UnixStreamListener.
 func (l *UnixStreamListener) Close() {
-	l.conn.Close()
-	<-l.stopped
+	if l.conn != nil {
+		l.conn.Close()
+		<-l.stopped
+	}
 }

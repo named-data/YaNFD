@@ -9,8 +9,8 @@ package face
 
 import (
 	"context"
+	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
@@ -21,7 +21,7 @@ import (
 type TCPListener struct {
 	conn     net.Listener
 	localURI *defn.URI
-	HasQuit  chan bool
+	stopped  chan bool
 }
 
 // MakeTCPListener constructs a TCPListener.
@@ -33,7 +33,7 @@ func MakeTCPListener(localURI *defn.URI) (*TCPListener, error) {
 
 	l := new(TCPListener)
 	l.localURI = localURI
-	l.HasQuit = make(chan bool, 1)
+	l.stopped = make(chan bool, 1)
 	return l, nil
 }
 
@@ -41,23 +41,25 @@ func (l *TCPListener) String() string {
 	return "TCPListener, " + l.localURI.String()
 }
 
-// Run starts the TCP listener.
 func (l *TCPListener) Run() {
+	defer func() { l.stopped <- true }()
+
 	// Create dialer and set reuse address option
 	listenConfig := &net.ListenConfig{Control: impl.SyscallReuseAddr}
 
 	// Create listener
-	var err error
 	var remote string
 	if l.localURI.Scheme() == "tcp4" {
-		remote = l.localURI.PathHost() + ":" + strconv.Itoa(int(l.localURI.Port()))
+		remote = fmt.Sprintf("%s:%d", l.localURI.PathHost(), l.localURI.Port())
 	} else {
-		remote = "[" + l.localURI.Path() + "]:" + strconv.Itoa(int(l.localURI.Port()))
+		remote = fmt.Sprintf("[%s]:%d", l.localURI.Path(), l.localURI.Port())
 	}
+
+	// Start listening for incoming connections
+	var err error
 	l.conn, err = listenConfig.Listen(context.Background(), l.localURI.Scheme(), remote)
 	if err != nil {
 		core.LogError(l, "Unable to start TCP listener: ", err)
-		l.HasQuit <- true
 		return
 	}
 
@@ -74,21 +76,15 @@ func (l *TCPListener) Run() {
 			core.LogError(l, "Failed to create new unicast TCP transport: ", err)
 			continue
 		}
-		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
 
-		// Add face to table (which assigns FaceID) before passing current frame to link service
-		FaceTable.Add(newLinkService)
-		go newLinkService.Run(nil)
+		core.LogInfo(l, "Accepting new TCP face ", newTransport.RemoteURI())
+		MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions()).Run(nil)
 	}
-
-	l.HasQuit <- true
 }
 
-// Close closes the TCPListener.
 func (l *TCPListener) Close() {
-	core.LogInfo(l, "Stopping listener")
 	if l.conn != nil {
 		l.conn.Close()
-		l.conn = nil
+		<-l.stopped
 	}
 }
