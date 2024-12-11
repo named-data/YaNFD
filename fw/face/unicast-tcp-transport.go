@@ -248,11 +248,11 @@ func (t *UnicastTCPTransport) runReceive() {
 		// The connection can be nil if the initial connection attempt
 		// failed for a persistent face. In that case we will reconnect.
 		if t.conn != nil {
-			err := readStreamTransport(t.conn, func(b []byte) {
+			err := readTlvStream(t.conn, func(b []byte) {
 				t.nInBytes += uint64(len(b))
 				*t.expirationTime = time.Now().Add(tcpLifetime)
 				t.linkService.handleIncomingFrame(b)
-			})
+			}, nil)
 			if err == nil {
 				break // EOF
 			}

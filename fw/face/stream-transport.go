@@ -8,9 +8,10 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
-func readStreamTransport(
+func readTlvStream(
 	reader io.Reader,
-	frameCb func([]byte),
+	onFrame func([]byte),
+	ignoreError func(error) bool,
 ) error {
 	recvBuf := make([]byte, defn.MaxNDNPacketSize*32)
 	recvOff := 0
@@ -20,6 +21,9 @@ func readStreamTransport(
 		readSize, err := reader.Read(recvBuf[recvOff:])
 		recvOff += readSize
 		if err != nil {
+			if ignoreError != nil && ignoreError(err) {
+				continue
+			}
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
@@ -46,7 +50,7 @@ func readStreamTransport(
 
 			if recvOff-tlvOff >= tlvSize {
 				// Packet was successfully received, send up to link service
-				frameCb(recvBuf[tlvOff : tlvOff+tlvSize])
+				onFrame(recvBuf[tlvOff : tlvOff+tlvSize])
 				tlvOff += tlvSize
 			} else if recvOff-tlvOff > defn.MaxNDNPacketSize {
 				// Invalid packet, something went wrong

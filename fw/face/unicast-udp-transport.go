@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
@@ -126,10 +127,14 @@ func (t *UnicastUDPTransport) sendFrame(frame []byte) {
 func (t *UnicastUDPTransport) runReceive() {
 	defer t.Close()
 
-	err := readStreamTransport(t.conn, func(b []byte) {
+	err := readTlvStream(t.conn, func(b []byte) {
 		t.nInBytes += uint64(len(b))
 		*t.expirationTime = time.Now().Add(udpLifetime)
 		t.linkService.handleIncomingFrame(b)
+	}, func(err error) bool {
+		// Ignore since UDP is a connectionless protocol
+		// This happens if the other side is not listening (ICMP)
+		return strings.Contains(err.Error(), "connection refused")
 	})
 	if err != nil {
 		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
