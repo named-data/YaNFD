@@ -131,7 +131,7 @@ func (t *UnicastUDPTransport) runReceive() {
 		*t.expirationTime = time.Now().Add(udpLifetime)
 		t.linkService.handleIncomingFrame(b)
 	})
-	if err == nil {
+	if err != nil {
 		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
 }
