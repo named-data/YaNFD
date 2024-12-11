@@ -10,6 +10,7 @@ package face
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
@@ -29,6 +30,7 @@ type Table struct {
 func init() {
 	FaceTable.faces = sync.Map{}
 	FaceTable.nextFaceID.Store(1)
+	go FaceTable.ExpirationHandler()
 }
 
 // Add adds a face to the face table.
@@ -79,4 +81,22 @@ func (t *Table) Remove(id uint64) {
 	dispatch.RemoveFace(id)
 	table.Rib.CleanUpFace(id)
 	core.LogDebug("FaceTable", "Unregistered FaceID=", id)
+}
+
+// ExpirationHandler stops the faces that have expired
+func (t *Table) ExpirationHandler() {
+	for {
+		// Check for expired faces every 10 seconds
+		time.Sleep(10 * time.Second)
+
+		// Iterate the face table
+		t.faces.Range(func(_, face interface{}) bool {
+			transport := face.(LinkService).Transport()
+			if transport != nil && transport.ExpirationPeriod() < 0 {
+				core.LogInfo(transport, "Face expired")
+				transport.Close()
+			}
+			return true
+		})
+	}
 }

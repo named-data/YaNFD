@@ -8,13 +8,12 @@
 package face
 
 import (
+	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
@@ -41,8 +40,7 @@ func MakeUnixStreamTransport(remoteURI *defn.URI, localURI *defn.URI, conn net.C
 }
 
 func (t *UnixStreamTransport) String() string {
-	return "UnixStreamTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
-		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return fmt.Sprintf("UnixStreamTransport, FaceID=%d, RemoteURI=%s, LocalURI=%s", t.faceID, t.remoteURI, t.localURI)
 }
 
 // SetPersistency changes the persistency of the face.
@@ -91,60 +89,13 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 func (t *UnixStreamTransport) runReceive() {
 	defer t.Close()
 
-	recvBuf := make([]byte, defn.MaxNDNPacketSize*32)
-	recvOff := 0
-	tlvOff := 0
-
-	for {
-		readSize, err := t.conn.Read(recvBuf[recvOff:])
-		recvOff += readSize
-		if err != nil {
-			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
-			return
-		}
-
-		t.nInBytes += uint64(readSize)
-
-		// Determine whether valid packet received
-		for {
-			rdr := enc.NewBufferReader(recvBuf[tlvOff:recvOff])
-
-			typ, err := enc.ReadTLNum(rdr)
-			if err != nil {
-				// Probably incomplete packet
-				break
-			}
-
-			len, err := enc.ReadTLNum(rdr)
-			if err != nil {
-				// Probably incomplete packet
-				break
-			}
-
-			tlvSize := typ.EncodingLength() + len.EncodingLength() + int(len)
-
-			if recvOff-tlvOff >= tlvSize {
-				// Packet was successfully received, send up to link service
-				t.linkService.handleIncomingFrame(recvBuf[tlvOff : tlvOff+tlvSize])
-				tlvOff += tlvSize
-			} else if recvOff-tlvOff > defn.MaxNDNPacketSize {
-				// Invalid packet, something went wrong
-				core.LogWarn(t, "Received too much data without valid TLV block")
-				return
-			} else {
-				// Incomplete packet (for sure)
-				break
-			}
-		}
-
-		// If less than one packet space remains in buffer, shift to beginning
-		if recvOff-tlvOff < defn.MaxNDNPacketSize {
-			copy(recvBuf, recvBuf[tlvOff:recvOff])
-			recvOff -= tlvOff
-			tlvOff = 0
-		}
+	err := readStreamTransport(t.conn, func(b []byte) {
+		t.nInBytes += uint64(len(b))
+		t.linkService.handleIncomingFrame(b)
+	})
+	if err != nil {
+		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
-
 }
 
 func (t *UnixStreamTransport) Close() {
