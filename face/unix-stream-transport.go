@@ -89,10 +89,10 @@ func (t *UnixStreamTransport) sendFrame(frame []byte) {
 func (t *UnixStreamTransport) runReceive() {
 	defer t.Close()
 
-	err := readStreamTransport(t.conn, func(b []byte) {
+	err := readTlvStream(t.conn, func(b []byte) {
 		t.nInBytes += uint64(len(b))
 		t.linkService.handleIncomingFrame(b)
-	})
+	}, nil)
 	if err != nil {
 		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
