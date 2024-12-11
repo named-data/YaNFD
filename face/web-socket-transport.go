@@ -9,7 +9,6 @@ package face
 
 import (
 	"net"
-	"runtime"
 	"strconv"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +28,7 @@ var _ transport = &WebSocketTransport{}
 func NewWebSocketTransport(localURI *defn.URI, c *websocket.Conn) (t *WebSocketTransport) {
 	remoteURI := defn.MakeWebSocketClientFaceURI(c.RemoteAddr())
 	t = &WebSocketTransport{c: c}
+	t.running.Store(true)
 
 	scope := defn.NonLocal
 	ip := net.ParseIP(remoteURI.PathHost())
@@ -37,7 +37,6 @@ func NewWebSocketTransport(localURI *defn.URI, c *websocket.Conn) (t *WebSocketT
 	}
 
 	t.makeTransportBase(remoteURI, localURI, PersistencyOnDemand, scope, defn.PointToPoint, defn.MaxNDNPacketSize)
-	t.changeState(defn.Up)
 	return t
 }
 
@@ -66,25 +65,20 @@ func (t *WebSocketTransport) sendFrame(frame []byte) {
 	e := t.c.WriteMessage(websocket.BinaryMessage, frame)
 	if e != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(defn.Down)
+		t.Close()
+		return
 	}
 
 	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *WebSocketTransport) runReceive() {
-	core.LogTrace(t, "Starting receive thread")
-
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
-
 	for {
 		mt, message, e := t.c.ReadMessage()
 		if e != nil {
 			core.LogWarn(t, "Unable to read from socket (", e, ") - DROP and Face DOWN")
-			t.changeState(defn.Down)
-			break
+			t.Close()
+			return
 		}
 
 		if mt != websocket.BinaryMessage {
@@ -100,27 +94,10 @@ func (t *WebSocketTransport) runReceive() {
 			continue
 		}
 
-		// Send up to link service
 		t.linkService.handleIncomingFrame(message)
 	}
 }
 
-func (t *WebSocketTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing Unix stream socket")
-		t.hasQuit <- true
-		t.c.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
-	}
+func (t *WebSocketTransport) Close() {
+	t.c.Close()
 }

@@ -114,12 +114,12 @@ func (l *WebSocketListener) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := NewWebSocketTransport(l.localURI, c)
-	linkService := MakeNDNLPLinkService(t, MakeNDNLPLinkServiceOptions())
+	newTransport := NewWebSocketTransport(l.localURI, c)
+	core.LogInfo(l, "Accepting new WebSocket face ", newTransport.RemoteURI())
 
-	core.LogInfo(l, "Accepting new WebSocket face ", t.RemoteURI())
-	FaceTable.Add(linkService)
-	go linkService.Run(nil)
+	options := MakeNDNLPLinkServiceOptions()
+	options.IsFragmentationEnabled = false // reliable stream
+	MakeNDNLPLinkService(newTransport, options).Run(nil)
 }
 
 // Close closes the WebSocketListener.

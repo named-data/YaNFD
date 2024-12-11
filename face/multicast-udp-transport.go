@@ -10,7 +10,6 @@ package face
 import (
 	"errors"
 	"net"
-	"runtime"
 	"strconv"
 
 	"github.com/named-data/YaNFD/core"
@@ -71,7 +70,9 @@ func MakeMulticastUDPTransport(localURI *defn.URI) (*MulticastUDPTransport, erro
 	if err != nil {
 		return nil, errors.New("Unable to create send connection to group address: " + err.Error())
 	}
+
 	t.sendConn = sendConn.(*net.UDPConn)
+	t.running.Store(true)
 
 	// Create receive connection
 	t.recvConn, err = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
@@ -79,8 +80,6 @@ func MakeMulticastUDPTransport(localURI *defn.URI) (*MulticastUDPTransport, erro
 		return nil, errors.New("Unable to create receive connection for group address on " +
 			localIf.Name + ": " + err.Error())
 	}
-
-	t.changeState(defn.Up)
 
 	return t, nil
 }
@@ -134,27 +133,17 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 }
 
 func (t *MulticastUDPTransport) runReceive() {
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
-
 	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
 		readSize, remoteAddr, err := t.recvConn.ReadFromUDP(recvBuf)
 		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
-				t.changeState(defn.Down)
-				break
-			} else {
-				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
-				t.recvConn.Close()
-				localIf, err := InterfaceByIP(net.ParseIP(t.localURI.PathHost()))
-				if err != nil || localIf == nil {
-					core.LogError(t, "Unable to get interface for local URI ", t.localURI, ": ", err)
-				}
-				t.recvConn, _ = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
+			// Re-create the socket
+			localIf, err := InterfaceByIP(net.ParseIP(t.localURI.PathHost()))
+			if err != nil || localIf == nil {
+				core.LogError(t, "Unable to get interface for local URI ", t.localURI, ": ", err)
 			}
+			t.recvConn, _ = net.ListenMulticastUDP(t.remoteURI.Scheme(), localIf, &t.groupAddr)
+
 		}
 
 		core.LogTrace(t, "Receive of size ", readSize, " from ", remoteAddr)
@@ -173,23 +162,11 @@ func (t *MulticastUDPTransport) runReceive() {
 	}
 }
 
-func (t *MulticastUDPTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing UDP socket")
-		t.hasQuit <- true
-		t.sendConn.Close()
-		t.recvConn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
+func (t *MulticastUDPTransport) Close() {
+	if t.running.Swap(false) {
+		if t.sendConn != nil && t.recvConn != nil {
+			t.sendConn.Close()
+			t.recvConn.Close()
+		}
 	}
 }
