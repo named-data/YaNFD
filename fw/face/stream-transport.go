@@ -20,6 +20,9 @@ func readStreamTransport(
 		readSize, err := reader.Read(recvBuf[recvOff:])
 		recvOff += readSize
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			return err
 		}
 
