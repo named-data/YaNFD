@@ -253,6 +253,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 
 		// NDNLP link service parameters
 		options := face.MakeNDNLPLinkServiceOptions()
+		options.IsFragmentationEnabled = false // reliable stream
 		if params.Flags != nil {
 			// Mask already guaranteed to be present if Flags is above
 			flags := *params.Flags

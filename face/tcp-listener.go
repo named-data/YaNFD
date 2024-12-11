@@ -82,7 +82,9 @@ func (l *TCPListener) Run() {
 		}
 
 		core.LogInfo(l, "Accepting new TCP face ", newTransport.RemoteURI())
-		MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions()).Run(nil)
+		options := MakeNDNLPLinkServiceOptions()
+		options.IsFragmentationEnabled = false // reliable stream
+		MakeNDNLPLinkService(newTransport, options).Run(nil)
 	}
 }
 
