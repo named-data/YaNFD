@@ -8,6 +8,7 @@
 package face
 
 import (
+	"errors"
 	"net"
 	"os"
 	"path"
@@ -70,6 +71,9 @@ func (l *UnixStreamListener) Run() {
 	for !core.ShouldQuit {
 		newConn, err := l.conn.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			core.LogWarn(l, "Unable to accept connection: ", err)
 			return
 		}

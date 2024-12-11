@@ -9,6 +9,7 @@ package face
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -67,6 +68,9 @@ func (l *TCPListener) Run() {
 	for !core.ShouldQuit {
 		remoteConn, err := l.conn.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			core.LogWarn(l, "Unable to accept connection: ", err)
 			continue
 		}
