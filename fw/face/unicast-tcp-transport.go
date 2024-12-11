@@ -22,11 +22,16 @@ import (
 
 // UnicastTCPTransport is a unicast TCP transport.
 type UnicastTCPTransport struct {
+	transportBase
+
 	dialer     *net.Dialer
 	conn       *net.TCPConn
 	localAddr  net.TCPAddr
 	remoteAddr net.TCPAddr
-	transportBase
+
+	// Permanent face reconnection
+	rechan chan bool
+	closed bool // (permanently)
 }
 
 // Makes an outgoing unicast TCP transport.
@@ -48,6 +53,7 @@ func MakeUnicastTCPTransport(
 	t := new(UnicastTCPTransport)
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
 	t.expirationTime = utils.IdPtr(time.Now().Add(tcpLifetime))
+	t.rechan = make(chan bool, 1)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -66,18 +72,13 @@ func MakeUnicastTCPTransport(
 	// Fix: for TCP we shouldn't specify the local address. Instead, we should obtain it from system.
 	// Though it succeeds in Windows and MacOS, Linux does not allow this.
 	t.dialer = &net.Dialer{Control: impl.SyscallReuseAddr}
-	remote := net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port())))
 
-	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), remote)
-	if err != nil {
-		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
-	}
+	// Do not attempt to connect here at all, since it blocks the main thread
+	// The cost is that we can't compute the localUri here
+	// We will attempt to connect in the receive loop instead
 
-	t.conn = conn.(*net.TCPConn)
-	t.running.Store(true)
-
-	t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-	t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
+	// Fake for filling up the response
+	t.localURI = defn.DecodeURIString("tcp://127.0.0.1:0")
 
 	return t, nil
 }
@@ -112,6 +113,7 @@ func AcceptUnicastTCPTransport(
 	t := new(UnicastTCPTransport)
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
 	t.expirationTime = utils.IdPtr(time.Now().Add(tcpLifetime))
+	t.rechan = make(chan bool, 1)
 
 	var success bool
 	t.conn, success = remoteConn.(*net.TCPConn)
@@ -161,28 +163,60 @@ func (t *UnicastTCPTransport) GetSendQueueSize() uint64 {
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
 
-// onTransportFailure modifies the state of the UnicastTCPTransport to indicate
-// a failure in transmission.
-func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
-	// TODO: fully broke
-	switch t.persistency {
-	case PersistencyPermanent:
-		// Restart socket
-		t.conn.Close()
-		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(),
-			strconv.Itoa(int(t.remoteURI.Port()))))
-		if err != nil {
-			core.LogError(t, "Unable to connect to remote endpoint: ", err)
-		}
-		t.conn = conn.(*net.TCPConn)
+// Set the connection and params.
+func (t *UnicastTCPTransport) setConn(conn *net.TCPConn) {
+	t.conn = conn
+	t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
+	t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
+}
 
-		if fromReceive {
-			t.runReceive()
-		} else {
-			// Old receive thread will error out, so we need to replace it
-			go t.runReceive()
+// Attempt to reconnect to the remote transport.
+func (t *UnicastTCPTransport) reconnect() {
+	// Shut down the existing socket
+	if t.conn != nil {
+		t.conn.Close()
+	}
+
+	// Number of attempts we have made so far
+	attempt := 0
+
+	// Keep trying to reconnect until successful
+	// If the transport is not permanent, do not attempt to restart
+	// Do this inside the loop to account for changes to persistency
+	for {
+		attempt++
+
+		// If there is no connection, this is the initial attempt to
+		// connect for any face, so we will continue regardless
+		// However, make only one attempt to connect for non-permanent faces
+		if !(t.conn == nil && attempt == 1) {
+			// Do not continue if the transport is not permanent or closed
+			if t.Persistency() != PersistencyPermanent || t.closed {
+				t.rechan <- false // do not continue
+				return
+			}
 		}
+
+		// Restart socket for permanent transport
+		remote := net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port())))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), remote)
+		if err != nil {
+			core.LogWarn(t, "Unable to connect to remote endpoint [", attempt, "]: ", err)
+			time.Sleep(5 * time.Second) // TODO: configurable
+			continue
+		}
+
+		// If the transport was closed while we were trying to reconnect,
+		// close the new connection and return without notifying
+		if t.closed {
+			conn.Close()
+			return
+		}
+
+		// Connected to remote again
+		t.setConn(conn.(*net.TCPConn))
+		t.rechan <- true // continue
+		return
 	}
 }
 
@@ -199,7 +233,7 @@ func (t *UnicastTCPTransport) sendFrame(frame []byte) {
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP")
-		t.onTransportFailure(false)
+		t.CloseConn() // receive might restart if needed
 		return
 	}
 
@@ -210,17 +244,42 @@ func (t *UnicastTCPTransport) sendFrame(frame []byte) {
 func (t *UnicastTCPTransport) runReceive() {
 	defer t.Close()
 
-	err := readStreamTransport(t.conn, func(b []byte) {
-		t.nInBytes += uint64(len(b))
-		t.linkService.handleIncomingFrame(b)
-	})
-	if err != nil {
-		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
+	for {
+		// The connection can be nil if the initial connection attempt
+		// failed for a persistent face. In that case we will reconnect.
+		if t.conn != nil {
+			err := readStreamTransport(t.conn, func(b []byte) {
+				t.nInBytes += uint64(len(b))
+				t.linkService.handleIncomingFrame(b)
+			})
+			if err == nil {
+				break // EOF
+			}
+
+			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
+		}
+
+		// Persistent faces will reconnect, otherwise close
+		go t.reconnect()
+		if !<-t.rechan {
+			return // do not continue
+		}
+
+		core.LogInfo(t, "Connected socket - Face UP")
+		t.running.Store(true)
 	}
 }
 
-func (t *UnicastTCPTransport) Close() {
+// Close the inner connection if running without closing the transport.
+func (t *UnicastTCPTransport) CloseConn() {
 	if t.running.Swap(false) {
 		t.conn.Close()
 	}
+}
+
+// Close the connection permanently - this will not attempt to reconnect.
+func (t *UnicastTCPTransport) Close() {
+	t.closed = true
+	t.rechan <- false
+	t.CloseConn()
 }

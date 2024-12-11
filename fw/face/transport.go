@@ -37,6 +37,8 @@ type transport interface {
 	sendFrame([]byte)
 	// Receive frames in an infinite loop
 	runReceive()
+	// Transport is currently running (up)
+	IsRunning() bool
 	// Close the transport (runReceive should exit)
 	Close()
 
@@ -81,6 +83,10 @@ func (t *transportBase) makeTransportBase(
 	t.mtu = mtu
 }
 
+//
+// Setters
+//
+
 func (t *transportBase) setFaceID(faceID uint64) {
 	t.faceID = faceID
 }
@@ -93,42 +99,36 @@ func (t *transportBase) setLinkService(linkService LinkService) {
 // Getters
 //
 
-// LocalURI returns the local URI of the transport.
 func (t *transportBase) LocalURI() *defn.URI {
 	return t.localURI
 }
 
-// RemoteURI returns the remote URI of the transport.
 func (t *transportBase) RemoteURI() *defn.URI {
 	return t.remoteURI
 }
 
-// Persistency returns the persistency of the transport.
 func (t *transportBase) Persistency() Persistency {
 	return t.persistency
 }
 
-// Scope returns the scope of the transport.
 func (t *transportBase) Scope() defn.Scope {
 	return t.scope
 }
 
-// LinkType returns the type of the transport.
 func (t *transportBase) LinkType() defn.LinkType {
 	return t.linkType
 }
 
-// MTU returns the maximum transmission unit (MTU) of the Transport.
 func (t *transportBase) MTU() int {
 	return t.mtu
 }
 
-// SetMTU sets the MTU of the transport.
 func (t *transportBase) SetMTU(mtu int) {
 	t.mtu = mtu
 }
 
-// ExpirationPeriod returns the time until this face expires. If transport not on-demand, returns 0.
+// ExpirationPeriod returns the time until this face expires.
+// If transport not on-demand, returns 0.
 func (t *transportBase) ExpirationPeriod() time.Duration {
 	if t.expirationTime == nil || t.persistency != PersistencyOnDemand {
 		return 0
@@ -136,21 +136,22 @@ func (t *transportBase) ExpirationPeriod() time.Duration {
 	return time.Until(*t.expirationTime)
 }
 
-// Face ID of the transport
 func (t *transportBase) FaceID() uint64 {
 	return t.faceID
+}
+
+func (t *transportBase) IsRunning() bool {
+	return t.running.Load()
 }
 
 //
 // Counters
 //
 
-// NInBytes returns the number of link-layer bytes received on this transport.
 func (t *transportBase) NInBytes() uint64 {
 	return t.nInBytes
 }
 
-// NOutBytes returns the number of link-layer bytes sent on this transport.
 func (t *transportBase) NOutBytes() uint64 {
 	return t.nOutBytes
 }
