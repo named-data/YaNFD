@@ -157,7 +157,10 @@ func (l *linkServiceBase) ExpirationPeriod() time.Duration {
 
 // State returns the state of the underlying transport.
 func (l *linkServiceBase) State() defn.State {
-	return defn.Up
+	if l.transport.IsRunning() {
+		return defn.Up
+	}
+	return defn.Down
 }
 
 //
