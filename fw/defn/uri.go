@@ -5,7 +5,7 @@
  * This file is licensed under the terms of the MIT License, as found in LICENSE.md.
  */
 
-package ndn_defn
+package defn
 
 import (
 	"net"

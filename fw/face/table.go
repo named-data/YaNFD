@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 
 	"github.com/named-data/YaNFD/core"
+	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/dispatch"
-	ndn_defn "github.com/named-data/YaNFD/ndn_defn"
 	"github.com/named-data/YaNFD/table"
 )
 
@@ -51,7 +51,7 @@ func (t *Table) Get(id uint64) LinkService {
 }
 
 // GetByURI gets the face with the specified remote URI (if any) from the face table.
-func (t *Table) GetByURI(remoteURI *ndn_defn.URI) LinkService {
+func (t *Table) GetByURI(remoteURI *defn.URI) LinkService {
 	var found LinkService
 	t.faces.Range(func(_, face interface{}) bool {
 		if face.(LinkService).RemoteURI().String() == remoteURI.String() {

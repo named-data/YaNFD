@@ -7,8 +7,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.10.0
-	github.com/zjkmxy/go-ndn v0.0.7
-	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
+	github.com/zjkmxy/go-ndn v0.0.8
+	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
 	golang.org/x/sys v0.28.0
 )
 

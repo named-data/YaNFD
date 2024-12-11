@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/named-data/YaNFD/ndn_defn"
 	"github.com/stretchr/testify/assert"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 func TestBasePitEntryGetters(t *testing.T) {
@@ -91,23 +90,20 @@ func TestInsertInRecord(t *testing.T) {
 	name, _ := enc.NameFromStr("/something")
 	val := new(uint32)
 	*val = 1
-	interest := &spec_2022.Interest{
+	interest := &spec.Interest{
 		NameV:  name,
 		NonceV: val,
 	}
-	netPacket := new(ndn_defn.PendingPacket)
-	netPacket.EncPacket = new(spec_2022.Packet)
-	netPacket.EncPacket.Interest = interest
 	pitToken := []byte("abc")
 	bpe := basePitEntry{
 		inRecords: make(map[uint64]*PitInRecord),
 	}
 	faceID := uint64(1234)
-	inRecord, alreadyExists := bpe.InsertInRecord(netPacket, faceID, pitToken)
+	inRecord, alreadyExists := bpe.InsertInRecord(interest, faceID, pitToken)
 	assert.False(t, alreadyExists)
 	assert.Equal(t, inRecord.Face, faceID)
-	assert.Equal(t, inRecord.LatestEncNonce == *interest.NonceV, true)
-	assert.Equal(t, inRecord.LatestEncInterest.EncPacket.Interest, interest)
+	assert.Equal(t, inRecord.LatestNonce == *interest.NonceV, true)
+	assert.Equal(t, inRecord.LatestInterest, interest.NameV)
 	assert.Equal(t, bytes.Compare(inRecord.PitToken, pitToken), 0)
 	assert.Equal(t, len(bpe.InRecords()), 1)
 
@@ -117,11 +113,11 @@ func TestInsertInRecord(t *testing.T) {
 
 	// Case 2: interest already exists in basePitEntry.inRecords
 	*interest.NonceV = 2 // get a "new" interest by resetting its nonce
-	inRecord, alreadyExists = bpe.InsertInRecord(netPacket, faceID, pitToken)
+	inRecord, alreadyExists = bpe.InsertInRecord(interest, faceID, pitToken)
 	assert.True(t, alreadyExists)
 	assert.Equal(t, inRecord.Face, faceID)
-	assert.Equal(t, inRecord.LatestEncNonce == *interest.NonceV, true)
-	assert.Equal(t, inRecord.LatestEncInterest.EncPacket.Interest, interest)
+	assert.Equal(t, inRecord.LatestNonce == *interest.NonceV, true)
+	assert.Equal(t, inRecord.LatestInterest, interest.NameV)
 	assert.Equal(t, bytes.Compare(inRecord.PitToken, pitToken), 0)
 	assert.Equal(t, len(bpe.InRecords()), 1) // should update the original record in place
 	record, ok = bpe.InRecords()[faceID]
@@ -132,20 +128,17 @@ func TestInsertInRecord(t *testing.T) {
 	name2, _ := enc.NameFromStr("/another_something")
 	val2 := new(uint32)
 	*val2 = 1
-	interest2 := &spec_2022.Interest{
+	interest2 := &spec.Interest{
 		NameV:  name2,
 		NonceV: val,
 	}
-	netPacket2 := new(ndn_defn.PendingPacket)
-	netPacket2.EncPacket = new(spec_2022.Packet)
-	netPacket2.EncPacket.Interest = interest2
 	pitToken2 := []byte("xyz")
 	faceID2 := uint64(6789)
-	inRecord, alreadyExists = bpe.InsertInRecord(netPacket2, faceID2, pitToken2)
+	inRecord, alreadyExists = bpe.InsertInRecord(interest2, faceID2, pitToken2)
 	assert.False(t, alreadyExists)
 	assert.Equal(t, inRecord.Face, faceID2)
-	assert.Equal(t, inRecord.LatestEncNonce == *interest2.NonceV, true)
-	assert.Equal(t, inRecord.LatestEncInterest.EncPacket.Interest, interest2)
+	assert.Equal(t, inRecord.LatestNonce == *interest2.NonceV, true)
+	assert.Equal(t, inRecord.LatestInterest, interest2.NameV)
 	assert.Equal(t, bytes.Compare(inRecord.PitToken, pitToken2), 0)
 	assert.Equal(t, len(bpe.InRecords()), 2) // should be a new inRecord
 	record, ok = bpe.InRecords()[faceID2]
@@ -158,17 +151,18 @@ func TestInsertInRecord(t *testing.T) {
 }
 
 func TestBaseCsEntryGetters(t *testing.T) {
-	name, _ := enc.NameFromStr("/something")
+	name, _ := enc.NameFromStr("/ndn/edu/ucla/ping/123")
 	currTime := time.Now()
-	content := enc.Wire{enc.Buffer("test")}
-	data := makeData(name, content)
 	bpe := baseCsEntry{
 		index:     1234,
 		staleTime: currTime,
-		encData:   data,
+		wire:      VALID_DATA_1,
 	}
 
 	assert.Equal(t, bpe.Index(), uint64(1234))
 	assert.Equal(t, bpe.StaleTime(), currTime)
-	assert.Equal(t, bpe.EncData(), data)
+
+	csData, csWire, _ := bpe.Copy()
+	assert.Equal(t, csData.NameV, name)
+	assert.Equal(t, csWire, VALID_DATA_1)
 }
