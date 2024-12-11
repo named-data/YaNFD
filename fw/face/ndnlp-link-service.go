@@ -52,6 +52,7 @@ func MakeNDNLPLinkServiceOptions() NDNLPLinkServiceOptions {
 		BaseCongestionMarkingInterval:   time.Duration(100) * time.Millisecond,
 		DefaultCongestionThresholdBytes: uint64(math.Pow(2, 16)),
 		IsReassemblyEnabled:             true,
+		IsFragmentationEnabled:          true,
 	}
 }
 

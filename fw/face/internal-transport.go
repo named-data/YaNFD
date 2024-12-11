@@ -43,11 +43,13 @@ func MakeInternalTransport() *InternalTransport {
 // RegisterInternalTransport creates, registers, and starts an InternalTransport.
 func RegisterInternalTransport() (LinkService, *InternalTransport) {
 	transport := MakeInternalTransport()
-	link := MakeNDNLPLinkService(transport, NDNLPLinkServiceOptions{
-		IsIncomingFaceIndicationEnabled:       true,
-		IsConsumerControlledForwardingEnabled: true,
-	})
+
+	options := MakeNDNLPLinkServiceOptions()
+	options.IsIncomingFaceIndicationEnabled = true
+	options.IsConsumerControlledForwardingEnabled = true
+	link := MakeNDNLPLinkService(transport, options)
 	link.Run(nil)
+
 	return link, transport
 }
 

@@ -92,7 +92,9 @@ func (l *UnixStreamListener) Run() {
 		}
 
 		core.LogInfo(l, "Accepting new Unix stream face ", remoteURI)
-		MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions()).Run(nil)
+		options := MakeNDNLPLinkServiceOptions()
+		options.IsFragmentationEnabled = false // reliable stream
+		MakeNDNLPLinkService(newTransport, options).Run(nil)
 	}
 }
 
