@@ -250,6 +250,7 @@ func (t *UnicastTCPTransport) runReceive() {
 		if t.conn != nil {
 			err := readStreamTransport(t.conn, func(b []byte) {
 				t.nInBytes += uint64(len(b))
+				*t.expirationTime = time.Now().Add(tcpLifetime)
 				t.linkService.handleIncomingFrame(b)
 			})
 			if err == nil {
