@@ -47,6 +47,7 @@ type YaNFD struct {
 	unixListener *face.UnixStreamListener
 	wsListener   *face.WebSocketListener
 	tcpListeners []*face.TCPListener
+	udpListener  *face.UDPListener
 }
 
 // NewYaNFD creates a YaNFD. Don't call this function twice.
@@ -184,6 +185,7 @@ func (y *YaNFD) Start() {
 			}
 			faceCnt += 1
 			go udpListener.Run()
+			y.udpListener = udpListener
 			core.LogInfo("Main", "Created UDP listener for ", path, " on ", iface.Name)
 
 			if tcpEnabled {
@@ -194,8 +196,8 @@ func (y *YaNFD) Start() {
 				}
 				faceCnt += 1
 				go tcpListener.Run()
-				core.LogInfo("Main", "Created TCP listener for ", path, " on ", iface.Name)
 				y.tcpListeners = append(y.tcpListeners, tcpListener)
+				core.LogInfo("Main", "Created TCP listener for ", path, " on ", iface.Name)
 			}
 		}
 	}
@@ -259,6 +261,11 @@ func (y *YaNFD) Stop() {
 	}
 	if y.wsListener != nil {
 		y.wsListener.Close()
+	}
+
+	// Wait for UDP listener to quit
+	if y.udpListener != nil {
+		y.udpListener.Close()
 	}
 
 	// Wait for TCP listeners to quit
