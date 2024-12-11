@@ -10,7 +10,7 @@ package table
 import (
 	"container/list"
 
-	"github.com/named-data/YaNFD/ndn_defn"
+	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 // CsLRU is a least recently used (LRU) replacement policy for the Content Store.
@@ -30,12 +30,12 @@ func NewCsLRU(cs PitCsTable) *CsLRU {
 }
 
 // AfterInsert is called after a new entry is inserted into the Content Store.
-func (l *CsLRU) AfterInsert(index uint64, data *ndn_defn.PendingPacket) {
+func (l *CsLRU) AfterInsert(index uint64, wire []byte, data *spec.Data) {
 	l.locations[index] = l.queue.PushBack(index)
 }
 
 // AfterRefresh is called after a new data packet refreshes an existing entry in the Content Store.
-func (l *CsLRU) AfterRefresh(index uint64, data *ndn_defn.PendingPacket) {
+func (l *CsLRU) AfterRefresh(index uint64, wire []byte, data *spec.Data) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 	}
@@ -43,7 +43,7 @@ func (l *CsLRU) AfterRefresh(index uint64, data *ndn_defn.PendingPacket) {
 }
 
 // BeforeErase is called before an entry is erased from the Content Store through management.
-func (l *CsLRU) BeforeErase(index uint64, data *ndn_defn.PendingPacket) {
+func (l *CsLRU) BeforeErase(index uint64, wire []byte) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 		delete(l.locations, index)
@@ -51,7 +51,7 @@ func (l *CsLRU) BeforeErase(index uint64, data *ndn_defn.PendingPacket) {
 }
 
 // BeforeUse is called before an entry in the Content Store is used to satisfy a pending Interest.
-func (l *CsLRU) BeforeUse(index uint64, data *ndn_defn.PendingPacket) {
+func (l *CsLRU) BeforeUse(index uint64, wire []byte) {
 	if location, ok := l.locations[index]; ok {
 		l.queue.Remove(location)
 	}

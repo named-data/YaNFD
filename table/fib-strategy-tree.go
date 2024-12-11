@@ -80,9 +80,8 @@ func (f *fibStrategyTreeEntry) findLongestPrefixEntryEnc(name enc.Name) *fibStra
 func (f *FibStrategyTree) fillTreeToPrefixEnc(name enc.Name) *fibStrategyTreeEntry {
 	curNode := f.root.findLongestPrefixEntryEnc(name)
 	for depth := curNode.depth + 1; depth <= len(name); depth++ {
-		component, _ := enc.ComponentFromBytes(At(name, depth-1).Bytes())
 		newNode := new(fibStrategyTreeEntry)
-		newNode.component = component
+		newNode.component = At(name, depth-1).Clone()
 		newNode.depth = depth
 		newNode.parent = curNode
 		curNode.children = append(curNode.children, newNode)
@@ -173,7 +172,7 @@ func (f *FibStrategyTree) InsertNextHopEnc(name enc.Name, nexthop uint64, cost u
 	f.fibStrategyRWMutex.Lock()
 	defer f.fibStrategyRWMutex.Unlock()
 
-	name, _ = enc.NameFromBytes(name.Bytes())
+	name = name.Clone()
 	entry := f.fillTreeToPrefixEnc(name)
 	if entry.name == nil {
 		entry.name = name
@@ -259,8 +258,8 @@ func (f *FibStrategyTree) SetStrategyEnc(name enc.Name, strategy enc.Name) {
 	f.fibStrategyRWMutex.Lock()
 	defer f.fibStrategyRWMutex.Unlock()
 
-	name, _ = enc.NameFromBytes(name.Bytes())
-	strategy, _ = enc.NameFromBytes(strategy.Bytes())
+	name = name.Clone()
+	strategy = strategy.Clone()
 
 	entry := f.fillTreeToPrefixEnc(name)
 	if entry.name == nil {

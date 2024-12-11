@@ -10,7 +10,7 @@ package dispatch
 import (
 	"sync"
 
-	"github.com/named-data/YaNFD/ndn_defn"
+	"github.com/named-data/YaNFD/defn"
 )
 
 // Face provides an interface that faces can satisfy (to avoid circular dependency between faces and forwarding)
@@ -19,15 +19,15 @@ type Face interface {
 	SetFaceID(faceID uint64)
 
 	FaceID() uint64
-	LocalURI() *ndn_defn.URI
-	RemoteURI() *ndn_defn.URI
-	Scope() ndn_defn.Scope
-	LinkType() ndn_defn.LinkType
+	LocalURI() *defn.URI
+	RemoteURI() *defn.URI
+	Scope() defn.Scope
+	LinkType() defn.LinkType
 	MTU() int
 
-	State() ndn_defn.State
+	State() defn.State
 
-	SendPacket(packet *ndn_defn.PendingPacket)
+	SendPacket(packet *defn.Pkt)
 }
 
 // FaceDispatch is used to allow forwarding to interact with faces without a circular dependency issue.
