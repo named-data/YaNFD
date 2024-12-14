@@ -107,8 +107,8 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 				Module: "rib",
 				Cmd:    "unregister",
 				Args: &mgmt.ControlArgs{
-					FaceId: utils.IdPtr(ns.faceId),
 					Name:   ns.route(),
+					FaceId: utils.IdPtr(ns.faceId),
 				},
 				Retries: 3,
 			})
@@ -120,8 +120,8 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 			Module: "rib",
 			Cmd:    "register",
 			Args: &mgmt.ControlArgs{
-				FaceId: utils.IdPtr(faceId),
 				Name:   ns.route(),
+				FaceId: utils.IdPtr(faceId),
 			},
 			Retries: 3,
 		})
@@ -140,8 +140,8 @@ func (ns *NeighborState) delete() {
 		Module: "rib",
 		Cmd:    "unregister",
 		Args: &mgmt.ControlArgs{
+			Name:   ns.route(),
 			FaceId: utils.IdPtr(ns.faceId),
-			Name:   ns.Name,
 		},
 		Retries: 3,
 	})
