@@ -16,10 +16,10 @@ func (dv *Router) prefixDataFetchAll() {
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
-	for _, nodeId := range dv.rib.Destinations() {
-		router := dv.pfx.GetRouter(nodeId)
+	for _, e := range dv.rib.Entries() {
+		router := dv.pfx.GetRouter(e.Name())
 		if router.Known < router.Latest {
-			go dv.prefixDataFetch(nodeId)
+			go dv.prefixDataFetch(e.Name())
 		}
 	}
 }

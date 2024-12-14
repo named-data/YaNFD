@@ -23,8 +23,10 @@ type RibEntry struct {
 	name enc.Name
 	// neighbor hash -> cost
 	costs map[uint64]uint64
-	// next hop for lowest cost
+	// next hop for lowest cost (name hash)
 	nextHop1 uint64
+	// second next hop for lowest cost (name hash)
+	nextHop2 uint64
 	// lowest cost in this entry
 	lowest1 uint64
 	// second lowest cost in this entry
@@ -86,14 +88,14 @@ func (r *Rib) Has(destName enc.Name) bool {
 }
 
 // Get all destinations reachable in the RIB.
-func (r *Rib) Destinations() []enc.Name {
-	dests := make([]enc.Name, 0, len(r.entries))
+func (r *Rib) Entries() []*RibEntry {
+	entries := make([]*RibEntry, 0, len(r.entries))
 	for _, entry := range r.entries {
-		if r.Has(entry.name) {
-			dests = append(dests, entry.name)
+		if entry.lowest1 < config.CostInfinity {
+			entries = append(entries, entry)
 		}
 	}
-	return dests
+	return entries
 }
 
 // Remove all entries with a given next hop.
@@ -163,6 +165,10 @@ func (r *Rib) Advert() *tlv.Advertisement {
 	return advert
 }
 
+func (e *RibEntry) Name() enc.Name {
+	return e.name
+}
+
 func (e *RibEntry) Set(nextHop uint64, cost uint64) bool {
 	if known, ok := e.costs[nextHop]; !ok || known != cost {
 		e.costs[nextHop] = cost
@@ -193,10 +199,11 @@ func (e *RibEntry) refresh() bool {
 		}
 	}
 
-	if e.lowest1 != lowest1 || e.lowest2 != lowest2 || e.nextHop1 != nextHop1 {
+	if e.lowest1 != lowest1 || e.lowest2 != lowest2 || e.nextHop1 != nextHop1 || e.nextHop2 != nextHop2 {
 		e.lowest1 = lowest1
 		e.lowest2 = lowest2
 		e.nextHop1 = nextHop1
+		e.nextHop2 = nextHop2
 		return true
 	}
 

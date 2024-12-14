@@ -51,6 +51,7 @@ func (dv *Router) ribUpdate(ns *table.NeighborState) {
 
 	// If advert changed, increment sequence number
 	if dirty {
+		go dv.fibUpdate()
 		go dv.advertSyncNotifyNew()
 		go dv.prefixDataFetchAll()
 	}
@@ -77,6 +78,24 @@ func (dv *Router) checkDeadNeighbors() {
 	}
 
 	if dirty {
+		go dv.fibUpdate()
 		go dv.advertSyncNotifyNew()
 	}
+}
+
+// Update the FIB
+func (dv *Router) fibUpdate() {
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	// Update FIB routers from RIB only
+	dv.fib.UnmarkAll()
+	for _, entry := range dv.rib.Entries() {
+		nameH := entry.Name().Hash()
+		fes := dv.rib.GetFibEntries(dv.neighbors, nameH)
+		if dv.fib.Update(entry.Name(), fes) {
+			dv.fib.MarkH(nameH)
+		}
+	}
+	dv.fib.RemoveUnmarked()
 }

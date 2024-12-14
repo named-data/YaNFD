@@ -88,6 +88,10 @@ func (ns *NeighborState) IsDead() bool {
 	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval
 }
 
+func (ns *NeighborState) route() enc.Name {
+	return append(ns.Name, enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"))
+}
+
 // Call this when a ping is received from a face.
 // This will automatically register the face route with the neighbor
 // and update the last seen time for the neighbor.
@@ -104,7 +108,7 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 				Cmd:    "unregister",
 				Args: &mgmt.ControlArgs{
 					FaceId: utils.IdPtr(ns.faceId),
-					Name:   ns.Name,
+					Name:   ns.route(),
 				},
 				Retries: 3,
 			})
@@ -117,7 +121,8 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 			Cmd:    "register",
 			Args: &mgmt.ControlArgs{
 				FaceId: utils.IdPtr(faceId),
-				Name:   ns.Name,
+				Name:   ns.route(),
+				Cost:   utils.IdPtr(uint64(1)),
 			},
 			Retries: 3,
 		})

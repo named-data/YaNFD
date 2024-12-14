@@ -37,6 +37,8 @@ type Router struct {
 	rib *table.Rib
 	// prefix table
 	pfx *table.PrefixTable
+	// forwarding table
+	fib *table.Fib
 
 	// advertisement sequence number for self
 	advertSyncSeq uint64
@@ -72,6 +74,7 @@ func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, err
 	dv.neighbors = table.NewNeighborTable(config, dv.nfdc)
 	dv.rib = table.NewRib(config)
 	dv.pfx = table.NewPrefixTable(config, engine, dv.pfxSvs)
+	dv.fib = table.NewFib(config, dv.nfdc)
 
 	return dv, nil
 }
@@ -113,7 +116,6 @@ func (dv *Router) Start() (err error) {
 		select {
 		case <-dv.heartbeat.C:
 			dv.advertSyncSendInterest()
-			dv.pfxSvs.IncrSeqNo(dv.config.RouterPfxN) // TODO: remove
 		case <-dv.deadcheck.C:
 			dv.checkDeadNeighbors()
 		case <-dv.stop:
@@ -173,10 +175,15 @@ func (dv *Router) register() (err error) {
 		dv.config.PfxDataPfxN,
 	}
 	for _, prefix := range pfxs {
-		err = dv.engine.RegisterRoute(prefix)
-		if err != nil {
-			return err
-		}
+		dv.nfdc.Exec(nfdc.NfdMgmtCmd{
+			Module: "rib",
+			Cmd:    "register",
+			Args: &mgmt.ControlArgs{
+				Name: prefix,
+				Cost: utils.IdPtr(uint64(0)),
+			},
+			Retries: -1,
+		})
 	}
 
 	// Set strategy to multicast for sync prefixes
