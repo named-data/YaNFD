@@ -48,6 +48,13 @@ func main() {
 		logger.Infof("Received update: %+v", ssu)
 	})
 
+	// Register group prefix route
+	err = app.RegisterRoute(group)
+	if err != nil {
+		logger.Errorf("Unable to register route: %+v", err)
+		return
+	}
+
 	err = svsync.Start()
 	if err != nil {
 		logger.Errorf("Unable to create SvSync: %+v", err)

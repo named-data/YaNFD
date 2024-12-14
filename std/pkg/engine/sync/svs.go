@@ -71,7 +71,7 @@ func NewSvSync(
 }
 
 func (s *SvSync) Start() (err error) {
-	err = s.registerRoutes()
+	err = s.engine.AttachHandler(s.groupPrefix, s.onSyncInterest)
 	if err != nil {
 		return err
 	}
@@ -261,20 +261,6 @@ func (s *SvSync) timerExpired() {
 	// [Spec] On expiration of timer emit a Sync Interest
 	// with the current local state vector.
 	go s.sendSyncInterest()
-}
-
-func (s *SvSync) registerRoutes() (err error) {
-	err = s.engine.AttachHandler(s.groupPrefix, s.onSyncInterest)
-	if err != nil {
-		return err
-	}
-
-	err = s.engine.RegisterRoute(s.groupPrefix)
-	if err != nil {
-		return err
-	}
-
-	return err
 }
 
 func (s *SvSync) sendSyncInterest() {
