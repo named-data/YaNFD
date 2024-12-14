@@ -6,6 +6,7 @@ import (
 	rand "math/rand/v2"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
@@ -19,8 +20,9 @@ type SvSync struct {
 	groupPrefix enc.Name
 	onUpdate    func(SvSyncUpdate)
 
-	stop   chan struct{}
-	ticker *time.Ticker
+	running atomic.Bool
+	stop    chan struct{}
+	ticker  *time.Ticker
 
 	periodicTimeout   time.Duration
 	suppressionPeriod time.Duration
@@ -52,8 +54,9 @@ func NewSvSync(
 		groupPrefix: groupPrefix.Clone(),
 		onUpdate:    onUpdate,
 
-		stop:   make(chan struct{}),
-		ticker: time.NewTicker(1 * time.Second),
+		running: atomic.Bool{},
+		stop:    make(chan struct{}),
+		ticker:  time.NewTicker(1 * time.Second),
 
 		periodicTimeout:   30 * time.Second,
 		suppressionPeriod: 200 * time.Millisecond,
@@ -83,6 +86,9 @@ func (s *SvSync) Start() (err error) {
 }
 
 func (s *SvSync) main() {
+	s.running.Store(true)
+	defer s.running.Store(false)
+
 	for {
 		select {
 		case <-s.ticker.C:
@@ -264,6 +270,10 @@ func (s *SvSync) timerExpired() {
 }
 
 func (s *SvSync) sendSyncInterest() {
+	if !s.running.Load() {
+		return
+	}
+
 	// Critical section
 	svWire := func() enc.Wire {
 		s.mutex.Lock()
