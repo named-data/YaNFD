@@ -122,7 +122,6 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 			Args: &mgmt.ControlArgs{
 				FaceId: utils.IdPtr(faceId),
 				Name:   ns.route(),
-				Cost:   utils.IdPtr(uint64(1)),
 			},
 			Retries: 3,
 		})

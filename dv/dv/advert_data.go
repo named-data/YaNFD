@@ -131,8 +131,12 @@ func (dv *Router) advertDataHandler(data ndn.Data) {
 
 	// Check if this is the latest advertisement
 	ns := dv.neighbors.Get(neighbor)
-	if ns == nil || ns.AdvertSeq != seqNo {
-		log.Warnf("advertDataHandler: Received old Advert for %s (%d != %d)", neighbor.String(), ns.AdvertSeq, seqNo)
+	if ns == nil {
+		log.Warnf("advertDataHandler: Unknown neighbor advert %s", neighbor)
+		return
+	}
+	if ns.AdvertSeq != seqNo {
+		log.Warnf("advertDataHandler: Received old Advert for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
 		return
 	}
 
