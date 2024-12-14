@@ -99,6 +99,13 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 
 		if result != ndn.InterestResultData {
 			log.Warnf("prefixDataFetch: Failed to fetch prefix data %s: %d", finalName, result)
+
+			// see advertDataFetch
+			if result != ndn.InterestResultTimeout {
+				time.Sleep(2 * time.Second)
+			} else {
+				time.Sleep(100 * time.Millisecond)
+			}
 			return
 		}
 
