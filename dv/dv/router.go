@@ -150,19 +150,19 @@ func (dv *Router) register() (err error) {
 	// TODO: retry when these fail
 
 	// Advertisement Sync
-	err = dv.engine.AttachHandler(dv.config.AdvSyncPfxN, dv.advertSyncOnInterest)
+	err = dv.engine.AttachHandler(dv.config.AdvSyncPfxN, dv.advertSyncOnInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Advertisement Data
-	err = dv.engine.AttachHandler(dv.config.AdvDataPfxN, dv.advertDataOnInterest)
+	err = dv.engine.AttachHandler(dv.config.AdvDataPfxN, dv.advertDataOnInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Prefix Data
-	err = dv.engine.AttachHandler(dv.config.PfxDataPfxN, dv.pfx.OnDataInterest)
+	err = dv.engine.AttachHandler(dv.config.PfxDataPfxN, dv.pfx.OnDataInterestAsync)
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,7 @@ func (m *NfdMgmtThread) Start() {
 			for i := 0; i < cmd.Retries || cmd.Retries < 0; i++ {
 				err := m.engine.ExecMgmtCmd(cmd.Module, cmd.Cmd, cmd.Args)
 				if err != nil {
-					log.Errorf("NFD Management command failed: %+v", err)
+					log.Errorf("%s %s failed: %s %+v [%d]", cmd.Module, cmd.Cmd, cmd.Args.Name, err, i)
 					time.Sleep(100 * time.Millisecond)
 				} else {
 					time.Sleep(10 * time.Millisecond)

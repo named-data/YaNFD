@@ -193,8 +193,16 @@ func (pt *PrefixTable) publish(name enc.Name, content enc.Wire) {
 	pt.repo[name.Hash()] = wire.Join()
 }
 
+func (pt *PrefixTable) OnDataInterestAsync(
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
+) {
+	go pt.onDataInterest(interest, reply, extra)
+}
+
 // Received prefix data Interest
-func (pt *PrefixTable) OnDataInterest(
+func (pt *PrefixTable) onDataInterest(
 	interest ndn.Interest,
 	reply ndn.ReplyFunc,
 	extra ndn.InterestHandlerExtra,

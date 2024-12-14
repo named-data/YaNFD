@@ -70,6 +70,14 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 	}
 }
 
+func (dv *Router) advertDataOnInterestAsync(
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
+) {
+	go dv.advertDataOnInterest(interest, reply, extra)
+}
+
 // Received advertisement Interest
 func (dv *Router) advertDataOnInterest(
 	interest ndn.Interest,

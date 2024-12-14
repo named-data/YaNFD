@@ -49,6 +49,14 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	return nil
 }
 
+func (dv *Router) advertSyncOnInterestAsync(
+	interest ndn.Interest,
+	reply ndn.ReplyFunc,
+	extra ndn.InterestHandlerExtra,
+) {
+	go dv.advertSyncOnInterest(interest, reply, extra)
+}
+
 func (dv *Router) advertSyncOnInterest(
 	interest ndn.Interest,
 	reply ndn.ReplyFunc,
