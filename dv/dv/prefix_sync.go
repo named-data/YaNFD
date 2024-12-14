@@ -3,6 +3,7 @@ package dv
 import (
 	"time"
 
+	"github.com/pulsejet/go-ndn-dv/table"
 	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	ndn_sync "github.com/zjkmxy/go-ndn/pkg/engine/sync"
@@ -111,30 +112,34 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 				return
 			}
 
-			ops, err := tlv.ParsePrefixOpList(enc.NewWireReader(data.Content()), true)
-			if err != nil {
-				log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
-				return
-			}
-
-			// Lock here - will release before the defer at top
-			dv.mutex.Lock()
-			defer dv.mutex.Unlock()
-
-			// Update sequence number
-			dataName := data.Name()
-			seqNo := dataName[len(dataName)-1]
-			if seqNo.Typ != enc.TypeSequenceNumNameComponent {
-				log.Warnf("prefixDataFetch: Unexpected sequence number type: %s", seqNo.Typ)
-				return
-			}
-
-			dv.pfx.Apply(ops)
-			router.Known = seqNo.NumberVal()
+			dv.processPrefixData(data, router)
 		}()
 	})
 	if err != nil {
 		log.Warnf("prefixDataFetch: Failed to express Interest: %+v", err)
 		return
 	}
+}
+
+func (dv *Router) processPrefixData(data ndn.Data, router *table.PrefixTableRouter) {
+	ops, err := tlv.ParsePrefixOpList(enc.NewWireReader(data.Content()), true)
+	if err != nil {
+		log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
+		return
+	}
+
+	dv.mutex.Lock()
+	defer dv.mutex.Unlock()
+
+	// Update sequence number
+	dataName := data.Name()
+	seqNo := dataName[len(dataName)-1]
+	if seqNo.Typ != enc.TypeSequenceNumNameComponent {
+		log.Warnf("prefixDataFetch: Unexpected sequence number type: %s", seqNo.Typ)
+		return
+	}
+
+	// Update the prefix table
+	dv.pfx.Apply(ops)
+	router.Known = seqNo.NumberVal()
 }
