@@ -89,15 +89,16 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 		_, _ enc.Wire, _ uint64,
 	) {
 		go func() {
-			dv.mutex.Lock()
-			defer dv.mutex.Unlock()
-
 			// Done fetching, restart if needed
 			defer func() {
+				dv.mutex.Lock()
+				defer dv.mutex.Unlock()
+
 				router.Fetching = false
 				go dv.prefixDataFetch(nodeId) // recheck
 			}()
 
+			// Sleep this goroutine if no data was received
 			if result != ndn.InterestResultData {
 				log.Warnf("prefixDataFetch: Failed to fetch prefix data %s: %d", finalName, result)
 
@@ -115,6 +116,10 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 				log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
 				return
 			}
+
+			// Lock here - will release before the defer at top
+			dv.mutex.Lock()
+			defer dv.mutex.Unlock()
 
 			// Update sequence number
 			dataName := data.Name()
