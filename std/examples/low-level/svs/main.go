@@ -44,7 +44,10 @@ func main() {
 
 	// Start SVS instance
 	group, _ := enc.NameFromStr("/ndn/svs")
-	svsync := sync.NewSvSync(app, group)
+	svsync := sync.NewSvSync(app, group, func(ssu sync.SvSyncUpdate) {
+		logger.Infof("Received update: %+v", ssu)
+	})
+
 	err = svsync.Start()
 	if err != nil {
 		logger.Errorf("Unable to create SvSync: %+v", err)
@@ -52,15 +55,10 @@ func main() {
 	}
 
 	// Publish new sequence number every second
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 
-	for {
-		select {
-		case <-ticker.C:
-			new := svsync.IncrSeqNo(nodeId)
-			logger.Infof("Published new sequence number: %d", new)
-		case update := <-svsync.Updates:
-			logger.Infof("Received update: %+v", update)
-		}
+	for range ticker.C {
+		new := svsync.IncrSeqNo(nodeId)
+		logger.Infof("Published new sequence number: %d", new)
 	}
 }

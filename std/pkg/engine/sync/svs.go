@@ -17,8 +17,10 @@ import (
 type SvSync struct {
 	engine      ndn.Engine
 	groupPrefix enc.Name
-	stop        chan struct{}
-	ticker      *time.Ticker
+	onUpdate    func(SvSyncUpdate)
+
+	stop   chan struct{}
+	ticker *time.Ticker
 
 	periodicTimeout   time.Duration
 	suppressionPeriod time.Duration
@@ -32,9 +34,6 @@ type SvSync struct {
 	merge    map[uint64]uint64
 
 	recvSv chan *StateVector
-
-	// Subscribe to this channel for updates
-	Updates chan *SvSyncUpdate
 }
 
 type SvSyncUpdate struct {
@@ -43,12 +42,18 @@ type SvSyncUpdate struct {
 	Low    uint64
 }
 
-func NewSvSync(engine ndn.Engine, groupPrefix enc.Name) *SvSync {
+func NewSvSync(
+	engine ndn.Engine,
+	groupPrefix enc.Name,
+	onUpdate func(SvSyncUpdate),
+) *SvSync {
 	return &SvSync{
 		engine:      engine,
 		groupPrefix: groupPrefix.Clone(),
-		stop:        make(chan struct{}),
-		ticker:      time.NewTicker(1 * time.Second),
+		onUpdate:    onUpdate,
+
+		stop:   make(chan struct{}),
+		ticker: time.NewTicker(1 * time.Second),
 
 		periodicTimeout:   30 * time.Second,
 		suppressionPeriod: 200 * time.Millisecond,
@@ -61,8 +66,7 @@ func NewSvSync(engine ndn.Engine, groupPrefix enc.Name) *SvSync {
 		suppress: false,
 		merge:    make(map[uint64]uint64),
 
-		recvSv:  make(chan *StateVector, 128),
-		Updates: make(chan *SvSyncUpdate, 128),
+		recvSv: make(chan *StateVector, 128),
 	}
 }
 
@@ -100,7 +104,6 @@ func (s *SvSync) Stop() {
 	s.stop <- struct{}{}
 	close(s.stop)
 	close(s.recvSv)
-	close(s.Updates)
 }
 
 func (s *SvSync) SetSeqNo(nodeId enc.Name, seqNo uint64) error {
@@ -175,11 +178,11 @@ func (s *SvSync) onReceiveStateVector(sv *StateVector) {
 			s.mtime[hash] = time.Now()
 
 			// Notify the application of the update
-			s.Updates <- &SvSyncUpdate{
+			s.onUpdate(SvSyncUpdate{
 				NodeId: entry.NodeId,
 				High:   entry.SeqNo,
 				Low:    prev + 1,
-			}
+			})
 		} else if entry.SeqNo < prev {
 			isOutdated = true
 
