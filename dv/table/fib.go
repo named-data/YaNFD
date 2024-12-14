@@ -94,7 +94,7 @@ func (fib *Fib) Update(name enc.Name, entries []FibEntry) bool {
 				Name:   name,
 				FaceId: utils.IdPtr(entry.FaceId),
 			},
-			Retries: 1,
+			Retries: 3,
 		})
 	}
 
