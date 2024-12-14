@@ -142,11 +142,9 @@ func (fib *Fib) UnmarkAll() {
 func (fib *Fib) RemoveUnmarked() {
 	for nh := range fib.prefixes {
 		if !fib.mark[nh] {
-			name := fib.names[nh]
-			if name == nil {
-				continue
+			if name := fib.names[nh]; name != nil {
+				fib.Update(name, nil)
 			}
-			fib.Update(name, nil)
 		}
 	}
 }
