@@ -26,7 +26,7 @@ func (rib *Rib) GetFibEntries(nt *NeighborTable, router uint64) []FibEntry {
 		face1 = ns.faceId
 	}
 	if ns := nt.GetH(ribEntry.nextHop2); ns != nil {
-		face1 = ns.faceId
+		face2 = ns.faceId
 	}
 
 	return []FibEntry{{
