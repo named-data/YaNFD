@@ -88,43 +88,45 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 		data ndn.Data,
 		_, _ enc.Wire, _ uint64,
 	) {
-		dv.mutex.Lock()
-		defer dv.mutex.Unlock()
+		go func() {
+			dv.mutex.Lock()
+			defer dv.mutex.Unlock()
 
-		// Done fetching, restart if needed
-		defer func() {
-			router.Fetching = false
-			go dv.prefixDataFetch(nodeId) // recheck
-		}()
+			// Done fetching, restart if needed
+			defer func() {
+				router.Fetching = false
+				go dv.prefixDataFetch(nodeId) // recheck
+			}()
 
-		if result != ndn.InterestResultData {
-			log.Warnf("prefixDataFetch: Failed to fetch prefix data %s: %d", finalName, result)
+			if result != ndn.InterestResultData {
+				log.Warnf("prefixDataFetch: Failed to fetch prefix data %s: %d", finalName, result)
 
-			// see advertDataFetch
-			if result != ndn.InterestResultTimeout {
-				time.Sleep(2 * time.Second)
-			} else {
-				time.Sleep(100 * time.Millisecond)
+				// see advertDataFetch
+				if result != ndn.InterestResultTimeout {
+					time.Sleep(2 * time.Second)
+				} else {
+					time.Sleep(100 * time.Millisecond)
+				}
+				return
 			}
-			return
-		}
 
-		ops, err := tlv.ParsePrefixOpList(enc.NewWireReader(data.Content()), true)
-		if err != nil {
-			log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
-			return
-		}
+			ops, err := tlv.ParsePrefixOpList(enc.NewWireReader(data.Content()), true)
+			if err != nil {
+				log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
+				return
+			}
 
-		// Update sequence number
-		dataName := data.Name()
-		seqNo := dataName[len(dataName)-1]
-		if seqNo.Typ != enc.TypeSequenceNumNameComponent {
-			log.Warnf("prefixDataFetch: Unexpected sequence number type: %s", seqNo.Typ)
-			return
-		}
+			// Update sequence number
+			dataName := data.Name()
+			seqNo := dataName[len(dataName)-1]
+			if seqNo.Typ != enc.TypeSequenceNumNameComponent {
+				log.Warnf("prefixDataFetch: Unexpected sequence number type: %s", seqNo.Typ)
+				return
+			}
 
-		dv.pfx.Apply(ops)
-		router.Known = seqNo.NumberVal()
+			dv.pfx.Apply(ops)
+			router.Known = seqNo.NumberVal()
+		}()
 	})
 	if err != nil {
 		log.Warnf("prefixDataFetch: Failed to express Interest: %+v", err)
