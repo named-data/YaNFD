@@ -74,7 +74,7 @@ func NewSvSync(
 }
 
 func (s *SvSync) Start() (err error) {
-	err = s.engine.AttachHandler(s.groupPrefix, s.onSyncInterest)
+	err = s.engine.AttachHandler(s.groupPrefix, s.onSyncInterestAsync)
 	if err != nil {
 		return err
 	}
@@ -309,12 +309,15 @@ func (s *SvSync) sendSyncInterest() {
 	}
 }
 
-func (s *SvSync) onSyncInterest(
+func (s *SvSync) onSyncInterestAsync(
 	interest ndn.Interest,
 	_ ndn.ReplyFunc,
 	_ ndn.InterestHandlerExtra,
 ) {
+	go s.onSyncInterest(interest)
+}
 
+func (s *SvSync) onSyncInterest(interest ndn.Interest) {
 	// Check if app param is present
 	if interest.AppParam() == nil {
 		log.Debug("SvSync: onSyncInterest no AppParam, ignoring")
