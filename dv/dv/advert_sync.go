@@ -12,11 +12,7 @@ import (
 
 func (dv *Router) advertSyncSendInterest() (err error) {
 	// SVS v2 Sync Interest
-	syncName := append(dv.config.GlobalPfxN,
-		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
-		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
-		enc.NewVersionComponent(2),
-	)
+	syncName := append(dv.config.AdvSyncPfxN, enc.NewVersionComponent(2))
 
 	// Sync Interest parameters for SVS
 	cfg := &ndn.InterestConfig{

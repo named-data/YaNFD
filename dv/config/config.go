@@ -24,6 +24,14 @@ type Config struct {
 	GlobalPfxN enc.Name
 	// Parsed Router Prefix
 	RouterPfxN enc.Name
+	// Advertisement Sync Prefix
+	AdvSyncPfxN enc.Name
+	// Advertisement Data Prefix
+	AdvDataPfxN enc.Name
+	// Prefix Table Sync Prefix
+	PfxSyncPfxN enc.Name
+	// Prefix Table Data Prefix
+	PfxDataPfxN enc.Name
 }
 
 func (c *Config) Parse() (err error) {
@@ -52,6 +60,24 @@ func (c *Config) Parse() (err error) {
 	if c.RouterDeadInterval < 2*c.AdvertisementSyncInterval {
 		return errors.New("RouterDeadInterval must be at least 2*AdvertisementSyncInterval")
 	}
+
+	// Create name table
+	c.AdvSyncPfxN = append(c.GlobalPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
+	)
+	c.AdvDataPfxN = append(c.RouterPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
+	)
+	c.PfxSyncPfxN = append(c.GlobalPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFS"),
+	)
+	c.PfxDataPfxN = append(c.RouterPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFX"),
+	)
 
 	return nil
 }

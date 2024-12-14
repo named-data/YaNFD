@@ -76,6 +76,26 @@ func (r *Rib) Set(destName enc.Name, nextHop enc.Name, cost uint64) bool {
 	return entry.Set(nextHopHash, cost)
 }
 
+// Check if a destination is reachable in the RIB.
+func (r *Rib) Has(destName enc.Name) bool {
+	entry := r.entries[destName.Hash()]
+	if entry == nil {
+		return false
+	}
+	return entry.lowest1 < config.CostInfinity
+}
+
+// Get all destinations reachable in the RIB.
+func (r *Rib) Destinations() []enc.Name {
+	dests := make([]enc.Name, 0, len(r.entries))
+	for _, entry := range r.entries {
+		if r.Has(entry.name) {
+			dests = append(dests, entry.name)
+		}
+	}
+	return dests
+}
+
 // Remove all entries with a given next hop.
 // Returns true if the Advertisement might change.
 func (r *Rib) RemoveNextHop(nextHop enc.Name) bool {
