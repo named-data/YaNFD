@@ -10,8 +10,6 @@ package executor
 import (
 	"net"
 	"os"
-	"runtime"
-	"runtime/pprof"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
@@ -38,11 +36,8 @@ type YaNFDConfig struct {
 // YaNFD is the wrapper class for the NDN Forwarding Daemon.
 // Note: only one instance of this class should be created.
 type YaNFD struct {
-	config *YaNFDConfig
-
-	cpuProfileFile *os.File
-	memProfileFile *os.File
-	blockProfiler  *pprof.Profile
+	config   *YaNFDConfig
+	profiler *Profiler
 
 	unixListener *face.UnixStreamListener
 	wsListener   *face.WebSocketListener
@@ -69,33 +64,9 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 	table.Configure()
 	mgmt.Configure()
 
-	// Initialize profiling
-	var cpuProfileFile *os.File
-	var memProfileFile *os.File
-	var blockProfiler *pprof.Profile
-	var err error
-	if config.CpuProfile != "" {
-		cpuProfileFile, err = os.Create(config.CpuProfile)
-		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for CPU profile: ", err)
-		}
-
-		core.LogInfo("Main", "Profiling CPU - outputting to ", config.CpuProfile)
-		pprof.StartCPUProfile(cpuProfileFile)
-	}
-
-	if config.BlockProfile != "" {
-		core.LogInfo("Main", "Profiling blocking operations - outputting to ", config.BlockProfile)
-		runtime.SetBlockProfileRate(1)
-		blockProfiler = pprof.Lookup("block")
-		// Output at end of runtime
-	}
-
 	return &YaNFD{
-		config:         config,
-		cpuProfileFile: cpuProfileFile,
-		memProfileFile: memProfileFile,
-		blockProfiler:  blockProfiler,
+		config:   config,
+		profiler: NewProfiler(config),
 	}
 }
 
@@ -103,6 +74,9 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 // This function is non-blocking.
 func (y *YaNFD) Start() {
 	core.LogInfo("Main", "Starting YaNFD")
+
+	// Start profiler
+	y.profiler.Start()
 
 	// Initialize FIB table
 	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
@@ -242,18 +216,8 @@ func (y *YaNFD) Stop() {
 	core.LogInfo("Main", "Forwarder shutting down ...")
 	core.ShouldQuit = true
 
-	if y.config.MemProfile != "" {
-		memProfileFile, err := os.Create(y.config.MemProfile)
-		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
-		}
-
-		core.LogInfo("Main", "Profiling memory - outputting to ", y.config.MemProfile)
-		runtime.GC()
-		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
-			core.LogFatal("Main", "Unable to write memory profile: ", err)
-		}
-	}
+	// Stop profiler
+	y.profiler.Stop()
 
 	// Wait for unix socket listener to quit
 	if y.unixListener != nil {
@@ -286,24 +250,5 @@ func (y *YaNFD) Stop() {
 	// Wait for all forwarding threads to have quit
 	for _, fw := range fw.Threads {
 		<-fw.HasQuit
-	}
-
-	// Shutdown Profilers
-	if y.config.BlockProfile != "" {
-		blockProfileFile, err := os.Create(y.config.BlockProfile)
-		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for block profile: ", err)
-		}
-		if err := y.blockProfiler.WriteTo(blockProfileFile, 0); err != nil {
-			core.LogFatal("Main", "Unable to write block profile: ", err)
-		}
-		blockProfileFile.Close()
-	}
-	if y.config.MemProfile != "" {
-		y.memProfileFile.Close()
-	}
-	if y.config.CpuProfile != "" {
-		pprof.StopCPUProfile()
-		y.cpuProfileFile.Close()
 	}
 }
