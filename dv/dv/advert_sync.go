@@ -59,7 +59,7 @@ func (dv *Router) advertSyncOnInterestAsync(
 
 func (dv *Router) advertSyncOnInterest(
 	interest ndn.Interest,
-	reply ndn.ReplyFunc,
+	_ ndn.ReplyFunc,
 	extra ndn.InterestHandlerExtra,
 ) {
 	// Check if app param is present

@@ -205,7 +205,7 @@ func (pt *PrefixTable) OnDataInterestAsync(
 func (pt *PrefixTable) onDataInterest(
 	interest ndn.Interest,
 	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
+	_ ndn.InterestHandlerExtra,
 ) {
 	// TODO: remove old entries from repo
 

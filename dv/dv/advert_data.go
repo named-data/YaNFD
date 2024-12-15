@@ -82,7 +82,7 @@ func (dv *Router) advertDataOnInterestAsync(
 func (dv *Router) advertDataOnInterest(
 	interest ndn.Interest,
 	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
+	_ ndn.InterestHandlerExtra,
 ) {
 	// For now, just send the latest advertisement at all times
 	// This will need to change if we switch to differential updates
