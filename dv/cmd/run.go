@@ -12,7 +12,7 @@ import (
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
-type YamlConfig struct {
+type DvConfig struct {
 	// Same as config.Config for parsing
 	Config struct {
 		NetworkName                  string `json:"network"`
@@ -27,15 +27,15 @@ type YamlConfig struct {
 	} `json:"nfd"`
 }
 
-func DefaultConfig() YamlConfig {
-	yc := YamlConfig{}
-	yc.Nfd.Unix = "/var/run/nfd/nfd.sock"
-	yc.Config.AdvertisementSyncInterval_ms = 5000
-	yc.Config.RouterDeadInterval_ms = 30000
-	return yc
+func DefaultConfig() DvConfig {
+	dc := DvConfig{}
+	dc.Nfd.Unix = "/var/run/nfd/nfd.sock"
+	dc.Config.AdvertisementSyncInterval_ms = 5000
+	dc.Config.RouterDeadInterval_ms = 30000
+	return dc
 }
 
-func (yc YamlConfig) Parse() (*config.Config, error) {
+func (yc DvConfig) Parse() (*config.Config, error) {
 	// Convert to config.Config
 	out := &config.Config{
 		NetworkName:               yc.Config.NetworkName,
@@ -58,17 +58,17 @@ type DvExecutor struct {
 	router *dv.Router
 }
 
-func NewDvExecutor(yc YamlConfig) (*DvExecutor, error) {
+func NewDvExecutor(dc DvConfig) (*DvExecutor, error) {
 	dve := new(DvExecutor)
 
 	// Validate configuration sanity
-	cfg, err := yc.Parse()
+	cfg, err := dc.Parse()
 	if err != nil {
 		return nil, errors.New("failed to validate dv config: " + err.Error())
 	}
 
 	// Start NDN engine
-	face := basic_engine.NewStreamFace("unix", yc.Nfd.Unix, true)
+	face := basic_engine.NewStreamFace("unix", dc.Nfd.Unix, true)
 	timer := basic_engine.NewTimer()
 	dve.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), dve.noValidate)
 

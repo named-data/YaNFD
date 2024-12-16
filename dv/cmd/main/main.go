@@ -19,14 +19,14 @@ func main() {
 		panic(err)
 	}
 
-	yc := cmd.DefaultConfig()
-	if err = yaml.Unmarshal(cfgBytes, &yc); err != nil {
+	dc := cmd.DefaultConfig()
+	if err = yaml.Unmarshal(cfgBytes, &dc); err != nil {
 		panic(err)
 	}
 
 	log.SetLevel(log.InfoLevel)
 
-	dve, err := cmd.NewDvExecutor(yc)
+	dve, err := cmd.NewDvExecutor(dc)
 	if err != nil {
 		panic(err)
 	}
