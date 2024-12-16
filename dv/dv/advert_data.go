@@ -133,20 +133,20 @@ func (dv *Router) advertDataHandler(data ndn.Data) {
 	// Check if this is the latest advertisement
 	ns := dv.neighbors.Get(neighbor)
 	if ns == nil {
-		log.Warnf("advertDataHandler: unknown neighbor advert %s", neighbor)
+		log.Warnf("advertDataHandler: unknown advertisement %s", neighbor)
 		return
 	}
 	if ns.AdvertSeq != seqNo {
-		log.Warnf("advertDataHandler: received old Advert for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
+		log.Warnf("advertDataHandler: old advertisement for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
 		return
 	}
 
 	// TODO: verify signature on Advertisement
-	log.Infof("advertDataHandler: received: %s", data.Name().String())
+	log.Infof("advertDataHandler: received: %s", data.Name())
 
 	// Parse the advertisement
 	raw := data.Content().Join() // clone
-	advert, err := tlv.ParseAdvertisement(enc.NewWireReader(enc.Wire{raw}), false)
+	advert, err := tlv.ParseAdvertisement(enc.NewBufferReader(raw), false)
 	if err != nil {
 		log.Warnf("advertDataHandler: failed to parse advertisement: %+v", err)
 		return

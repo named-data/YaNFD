@@ -120,9 +120,6 @@ func (dv *Router) advertSyncNotifyNew() {
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
-	// TODO: remove this debug print
-	dv.rib.Print()
-
 	dv.advertSyncSeq++
 	go dv.advertSyncSendInterest()
 }

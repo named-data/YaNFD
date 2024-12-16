@@ -6,6 +6,7 @@ import (
 	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 )
 
 // Routing Information Base (RIB)
@@ -19,6 +20,8 @@ type Rib struct {
 }
 
 type RibEntry struct {
+	// pointer to parent table
+	rib *Rib
 	// full name of destination router
 	name enc.Name
 	// neighbor hash -> cost
@@ -64,6 +67,7 @@ func (r *Rib) Set(destName enc.Name, nextHop enc.Name, cost uint64) bool {
 	entry, ok := r.entries[destHash]
 	if !ok {
 		entry = &RibEntry{
+			rib:   r,
 			name:  destName.Clone(),
 			costs: make(map[uint64]uint64),
 		}
@@ -204,6 +208,9 @@ func (e *RibEntry) refresh() bool {
 		e.lowest2 = lowest2
 		e.nextHop1 = nextHop1
 		e.nextHop2 = nextHop2
+		log.Infof("rib: update next hop %s => %s[%d], %s[%d]", e.name,
+			e.rib.neighbors[nextHop1], lowest1,
+			e.rib.neighbors[nextHop2], lowest2)
 		return true
 	}
 
