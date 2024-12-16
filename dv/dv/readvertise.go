@@ -43,7 +43,7 @@ func (dv *Router) readvertiseOnInterest(
 			res.Encode(),
 			signer)
 		if err != nil {
-			log.Warnf("readvertiseOnInterest: failed to make response Data: %+v", err)
+			log.Warnf("readvertise: failed to make response Data: %+v", err)
 			return
 		}
 		reply(wire)
@@ -53,19 +53,19 @@ func (dv *Router) readvertiseOnInterest(
 	// readvertise:  /localhost/nlsr/rib/unregister/h%0C%07%07%08%05cathyo%01A/params-sha256=026dd595c75032c5101b321fbc11eeb96277661c66bc0564ac7ea1a281ae8210
 	iname := interest.Name()
 	if len(iname) != 6 {
-		log.Warnf("readvertiseOnInterest: invalid interest %s", iname)
+		log.Warnf("readvertise: invalid interest %s", iname)
 		return
 	}
 
 	module, cmd, advC := iname[2], iname[3], iname[4]
 	if module.String() != "rib" {
-		log.Warnf("readvertiseOnInterest: unknown module %s", iname)
+		log.Warnf("readvertise: unknown module %s", iname)
 		return
 	}
 
 	params, err := mgmt.ParseControlParameters(enc.NewBufferReader(advC.Val), false)
 	if err != nil || params.Val == nil || params.Val.Name == nil {
-		log.Warnf("readvertiseOnInterest: failed to parse advertised name (%s)", err)
+		log.Warnf("readvertise: failed to parse advertised name (%s)", err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func (dv *Router) readvertiseOnInterest(
 	case "unregister":
 		dv.pfx.Withdraw(params.Val.Name)
 	default:
-		log.Warnf("readvertiseOnInterest: unknown cmd %s", cmd)
+		log.Warnf("readvertise: unknown cmd %s", cmd)
 		return
 	}
 

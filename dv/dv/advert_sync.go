@@ -64,13 +64,13 @@ func (dv *Router) advertSyncOnInterest(
 ) {
 	// Check if app param is present
 	if interest.AppParam() == nil {
-		log.Warn("advertSyncOnInterest: Received Sync Interest with no AppParam, ignoring")
+		log.Warn("advertSyncOnInterest: received Sync Interest with no AppParam, ignoring")
 		return
 	}
 
 	// If there is no incoming face ID, we can't use this
 	if extra.IncomingFaceId == nil {
-		log.Warn("advertSyncOnInterest: Received Sync Interest with no incoming face ID, ignoring")
+		log.Warn("advertSyncOnInterest: received Sync Interest with no incoming face ID, ignoring")
 		return
 	}
 
@@ -78,7 +78,7 @@ func (dv *Router) advertSyncOnInterest(
 
 	params, err := svs.ParseStateVecAppParam(enc.NewWireReader(interest.AppParam()), true)
 	if err != nil || params.Entries == nil {
-		log.Warnf("advertSyncOnInterest: Failed to parse StateVec: %+v", err)
+		log.Warnf("advertSyncOnInterest: failed to parse StateVec: %+v", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (dv *Router) advertSyncOnInterest(
 		// Parse name from NodeId
 		nodeId, err := enc.NameFromBytes(entry.NodeId)
 		if err != nil {
-			log.Warnf("advertSyncOnInterest: Failed to parse NodeId: %+v", err)
+			log.Warnf("advertSyncOnInterest: failed to parse NodeId: %+v", err)
 			continue
 		}
 

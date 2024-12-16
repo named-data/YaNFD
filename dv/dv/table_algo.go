@@ -67,7 +67,7 @@ func (dv *Router) checkDeadNeighbors() {
 	for _, ns := range dv.neighbors.GetAll() {
 		// Check if the neighbor is entirely dead
 		if ns.IsDead() {
-			log.Infof("checkDeadNeighbors: Neighbor %s is dead", ns.Name.String())
+			log.Infof("checkDeadNeighbors: neighbor %s is dead", ns.Name.String())
 
 			// This is the ONLY place that can remove neighbors
 			dv.neighbors.Remove(ns.Name)

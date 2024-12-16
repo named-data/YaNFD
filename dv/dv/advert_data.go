@@ -35,7 +35,7 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 
 	wire, _, finalName, err := dv.engine.Spec().MakeInterest(advName, cfg, nil, nil)
 	if err != nil {
-		log.Warnf("advertDataFetch: Failed to make Interest: %+v", err)
+		log.Warnf("advertDataFetch: failed to make Interest: %+v", err)
 		return
 	}
 
@@ -57,7 +57,7 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 				// Keep retrying until we get the advertisement
 				// If the router is dead, we break out of this by checking
 				// that the sequence number is gone (above)
-				log.Warnf("advertDataFetch: Retrying %s: %+v", finalName.String(), result)
+				log.Warnf("advertDataFetch: retrying %s: %+v", finalName.String(), result)
 				dv.advertDataFetch(nodeId, seqNo)
 				return
 			}
@@ -67,7 +67,7 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 		}()
 	})
 	if err != nil {
-		log.Warnf("advertDataFetch: Failed to express Interest: %+v", err)
+		log.Warnf("advertDataFetch: failed to express Interest: %+v", err)
 	}
 }
 
@@ -107,14 +107,14 @@ func (dv *Router) advertDataOnInterest(
 		content,
 		signer)
 	if err != nil {
-		log.Warnf("advertDataOnInterest: Failed to make Data: %+v", err)
+		log.Warnf("advertDataOnInterest: failed to make Data: %+v", err)
 		return
 	}
 
 	// Send the Data packet
 	err = reply(wire)
 	if err != nil {
-		log.Warnf("advertDataOnInterest: Failed to reply: %+v", err)
+		log.Warnf("advertDataOnInterest: failed to reply: %+v", err)
 		return
 	}
 }
@@ -133,22 +133,22 @@ func (dv *Router) advertDataHandler(data ndn.Data) {
 	// Check if this is the latest advertisement
 	ns := dv.neighbors.Get(neighbor)
 	if ns == nil {
-		log.Warnf("advertDataHandler: Unknown neighbor advert %s", neighbor)
+		log.Warnf("advertDataHandler: unknown neighbor advert %s", neighbor)
 		return
 	}
 	if ns.AdvertSeq != seqNo {
-		log.Warnf("advertDataHandler: Received old Advert for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
+		log.Warnf("advertDataHandler: received old Advert for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
 		return
 	}
 
 	// TODO: verify signature on Advertisement
-	log.Infof("advertDataHandler: Received: %s", data.Name().String())
+	log.Infof("advertDataHandler: received: %s", data.Name().String())
 
 	// Parse the advertisement
 	raw := data.Content().Join() // clone
 	advert, err := tlv.ParseAdvertisement(enc.NewWireReader(enc.Wire{raw}), false)
 	if err != nil {
-		log.Warnf("advertDataHandler: Failed to parse Advert: %+v", err)
+		log.Warnf("advertDataHandler: failed to parse advertisement: %+v", err)
 		return
 	}
 

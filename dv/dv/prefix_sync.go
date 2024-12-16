@@ -58,7 +58,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 	router.Fetching = true
 
 	// Fetch the prefix data
-	log.Debugf("Fetching prefix data for %s [%d => %d]", nodeId, router.Known, router.Latest)
+	log.Debugf("prefixDataFetch: fetching prefix data for %s [%d => %d]", nodeId, router.Known, router.Latest)
 
 	cfg := &ndn.InterestConfig{
 		MustBeFresh: true,
@@ -80,7 +80,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 
 	wire, _, finalName, err := dv.engine.Spec().MakeInterest(name, cfg, nil, nil)
 	if err != nil {
-		log.Warnf("prefixDataFetch: Failed to make Interest: %+v", err)
+		log.Warnf("prefixDataFetch: failed to make Interest: %+v", err)
 		return
 	}
 
@@ -101,7 +101,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 
 			// Sleep this goroutine if no data was received
 			if result != ndn.InterestResultData {
-				log.Warnf("prefixDataFetch: Failed to fetch prefix data %s: %d", finalName, result)
+				log.Warnf("prefixDataFetch: failed to fetch prefix data %s: %d", finalName, result)
 
 				// see advertDataFetch
 				if result != ndn.InterestResultTimeout {
@@ -116,7 +116,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 		}()
 	})
 	if err != nil {
-		log.Warnf("prefixDataFetch: Failed to express Interest: %+v", err)
+		log.Warnf("prefixDataFetch: failed to express Interest: %+v", err)
 		return
 	}
 }
@@ -124,7 +124,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 func (dv *Router) processPrefixData(data ndn.Data, router *table.PrefixTableRouter) {
 	ops, err := tlv.ParsePrefixOpList(enc.NewWireReader(data.Content()), true)
 	if err != nil {
-		log.Warnf("prefixDataFetch: Failed to parse PrefixOpList: %+v", err)
+		log.Warnf("prefixDataFetch: failed to parse PrefixOpList: %+v", err)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (dv *Router) processPrefixData(data ndn.Data, router *table.PrefixTableRout
 	dataName := data.Name()
 	seqNo := dataName[len(dataName)-1]
 	if seqNo.Typ != enc.TypeSequenceNumNameComponent {
-		log.Warnf("prefixDataFetch: Unexpected sequence number type: %s", seqNo.Typ)
+		log.Warnf("prefixDataFetch: unexpected sequence number type: %s", seqNo.Typ)
 		return
 	}
 
