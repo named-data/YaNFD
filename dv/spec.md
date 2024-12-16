@@ -78,36 +78,42 @@ PREFIX-OP-REMOVE-TYPE = 306
 
 ## 4. Protocol Operation
 
-### A. RIB State
+### RIB State
 
 Each router maintains a list of RIB entries as the RIB state. Each RIB entry
 contains the following fields:
 
 1. `Destination`: name of the destination router.
-1. `Cost (Interface)`: cost to reach destination through this interface (one for each interface).
+1. `Cost`: cost to reach destination through this interface (one for each interface).
 
-### B. Advertisement Computation
+### Advertisement Computation
 
 A new advertisement is computed by the router whenever the RIB changes.
-
-1. `Links` in the advertisement are populated with the router's interfaces.
-1. `AdvEntries` are added to the advertisement based on the RIB state.
-
 One `AdvEntry` is generated for each RIB entry and contains the following fields:
 
 1. `Destination`: name of the destination router.
-1. `Interface`: Interface identifier for reaching the destination with lowest cost.
-1. `Cost`: Cost associated with the next-hop interface.
+1. `NextHop`: name of the router for reaching the destination with lowest cost.
+1. `Cost`: Cost associated with the *best* next-hop interface.
 1. `OtherCost`: Cost associated with the *second-best* next-hop interface.
 
 Notes:
 
-1. If multiple next hops have the same cost, the router chooses the next hop with the lexicographically lowest name.
+1. If multiple next hops have the same cost, the router MUST break ties consistently. Implementations MAY choose the next hop with the lexicographically lowest name.
 1. If the advertisement changes, the router increments the sequence number for the *Advertisement Sync* group.
-1. (TODO) The sequence number is incremented periodically every 10 seconds.
-1. (TODO) Neighbor is considered dead if no update is received for 3 periods.
+1. Neighbor is considered dead if no update is received for the `RouterDeadInterval` period.
 
-### C. Update Processing
+### Advertisement Sync
+
+ndn-dv uses a local variant of SVS v2 for advertisement synchronization
+
+1. Each router maintains a local sequence number that is incremented when the advertisement changes.
+1. Sync Interests are encoded identical to SVS, but the state vector ONLY contains the router's own sequence number.
+1. Sync Interests are propagated only one hop, using `localhop` and a `HopLimit` of 2.
+1. On receiving a Sync Interest, the router updates the sequence number for the sending neighbor.
+1. However, the outgoing state vector does not change, and always only contains the router itself.
+1. The incoming face of a advertisement Sync Interest is used to set up data routes to neighbors.
+
+### Update Processing
 
 On receiving a new advertisement from a neighbor, the router processes the advertisement as follows:
 
@@ -133,7 +139,7 @@ for n in neighbors:
 
 `INFINITY` is the maximum cost value, set to `16` by default.
 
-### D. Prefix Sync
+### Prefix Sync
 
 Each router maintains a global prefix table that maps prefixes to routers that can reach them.
 
@@ -149,7 +155,7 @@ Each router maintains a global prefix table that maps prefixes to routers that c
 
 1. When a router removes a prefix, it sends a `PREFIX-OP-REMOVE` operation.
 
-### E. FIB Computation
+### FIB Computation
 
 The FIB is configured based on the RIB state and the global prefix table.
 
