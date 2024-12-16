@@ -15,19 +15,19 @@ var Localhop = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "lo
 var Localhost = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost")}
 
 type Config struct {
-	// GlobalPrefix should be the same for all routers in the network.
-	GlobalPrefix string
-	// RouterPrefix should be unique for each router in the network.
-	RouterPrefix string
+	// NetworkName should be the same for all routers in the network.
+	NetworkName string
+	// RouterName should be unique for each router in the network.
+	RouterName string
 	// Period of sending Advertisement Sync Interests.
 	AdvertisementSyncInterval time.Duration
 	// Time after which a neighbor is considered dead.
 	RouterDeadInterval time.Duration
 
 	// Parsed Global Prefix
-	GlobalPfxN enc.Name
+	NetworkNameN enc.Name
 	// Parsed Router Prefix
-	RouterPfxN enc.Name
+	RouterNameN enc.Name
 	// Advertisement Sync Prefix
 	AdvSyncPfxN enc.Name
 	// Advertisement Data Prefix
@@ -42,17 +42,17 @@ type Config struct {
 
 func (c *Config) Parse() (err error) {
 	// Validate prefixes not empty
-	if c.GlobalPrefix == "" || c.RouterPrefix == "" {
+	if c.NetworkName == "" || c.RouterName == "" {
 		return errors.New("GlobalPrefix and RouterPrefix must be set")
 	}
 
 	// Parse prefixes
-	c.GlobalPfxN, err = enc.NameFromStr(c.GlobalPrefix)
+	c.NetworkNameN, err = enc.NameFromStr(c.NetworkName)
 	if err != nil {
 		return err
 	}
 
-	c.RouterPfxN, err = enc.NameFromStr(c.RouterPrefix)
+	c.RouterNameN, err = enc.NameFromStr(c.RouterName)
 	if err != nil {
 		return err
 	}
@@ -68,19 +68,19 @@ func (c *Config) Parse() (err error) {
 	}
 
 	// Create name table
-	c.AdvSyncPfxN = append(Localhop, append(c.GlobalPfxN,
+	c.AdvSyncPfxN = append(Localhop, append(c.NetworkNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)...)
-	c.AdvDataPfxN = append(Localhop, append(c.RouterPfxN,
+	c.AdvDataPfxN = append(Localhop, append(c.RouterNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 	)...)
-	c.PfxSyncPfxN = append(c.GlobalPfxN,
+	c.PfxSyncPfxN = append(c.NetworkNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFS"),
 	)
-	c.PfxDataPfxN = append(c.RouterPfxN,
+	c.PfxDataPfxN = append(c.RouterNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFX"),
 	)

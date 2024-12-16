@@ -27,7 +27,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	sv := &svs.StateVecAppParam{
 		Entries: &svs.StateVec{
 			Entries: []*svs.StateVecEntry{{
-				NodeId: dv.config.RouterPfxN.Bytes(),
+				NodeId: dv.config.RouterNameN.Bytes(),
 				SeqNo:  dv.advertSyncSeq,
 			}},
 		},

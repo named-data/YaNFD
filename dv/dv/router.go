@@ -68,7 +68,7 @@ func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, err
 	// Set initial sequence numbers
 	now := uint64(time.Now().UnixMilli())
 	dv.advertSyncSeq = now
-	dv.pfxSvs.SetSeqNo(dv.config.RouterPfxN, now)
+	dv.pfxSvs.SetSeqNo(dv.config.RouterNameN, now)
 
 	// Create tables
 	dv.neighbors = table.NewNeighborTable(config, dv.nfdc)
@@ -110,7 +110,7 @@ func (dv *Router) Start() (err error) {
 	defer dv.pfxSvs.Stop()
 
 	// Add self to the RIB
-	dv.rib.Set(dv.config.RouterPfxN, dv.config.RouterPfxN, 0)
+	dv.rib.Set(dv.config.RouterNameN, dv.config.RouterNameN, 0)
 
 	for {
 		select {

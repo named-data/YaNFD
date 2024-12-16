@@ -43,8 +43,8 @@ func main() {
 
 	// Create a new DV router
 	config := &config.Config{
-		GlobalPrefix:              os.Args[1],
-		RouterPrefix:              os.Args[2],
+		NetworkName:               os.Args[1],
+		RouterName:                os.Args[2],
 		AdvertisementSyncInterval: 2 * time.Second,
 		RouterDeadInterval:        5 * time.Second,
 	}

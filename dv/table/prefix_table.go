@@ -56,8 +56,8 @@ func NewPrefixTable(
 		repoMutex: sync.RWMutex{},
 	}
 
-	pt.me = pt.GetRouter(config.RouterPfxN)
-	pt.me.Known = svs.GetSeqNo(config.RouterPfxN)
+	pt.me = pt.GetRouter(config.RouterNameN)
+	pt.me.Known = svs.GetSeqNo(config.RouterNameN)
 	pt.me.Latest = pt.me.Known
 	pt.publishSnap()
 
@@ -91,7 +91,7 @@ func (pt *PrefixTable) Announce(name enc.Name) {
 	pt.me.Prefixes[hash] = &PrefixEntry{Name: name}
 
 	op := tlv.PrefixOpList{
-		ExitRouter: &tlv.Destination{Name: pt.config.RouterPfxN},
+		ExitRouter: &tlv.Destination{Name: pt.config.RouterNameN},
 		PrefixOpAdds: []*tlv.PrefixOpAdd{{
 			Name: name,
 			Cost: 1,
@@ -113,7 +113,7 @@ func (pt *PrefixTable) Withdraw(name enc.Name) {
 	delete(pt.me.Prefixes, hash)
 
 	op := tlv.PrefixOpList{
-		ExitRouter:      &tlv.Destination{Name: pt.config.RouterPfxN},
+		ExitRouter:      &tlv.Destination{Name: pt.config.RouterNameN},
 		PrefixOpRemoves: []*tlv.PrefixOpRemove{{Name: name}},
 	}
 	pt.publishOp(op.Encode())
@@ -151,7 +151,7 @@ func (pt *PrefixTable) Apply(ops *tlv.PrefixOpList) (dirty bool) {
 
 func (pt *PrefixTable) publishOp(content enc.Wire) {
 	// Increment our sequence number
-	seq := pt.svs.IncrSeqNo(pt.config.RouterPfxN)
+	seq := pt.svs.IncrSeqNo(pt.config.RouterNameN)
 	pt.me.Known = seq
 	pt.me.Latest = seq
 
@@ -167,7 +167,7 @@ func (pt *PrefixTable) publishOp(content enc.Wire) {
 
 func (pt *PrefixTable) publishSnap() {
 	snap := tlv.PrefixOpList{
-		ExitRouter:    &tlv.Destination{Name: pt.config.RouterPfxN},
+		ExitRouter:    &tlv.Destination{Name: pt.config.RouterNameN},
 		PrefixOpReset: true,
 		PrefixOpAdds:  make([]*tlv.PrefixOpAdd, 0, len(pt.me.Prefixes)),
 	}

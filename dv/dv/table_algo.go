@@ -30,7 +30,7 @@ func (dv *Router) ribUpdate(ns *table.NeighborState) {
 		cost := entry.Cost + localCost
 
 		// Poison reverse - try other cost if next hop is us
-		if entry.NextHop.Name.Equal(dv.config.RouterPfxN) {
+		if entry.NextHop.Name.Equal(dv.config.RouterNameN) {
 			if entry.OtherCost < config.CostInfinity {
 				cost = entry.OtherCost + localCost
 			} else {
@@ -103,7 +103,7 @@ func (dv *Router) fibUpdate() {
 	// Update paths to all routers from RIB
 	for _, router := range dv.rib.Entries() {
 		// Skip if this is us
-		if router.Name().Equal(dv.config.RouterPfxN) {
+		if router.Name().Equal(dv.config.RouterNameN) {
 			continue
 		}
 
