@@ -32,6 +32,8 @@ type Config struct {
 	PfxSyncPfxN enc.Name
 	// Prefix Table Data Prefix
 	PfxDataPfxN enc.Name
+	// NLSR readvertise prefix
+	ReadvertisePfxN enc.Name
 }
 
 func (c *Config) Parse() (err error) {
@@ -78,6 +80,10 @@ func (c *Config) Parse() (err error) {
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFX"),
 	)
+	c.ReadvertisePfxN = enc.Name{
+		enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost"),
+		enc.NewStringComponent(enc.TypeGenericNameComponent, "nlsr"),
+	}
 
 	return nil
 }

@@ -78,8 +78,17 @@ func (pt *PrefixTable) GetRouter(name enc.Name) *PrefixTableRouter {
 }
 
 func (pt *PrefixTable) Announce(name enc.Name) {
-	log.Infof("Announcing prefix %s", name)
-	pt.me.Prefixes[name.Hash()] = &PrefixEntry{Name: name}
+	log.Infof("prefix-table: announcing %s", name)
+	hash := name.Hash()
+
+	// Skip if matching entry already exists
+	// This will also need to check that all params are equal
+	if entry := pt.me.Prefixes[hash]; entry != nil && entry.Name.Equal(name) {
+		return
+	}
+
+	// Create new entry and announce globally
+	pt.me.Prefixes[hash] = &PrefixEntry{Name: name}
 
 	op := tlv.PrefixOpList{
 		ExitRouter: &tlv.Destination{Name: pt.config.RouterPfxN},
@@ -92,8 +101,16 @@ func (pt *PrefixTable) Announce(name enc.Name) {
 }
 
 func (pt *PrefixTable) Withdraw(name enc.Name) {
-	log.Infof("Withdrawing prefix %s", name)
-	delete(pt.me.Prefixes, name.Hash())
+	log.Infof("prefix-table: withdrawing %s", name)
+	hash := name.Hash()
+
+	// Check if entry does not exist
+	if entry := pt.me.Prefixes[hash]; entry == nil {
+		return
+	}
+
+	// Delete the existing entry and announce globally
+	delete(pt.me.Prefixes, hash)
 
 	op := tlv.PrefixOpList{
 		ExitRouter:      &tlv.Destination{Name: pt.config.RouterPfxN},

@@ -167,12 +167,19 @@ func (dv *Router) register() (err error) {
 		return err
 	}
 
+	// Readvertise Data
+	err = dv.engine.AttachHandler(dv.config.ReadvertisePfxN, dv.readvertiseOnInterestAsync)
+	if err != nil {
+		return err
+	}
+
 	// Register routes to forwarder
 	pfxs := []enc.Name{
 		dv.config.AdvSyncPfxN,
 		dv.config.AdvDataPfxN,
 		dv.config.PfxSyncPfxN,
 		dv.config.PfxDataPfxN,
+		dv.config.ReadvertisePfxN,
 	}
 	for _, prefix := range pfxs {
 		dv.nfdc.Exec(nfdc.NfdMgmtCmd{
