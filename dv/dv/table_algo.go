@@ -3,6 +3,7 @@ package dv
 import (
 	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/table"
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 )
 
@@ -88,12 +89,26 @@ func (dv *Router) fibUpdate() {
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
-	// Update FIB routers from RIB only
+	// Name prefixes from global prefix table as well as RIB
+	names := make(map[uint64]enc.Name)
+	fibEntries := make(map[uint64][]table.FibEntry)
+
+	// Update paths to all routers from RIB
+	for _, router := range dv.rib.Entries() {
+		rNameH := router.Name().Hash()
+		names[rNameH] = router.Name()
+
+		// Get FIB entry to reach this router
+		fes := dv.rib.GetFibEntries(dv.neighbors, rNameH)
+
+		// Add entry to the router itself
+		fibEntries[rNameH] = append(fibEntries[rNameH], fes...)
+	}
+
+	// Update all FIB entries to NFD
 	dv.fib.UnmarkAll()
-	for _, entry := range dv.rib.Entries() {
-		nameH := entry.Name().Hash()
-		fes := dv.rib.GetFibEntries(dv.neighbors, nameH)
-		if dv.fib.Update(entry.Name(), fes) {
+	for nameH, fes := range fibEntries {
+		if dv.fib.UpdateH(nameH, names[nameH], fes) {
 			dv.fib.MarkH(nameH)
 		}
 	}
