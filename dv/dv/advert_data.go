@@ -137,18 +137,18 @@ func (dv *Router) advertDataHandler(data ndn.Data) {
 		return
 	}
 	if ns.AdvertSeq != seqNo {
-		log.Warnf("advertDataHandler: old advertisement for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
+		log.Debugf("advertDataHandler: old advertisement for %s (%d != %d)", neighbor, ns.AdvertSeq, seqNo)
 		return
 	}
 
 	// TODO: verify signature on Advertisement
-	log.Infof("advertDataHandler: received: %s", data.Name())
+	log.Debugf("advertDataHandler: received: %s", data.Name())
 
 	// Parse the advertisement
 	raw := data.Content().Join() // clone
 	advert, err := tlv.ParseAdvertisement(enc.NewBufferReader(raw), false)
 	if err != nil {
-		log.Warnf("advertDataHandler: failed to parse advertisement: %+v", err)
+		log.Errorf("advertDataHandler: failed to parse advertisement: %+v", err)
 		return
 	}
 
