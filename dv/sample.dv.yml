@@ -1,6 +1,6 @@
 nfd:
   # Unix socket used to connect to the local forwarder
-  socket: /var/run/nfd/nfd2.sock
+  unix: /var/run/nfd/nfd2.sock
 
 config:
   # Global prefix for all DV routers in the network

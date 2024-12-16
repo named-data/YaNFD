@@ -25,7 +25,7 @@ type YamlConfig struct {
 
 	// NFD related options
 	Nfd struct {
-		Socket string `json:"socket"`
+		Unix string `json:"Unix"`
 	} `json:"nfd"`
 }
 
@@ -41,7 +41,7 @@ func main() {
 
 	// Configuration defaults
 	yc := YamlConfig{}
-	yc.Nfd.Socket = "/var/run/nfd/nfd.sock"
+	yc.Nfd.Unix = "/var/run/nfd/nfd.sock"
 	yc.Config.AdvertisementSyncInterval_ms = 5000
 	yc.Config.RouterDeadInterval_ms = 30000
 
@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Start NDN app
-	face := basic_engine.NewStreamFace("unix", yc.Nfd.Socket, true)
+	face := basic_engine.NewStreamFace("unix", yc.Nfd.Unix, true)
 	timer := basic_engine.NewTimer()
 	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), noValidate)
 
