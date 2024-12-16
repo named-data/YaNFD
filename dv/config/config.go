@@ -43,7 +43,7 @@ type Config struct {
 func (c *Config) Parse() (err error) {
 	// Validate prefixes not empty
 	if c.NetworkName == "" || c.RouterName == "" {
-		return errors.New("GlobalPrefix and RouterPrefix must be set")
+		return errors.New("NetworkName and RouterName must be set")
 	}
 
 	// Parse prefixes

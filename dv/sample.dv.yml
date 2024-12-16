@@ -1,0 +1,13 @@
+nfd:
+  # Unix socket used to connect to the local forwarder
+  socket: /var/run/nfd/nfd2.sock
+
+config:
+  # Global prefix for all DV routers in the network
+  network: /ndn
+  # Unique name for each router in the network
+  router: /sample
+  # Period of sending Advertisement Sync Interests (ms)
+  advertise_interval: 5000
+  # Time after which a neighbor is considered dead (ms)
+  router_dead_interval: 30000
