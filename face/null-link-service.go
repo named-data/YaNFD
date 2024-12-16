@@ -36,25 +36,12 @@ func (l *NullLinkService) String() string {
 }
 
 // Run runs the NullLinkService.
-func (l *NullLinkService) Run(optNewFrame []byte) {
-	if l.transport == nil {
-		core.LogError(l, "Unable to start face due to unset transport")
-		return
-	}
-
-	// Start transport goroutines
-	go l.transport.runReceive()
-
-	if optNewFrame != nil {
-		l.handleIncomingFrame(optNewFrame)
-	}
-
-	// Wait for transport receive goroutine to quit
-	<-l.hasTransportQuit
-
-	core.LogTrace(l, "Transport has quit")
-
-	l.HasQuit <- true
+func (l *NullLinkService) Run(initial []byte) {
+	FaceTable.Add(l)
+	go func() {
+		l.transport.runReceive()
+		FaceTable.Remove(l.transport.FaceID())
+	}()
 }
 
 func (l *NullLinkService) handleIncomingFrame(frame []byte) {

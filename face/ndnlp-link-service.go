@@ -48,10 +48,12 @@ type NDNLPLinkServiceOptions struct {
 }
 
 func MakeNDNLPLinkServiceOptions() NDNLPLinkServiceOptions {
-	var o NDNLPLinkServiceOptions
-	o.BaseCongestionMarkingInterval = time.Duration(100) * time.Millisecond
-	o.DefaultCongestionThresholdBytes = uint64(math.Pow(2, 16))
-	return o
+	return NDNLPLinkServiceOptions{
+		BaseCongestionMarkingInterval:   time.Duration(100) * time.Millisecond,
+		DefaultCongestionThresholdBytes: uint64(math.Pow(2, 16)),
+		IsReassemblyEnabled:             true,
+		IsFragmentationEnabled:          true,
+	}
 }
 
 // NDNLPLinkService is a link service implementing the NDNLPv2 link protocol
@@ -125,28 +127,35 @@ func (l *NDNLPLinkService) computeHeaderOverhead() {
 }
 
 // Run starts the face and associated goroutines
-func (l *NDNLPLinkService) Run(optNewFrame []byte) {
+func (l *NDNLPLinkService) Run(initial []byte) {
 	if l.transport == nil {
 		core.LogError(l, "Unable to start face due to unset transport")
 		return
 	}
 
-	if optNewFrame != nil {
-		l.handleIncomingFrame(optNewFrame)
+	// Add self to face table. Removed in runSend.
+	FaceTable.Add(l)
+
+	// Process initial incoming frame
+	if initial != nil {
+		l.handleIncomingFrame(initial)
 	}
 
 	// Start transport goroutines
-	go l.transport.runReceive()
+	go l.runReceive()
 	go l.runSend()
+}
 
-	// Wait for link service send goroutine to quit
-	<-l.hasImplQuit
-	l.HasQuit <- true
+func (l *NDNLPLinkService) runReceive() {
+	if lockThreadsToCores {
+		runtime.LockOSThread()
+	}
+
+	l.transport.runReceive()
+	l.stopped <- true
 }
 
 func (l *NDNLPLinkService) runSend() {
-	core.LogTrace(l, "Starting send thread")
-
 	if lockThreadsToCores {
 		runtime.LockOSThread()
 	}
@@ -155,8 +164,8 @@ func (l *NDNLPLinkService) runSend() {
 		select {
 		case pkt := <-l.sendQueue:
 			sendPacket(l, pkt)
-		case <-l.hasTransportQuit:
-			l.hasImplQuit <- true
+		case <-l.stopped:
+			FaceTable.Remove(l.transport.FaceID())
 			return
 		}
 	}
@@ -165,11 +174,6 @@ func (l *NDNLPLinkService) runSend() {
 func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 	wire := pkt.Raw
 
-	if l.transport.State() != defn.Up {
-		core.LogWarn(l, "Attempted to send frame on down face - DROP and stop LinkService")
-		l.hasImplQuit <- true
-		return
-	}
 	// Counters
 	if pkt.L3.Interest != nil {
 		l.nOutInterests++
@@ -322,12 +326,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 		}
 
 		// Reassembly
-		if l.options.IsReassemblyEnabled {
-			if LP.Sequence == nil {
-				core.LogInfo(l, "Received NDNLPv2 frame without Sequence but reassembly requires it - DROP")
-				return
-			}
-
+		if l.options.IsReassemblyEnabled && LP.Sequence != nil {
 			fragIndex := uint64(0)
 			if LP.FragIndex != nil {
 				fragIndex = *LP.FragIndex

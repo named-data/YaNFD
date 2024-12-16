@@ -8,23 +8,17 @@
 package face
 
 import (
-	"bufio"
-	"io"
+	"fmt"
 	"net"
-	"runtime"
-	"strconv"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
-
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 // UnixStreamTransport is a Unix stream transport for communicating with local applications.
 type UnixStreamTransport struct {
-	conn   *net.UnixConn
-	reader *bufio.Reader
+	conn *net.UnixConn
 	transportBase
 }
 
@@ -40,16 +34,13 @@ func MakeUnixStreamTransport(remoteURI *defn.URI, localURI *defn.URI, conn net.C
 
 	// Set connection
 	t.conn = conn.(*net.UnixConn)
-	t.reader = bufio.NewReaderSize(t.conn, 32*defn.MaxNDNPacketSize)
-
-	t.changeState(defn.Up)
+	t.running.Store(true)
 
 	return t, nil
 }
 
 func (t *UnixStreamTransport) String() string {
-	return "UnixStreamTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
-		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return fmt.Sprintf("UnixStreamTransport, FaceID=%d, RemoteURI=%s, LocalURI=%s", t.faceID, t.remoteURI, t.localURI)
 }
 
 // SetPersistency changes the persistency of the face.
@@ -76,83 +67,39 @@ func (t *UnixStreamTransport) GetSendQueueSize() uint64 {
 }
 
 func (t *UnixStreamTransport) sendFrame(frame []byte) {
+	if !t.running.Load() {
+		return
+	}
+
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
-		t.changeState(defn.Down)
+		t.Close()
+		return
 	}
 
 	t.nOutBytes += uint64(len(frame))
 }
 
 func (t *UnixStreamTransport) runReceive() {
-	core.LogTrace(t, "Starting receive thread")
+	defer t.Close()
 
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
-
-	handleError := func(err error) {
-		if err.Error() == "EOF" {
-			core.LogDebug(t, "EOF - Face DOWN")
-		} else {
-			core.LogWarn(t, "Unable to read from socket (", err, ") - DROP and Face DOWN")
-		}
-		t.changeState(defn.Down)
-	}
-
-	recvBuf := make([]byte, defn.MaxNDNPacketSize)
-	for {
-		typ, err := enc.ReadTLNum(t.reader)
-		if err != nil {
-			handleError(err)
-			break
-		}
-
-		len, err := enc.ReadTLNum(t.reader)
-		if err != nil {
-			handleError(err)
-			break
-		}
-
-		cursor := 0
-		cursor += typ.EncodeInto(recvBuf[cursor:])
-		cursor += len.EncodeInto(recvBuf[cursor:])
-
-		lenRead, err := io.ReadFull(t.reader, recvBuf[cursor:cursor+int(len)])
-		if err != nil {
-			handleError(err)
-			break
-		}
-		cursor += lenRead
-
-		t.linkService.handleIncomingFrame(recvBuf[:cursor])
-		t.nInBytes += uint64(cursor)
+	err := readTlvStream(t.conn, func(b []byte) {
+		t.nInBytes += uint64(len(b))
+		t.linkService.handleIncomingFrame(b)
+	}, nil)
+	if err != nil {
+		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
 }
 
-func (t *UnixStreamTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing Unix stream socket")
-		t.hasQuit <- true
+func (t *UnixStreamTransport) Close() {
+	if t.running.Swap(false) {
 		t.conn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
 	}
 }

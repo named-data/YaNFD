@@ -9,6 +9,8 @@ package face
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"strconv"
 
@@ -21,7 +23,7 @@ import (
 type UDPListener struct {
 	conn     net.PacketConn
 	localURI *defn.URI
-	HasQuit  chan bool
+	stopped  chan bool
 }
 
 // MakeUDPListener constructs a UDPListener.
@@ -33,31 +35,34 @@ func MakeUDPListener(localURI *defn.URI) (*UDPListener, error) {
 
 	l := new(UDPListener)
 	l.localURI = localURI
-	l.HasQuit = make(chan bool, 1)
+	l.stopped = make(chan bool, 1)
 	return l, nil
 }
 
 func (l *UDPListener) String() string {
-	return "UDPListener, " + l.localURI.String()
+	return fmt.Sprintf("UDPListener, %s", l.localURI)
 }
 
 // Run starts the UDP listener.
 func (l *UDPListener) Run() {
+	defer func() { l.stopped <- true }()
+
 	// Create dialer and set reuse address option
 	listenConfig := &net.ListenConfig{Control: impl.SyscallReuseAddr}
 
 	// Create listener
-	var err error
 	var remote string
 	if l.localURI.Scheme() == "udp4" {
-		remote = l.localURI.PathHost() + ":" + strconv.Itoa(int(l.localURI.Port()))
+		remote = fmt.Sprintf("%s:%d", l.localURI.PathHost(), l.localURI.Port())
 	} else {
-		remote = "[" + l.localURI.Path() + "]:" + strconv.Itoa(int(l.localURI.Port()))
+		remote = fmt.Sprintf("[%s]:%d", l.localURI.Path(), l.localURI.Port())
 	}
+
+	// Start listening for incoming connections
+	var err error
 	l.conn, err = listenConfig.ListenPacket(context.Background(), l.localURI.Scheme(), remote)
 	if err != nil {
 		core.LogError(l, "Unable to start UDP listener: ", err)
-		l.HasQuit <- true
 		return
 	}
 
@@ -66,8 +71,11 @@ func (l *UDPListener) Run() {
 	for !core.ShouldQuit {
 		readSize, remoteAddr, err := l.conn.ReadFrom(recvBuf)
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			core.LogWarn(l, "Unable to read from socket (", err, ") - DROP ")
-			break
+			return
 		}
 
 		// Construct remote URI
@@ -89,21 +97,21 @@ func (l *UDPListener) Run() {
 			continue
 		}
 
-		core.LogTrace(l, "Receive of size ", readSize, " from ", remoteURI)
-
 		// If frame received here, must be for new remote endpoint
 		newTransport, err := MakeUnicastUDPTransport(remoteURI, l.localURI, PersistencyOnDemand)
 		if err != nil {
 			core.LogError(l, "Failed to create new unicast UDP transport: ", err)
 			continue
 		}
-		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
 
-		// Add face to table (which assigns FaceID) before passing current frame to link service
-		FaceTable.Add(newLinkService)
-		go newLinkService.Run(recvBuf[:readSize])
+		core.LogInfo(l, "Accepting new UDP face ", newTransport.RemoteURI())
+		MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions()).Run(recvBuf[:readSize])
 	}
+}
 
-	l.conn.Close()
-	l.HasQuit <- true
+func (l *UDPListener) Close() {
+	if l.conn != nil {
+		l.conn.Close()
+		<-l.stopped
+	}
 }

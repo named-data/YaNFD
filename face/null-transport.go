@@ -10,20 +10,27 @@ package face
 import (
 	"strconv"
 
-	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
 )
 
 // NullTransport is a transport that drops all packets.
 type NullTransport struct {
 	transportBase
+	close chan bool
 }
 
 // MakeNullTransport makes a NullTransport.
 func MakeNullTransport() *NullTransport {
-	t := new(NullTransport)
-	t.makeTransportBase(defn.MakeNullFaceURI(), defn.MakeNullFaceURI(), PersistencyPermanent, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
-	t.changeState(defn.Up)
+	t := &NullTransport{
+		close: make(chan bool),
+	}
+	t.makeTransportBase(
+		defn.MakeNullFaceURI(),
+		defn.MakeNullFaceURI(),
+		PersistencyPermanent,
+		defn.NonLocal,
+		defn.PointToPoint,
+		defn.MaxNDNPacketSize)
 	return t
 }
 
@@ -50,18 +57,17 @@ func (t *NullTransport) GetSendQueueSize() uint64 {
 	return 0
 }
 
-func (t *NullTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
+func (t *NullTransport) sendFrame([]byte) {
+	// Do nothing
+}
 
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
+func (t *NullTransport) runReceive() {
+	t.running.Store(true)
+	<-t.close
+}
 
-	if t.state != defn.Up {
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
+func (t *NullTransport) Close() {
+	if t.running.Swap(false) {
+		t.close <- true
 	}
 }

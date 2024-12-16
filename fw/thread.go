@@ -391,10 +391,9 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 
 	// Get PIT if present
 	var pitToken *uint32
-	if len(packet.PitToken) == 6 {
-		pitToken = new(uint32)
-		// We have already guaranteed that, if a PIT token is present, it is 6 bytes long
-		*pitToken = binary.BigEndian.Uint32(packet.PitToken[2:6])
+	//lint:ignore S1009 removing the nil check causes a segfault ¯\_(ツ)_/¯
+	if packet.PitToken != nil && len(packet.PitToken) == 6 {
+		pitToken = utils.IdPtr(binary.BigEndian.Uint32(packet.PitToken[2:6]))
 	}
 
 	// Get incoming face

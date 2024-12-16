@@ -33,7 +33,13 @@ type WebSocketListenerConfig struct {
 	TLSKey     string
 }
 
-// URL returns server URL.
+// WebSocketListener listens for incoming WebSockets connections.
+type WebSocketListener struct {
+	server   http.Server
+	upgrader websocket.Upgrader
+	localURI *defn.URI
+}
+
 func (cfg WebSocketListenerConfig) URL() *url.URL {
 	addr := net.JoinHostPort(cfg.Bind, strconv.FormatUint(uint64(cfg.Port), 10))
 	u := &url.URL{
@@ -55,7 +61,6 @@ func (cfg WebSocketListenerConfig) String() string {
 	return b.String()
 }
 
-// NewWebSocketListener constructs a WebSocketListener.
 func NewWebSocketListener(cfg WebSocketListenerConfig) (*WebSocketListener, error) {
 	localURI := cfg.URL()
 	ret := &WebSocketListener{
@@ -80,31 +85,21 @@ func NewWebSocketListener(cfg WebSocketListenerConfig) (*WebSocketListener, erro
 	return ret, nil
 }
 
-// WebSocketListener listens for incoming WebSockets connections.
-type WebSocketListener struct {
-	server   http.Server
-	upgrader websocket.Upgrader
-	localURI *defn.URI
-}
-
-var _ Listener = &WebSocketListener{}
-
 func (l *WebSocketListener) String() string {
 	return "WebSocketListener, " + l.localURI.String()
 }
 
-// Run starts the WebSocket listener.
 func (l *WebSocketListener) Run() {
 	l.server.Handler = http.HandlerFunc(l.handler)
 
-	var e error
+	var err error
 	if l.server.TLSConfig == nil {
-		e = l.server.ListenAndServe()
+		err = l.server.ListenAndServe()
 	} else {
-		e = l.server.ListenAndServeTLS("", "")
+		err = l.server.ListenAndServeTLS("", "")
 	}
-	if !errors.Is(e, http.ErrServerClosed) {
-		core.LogFatal(l, "Unable to start listener: ", e)
+	if !errors.Is(err, http.ErrServerClosed) {
+		core.LogFatal(l, "Unable to start listener: ", err)
 	}
 }
 
@@ -114,15 +109,14 @@ func (l *WebSocketListener) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := NewWebSocketTransport(l.localURI, c)
-	linkService := MakeNDNLPLinkService(t, MakeNDNLPLinkServiceOptions())
+	newTransport := NewWebSocketTransport(l.localURI, c)
+	core.LogInfo(l, "Accepting new WebSocket face ", newTransport.RemoteURI())
 
-	core.LogInfo(l, "Accepting new WebSocket face ", t.RemoteURI())
-	FaceTable.Add(linkService)
-	go linkService.Run(nil)
+	options := MakeNDNLPLinkServiceOptions()
+	options.IsFragmentationEnabled = false // reliable stream
+	MakeNDNLPLinkService(newTransport, options).Run(nil)
 }
 
-// Close closes the WebSocketListener.
 func (l *WebSocketListener) Close() {
 	core.LogInfo(l, "Stopping listener")
 	l.server.Shutdown(context.TODO())

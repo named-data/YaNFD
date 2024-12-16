@@ -8,6 +8,7 @@
 package face
 
 import (
+	"errors"
 	"net"
 	"os"
 	"path"
@@ -21,7 +22,7 @@ type UnixStreamListener struct {
 	conn     net.Listener
 	localURI *defn.URI
 	nextFD   int // We can't (at least easily) access the actual FD through net.Conn, so we'll make our own
-	HasQuit  chan bool
+	stopped  chan bool
 }
 
 // MakeUnixStreamListener constructs a UnixStreamListener.
@@ -31,20 +32,20 @@ func MakeUnixStreamListener(localURI *defn.URI) (*UnixStreamListener, error) {
 		return nil, core.ErrNotCanonical
 	}
 
-	l := &UnixStreamListener{
+	return &UnixStreamListener{
 		localURI: localURI,
 		nextFD:   1,
-		HasQuit:  make(chan bool, 1),
-	}
-	return l, nil
+		stopped:  make(chan bool, 1),
+	}, nil
 }
 
 func (l *UnixStreamListener) String() string {
 	return "UnixStreamListener, " + l.localURI.String()
 }
 
-// Run starts the Unix stream listener.
 func (l *UnixStreamListener) Run() {
+	defer func() { l.stopped <- true }()
+
 	// Delete any existing socket
 	os.Remove(l.localURI.Path())
 
@@ -67,18 +68,16 @@ func (l *UnixStreamListener) Run() {
 	core.LogInfo(l, "Listening")
 
 	// Run accept loop
-	for {
+	for !core.ShouldQuit {
 		newConn, err := l.conn.Accept()
 		if err != nil {
-			if err.Error() == "EOF" {
-				// Must have failed due to being closed, so quit quietly
-			} else {
-				core.LogWarn(l, "Unable to accept connection: ", err)
+			if errors.Is(err, net.ErrClosed) {
+				return
 			}
-			break
+			core.LogWarn(l, "Unable to accept connection: ", err)
+			return
 		}
 
-		// Construct remote URI
 		remoteURI := defn.MakeFDFaceURI(l.nextFD)
 		l.nextFD++
 		if !remoteURI.IsCanonical() {
@@ -91,24 +90,17 @@ func (l *UnixStreamListener) Run() {
 			core.LogError(l, "Failed to create new Unix stream transport: ", err)
 			continue
 		}
-		newLinkService := MakeNDNLPLinkService(newTransport, MakeNDNLPLinkServiceOptions())
-		if newLinkService == nil {
-			core.LogError(l, "Failed to create new NDNLPv2 transport: ", err)
-			continue
-		}
 
 		core.LogInfo(l, "Accepting new Unix stream face ", remoteURI)
-
-		// Add face to table and start its thread
-		FaceTable.Add(newLinkService)
-		go newLinkService.Run(nil)
+		options := MakeNDNLPLinkServiceOptions()
+		options.IsFragmentationEnabled = false // reliable stream
+		MakeNDNLPLinkService(newTransport, options).Run(nil)
 	}
-
-	l.HasQuit <- true
 }
 
-// Close closes the UnixStreamListener.
 func (l *UnixStreamListener) Close() {
-	core.LogInfo(l, "Stopping listener")
-	l.conn.Close()
+	if l.conn != nil {
+		l.conn.Close()
+		<-l.stopped
+	}
 }
