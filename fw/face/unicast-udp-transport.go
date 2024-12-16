@@ -9,9 +9,10 @@ package face
 
 import (
 	"errors"
+	"fmt"
 	"net"
-	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
@@ -30,7 +31,9 @@ type UnicastUDPTransport struct {
 
 // MakeUnicastUDPTransport creates a new unicast UDP transport.
 func MakeUnicastUDPTransport(
-	remoteURI *defn.URI, localURI *defn.URI, persistency Persistency,
+	remoteURI *defn.URI,
+	localURI *defn.URI,
+	persistency Persistency,
 ) (*UnicastUDPTransport, error) {
 	// Validate URIs
 	if !remoteURI.IsCanonical() || (remoteURI.Scheme() != "udp4" && remoteURI.Scheme() != "udp6") ||
@@ -38,8 +41,8 @@ func MakeUnicastUDPTransport(
 		return nil, core.ErrNotCanonical
 	}
 
+	// Construct transport
 	t := new(UnicastUDPTransport)
-	// All persistencies are accepted
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
 	t.expirationTime = new(time.Time)
 	*t.expirationTime = time.Now().Add(udpLifetime)
@@ -62,45 +65,36 @@ func MakeUnicastUDPTransport(
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())
 
-	// Attempt to "dial" remote URI
-	var err error
 	// Configure dialer so we can allow address reuse
+	// Unlike TCP, we don't need to do this in a separate goroutine because
+	// we don't need to wait for the connection to be established
 	t.dialer = &net.Dialer{LocalAddr: &t.localAddr, Control: impl.SyscallReuseAddr}
-	conn, err := t.dialer.Dial(t.remoteURI.Scheme(),
-		net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
+	remote := net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port())))
+	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), remote)
 	if err != nil {
 		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
 	}
+
 	t.conn = conn.(*net.UDPConn)
+	t.running.Store(true)
 
 	if localURI == nil {
 		t.localAddr = *t.conn.LocalAddr().(*net.UDPAddr)
 		t.localURI = defn.DecodeURIString("udp://" + t.localAddr.String())
 	}
 
-	t.changeState(defn.Up)
-
-	go t.expirationHandler()
-
 	return t, nil
 }
 
 func (t *UnicastUDPTransport) String() string {
-	return "UnicastUDPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) +
-		", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return fmt.Sprintf("UnicastUDPTransport, FaceID=%d, RemoteURI=%s, LocalURI=%s", t.faceID, t.remoteURI, t.localURI)
 }
 
-// SetPersistency changes the persistency of the face.
 func (t *UnicastUDPTransport) SetPersistency(persistency Persistency) bool {
-	if persistency == t.persistency {
-		return true
-	}
-
 	t.persistency = persistency
 	return true
 }
 
-// GetSendQueueSize returns the current size of the send queue.
 func (t *UnicastUDPTransport) GetSendQueueSize() uint64 {
 	rawConn, err := t.conn.SyscallConn()
 	if err != nil {
@@ -109,111 +103,46 @@ func (t *UnicastUDPTransport) GetSendQueueSize() uint64 {
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
 
-func (t *UnicastUDPTransport) onTransportFailure(fromReceive bool) {
-	switch t.persistency {
-	case PersistencyPermanent:
-		// Restart socket
-		t.conn.Close()
-		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(),
-			net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
-		if err != nil {
-			core.LogError(t, "Unable to connect to remote endpoint: ", err)
-		}
-		t.conn = conn.(*net.UDPConn)
-
-		if fromReceive {
-			t.runReceive()
-		} else {
-			// Old receive thread will error out, so we need to replace it
-			go t.runReceive()
-		}
-	default:
-		t.changeState(defn.Down)
-	}
-}
-
-// expirationHandler checks if the face should expire (if on demand)
-func (t *UnicastUDPTransport) expirationHandler() {
-	for {
-		time.Sleep(time.Duration(10) * time.Second)
-		if t.state == defn.Down {
-			break
-		}
-		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) ||
-			t.expirationTime.Equal(time.Now())) {
-			core.LogInfo(t, "Face expired")
-			t.changeState(defn.Down)
-			break
-		}
-	}
-}
-
 func (t *UnicastUDPTransport) sendFrame(frame []byte) {
+	if !t.running.Load() {
+		return
+	}
+
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
-		core.LogWarn(t, "Unable to send on socket - DROP")
-		t.onTransportFailure(false)
+		core.LogWarn(t, "Unable to send on socket - DROP and Face DOWN")
+		t.Close()
 		return
 	}
+
 	t.nOutBytes += uint64(len(frame))
 	*t.expirationTime = time.Now().Add(udpLifetime)
 }
 
 func (t *UnicastUDPTransport) runReceive() {
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
+	defer t.Close()
 
-	recvBuf := make([]byte, defn.MaxNDNPacketSize)
-	for {
-		readSize, err := t.conn.Read(recvBuf)
-		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF")
-			} else {
-				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
-				t.onTransportFailure(true)
-			}
-			break
-		}
-
-		core.LogTrace(t, "Receive of size ", readSize)
-		t.nInBytes += uint64(readSize)
+	err := readTlvStream(t.conn, func(b []byte) {
+		t.nInBytes += uint64(len(b))
 		*t.expirationTime = time.Now().Add(udpLifetime)
-
-		if readSize > defn.MaxNDNPacketSize {
-			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
-			continue
-		}
-
-		// Send up to link service
-		t.linkService.handleIncomingFrame(recvBuf[:readSize])
+		t.linkService.handleIncomingFrame(b)
+	}, func(err error) bool {
+		// Ignore since UDP is a connectionless protocol
+		// This happens if the other side is not listening (ICMP)
+		return strings.Contains(err.Error(), "connection refused")
+	})
+	if err != nil {
+		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
 }
 
-func (t *UnicastUDPTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing UDP socket")
-		t.hasQuit <- true
+func (t *UnicastUDPTransport) Close() {
+	if t.running.Swap(false) {
 		t.conn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
 	}
 }

@@ -133,7 +133,7 @@ func (bpe *basePitEntry) InsertInRecord(
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest.NameV.Clone()
 		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
-		record.PitToken = incomingPitToken
+		record.PitToken = append([]byte{}, incomingPitToken...)
 		bpe.inRecords[face] = record
 		return record, false
 	}

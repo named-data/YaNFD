@@ -9,27 +9,37 @@ package face
 
 import (
 	"errors"
+	"fmt"
 	"net"
-	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/face/impl"
+	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 // UnicastTCPTransport is a unicast TCP transport.
 type UnicastTCPTransport struct {
+	transportBase
+
 	dialer     *net.Dialer
 	conn       *net.TCPConn
 	localAddr  net.TCPAddr
 	remoteAddr net.TCPAddr
-	transportBase
+
+	// Permanent face reconnection
+	rechan chan bool
+	closed bool // (permanently)
 }
 
-// MakeUnicastTCPTransport creates a new unicast TCP transport.
-func MakeUnicastTCPTransport(remoteURI *defn.URI, localURI *defn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+// Makes an outgoing unicast TCP transport.
+func MakeUnicastTCPTransport(
+	remoteURI *defn.URI,
+	localURI *defn.URI,
+	persistency Persistency,
+) (*UnicastTCPTransport, error) {
 	// Validate URIs.
 	if !remoteURI.IsCanonical() ||
 		(remoteURI.Scheme() != "tcp4" && remoteURI.Scheme() != "tcp6") {
@@ -39,11 +49,11 @@ func MakeUnicastTCPTransport(remoteURI *defn.URI, localURI *defn.URI, persistenc
 		return nil, errors.New("do not specify localURI for TCP")
 	}
 
+	// Construct transport
 	t := new(UnicastTCPTransport)
-	// All persistencies are accepted.
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
-	t.expirationTime = new(time.Time)
-	*t.expirationTime = time.Now().Add(tcpLifetime)
+	t.expirationTime = utils.IdPtr(time.Now().Add(tcpLifetime))
+	t.rechan = make(chan bool, 1)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -54,40 +64,31 @@ func MakeUnicastTCPTransport(remoteURI *defn.URI, localURI *defn.URI, persistenc
 	}
 
 	// Set local and remote addresses
-	if localURI != nil {
-		t.localAddr.IP = net.ParseIP(localURI.Path())
-		t.localAddr.Port = int(localURI.Port())
-	} else {
-		t.localAddr.Port = int(TCPUnicastPort)
-	}
+	t.localAddr.Port = int(TCPUnicastPort)
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())
 
-	// Attempt to "dial" remote URI
-	var err error
 	// Configure dialer so we can allow address reuse
 	// Fix: for TCP we shouldn't specify the local address. Instead, we should obtain it from system.
 	// Though it succeeds in Windows and MacOS, Linux does not allow this.
 	t.dialer = &net.Dialer{Control: impl.SyscallReuseAddr}
-	conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port()))))
-	if err != nil {
-		return nil, errors.New("Unable to connect to remote endpoint: " + err.Error())
-	}
-	t.conn = conn.(*net.TCPConn)
 
-	if localURI == nil {
-		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-		t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
-	}
+	// Do not attempt to connect here at all, since it blocks the main thread
+	// The cost is that we can't compute the localUri here
+	// We will attempt to connect in the receive loop instead
 
-	t.changeState(defn.Up)
-
-	go t.expirationHandler()
+	// Fake for filling up the response
+	t.localURI = defn.DecodeURIString("tcp://127.0.0.1:0")
 
 	return t, nil
 }
 
-func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persistency Persistency) (*UnicastTCPTransport, error) {
+// Accept an incoming unicast TCP transport.
+func AcceptUnicastTCPTransport(
+	remoteConn net.Conn,
+	localURI *defn.URI,
+	persistency Persistency,
+) (*UnicastTCPTransport, error) {
 	// Construct remote URI
 	var remoteURI *defn.URI
 	remoteAddr := remoteConn.RemoteAddr()
@@ -108,11 +109,19 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persiste
 		return nil, err
 	}
 
+	// Construct transport
 	t := new(UnicastTCPTransport)
-	// All persistencies are accepted.
 	t.makeTransportBase(remoteURI, localURI, persistency, defn.NonLocal, defn.PointToPoint, defn.MaxNDNPacketSize)
-	t.expirationTime = new(time.Time)
-	*t.expirationTime = time.Now().Add(tcpLifetime)
+	t.expirationTime = utils.IdPtr(time.Now().Add(tcpLifetime))
+	t.rechan = make(chan bool, 1)
+
+	var success bool
+	t.conn, success = remoteConn.(*net.TCPConn)
+	if !success {
+		core.LogError("UnicastTCPTransport", "Specified connection ", remoteConn, " is not a net.TCPConn")
+		return nil, errors.New("specified connection is not a net.TCPConn")
+	}
+	t.running.Store(true)
 
 	// Set scope
 	ip := net.ParseIP(remoteURI.Path())
@@ -127,45 +136,25 @@ func AcceptUnicastTCPTransport(remoteConn net.Conn, localURI *defn.URI, persiste
 		t.localAddr.IP = net.ParseIP(localURI.Path())
 		t.localAddr.Port = int(localURI.Port())
 	} else {
-		t.localAddr.Port = int(TCPUnicastPort)
+		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
+		t.localURI = defn.DecodeURIString(fmt.Sprintf("tcp://%s", &t.localAddr))
 	}
+
 	t.remoteAddr.IP = net.ParseIP(remoteURI.Path())
 	t.remoteAddr.Port = int(remoteURI.Port())
-
-	var success bool
-	t.conn, success = remoteConn.(*net.TCPConn)
-	if !success {
-		core.LogError("UnicastTCPTransport", "Specified connection ", remoteConn, " is not a net.TCPConn")
-		return nil, errors.New("specified connection is not a net.TCPConn")
-	}
-
-	if localURI == nil {
-		t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
-		t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
-	}
-
-	t.changeState(defn.Up)
-
-	go t.expirationHandler()
 
 	return t, nil
 }
 
 func (t *UnicastTCPTransport) String() string {
-	return "UnicastTCPTransport, FaceID=" + strconv.FormatUint(t.faceID, 10) + ", RemoteURI=" + t.remoteURI.String() + ", LocalURI=" + t.localURI.String()
+	return fmt.Sprintf("UnicastTCPTransport, FaceID=%d, RemoteURI=%s, LocalURI=%s", t.faceID, t.remoteURI, t.localURI)
 }
 
-// SetPersistency changes the persistency of the face.
 func (t *UnicastTCPTransport) SetPersistency(persistency Persistency) bool {
-	if persistency == t.persistency {
-		return true
-	}
-
 	t.persistency = persistency
 	return true
 }
 
-// GetSendQueueSize returns the current size of the send queue.
 func (t *UnicastTCPTransport) GetSendQueueSize() uint64 {
 	rawConn, err := t.conn.SyscallConn()
 	if err != nil {
@@ -174,113 +163,124 @@ func (t *UnicastTCPTransport) GetSendQueueSize() uint64 {
 	return impl.SyscallGetSocketSendQueueSize(rawConn)
 }
 
-// onTransportFailure modifies the state of the UnicastTCPTransport to indicate
-// a failure in transmission.
-func (t *UnicastTCPTransport) onTransportFailure(fromReceive bool) {
-	switch t.persistency {
-	case PersistencyPermanent:
-		// Restart socket
-		t.conn.Close()
-		var err error
-		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), net.JoinHostPort(t.remoteURI.Path(),
-			strconv.Itoa(int(t.remoteURI.Port()))))
-		if err != nil {
-			core.LogError(t, "Unable to connect to remote endpoint: ", err)
-		}
-		t.conn = conn.(*net.TCPConn)
-
-		if fromReceive {
-			t.runReceive()
-		} else {
-			// Old receive thread will error out, so we need to replace it
-			go t.runReceive()
-		}
-	default:
-		t.changeState(defn.Down)
-	}
+// Set the connection and params.
+func (t *UnicastTCPTransport) setConn(conn *net.TCPConn) {
+	t.conn = conn
+	t.localAddr = *t.conn.LocalAddr().(*net.TCPAddr)
+	t.localURI = defn.DecodeURIString("tcp://" + t.localAddr.String())
 }
 
-// expirationHandler checks if the face should expire (if on demand)
-func (t *UnicastTCPTransport) expirationHandler() {
+// Attempt to reconnect to the remote transport.
+func (t *UnicastTCPTransport) reconnect() {
+	// Shut down the existing socket
+	if t.conn != nil {
+		t.conn.Close()
+	}
+
+	// Number of attempts we have made so far
+	attempt := 0
+
+	// Keep trying to reconnect until successful
+	// If the transport is not permanent, do not attempt to restart
+	// Do this inside the loop to account for changes to persistency
 	for {
-		time.Sleep(time.Duration(10) * time.Second)
-		if t.state == defn.Down {
-			break
+		attempt++
+
+		// If there is no connection, this is the initial attempt to
+		// connect for any face, so we will continue regardless
+		// However, make only one attempt to connect for non-permanent faces
+		if !(t.conn == nil && attempt == 1) {
+			// Do not continue if the transport is not permanent or closed
+			if t.Persistency() != PersistencyPermanent || t.closed {
+				t.rechan <- false // do not continue
+				return
+			}
 		}
-		if t.persistency == PersistencyOnDemand && (t.expirationTime.Before(time.Now()) || t.expirationTime.Equal(time.Now())) {
-			core.LogInfo(t, "Face expired")
-			t.changeState(defn.Down)
-			break
+
+		// Restart socket for permanent transport
+		remote := net.JoinHostPort(t.remoteURI.Path(), strconv.Itoa(int(t.remoteURI.Port())))
+		conn, err := t.dialer.Dial(t.remoteURI.Scheme(), remote)
+		if err != nil {
+			core.LogWarn(t, "Unable to connect to remote endpoint [", attempt, "]: ", err)
+			time.Sleep(5 * time.Second) // TODO: configurable
+			continue
 		}
+
+		// If the transport was closed while we were trying to reconnect,
+		// close the new connection and return without notifying
+		if t.closed {
+			conn.Close()
+			return
+		}
+
+		// Connected to remote again
+		t.setConn(conn.(*net.TCPConn))
+		t.rechan <- true // continue
+		return
 	}
 }
 
 func (t *UnicastTCPTransport) sendFrame(frame []byte) {
+	if !t.running.Load() {
+		return
+	}
+
 	if len(frame) > t.MTU() {
 		core.LogWarn(t, "Attempted to send frame larger than MTU - DROP")
 		return
 	}
 
-	core.LogDebug(t, "Sending frame of size ", len(frame))
 	_, err := t.conn.Write(frame)
 	if err != nil {
 		core.LogWarn(t, "Unable to send on socket - DROP")
-		t.onTransportFailure(false)
+		t.CloseConn() // receive might restart if needed
 		return
 	}
+
 	t.nOutBytes += uint64(len(frame))
 	*t.expirationTime = time.Now().Add(tcpLifetime)
 }
 
 func (t *UnicastTCPTransport) runReceive() {
-	if lockThreadsToCores {
-		runtime.LockOSThread()
-	}
+	defer t.Close()
 
-	recvBuf := make([]byte, defn.MaxNDNPacketSize)
 	for {
-		readSize, err := t.conn.Read(recvBuf)
-		if err != nil {
-			if err.Error() == "EOF" {
-				core.LogDebug(t, "EOF - Face DOWN")
-			} else {
-				core.LogWarn(t, "Unable to read from socket (", err, ") - DROP")
-				t.onTransportFailure(true)
+		// The connection can be nil if the initial connection attempt
+		// failed for a persistent face. In that case we will reconnect.
+		if t.conn != nil {
+			err := readTlvStream(t.conn, func(b []byte) {
+				t.nInBytes += uint64(len(b))
+				*t.expirationTime = time.Now().Add(tcpLifetime)
+				t.linkService.handleIncomingFrame(b)
+			}, nil)
+			if err == nil {
+				break // EOF
 			}
-			t.changeState(defn.Down)
-			break
+
+			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 		}
 
-		core.LogTrace(t, "Receive of size ", readSize)
-		t.nInBytes += uint64(readSize)
-		*t.expirationTime = time.Now().Add(tcpLifetime)
-
-		if readSize > defn.MaxNDNPacketSize {
-			core.LogWarn(t, "Received too much data without valid TLV block - DROP")
-			continue
+		// Persistent faces will reconnect, otherwise close
+		go t.reconnect()
+		if !<-t.rechan {
+			return // do not continue
 		}
 
-		// Send up to link service
-		t.linkService.handleIncomingFrame(recvBuf[:readSize])
+		core.LogInfo(t, "Connected socket - Face UP")
+		t.running.Store(true)
 	}
 }
 
-func (t *UnicastTCPTransport) changeState(new defn.State) {
-	if t.state == new {
-		return
-	}
-
-	core.LogInfo(t, "state: ", t.state, " -> ", new)
-	t.state = new
-
-	if t.state != defn.Up {
-		core.LogInfo(t, "Closing TCP socket")
-		t.hasQuit <- true
+// Close the inner connection if running without closing the transport.
+func (t *UnicastTCPTransport) CloseConn() {
+	if t.running.Swap(false) {
 		t.conn.Close()
-
-		// Stop link service
-		t.linkService.tellTransportQuit()
-
-		FaceTable.Remove(t.faceID)
 	}
+}
+
+// Close the connection permanently - this will not attempt to reconnect.
+func (t *UnicastTCPTransport) Close() {
+	t.closed = true
+	t.rechan <- false
+	t.CloseConn()
 }
