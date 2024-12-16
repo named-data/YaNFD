@@ -147,8 +147,6 @@ func (dv *Router) configureFace() (err error) {
 
 // Register interest handlers for DV prefixes.
 func (dv *Router) register() (err error) {
-	// TODO: retry when these fail
-
 	// Advertisement Sync
 	err = dv.engine.AttachHandler(dv.config.AdvSyncPfxN, dv.advertSyncOnInterestAsync)
 	if err != nil {
