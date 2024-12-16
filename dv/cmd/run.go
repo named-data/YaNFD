@@ -27,18 +27,15 @@ type YamlConfig struct {
 	} `json:"nfd"`
 }
 
-func (yc YamlConfig) Parse() (*config.Config, error) {
-	// Set configuration defaults
-	if yc.Nfd.Unix == "" {
-		yc.Nfd.Unix = "/var/run/nfd/nfd.sock"
-	}
-	if yc.Config.AdvertisementSyncInterval_ms == 0 {
-		yc.Config.AdvertisementSyncInterval_ms = 5000
-	}
-	if yc.Config.RouterDeadInterval_ms == 0 {
-		yc.Config.RouterDeadInterval_ms = 30000
-	}
+func DefaultConfig() YamlConfig {
+	yc := YamlConfig{}
+	yc.Nfd.Unix = "/var/run/nfd/nfd.sock"
+	yc.Config.AdvertisementSyncInterval_ms = 5000
+	yc.Config.RouterDeadInterval_ms = 30000
+	return yc
+}
 
+func (yc YamlConfig) Parse() (*config.Config, error) {
 	// Convert to config.Config
 	out := &config.Config{
 		NetworkName:               yc.Config.NetworkName,
@@ -56,13 +53,13 @@ func (yc YamlConfig) Parse() (*config.Config, error) {
 	return out, err
 }
 
-type RouterExecutor struct {
+type DvExecutor struct {
 	engine *basic_engine.Engine
 	router *dv.Router
 }
 
-func NewRouterExecutor(yc YamlConfig) (*RouterExecutor, error) {
-	exec := new(RouterExecutor)
+func NewDvExecutor(yc YamlConfig) (*DvExecutor, error) {
+	dve := new(DvExecutor)
 
 	// Validate configuration sanity
 	cfg, err := yc.Parse()
@@ -73,25 +70,25 @@ func NewRouterExecutor(yc YamlConfig) (*RouterExecutor, error) {
 	// Start NDN engine
 	face := basic_engine.NewStreamFace("unix", yc.Nfd.Unix, true)
 	timer := basic_engine.NewTimer()
-	exec.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), exec.noValidate)
+	dve.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), dve.noValidate)
 
 	// Create the DV router
-	exec.router, err = dv.NewRouter(cfg, exec.engine)
+	dve.router, err = dv.NewRouter(cfg, dve.engine)
 	if err != nil {
 		return nil, errors.New("failed to create dv router: " + err.Error())
 	}
 
-	return exec, nil
+	return dve, nil
 }
 
-func (exec *RouterExecutor) Start() error {
-	err := exec.engine.Start()
+func (dve *DvExecutor) Start() error {
+	err := dve.engine.Start()
 	if err != nil {
 		return errors.New("failed to start dv app: " + err.Error())
 	}
-	defer exec.engine.Shutdown()
+	defer dve.engine.Shutdown()
 
-	err = exec.router.Start() // blocks forever
+	err = dve.router.Start() // blocks forever
 	if err != nil {
 		return errors.New("failed to start dv router: " + err.Error())
 	}
@@ -99,14 +96,14 @@ func (exec *RouterExecutor) Start() error {
 	return nil
 }
 
-func (exec *RouterExecutor) Stop() {
-	exec.router.Stop()
+func (dve *DvExecutor) Stop() {
+	dve.router.Stop()
 }
 
-func (exec *RouterExecutor) Router() *dv.Router {
-	return exec.router
+func (dve *DvExecutor) Router() *dv.Router {
+	return dve.router
 }
 
-func (re *RouterExecutor) noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
+func (dve *DvExecutor) noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
