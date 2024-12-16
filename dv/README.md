@@ -22,3 +22,7 @@ ndn-dv requires [Go 1.23](https://go.dev/doc/install) or later.
 go build -o go-ndn-dv cmd/main/main.go
 ```
 
+# Publications
+
+- Varun Patil, Sirapop Theeranantachai, Beichuan Zhang, Lixia Zhang. 2024. [Poster: Distance Vector Routing for Named Data Networking](https://dl.acm.org/doi/abs/10.1145/3680121.3699885).
+  In Proceedings of the 20th International Conference on emerging Networking EXperiments and Technologies

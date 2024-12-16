@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Patil
+    given-names: Varun
+    orcid: https://orcid.org/0000-0002-5404-0070
+  - family-names: Theeranantachai
+    given-names: Sirapop
+    orcid: https://orcid.org/0009-0000-6394-6045
+  - family-names: Zhang
+    given-names: Beichuan
+    orcid: https://orcid.org/0009-0001-5333-8465
+  - family-names: Zhang
+    given-names: Lixia
+    orcid: https://orcid.org/0000-0003-0701-757X
+title: "Distance Vector Routing for Named Data Networking"
+identifiers:
+  - type: doi
+    value: 10.1145/3680121.3699885
+date-released: 2024-12-09
