@@ -44,7 +44,7 @@ func (encoder *PacketEncoder) Init(value *Packet) {
 	}
 
 	if value.PrefixOpList != nil {
-		l += 1
+		l += 3
 		switch x := encoder.PrefixOpList_encoder.length; {
 		case x <= 0xfc:
 			l += 1
@@ -97,8 +97,9 @@ func (encoder *PacketEncoder) EncodeInto(value *Packet, buf []byte) {
 	}
 
 	if value.PrefixOpList != nil {
-		buf[pos] = byte(221)
-		pos += 1
+		buf[pos] = 253
+		binary.BigEndian.PutUint16(buf[pos+1:], uint16(301))
+		pos += 3
 		switch x := encoder.PrefixOpList_encoder.length; {
 		case x <= 0xfc:
 			buf[pos] = byte(x)
@@ -166,7 +167,7 @@ func (context *PacketParsingContext) Parse(reader enc.ParseReader, ignoreCritica
 					handled = true
 					value.Advertisement, err = context.Advertisement_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
-			case 221:
+			case 301:
 				if true {
 					handled = true
 					value.PrefixOpList, err = context.PrefixOpList_context.Parse(reader.Delegate(int(l)), ignoreCritical)
@@ -307,7 +308,7 @@ func (encoder *AdvertisementEncoder) EncodeInto(value *Advertisement, buf []byte
 				encoder := pseudoEncoder
 				value := &pseudoValue
 				if value.Entries != nil {
-					buf[pos] = byte(205)
+					buf[pos] = byte(202)
 					pos += 1
 					switch x := encoder.Entries_encoder.length; {
 					case x <= 0xfc:
@@ -377,7 +378,7 @@ func (context *AdvertisementParsingContext) Parse(reader enc.ParseReader, ignore
 		if true {
 			handled := false
 			switch typ {
-			case 205:
+			case 202:
 				if true {
 					handled = true
 					if value.Entries == nil {
@@ -527,7 +528,7 @@ func (encoder *AdvEntryEncoder) EncodeInto(value *AdvEntry, buf []byte) {
 
 	pos := uint(0)
 	if value.Destination != nil {
-		buf[pos] = byte(206)
+		buf[pos] = byte(204)
 		pos += 1
 		switch x := encoder.Destination_encoder.length; {
 		case x <= 0xfc:
@@ -553,7 +554,7 @@ func (encoder *AdvEntryEncoder) EncodeInto(value *AdvEntry, buf []byte) {
 	}
 
 	if value.NextHop != nil {
-		buf[pos] = byte(204)
+		buf[pos] = byte(206)
 		pos += 1
 		switch x := encoder.NextHop_encoder.length; {
 		case x <= 0xfc:
@@ -599,7 +600,7 @@ func (encoder *AdvEntryEncoder) EncodeInto(value *AdvEntry, buf []byte) {
 		pos += 9
 	}
 
-	buf[pos] = byte(209)
+	buf[pos] = byte(210)
 	pos += 1
 	switch x := value.OtherCost; {
 	case x <= 0xff:
@@ -659,12 +660,12 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 		if true {
 			handled := false
 			switch typ {
-			case 206:
+			case 204:
 				if true {
 					handled = true
 					value.Destination, err = context.Destination_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
-			case 204:
+			case 206:
 				if true {
 					handled = true
 					value.NextHop, err = context.NextHop_context.Parse(reader.Delegate(int(l)), ignoreCritical)
@@ -687,7 +688,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 						}
 					}
 				}
-			case 209:
+			case 210:
 				if true {
 					handled = true
 					value.OtherCost = uint64(0)
@@ -721,7 +722,7 @@ func (context *AdvEntryParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				case 2 - 1:
 					err = enc.ErrSkipRequired{Name: "Cost", TypeNum: 208}
 				case 3 - 1:
-					err = enc.ErrSkipRequired{Name: "OtherCost", TypeNum: 209}
+					err = enc.ErrSkipRequired{Name: "OtherCost", TypeNum: 210}
 				}
 			}
 			if err != nil {
@@ -1017,7 +1018,7 @@ func (encoder *PrefixOpListEncoder) Init(value *PrefixOpList) {
 	}
 
 	if value.PrefixOpReset {
-		l += 1
+		l += 3
 		l += 1
 	}
 
@@ -1033,7 +1034,7 @@ func (encoder *PrefixOpListEncoder) Init(value *PrefixOpList) {
 				encoder := pseudoEncoder
 				value := &pseudoValue
 				if value.PrefixOpAdds != nil {
-					l += 1
+					l += 3
 					switch x := encoder.PrefixOpAdds_encoder.length; {
 					case x <= 0xfc:
 						l += 1
@@ -1065,7 +1066,7 @@ func (encoder *PrefixOpListEncoder) Init(value *PrefixOpList) {
 				encoder := pseudoEncoder
 				value := &pseudoValue
 				if value.PrefixOpRemoves != nil {
-					l += 1
+					l += 3
 					switch x := encoder.PrefixOpRemoves_encoder.length; {
 					case x <= 0xfc:
 						l += 1
@@ -1100,7 +1101,7 @@ func (encoder *PrefixOpListEncoder) EncodeInto(value *PrefixOpList, buf []byte) 
 
 	pos := uint(0)
 	if value.ExitRouter != nil {
-		buf[pos] = byte(206)
+		buf[pos] = byte(204)
 		pos += 1
 		switch x := encoder.ExitRouter_encoder.length; {
 		case x <= 0xfc:
@@ -1126,8 +1127,9 @@ func (encoder *PrefixOpListEncoder) EncodeInto(value *PrefixOpList, buf []byte) 
 	}
 
 	if value.PrefixOpReset {
-		buf[pos] = byte(222)
-		pos += 1
+		buf[pos] = 253
+		binary.BigEndian.PutUint16(buf[pos+1:], uint16(302))
+		pos += 3
 		buf[pos] = byte(0)
 		pos += 1
 	}
@@ -1144,8 +1146,9 @@ func (encoder *PrefixOpListEncoder) EncodeInto(value *PrefixOpList, buf []byte) 
 				encoder := pseudoEncoder
 				value := &pseudoValue
 				if value.PrefixOpAdds != nil {
-					buf[pos] = byte(223)
-					pos += 1
+					buf[pos] = 253
+					binary.BigEndian.PutUint16(buf[pos+1:], uint16(304))
+					pos += 3
 					switch x := encoder.PrefixOpAdds_encoder.length; {
 					case x <= 0xfc:
 						buf[pos] = byte(x)
@@ -1187,8 +1190,9 @@ func (encoder *PrefixOpListEncoder) EncodeInto(value *PrefixOpList, buf []byte) 
 				encoder := pseudoEncoder
 				value := &pseudoValue
 				if value.PrefixOpRemoves != nil {
-					buf[pos] = byte(224)
-					pos += 1
+					buf[pos] = 253
+					binary.BigEndian.PutUint16(buf[pos+1:], uint16(306))
+					pos += 3
 					switch x := encoder.PrefixOpRemoves_encoder.length; {
 					case x <= 0xfc:
 						buf[pos] = byte(x)
@@ -1257,17 +1261,17 @@ func (context *PrefixOpListParsingContext) Parse(reader enc.ParseReader, ignoreC
 		if true {
 			handled := false
 			switch typ {
-			case 206:
+			case 204:
 				if true {
 					handled = true
 					value.ExitRouter, err = context.ExitRouter_context.Parse(reader.Delegate(int(l)), ignoreCritical)
 				}
-			case 222:
+			case 302:
 				if true {
 					handled = true
 					value.PrefixOpReset = true
 				}
-			case 223:
+			case 304:
 				if true {
 					handled = true
 					if value.PrefixOpAdds == nil {
@@ -1287,7 +1291,7 @@ func (context *PrefixOpListParsingContext) Parse(reader enc.ParseReader, ignoreC
 					progress--
 
 				}
-			case 224:
+			case 306:
 				if true {
 					handled = true
 					if value.PrefixOpRemoves == nil {
