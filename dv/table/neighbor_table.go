@@ -88,10 +88,6 @@ func (ns *NeighborState) IsDead() bool {
 	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval
 }
 
-func (ns *NeighborState) route() enc.Name {
-	return append(ns.Name, enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"))
-}
-
 // Call this when a ping is received from a face.
 // This will automatically register the face route with the neighbor
 // and update the last seen time for the neighbor.
@@ -101,31 +97,8 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 
 	// If face ID has changed, re-register face.
 	if ns.faceId != faceId {
-		// Unregister old face if needed
-		if ns.faceId != 0 {
-			ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-				Module: "rib",
-				Cmd:    "unregister",
-				Args: &mgmt.ControlArgs{
-					Name:   ns.route(),
-					FaceId: utils.IdPtr(ns.faceId),
-				},
-				Retries: 3,
-			})
-		}
-
-		// Register new face
-		ns.faceId = faceId
-		ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-			Module: "rib",
-			Cmd:    "register",
-			Args: &mgmt.ControlArgs{
-				Name:   ns.route(),
-				FaceId: utils.IdPtr(faceId),
-				Origin: utils.IdPtr(config.NlsrOrigin),
-			},
-			Retries: 3,
-		})
+		ns.routeUnregister()
+		ns.routeRegister(faceId)
 	}
 
 	return nil
@@ -133,17 +106,43 @@ func (ns *NeighborState) RecvPing(faceId uint64) error {
 
 // Called when the neighbor is removed from the neighbor table.
 func (ns *NeighborState) delete() {
-	// Just in case
 	ns.Advert = nil
+	ns.routeUnregister()
+}
 
-	// Single attempt to unregister the face
+func (ns *NeighborState) route() enc.Name {
+	return append(ns.Name, enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"))
+}
+
+// Register route to this neighbor
+func (ns *NeighborState) routeRegister(faceId uint64) {
+	ns.faceId = faceId
+	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+		Module: "rib",
+		Cmd:    "register",
+		Args: &mgmt.ControlArgs{
+			Name:   ns.route(),
+			FaceId: utils.IdPtr(faceId),
+			Origin: utils.IdPtr(config.NlsrOrigin),
+			Cost:   utils.IdPtr(uint64(0)),
+		},
+		Retries: 3,
+	})
+}
+
+// Single attempt to unregister the route
+func (ns *NeighborState) routeUnregister() {
+	if ns.faceId == 0 {
+		return // not set
+	}
 	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
 		Module: "rib",
 		Cmd:    "unregister",
 		Args: &mgmt.ControlArgs{
 			Name:   ns.route(),
 			FaceId: utils.IdPtr(ns.faceId),
+			Origin: utils.IdPtr(config.NlsrOrigin),
 		},
-		Retries: 3,
+		Retries: 1,
 	})
 }
