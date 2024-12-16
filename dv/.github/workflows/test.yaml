@@ -12,7 +12,7 @@ jobs:
         with:
           go-version: '1.23.x'
       - name: Install dependencies
-        run: go get .
+        run: go get ./...
       - name: Static analysis
         run: go vet ./...
       - name: Build binary
