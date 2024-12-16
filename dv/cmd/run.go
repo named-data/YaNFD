@@ -56,41 +56,57 @@ func (yc YamlConfig) Parse() (*config.Config, error) {
 	return out, err
 }
 
-func noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
+type RouterExecutor struct {
+	engine *basic_engine.Engine
+	router *dv.Router
 }
 
-func Run(yc YamlConfig) (err error) {
+func NewRouterExecutor(yc YamlConfig) (*RouterExecutor, error) {
+	exec := new(RouterExecutor)
+
 	// Validate configuration sanity
 	cfg, err := yc.Parse()
 	if err != nil {
-		return errors.New("failed to validate dv config: " + err.Error())
+		return nil, errors.New("failed to validate dv config: " + err.Error())
 	}
 
-	// Start NDN app
+	// Start NDN engine
 	face := basic_engine.NewStreamFace("unix", yc.Nfd.Unix, true)
 	timer := basic_engine.NewTimer()
-	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), noValidate)
+	exec.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), exec.noValidate)
 
-	// Start the app
-	err = app.Start()
+	// Create the DV router
+	exec.router, err = dv.NewRouter(cfg, exec.engine)
+	if err != nil {
+		return nil, errors.New("failed to create dv router: " + err.Error())
+	}
+
+	return exec, nil
+}
+
+func (exec *RouterExecutor) Start() error {
+	err := exec.engine.Start()
 	if err != nil {
 		return errors.New("failed to start dv app: " + err.Error())
 	}
-	defer app.Shutdown()
+	defer exec.engine.Shutdown()
 
-	// Create the DV router
-	router, err := dv.NewRouter(cfg, app)
-	if err != nil {
-		return errors.New("failed to create dv router: " + err.Error())
-	}
-
-	// Start the DV router
-	err = router.Start()
+	err = exec.router.Start() // blocks forever
 	if err != nil {
 		return errors.New("failed to start dv router: " + err.Error())
 	}
-	defer router.Stop()
 
 	return nil
+}
+
+func (exec *RouterExecutor) Stop() {
+	exec.router.Stop()
+}
+
+func (exec *RouterExecutor) Router() *dv.Router {
+	return exec.router
+}
+
+func (re *RouterExecutor) noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
+	return true
 }

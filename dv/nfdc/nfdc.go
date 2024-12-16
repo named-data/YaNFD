@@ -3,8 +3,8 @@ package nfdc
 import (
 	"time"
 
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/log"
+	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 )
 
@@ -17,14 +17,14 @@ type NfdMgmtCmd struct {
 
 type NfdMgmtThread struct {
 	// engine
-	engine *basic_engine.Engine
+	engine ndn.Engine
 	// channel for management commands
 	channel chan NfdMgmtCmd
 	// stop the management thread
 	stop chan bool
 }
 
-func NewNfdMgmtThread(engine *basic_engine.Engine) *NfdMgmtThread {
+func NewNfdMgmtThread(engine ndn.Engine) *NfdMgmtThread {
 	return &NfdMgmtThread{
 		engine:  engine,
 		channel: make(chan NfdMgmtCmd, 4096),

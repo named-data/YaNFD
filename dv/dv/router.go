@@ -8,15 +8,15 @@ import (
 	"github.com/pulsejet/go-ndn-dv/nfdc"
 	"github.com/pulsejet/go-ndn-dv/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	ndn_sync "github.com/zjkmxy/go-ndn/pkg/engine/sync"
+	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 type Router struct {
 	// go-ndn app that this router is attached to
-	engine *basic_engine.Engine
+	engine ndn.Engine
 	// config for this router
 	config *config.Config
 	// nfd management thread
@@ -47,7 +47,7 @@ type Router struct {
 }
 
 // Create a new DV router.
-func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, error) {
+func NewRouter(config *config.Config, engine ndn.Engine) (*Router, error) {
 	// Validate configuration
 	err := config.Parse()
 	if err != nil {
@@ -81,7 +81,7 @@ func NewRouter(config *config.Config, engine *basic_engine.Engine) (*Router, err
 
 // Start the DV router. Blocks until Stop() is called.
 func (dv *Router) Start() (err error) {
-	dv.stop = make(chan bool)
+	dv.stop = make(chan bool, 1)
 
 	// Start timers
 	dv.heartbeat = time.NewTicker(dv.config.AdvertisementSyncInterval)

@@ -26,7 +26,11 @@ func main() {
 
 	log.SetLevel(log.InfoLevel)
 
-	if err = cmd.Run(yc); err != nil {
+	dve, err := cmd.NewRouterExecutor(yc)
+	if err != nil {
+		panic(err)
+	}
+	if err = dve.Start(); err != nil {
 		panic(err)
 	}
 }
