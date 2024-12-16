@@ -6,11 +6,6 @@ It is compatible with existing NDN applications and utilizes the management tool
 # Prerequisites
 
 YaNFD requires [Go 1.23](https://go.dev/doc/install) or later.
-Besides that, you will need `libpcap` and `g++` on Linux and MacOS. On Ubuntu, these libraries can be installed by:
-
-```bash
-sudo apt install build-essential pkg-config libpcap-dev
-```
 
 You may refer to [this](https://github.com/zjkmxy/YaNFD-docker) if you want to build a Docker image.
 
@@ -31,6 +26,7 @@ go install github.com/named-data/YaNFD/cmd/yanfd@latest
 Get it from: https://www.microsoft.com/store/apps/9NBK3ZJT4CL8
 
 ## Install the configuration file
+
 ### On MacOS/Linux
 ```bash
 curl -o ./yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
@@ -42,7 +38,8 @@ rm ./yanfd.toml
 On MacOS, one also needs to change `socket_path` to `/var/run/nfd/nfd.sock` in the copied configuration file.
 
 ### On Windows 10/11
-```text
+
+```powershell
 curl -o yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
 mkdir %APPDATA%\ndn
 move yanfd.toml %APPDATA%\ndn\
@@ -50,7 +47,8 @@ move yanfd.toml %APPDATA%\ndn\
 
 One needs to change `socket_path` to `${TEMP}\\nfd\\nfd.sock` in the copied configuration file.
 Also, to execute YaNFD on Windows 10, one needs to explicitly specify the configuration path:
-```text
+
+```bash
 yanfd.exe --config=%APPDATA%\ndn\yanfd.toml
 ```
 
@@ -60,13 +58,16 @@ yanfd.exe --config=%APPDATA%\ndn\yanfd.toml
 
 To build and install YaNFD on Unix-like platforms, run:
 
-    make
-    sudo make install
+```bash
+make
+sudo make install
+```
 
 ## Windows 10
 
 To build and install YaNFD on Windows, please run the `go build` command in the `Makefile` manually:
-```text
+
+```powershell
 go build github.com/named-data/YaNFD/cmd/yanfd
 ```
 
@@ -95,7 +96,7 @@ YaNFD supports the majority of this management protocol, but some features are c
 # Running
 
 To run YaNFD, run the `yanfd` (or `yanfd.exe`) executable.
-To view a list of available options, specify the `--help` argument. 
+To view a list of available options, specify the `--help` argument.
 
 After starting YaNFD, you can treat it like NFD from an application and configuration perspective.
 
