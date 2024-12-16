@@ -5,6 +5,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/pulsejet/go-ndn-dv/cmd"
+	"github.com/zjkmxy/go-ndn/pkg/log"
 )
 
 func main() {
@@ -23,5 +24,9 @@ func main() {
 		panic(err)
 	}
 
-	cmd.Run(yc)
+	log.SetLevel(log.InfoLevel)
+
+	if err = cmd.Run(yc); err != nil {
+		panic(err)
+	}
 }

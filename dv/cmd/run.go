@@ -1,13 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"time"
 
 	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/dv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
-	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
@@ -60,11 +60,11 @@ func noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
 
-func Run(yc YamlConfig) {
+func Run(yc YamlConfig) (err error) {
 	// Validate configuration sanity
 	cfg, err := yc.Parse()
 	if err != nil {
-		panic(err)
+		return errors.New("failed to validate dv config: " + err.Error())
 	}
 
 	// Start NDN app
@@ -72,30 +72,25 @@ func Run(yc YamlConfig) {
 	timer := basic_engine.NewTimer()
 	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), noValidate)
 
-	// Enable logging
-	log.SetLevel(log.InfoLevel)
-	logger := log.WithField("module", "main")
-
 	// Start the app
 	err = app.Start()
 	if err != nil {
-		logger.Fatalf("Unable to start engine: %+v", err)
-		return
+		return errors.New("failed to start dv app: " + err.Error())
 	}
 	defer app.Shutdown()
 
 	// Create the DV router
 	router, err := dv.NewRouter(cfg, app)
 	if err != nil {
-		logger.Fatalf("Unable to create DV router: %+v", err)
-		return
+		return errors.New("failed to create dv router: " + err.Error())
 	}
 
 	// Start the DV router
 	err = router.Start()
 	if err != nil {
-		logger.Fatalf("Unable to start DV router: %+v", err)
-		return
+		return errors.New("failed to start dv router: " + err.Error())
 	}
 	defer router.Stop()
+
+	return nil
 }
