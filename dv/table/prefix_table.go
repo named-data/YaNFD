@@ -119,10 +119,11 @@ func (pt *PrefixTable) Withdraw(name enc.Name) {
 	pt.publishOp(op.Encode())
 }
 
-func (pt *PrefixTable) Apply(ops *tlv.PrefixOpList) {
+// Applies ops from a list. Returns if dirty.
+func (pt *PrefixTable) Apply(ops *tlv.PrefixOpList) (dirty bool) {
 	if ops.ExitRouter == nil || len(ops.ExitRouter.Name) == 0 {
 		log.Warn("PrefixOpList has no ExitRouter")
-		return
+		return false
 	}
 
 	router := pt.GetRouter(ops.ExitRouter.Name)
@@ -130,17 +131,22 @@ func (pt *PrefixTable) Apply(ops *tlv.PrefixOpList) {
 	if ops.PrefixOpReset {
 		log.Infof("Reset prefix table for %s", ops.ExitRouter.Name)
 		router.Prefixes = make(map[uint64]*PrefixEntry)
+		dirty = true
 	}
 
 	for _, add := range ops.PrefixOpAdds {
 		log.Infof("Added prefix for %s: %s", ops.ExitRouter.Name, add.Name)
 		router.Prefixes[add.Name.Hash()] = &PrefixEntry{Name: add.Name}
+		dirty = true
 	}
 
 	for _, remove := range ops.PrefixOpRemoves {
 		log.Infof("Removed prefix for %s: %s", ops.ExitRouter.Name, remove.Name)
 		delete(router.Prefixes, remove.Name.Hash())
+		dirty = true
 	}
+
+	return dirty
 }
 
 func (pt *PrefixTable) publishOp(content enc.Wire) {

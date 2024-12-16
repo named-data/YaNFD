@@ -98,11 +98,26 @@ func (dv *Router) fibUpdate() {
 		rNameH := router.Name().Hash()
 		names[rNameH] = router.Name()
 
+		// Skip if this is us
+		if router.Name().Equal(dv.config.RouterPfxN) {
+			continue
+		}
+
 		// Get FIB entry to reach this router
 		fes := dv.rib.GetFibEntries(dv.neighbors, rNameH)
 
 		// Add entry to the router itself
 		fibEntries[rNameH] = append(fibEntries[rNameH], fes...)
+
+		// Add entries to all prefixes announced by this router
+		for _, pfx := range dv.pfx.GetRouter(router.Name()).Prefixes {
+			pNameH := pfx.Name.Hash()
+			names[pNameH] = pfx.Name
+
+			// Use the same nexthop entries as the exit router itself
+			// De-duplication is done by the fib table update function
+			fibEntries[pNameH] = append(fibEntries[pNameH], fes...)
+		}
 	}
 
 	// Update all FIB entries to NFD

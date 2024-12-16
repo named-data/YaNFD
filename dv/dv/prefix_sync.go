@@ -140,6 +140,9 @@ func (dv *Router) processPrefixData(data ndn.Data, router *table.PrefixTableRout
 	}
 
 	// Update the prefix table
-	dv.pfx.Apply(ops)
 	router.Known = seqNo.NumberVal()
+	if dv.pfx.Apply(ops) {
+		// Update the local fib if prefix table changed (very expensive)
+		go dv.fibUpdate()
+	}
 }
