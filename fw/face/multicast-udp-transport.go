@@ -84,7 +84,7 @@ func MakeMulticastUDPTransport(localURI *defn.URI) (*MulticastUDPTransport, erro
 func (t *MulticastUDPTransport) connectSend() error {
 	sendConn, err := t.dialer.Dial(t.remoteURI.Scheme(), t.groupAddr.String())
 	if err != nil {
-		return errors.New("Unable to create send connection to group address: " + err.Error())
+		return errors.New("unable to create send connection to group address: " + err.Error())
 	}
 	t.sendConn = sendConn.(*net.UDPConn)
 	return nil
