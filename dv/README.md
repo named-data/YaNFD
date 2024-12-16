@@ -6,7 +6,7 @@
 ndn-dv is a router based on the distance vector algorithm for [Named Data Networking](https://named-data.net) written in Go.
 It is compatible with existing NDN applications and protocols developed for the [NFD](https://github.com/named-data/NFD) forwarder.
 
-The specification of the ndn-dv protocol can be found in [SPEC.md](./SPEC.md).
+The specification of the ndn-dv protocol can be found in [SPEC.md](./SPEC.md)
 
 # Usage
 
