@@ -16,6 +16,6 @@ jobs:
       - name: Static analysis
         run: go vet ./...
       - name: Build binary
-        run: go build -o go-ndn-dv cmd/main/main.go
+        run: CGO_ENABLED=0 go build -o go-ndn-dv cmd/main/main.go
       - name: Test with the Go CLI
         run: go test ./...

@@ -21,7 +21,7 @@ go-ndn-dv /etc/ndn/dv.yml
 ndn-dv requires [Go 1.23](https://go.dev/doc/install) or later.
 
 ```bash
-go build -o go-ndn-dv cmd/main/main.go
+CGO_ENABLED=0 go build -o go-ndn-dv cmd/main/main.go
 ```
 
 ## Publications
