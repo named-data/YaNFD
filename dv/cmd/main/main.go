@@ -25,7 +25,7 @@ type YamlConfig struct {
 
 	// NFD related options
 	Nfd struct {
-		Unix string `json:"Unix"`
+		Unix string `json:"unix"`
 	} `json:"nfd"`
 }
 
