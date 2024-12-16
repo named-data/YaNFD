@@ -113,6 +113,7 @@ func (fib *Fib) Update(name enc.Name, entries []FibEntry) bool {
 				Name:   name,
 				FaceId: utils.IdPtr(entry.FaceId),
 				Cost:   utils.IdPtr(entry.Cost),
+				Origin: utils.IdPtr(config.NlsrOrigin),
 			},
 			Retries: 3,
 		})

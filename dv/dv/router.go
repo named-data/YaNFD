@@ -186,8 +186,9 @@ func (dv *Router) register() (err error) {
 			Module: "rib",
 			Cmd:    "register",
 			Args: &mgmt.ControlArgs{
-				Name: prefix,
-				Cost: utils.IdPtr(uint64(0)),
+				Name:   prefix,
+				Cost:   utils.IdPtr(uint64(0)),
+				Origin: utils.IdPtr(config.NlsrOrigin),
 			},
 			Retries: -1,
 		})

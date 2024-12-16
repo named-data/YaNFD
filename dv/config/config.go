@@ -9,6 +9,7 @@ import (
 
 const CostInfinity = uint64(16)
 const MulticastStrategy = "/localhost/nfd/strategy/multicast"
+const NlsrOrigin = uint64(128)
 
 type Config struct {
 	// GlobalPrefix should be the same for all routers in the network.
