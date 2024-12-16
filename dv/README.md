@@ -1,4 +1,4 @@
-# go-ndn-dv - Named Data Networking Distance Vector Router
+# Named Data Networking Distance Vector Router
 
 [![Go](https://github.com/pulsejet/go-ndn-dv/actions/workflows/test.yaml/badge.svg)](https://github.com/pulsejet/go-ndn-dv/actions/workflows/test.yaml)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
