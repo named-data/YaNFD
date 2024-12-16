@@ -19,7 +19,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 		MustBeFresh: true,
 		Lifetime:    utils.IdPtr(1 * time.Millisecond),
 		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
-		HopLimit:    utils.IdPtr(uint(2)), // TODO: use localhop w/ this
+		HopLimit:    utils.IdPtr(uint(2)), // use localhop w/ this
 	}
 
 	// State Vector for our group

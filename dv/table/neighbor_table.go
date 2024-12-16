@@ -110,18 +110,35 @@ func (ns *NeighborState) delete() {
 	ns.routeUnregister()
 }
 
-func (ns *NeighborState) route() enc.Name {
-	return append(ns.Name, enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"))
+func (ns *NeighborState) localRoute() enc.Name {
+	return append(config.Localhop, append(ns.Name,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+	)...)
 }
 
 // Register route to this neighbor
 func (ns *NeighborState) routeRegister(faceId uint64) {
 	ns.faceId = faceId
+
+	// For fetching advertisements from neighbor
 	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
 		Module: "rib",
 		Cmd:    "register",
 		Args: &mgmt.ControlArgs{
-			Name:   ns.route(),
+			Name:   ns.localRoute(),
+			FaceId: utils.IdPtr(faceId),
+			Origin: utils.IdPtr(config.NlsrOrigin),
+			Cost:   utils.IdPtr(uint64(0)),
+		},
+		Retries: 3,
+	})
+
+	// For prefix table sync group
+	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+		Module: "rib",
+		Cmd:    "register",
+		Args: &mgmt.ControlArgs{
+			Name:   ns.nt.config.PfxSyncPfxN,
 			FaceId: utils.IdPtr(faceId),
 			Origin: utils.IdPtr(config.NlsrOrigin),
 			Cost:   utils.IdPtr(uint64(0)),
@@ -139,7 +156,26 @@ func (ns *NeighborState) routeUnregister() {
 		Module: "rib",
 		Cmd:    "unregister",
 		Args: &mgmt.ControlArgs{
-			Name:   ns.route(),
+			Name:   ns.localRoute(),
+			FaceId: utils.IdPtr(ns.faceId),
+			Origin: utils.IdPtr(config.NlsrOrigin),
+		},
+		Retries: 1,
+	})
+
+	// If there are multiple neighbors on this face, we do not
+	// want to unregister the global routes to the face.
+	for _, ons := range ns.nt.neighbors {
+		if ons.faceId == ns.faceId {
+			return // skip global unregistration
+		}
+	}
+
+	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+		Module: "rib",
+		Cmd:    "unregister",
+		Args: &mgmt.ControlArgs{
+			Name:   ns.nt.config.PfxSyncPfxN,
 			FaceId: utils.IdPtr(ns.faceId),
 			Origin: utils.IdPtr(config.NlsrOrigin),
 		},

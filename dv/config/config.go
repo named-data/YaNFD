@@ -11,6 +11,9 @@ const CostInfinity = uint64(16)
 const MulticastStrategy = "/localhost/nfd/strategy/multicast"
 const NlsrOrigin = uint64(128)
 
+var Localhop = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "localhop")}
+var Localhost = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost")}
+
 type Config struct {
 	// GlobalPrefix should be the same for all routers in the network.
 	GlobalPrefix string
@@ -65,14 +68,14 @@ func (c *Config) Parse() (err error) {
 	}
 
 	// Create name table
-	c.AdvSyncPfxN = append(c.GlobalPfxN,
+	c.AdvSyncPfxN = append(Localhop, append(c.GlobalPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
-	)
-	c.AdvDataPfxN = append(c.RouterPfxN,
+	)...)
+	c.AdvDataPfxN = append(Localhop, append(c.RouterPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
-	)
+	)...)
 	c.PfxSyncPfxN = append(c.GlobalPfxN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFS"),
@@ -81,10 +84,9 @@ func (c *Config) Parse() (err error) {
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFX"),
 	)
-	c.ReadvertisePfxN = enc.Name{
-		enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost"),
+	c.ReadvertisePfxN = append(Localhost,
 		enc.NewStringComponent(enc.TypeGenericNameComponent, "nlsr"),
-	}
+	)
 
 	return nil
 }

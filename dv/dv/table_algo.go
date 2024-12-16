@@ -93,30 +93,34 @@ func (dv *Router) fibUpdate() {
 	names := make(map[uint64]enc.Name)
 	fibEntries := make(map[uint64][]table.FibEntry)
 
+	// Helper to add fib entries
+	register := func(name enc.Name, fes []table.FibEntry) {
+		nameH := name.Hash()
+		names[nameH] = name
+		fibEntries[nameH] = append(fibEntries[nameH], fes...)
+	}
+
 	// Update paths to all routers from RIB
 	for _, router := range dv.rib.Entries() {
-		rNameH := router.Name().Hash()
-		names[rNameH] = router.Name()
-
 		// Skip if this is us
 		if router.Name().Equal(dv.config.RouterPfxN) {
 			continue
 		}
 
 		// Get FIB entry to reach this router
-		fes := dv.rib.GetFibEntries(dv.neighbors, rNameH)
+		fes := dv.rib.GetFibEntries(dv.neighbors, router.Name().Hash())
 
 		// Add entry to the router itself
-		fibEntries[rNameH] = append(fibEntries[rNameH], fes...)
+		routerPrefix := append(router.Name(),
+			enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
+		)
+		register(routerPrefix, fes)
 
 		// Add entries to all prefixes announced by this router
-		for _, pfx := range dv.pfx.GetRouter(router.Name()).Prefixes {
-			pNameH := pfx.Name.Hash()
-			names[pNameH] = pfx.Name
-
+		for _, prefix := range dv.pfx.GetRouter(router.Name()).Prefixes {
 			// Use the same nexthop entries as the exit router itself
 			// De-duplication is done by the fib table update function
-			fibEntries[pNameH] = append(fibEntries[pNameH], fes...)
+			register(prefix.Name, fes)
 		}
 	}
 

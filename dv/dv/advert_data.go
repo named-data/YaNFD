@@ -3,6 +3,7 @@ package dv
 import (
 	"time"
 
+	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
@@ -19,11 +20,11 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 		return
 	}
 
-	advName := append(nodeId,
+	advName := append(config.Localhop, append(nodeId,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 		enc.NewSequenceNumComponent(seqNo), // unused for now
-	)
+	)...)
 
 	// Fetch the advertisement
 	cfg := &ndn.InterestConfig{
@@ -122,7 +123,7 @@ func (dv *Router) advertDataOnInterest(
 func (dv *Router) advertDataHandler(data ndn.Data) {
 	// Parse name components
 	name := data.Name()
-	neighbor := name[:len(name)-3]
+	neighbor := name[1 : len(name)-3]
 	seqNo := name[len(name)-1].NumberVal()
 
 	// Lock DV state
