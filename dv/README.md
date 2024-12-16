@@ -10,7 +10,7 @@ The specification of the ndn-dv protocol can be found in [SPEC.md](./SPEC.md)
 
 ## Usage
 
-A sample configuration file is provided in [sample.dv.yml](./sample.dv.yml)
+A sample configuration file is provided in [dv.sample.yml](./dv.sample.yml)
 
 ```bash
 go-ndn-dv /etc/ndn/dv.yml
