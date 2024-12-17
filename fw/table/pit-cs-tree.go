@@ -267,6 +267,11 @@ func (p *PitCsTree) IsCsServing() bool {
 // InsertOutRecord inserts an outrecord for the given interest, updating the
 // preexisting one if it already occcurs.
 func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64) *PitOutRecord {
+	lifetime := time.Millisecond * 4000
+	if interest.Lifetime() != nil {
+		lifetime = *interest.Lifetime()
+	}
+
 	var record *PitOutRecord
 	var ok bool
 	if record, ok = e.outRecords[face]; !ok {
@@ -275,7 +280,7 @@ func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64)
 		record.LatestNonce = *interest.NonceV
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest.NameV.Clone()
-		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+		record.ExpirationTime = time.Now().Add(lifetime)
 		e.outRecords[face] = record
 		return record
 	}
@@ -284,7 +289,7 @@ func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64)
 	record.LatestNonce = *interest.NonceV
 	record.LatestTimestamp = time.Now()
 	record.LatestInterest = interest.NameV.Clone()
-	record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+	record.ExpirationTime = time.Now().Add(lifetime)
 	return record
 }
 
