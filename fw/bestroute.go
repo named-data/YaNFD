@@ -10,6 +10,7 @@ package fw
 import (
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/defn"
@@ -61,6 +62,15 @@ func (s *BestRoute) AfterReceiveInterest(
 	inFace uint64,
 	nexthops []*table.FibNextHopEntry,
 ) {
+	// If there is an out record less than suppression interval
+	// go, drop the retransmission to suppress it.
+	for _, outRecord := range pitEntry.OutRecords() {
+		if outRecord.LatestTimestamp.Add(500 * time.Millisecond).After(time.Now()) {
+			core.LogDebug(s, "AfterReceiveInterest: Suppressed retransmission of Interest=", packet.Name, " - DROP")
+			return
+		}
+	}
+
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {
 		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nh.Nexthop)
