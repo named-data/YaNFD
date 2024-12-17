@@ -16,7 +16,6 @@ package table
 import (
 	"sync"
 
-	"github.com/named-data/YaNFD/utils/comparison"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
@@ -89,7 +88,7 @@ func (f *FibStrategyHashTable) findLongestPrefixMatchEnc(name enc.Name) *baseFib
 	virtEntry, ok := f.virtTable[virtNameHash]
 	if ok {
 		// Virtual name present, look for longer matches
-		pfx := comparison.Min(virtEntry.md, len(name))
+		pfx := min(virtEntry.md, len(name))
 		for ; pfx > f.m; pfx-- {
 			if val, ok := f.realTable[prefixHash[pfx]]; ok {
 				return val
@@ -137,7 +136,7 @@ func (f *FibStrategyHashTable) insertEntryEnc(name enc.Name) *baseFibStrategyEnt
 			f.virtTableNames[nameHash] = make(map[string]int)
 		}
 
-		f.virtTable[nameHash].md = comparison.Max(f.virtTable[nameHash].md, len(name))
+		f.virtTable[nameHash].md = max(f.virtTable[nameHash].md, len(name))
 
 		// Insert into set of names
 		f.virtTableNames[nameHash][nameBytes] = len(name)
@@ -154,7 +153,7 @@ func (f *FibStrategyHashTable) insertEntryEnc(name enc.Name) *baseFibStrategyEnt
 			f.virtTableNames[virtNameHash] = make(map[string]int)
 		}
 
-		f.virtTable[virtNameHash].md = comparison.Max(f.virtTable[virtNameHash].md, len(name))
+		f.virtTable[virtNameHash].md = max(f.virtTable[virtNameHash].md, len(name))
 
 		// Insert into set of names
 		f.virtTableNames[virtNameHash][nameBytes] = len(name)
@@ -218,7 +217,7 @@ func (f *FibStrategyHashTable) pruneTables(entry *baseFibStrategyEntry) {
 				// Update with length of next longest real prefix associated
 				// with this virtual prefix
 				for _, l := range f.virtTableNames[virtNameHash] {
-					virtEntry.md = comparison.Max(virtEntry.md, l)
+					virtEntry.md = max(virtEntry.md, l)
 				}
 			}
 		}
