@@ -163,8 +163,9 @@ func (p *PitCsTree) InsertInterest(interest *spec.Interest, hint enc.Name, inFac
 		p.pitTokenMap[entry.token] = entry
 	}
 
+	// Only considered a duplicate (loop) if from different face since
+	// is just retransmission and not loop if same face
 	for face, inRecord := range entry.inRecords {
-		// Only considered a duplicate (loop) if from different face since is just retransmission and not loop if same face
 		if face != inFace && inRecord.LatestNonce == *interest.NonceV {
 			return entry, true
 		}

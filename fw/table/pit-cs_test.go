@@ -99,7 +99,7 @@ func TestInsertInRecord(t *testing.T) {
 		inRecords: make(map[uint64]*PitInRecord),
 	}
 	faceID := uint64(1234)
-	inRecord, alreadyExists := bpe.InsertInRecord(interest, faceID, pitToken)
+	inRecord, alreadyExists, _ := bpe.InsertInRecord(interest, faceID, pitToken)
 	assert.False(t, alreadyExists)
 	assert.Equal(t, inRecord.Face, faceID)
 	assert.Equal(t, inRecord.LatestNonce == *interest.NonceV, true)
@@ -113,8 +113,9 @@ func TestInsertInRecord(t *testing.T) {
 
 	// Case 2: interest already exists in basePitEntry.inRecords
 	*interest.NonceV = 2 // get a "new" interest by resetting its nonce
-	inRecord, alreadyExists = bpe.InsertInRecord(interest, faceID, pitToken)
+	inRecord, alreadyExists, prevNonce := bpe.InsertInRecord(interest, faceID, pitToken)
 	assert.True(t, alreadyExists)
+	assert.Equal(t, prevNonce, uint32(1))
 	assert.Equal(t, inRecord.Face, faceID)
 	assert.Equal(t, inRecord.LatestNonce == *interest.NonceV, true)
 	assert.Equal(t, inRecord.LatestInterest, interest.NameV)
@@ -134,7 +135,7 @@ func TestInsertInRecord(t *testing.T) {
 	}
 	pitToken2 := []byte("xyz")
 	faceID2 := uint64(6789)
-	inRecord, alreadyExists = bpe.InsertInRecord(interest2, faceID2, pitToken2)
+	inRecord, alreadyExists, _ = bpe.InsertInRecord(interest2, faceID2, pitToken2)
 	assert.False(t, alreadyExists)
 	assert.Equal(t, inRecord.Face, faceID2)
 	assert.Equal(t, inRecord.LatestNonce == *interest2.NonceV, true)
