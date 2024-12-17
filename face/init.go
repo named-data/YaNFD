@@ -49,15 +49,15 @@ var UnixSocketPath string
 
 // Configure configures the face system.
 func Configure() {
-	faceQueueSize = core.GetConfigIntDefault("faces.queue_size", 1024)
-	congestionMarking = core.GetConfigBoolDefault("faces.congestion_marking", true)
-	lockThreadsToCores = core.GetConfigBoolDefault("faces.lock_threads_to_cores", false)
-	UDPUnicastPort = core.GetConfigUint16Default("faces.udp.port_unicast", 6363)
-	TCPUnicastPort = core.GetConfigUint16Default("faces.tcp.port_unicast", 6363)
-	UDPMulticastPort = core.GetConfigUint16Default("faces.udp.port_multicast", 56363)
-	udp4MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv4", "224.0.23.170")
-	udp6MulticastAddress = core.GetConfigStringDefault("faces.udp.multicast_address_ipv6", "ff02::114")
-	udpLifetime = time.Duration(core.GetConfigUint16Default("faces.udp.lifetime", 600)) * time.Second
-	tcpLifetime = time.Duration(core.GetConfigUint16Default("faces.tcp.lifetime", 600)) * time.Second
-	UnixSocketPath = os.ExpandEnv(core.GetConfigStringDefault("faces.unix.socket_path", "/run/nfd/nfd.sock"))
+	faceQueueSize = core.GetConfig().Faces.QueueSize
+	congestionMarking = core.GetConfig().Faces.CongestionMarking
+	lockThreadsToCores = core.GetConfig().Faces.LockThreadsToCores
+	UDPUnicastPort = core.GetConfig().Faces.Udp.PortUnicast
+	TCPUnicastPort = core.GetConfig().Faces.Tcp.PortUnicast
+	UDPMulticastPort = core.GetConfig().Faces.Udp.PortMulticast
+	udp4MulticastAddress = core.GetConfig().Faces.Udp.MulticastAddressIpv4
+	udp6MulticastAddress = core.GetConfig().Faces.Udp.MulticastAddressIpv6
+	udpLifetime = time.Duration(core.GetConfig().Faces.Udp.Lifetime) * time.Second
+	tcpLifetime = time.Duration(core.GetConfig().Faces.Tcp.Lifetime) * time.Second
+	UnixSocketPath = os.ExpandEnv(core.GetConfig().Faces.Unix.SocketPath)
 }
