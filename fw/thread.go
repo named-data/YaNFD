@@ -186,6 +186,7 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 	}
 
 	if interest.HopLimitV != nil {
+		core.LogTrace(t, "Interest ", packet.Name, " has HopLimit=", *interest.HopLimitV)
 		if *interest.HopLimitV == 0 {
 			return
 		}
