@@ -33,7 +33,7 @@ func InitializeLogger(logFile string) {
 		log.SetHandler(log.NewText(logFileObj))
 	}
 
-	logLevelString := GetConfigStringDefault("core.log_level", "INFO")
+	logLevelString := GetConfig().Core.LogLevel
 
 	var err error
 	logLevel, err = log.ParseLevel(logLevelString)

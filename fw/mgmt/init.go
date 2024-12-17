@@ -17,5 +17,5 @@ var enableLocalhopManagement bool
 
 // Configure configures the face system.
 func Configure() {
-	enableLocalhopManagement = core.GetConfigBoolDefault("mgmt.allow_localhop", false)
+	enableLocalhopManagement = core.GetConfig().Mgmt.AllowLocalhop
 }

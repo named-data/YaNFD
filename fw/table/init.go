@@ -41,13 +41,13 @@ var fibTableAlgorithm string
 
 // Configure configures the forwarding system.
 func Configure() {
-	tableQueueSize = core.GetConfigIntDefault("tables.queue_size", 1024)
+	tableQueueSize = core.GetConfig().Tables.QueueSize
 
 	// Content Store
-	csCapacity = int(core.GetConfigUint16Default("tables.content_store.capacity", 1024))
-	csAdmit = core.GetConfigBoolDefault("tables.content_store.admit", true)
-	csServe = core.GetConfigBoolDefault("tables.content_store.serve", true)
-	csReplacementPolicyName := core.GetConfigStringDefault("tables.content_store.replacement_policy", "lru")
+	csCapacity = int(core.GetConfig().Tables.ContentStore.Capacity)
+	csAdmit = core.GetConfig().Tables.ContentStore.Admit
+	csServe = core.GetConfig().Tables.ContentStore.Serve
+	csReplacementPolicyName := core.GetConfig().Tables.ContentStore.ReplacementPolicy
 	switch csReplacementPolicyName {
 	case "lru":
 		csReplacementPolicy = "lru"
@@ -57,11 +57,10 @@ func Configure() {
 	}
 
 	// Dead Nonce List
-	deadNonceListLifetime = time.Duration(
-		core.GetConfigIntDefault("tables.dead_nonce_list.lifetime", 6000)) * time.Millisecond
+	deadNonceListLifetime = time.Duration(core.GetConfig().Tables.DeadNonceList.Lifetime) * time.Millisecond
 
 	// Network Region Table
-	producerRegions = core.GetConfigArrayString("tables.network_region.regions")
+	producerRegions = core.GetConfig().Tables.NetworkRegion.Regions
 	if producerRegions == nil {
 		producerRegions = make([]string, 0)
 	}
@@ -88,7 +87,7 @@ func CsCapacity() int {
 func CreateFIBTable(fibTableAlgorithm string) {
 	switch fibTableAlgorithm {
 	case "hashtable":
-		m := core.GetConfigUint16Default("tables.fib.hashtable.m", 5)
+		m := core.GetConfig().Tables.Fib.Hashtable.M
 		newFibStrategyTableHashTable(m)
 	case "nametree":
 		newFibStrategyTableTree()
