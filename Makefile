@@ -5,7 +5,7 @@ VERSION = 1.3.0.0
 all: yanfd
 
 yanfd: clean
-	CGO_ENABLED=0 go build -o yanfd cmd/yanfd/main.go
+	CGO_ENABLED=0 go build -o yanfd -ldflags "-X 'main.Version=${VERSION}'" cmd/yanfd/main.go
 
 install:
 	install -m 755 yanfd /usr/local/bin
