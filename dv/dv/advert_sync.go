@@ -6,7 +6,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
+	ndn_sync "github.com/zjkmxy/go-ndn/pkg/sync"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -24,10 +24,10 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 
 	// State Vector for our group
 	// TODO: switch to new TLV types
-	sv := &svs.StateVecAppParam{
-		Entries: &svs.StateVec{
-			Entries: []*svs.StateVecEntry{{
-				NodeId: dv.config.RouterNameN.Bytes(),
+	sv := &ndn_sync.StateVectorAppParam{
+		StateVector: &ndn_sync.StateVector{
+			Entries: []*ndn_sync.StateVectorEntry{{
+				NodeId: dv.config.RouterNameN,
 				SeqNo:  dv.advertSyncSeq,
 			}},
 		},
@@ -76,8 +76,8 @@ func (dv *Router) advertSyncOnInterest(
 
 	// TODO: verify signature on Sync Interest
 
-	params, err := svs.ParseStateVecAppParam(enc.NewWireReader(interest.AppParam()), true)
-	if err != nil || params.Entries == nil {
+	params, err := ndn_sync.ParseStateVectorAppParam(enc.NewWireReader(interest.AppParam()), true)
+	if err != nil || params.StateVector == nil {
 		log.Warnf("advertSyncOnInterest: failed to parse StateVec: %+v", err)
 		return
 	}
@@ -86,10 +86,10 @@ func (dv *Router) advertSyncOnInterest(
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
-	for _, entry := range params.Entries.Entries {
+	for _, entry := range params.StateVector.Entries {
 		// Parse name from NodeId
-		nodeId, err := enc.NameFromBytes(entry.NodeId)
-		if err != nil {
+		nodeId := entry.NodeId
+		if nodeId == nil {
 			log.Warnf("advertSyncOnInterest: failed to parse NodeId: %+v", err)
 			continue
 		}
