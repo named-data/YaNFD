@@ -124,6 +124,11 @@ func (bpe *basePitEntry) InsertInRecord(
 	face uint64,
 	incomingPitToken []byte,
 ) (*PitInRecord, bool) {
+	lifetime := time.Millisecond * 4000
+	if interest.Lifetime() != nil {
+		lifetime = *interest.Lifetime()
+	}
+
 	var record *PitInRecord
 	var ok bool
 	if record, ok = bpe.inRecords[face]; !ok {
@@ -132,7 +137,7 @@ func (bpe *basePitEntry) InsertInRecord(
 		record.LatestNonce = *interest.NonceV
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest.NameV.Clone()
-		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+		record.ExpirationTime = time.Now().Add(lifetime)
 		record.PitToken = append([]byte{}, incomingPitToken...)
 		bpe.inRecords[face] = record
 		return record, false
@@ -142,7 +147,7 @@ func (bpe *basePitEntry) InsertInRecord(
 	record.LatestNonce = *interest.NonceV
 	record.LatestTimestamp = time.Now()
 	record.LatestInterest = interest.NameV.Clone()
-	record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+	record.ExpirationTime = time.Now().Add(lifetime)
 	return record, true
 }
 
