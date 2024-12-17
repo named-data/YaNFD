@@ -203,33 +203,22 @@ func sendPacket(l *NDNLPLinkService, out dispatch.OutPkt) {
 
 		// Split up fragment
 		nFragments := int((len(wire) + effectiveMtu - 1) / effectiveMtu)
-		lastFragSize := len(wire) - effectiveMtu*(nFragments-1)
 		fragments = make([]*spec.LpPacket, nFragments)
 		reader := enc.NewBufferReader(wire)
 		for i := 0; i < nFragments; i++ {
-			if i < nFragments-1 {
-				frag, err := reader.ReadWire(effectiveMtu)
-				if err != nil {
-					core.LogFatal(l, "Unexpected Wire reading error")
-				}
-				fragments[i] = &spec.LpPacket{
-					Fragment: frag,
-				}
-			} else {
-				frag, err := reader.ReadWire(lastFragSize)
-				if err != nil {
-					core.LogFatal(l, "Unexpected Wire reading error")
-				}
-				fragments[i] = &spec.LpPacket{
-					Fragment: frag,
-				}
+			readSize := effectiveMtu
+			if i == nFragments-1 {
+				readSize = len(wire) - effectiveMtu*(nFragments-1)
 			}
+
+			frag, err := reader.ReadWire(readSize)
+			if err != nil {
+				core.LogFatal(l, "Unexpected Wire reading error")
+			}
+			fragments[i] = &spec.LpPacket{Fragment: frag}
 		}
 	} else {
-		fragments = make([]*spec.LpPacket, 1)
-		fragments[0] = &spec.LpPacket{
-			Fragment: enc.Wire{wire},
-		}
+		fragments = []*spec.LpPacket{{Fragment: enc.Wire{wire}}}
 	}
 
 	// Sequence
