@@ -4,8 +4,8 @@ go 1.23.0
 
 require (
 	github.com/cornelk/hashmap v1.0.8
+	github.com/goccy/go-yaml v1.15.10
 	github.com/gorilla/websocket v1.5.3
-	github.com/pelletier/go-toml v1.9.5
 	github.com/stretchr/testify v1.10.0
 	github.com/zjkmxy/go-ndn v0.0.8
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884

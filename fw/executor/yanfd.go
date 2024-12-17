@@ -79,7 +79,7 @@ func (y *YaNFD) Start() {
 	y.profiler.Start()
 
 	// Initialize FIB table
-	fibTableAlgorithm := core.GetConfigStringDefault("tables.fib.algorithm", "nametree")
+	fibTableAlgorithm := core.GetConfig().Tables.Fib.Algorithm
 	table.CreateFIBTable(fibTableAlgorithm)
 
 	// Create null face
@@ -111,7 +111,7 @@ func (y *YaNFD) Start() {
 		core.LogFatal("Main", "Unable to access network interfaces: ", err)
 		os.Exit(2)
 	}
-	tcpEnabled := core.GetConfigBoolDefault("faces.tcp.enabled", true)
+	tcpEnabled := core.GetConfig().Faces.Tcp.Enabled
 	tcpPort := face.TCPUnicastPort
 	y.tcpListeners = make([]*face.TCPListener, 0)
 	for _, iface := range ifaces {
@@ -175,7 +175,7 @@ func (y *YaNFD) Start() {
 			}
 		}
 	}
-	if core.GetConfigBoolDefault("faces.unix.enabled", true) && !y.config.DisableUnix {
+	if core.GetConfig().Faces.Unix.Enabled && !y.config.DisableUnix {
 		// Set up Unix stream listener
 		y.unixListener, err = face.MakeUnixStreamListener(defn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {
@@ -187,13 +187,13 @@ func (y *YaNFD) Start() {
 		}
 	}
 
-	if core.GetConfigBoolDefault("faces.websocket.enabled", true) {
+	if core.GetConfig().Faces.WebSocket.Enabled {
 		cfg := face.WebSocketListenerConfig{
-			Bind:       core.GetConfigStringDefault("faces.websocket.bind", ""),
-			Port:       core.GetConfigUint16Default("faces.websocket.port", 9696),
-			TLSEnabled: core.GetConfigBoolDefault("faces.websocket.tls_enabled", false),
-			TLSCert:    core.ResolveConfigFileRelPath(core.GetConfigStringDefault("faces.websocket.tls_cert", "")),
-			TLSKey:     core.ResolveConfigFileRelPath(core.GetConfigStringDefault("faces.websocket.tls_key", "")),
+			Bind:       core.GetConfig().Faces.WebSocket.Bind,
+			Port:       core.GetConfig().Faces.WebSocket.Port,
+			TLSEnabled: core.GetConfig().Faces.WebSocket.TlsEnabled,
+			TLSCert:    core.ResolveConfigFileRelPath(core.GetConfig().Faces.WebSocket.TlsCert),
+			TLSKey:     core.ResolveConfigFileRelPath(core.GetConfig().Faces.WebSocket.TlsKey),
 		}
 		y.wsListener, err = face.NewWebSocketListener(cfg)
 		if err != nil {

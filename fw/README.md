@@ -29,10 +29,10 @@ Get it from: https://www.microsoft.com/store/apps/9NBK3ZJT4CL8
 
 ### On MacOS/Linux
 ```bash
-curl -o ./yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
+curl -o ./yanfd.yml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.sample.yml
 mkdir -p /usr/local/etc/ndn
-install -m 644 ./yanfd.toml /usr/local/etc/ndn
-rm ./yanfd.toml
+install -m 644 ./yanfd.yml /usr/local/etc/ndn
+rm ./yanfd.yml
 ```
 
 On MacOS, one also needs to change `socket_path` to `/var/run/nfd/nfd.sock` in the copied configuration file.
@@ -40,16 +40,16 @@ On MacOS, one also needs to change `socket_path` to `/var/run/nfd/nfd.sock` in t
 ### On Windows 10/11
 
 ```powershell
-curl -o yanfd.toml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.toml.sample
+curl -o yanfd.yml https://raw.githubusercontent.com/named-data/YaNFD/master/yanfd.sample.yml
 mkdir %APPDATA%\ndn
-move yanfd.toml %APPDATA%\ndn\
+move yanfd.yml %APPDATA%\ndn\
 ```
 
 One needs to change `socket_path` to `${TEMP}\\nfd\\nfd.sock` in the copied configuration file.
 Also, to execute YaNFD on Windows 10, one needs to explicitly specify the configuration path:
 
-```bash
-yanfd.exe --config=%APPDATA%\ndn\yanfd.toml
+```powershell
+yanfd.exe --config=%APPDATA%\ndn\yanfd.yml
 ```
 
 # Building from source
@@ -71,7 +71,7 @@ To build and install YaNFD on Windows, please run the `go build` command in the 
 go build github.com/named-data/YaNFD/cmd/yanfd
 ```
 
-At the moment, you will need to manually install the executable (`yanfd.exe`) and the configuration file (`yanfd.toml.sample`) to a location of your choice.
+At the moment, you will need to manually install the executable (`yanfd.exe`) and the configuration file (`yanfd.sample.yml`) to a location of your choice.
 
 # Configuration
 
@@ -81,8 +81,8 @@ Meanwhile, runtime configuration is used to create NDN faces, set routes and str
 
 ## Startup configuration
 
-Startup configuration for YaNFD is performed via a TOML file, by default read from `/usr/local/etc/ndn/yanfd.toml` on Unix-like systems.
-Note that you will need to copy the sample config file installed to `/usr/local/etc/ndn/yanfd.toml.sample` to this location before running YaNFD for the first time.
+Startup configuration for YaNFD is performed via a YAML file, by default read from `/usr/local/etc/ndn/yanfd.yml` on Unix-like systems.
+Note that you will need to copy the sample config file installed to `/usr/local/etc/ndn/yanfd.sample.yml` to this location before running YaNFD for the first time.
 The configuration options are documented via comments in the sample file.
 
 On Windows, at this time, you will need to specify the location of the configuration file manually when starting YaNFD via the `--config` argument.
