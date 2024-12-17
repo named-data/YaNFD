@@ -6,10 +6,10 @@ import (
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
-	"github.com/zjkmxy/go-ndn/pkg/engine/sync"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
+	"github.com/zjkmxy/go-ndn/pkg/sync"
 )
 
 var app *basic_engine.Engine
