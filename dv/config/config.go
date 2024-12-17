@@ -40,8 +40,8 @@ type Config struct {
 	readvertisePfxN enc.Name
 }
 
-func DefaultConfig() Config {
-	return Config{
+func DefaultConfig() *Config {
+	return &Config{
 		Network:                      "", // invalid
 		Router:                       "", // invalid
 		AdvertisementSyncInterval_ms: 5000,

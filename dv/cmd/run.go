@@ -18,7 +18,7 @@ type DvConfig struct {
 	} `json:"nfd"`
 
 	// Underlying configuration
-	Config config.Config `json:"config"`
+	Config *config.Config `json:"config"`
 }
 
 func DefaultConfig() DvConfig {
@@ -52,7 +52,7 @@ func NewDvExecutor(dc DvConfig) (*DvExecutor, error) {
 	dve.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), dve.noValidate)
 
 	// Create the DV router
-	dve.router, err = dv.NewRouter(&dc.Config, dve.engine)
+	dve.router, err = dv.NewRouter(dc.Config, dve.engine)
 	if err != nil {
 		return nil, errors.New("failed to create dv router: " + err.Error())
 	}
