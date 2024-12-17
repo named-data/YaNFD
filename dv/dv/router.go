@@ -8,9 +8,9 @@ import (
 	"github.com/pulsejet/go-ndn-dv/nfdc"
 	"github.com/pulsejet/go-ndn-dv/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	ndn_sync "github.com/zjkmxy/go-ndn/pkg/engine/sync"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	ndn_sync "github.com/zjkmxy/go-ndn/pkg/sync"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 

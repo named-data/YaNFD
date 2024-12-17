@@ -7,10 +7,10 @@ import (
 	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/tlv"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	ndn_sync "github.com/zjkmxy/go-ndn/pkg/engine/sync"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/security"
+	ndn_sync "github.com/zjkmxy/go-ndn/pkg/sync"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 

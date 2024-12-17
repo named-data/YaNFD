@@ -18,4 +18,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/zjkmxy/go-ndn v0.0.8 => github.com/pulsejet/go-ndn v0.0.0-20241216054437-57668fc6fb1b
+replace github.com/zjkmxy/go-ndn v0.0.8 => github.com/pulsejet/go-ndn v0.0.0-20241217010809-f1b19747ab0e
