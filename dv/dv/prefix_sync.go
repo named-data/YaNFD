@@ -62,7 +62,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 
 	cfg := &ndn.InterestConfig{
 		MustBeFresh: true,
-		Lifetime:    utils.IdPtr(2 * time.Second),
+		Lifetime:    utils.IdPtr(4 * time.Second),
 		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
 	}
 
