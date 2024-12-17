@@ -234,10 +234,12 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 		return
 	}
 
+	// Check if packet is in dead nonce list
 	if exists := t.deadNonceList.Find(interest.NameV, *interest.NonceV); exists {
 		core.LogDebug(t, "Interest ", packet.Name, " is dropped by DeadNonce: ", *interest.NonceV)
 		return
 	}
+
 	// Check if any matching PIT entries (and if duplicate)
 	//read into this, looks like this one will have to be manually changed
 	pitEntry, isDuplicate := t.pitCS.InsertInterest(interest, fhName, incomingFace.FaceID())
@@ -253,7 +255,8 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 
 	// Add in-record and determine if already pending
 	// this looks like custom interest again, but again can be changed without much issue?
-	_, isAlreadyPending := pitEntry.InsertInRecord(interest, incomingFace.FaceID(), packet.PitToken)
+	_, isAlreadyPending, prevNonce := pitEntry.InsertInRecord(
+		interest, incomingFace.FaceID(), packet.PitToken)
 
 	if !isAlreadyPending {
 		core.LogTrace(t, "Interest ", packet.Name, " is not pending")
@@ -283,6 +286,10 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 		}
 	} else {
 		core.LogTrace(t, "Interest ", packet.Name, " is already pending")
+
+		// Add the previous nonce to the dead nonce list to prevent further looping
+		// TODO: review this design, not specified in NFD dev guide
+		t.deadNonceList.Insert(interest.NameV, prevNonce)
 	}
 
 	// Update PIT entry expiration timer
@@ -309,9 +316,21 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 		lookupName = fhName
 	}
 
-	// Pass to strategy AfterReceiveInterest pipeline
+	// Query the FIB for possible nexthops
 	nexthops := table.FibStrategyTable.FindNextHopsEnc(lookupName)
-	strategy.AfterReceiveInterest(packet, pitEntry, incomingFace.FaceID(), nexthops)
+
+	// Exclude faces that have an in-record for this interest
+	// TODO: unclear where NFD dev guide specifies such behavior (if any)
+	allowedNexthops := make([]*table.FibNextHopEntry, 0, len(nexthops))
+	for _, nexthop := range nexthops {
+		record := pitEntry.InRecords()[nexthop.Nexthop]
+		if record == nil || nexthop.Nexthop == incomingFace.FaceID() {
+			allowedNexthops = append(allowedNexthops, nexthop)
+		}
+	}
+
+	// Pass to strategy AfterReceiveInterest pipeline
+	strategy.AfterReceiveInterest(packet, pitEntry, incomingFace.FaceID(), allowedNexthops)
 }
 
 func (t *Thread) processOutgoingInterest(
