@@ -1,14 +1,11 @@
-PACKAGE = github.com/named-data/YaNFD
 VERSION = 1.3.0.0
-# COMMIT = git rev-parse --short HEAD
-# DATE != date
 
 .PHONY: all install clean test coverage
 
 all: yanfd
 
 yanfd: clean
-	go build -ldflags "-X 'main.Version=${VERSION}'" ${PACKAGE}/cmd/yanfd
+	CGO_ENABLED=0 go build -o yanfd -ldflags "-X 'main.Version=${VERSION}'" cmd/yanfd/main.go
 
 install:
 	install -m 755 yanfd /usr/local/bin
@@ -23,20 +20,3 @@ test:
 
 coverage:
 	go tool cover -html=coverage.out
-
-cleanui:
-	rm -f yanfdui
-
-yanfdui: cleanui
-	go build -ldflags "-X 'main.Version=${VERSION}' -X 'main.HttpBaseDir=cmd/yanfdui'" ${PACKAGE}/cmd/yanfdui
-
-# To publish a Windows Store application
-# 	rm -rf publish
-# 	mkdir publish
-# 	go generate github.com/named-data/YaNFD/cmd/yanfdui
-# 	go build -ldflags "-X 'main.Version=${VERSION}' ${PACKAGE}/cmd/yanfdui
-# 	mv yanfdui publish/
-# 	cp -R cmd/yanfdui/static publish/
-# 	cp -R cmd/yanfdui/templates publish/
-# 	cp ./ndn_app.ico publish/
-# 	Then, create the YaNFD-x64.msix file (including publish, yanfd.toml)
