@@ -12,7 +12,7 @@ import (
 
 func (dv *Router) advertSyncSendInterest() (err error) {
 	// SVS v2 Sync Interest
-	syncName := append(dv.config.AdvSyncPfxN, enc.NewVersionComponent(2))
+	syncName := append(dv.config.AdvertisementSyncPrefix(), enc.NewVersionComponent(2))
 
 	// Sync Interest parameters for SVS
 	cfg := &ndn.InterestConfig{
@@ -27,7 +27,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	sv := &ndn_sync.StateVectorAppParam{
 		StateVector: &ndn_sync.StateVector{
 			Entries: []*ndn_sync.StateVectorEntry{{
-				NodeId: dv.config.RouterNameN,
+				NodeId: dv.config.RouterName(),
 				SeqNo:  dv.advertSyncSeq,
 			}},
 		},

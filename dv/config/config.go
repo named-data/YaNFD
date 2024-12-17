@@ -15,78 +15,123 @@ var Localhop = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "lo
 var Localhost = enc.Name{enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost")}
 
 type Config struct {
-	// NetworkName should be the same for all routers in the network.
-	NetworkName string
-	// RouterName should be unique for each router in the network.
-	RouterName string
+	// Network should be the same for all routers in the network.
+	Network string `json:"network"`
+	// Router should be unique for each router in the network.
+	Router string `json:"router"`
 	// Period of sending Advertisement Sync Interests.
-	AdvertisementSyncInterval time.Duration
+	AdvertisementSyncInterval_ms uint64 `json:"advertise_interval"`
 	// Time after which a neighbor is considered dead.
-	RouterDeadInterval time.Duration
+	RouterDeadInterval_ms uint64 `json:"router_dead_interval"`
 
 	// Parsed Global Prefix
-	NetworkNameN enc.Name
+	networkNameN enc.Name
 	// Parsed Router Prefix
-	RouterNameN enc.Name
+	routerNameN enc.Name
 	// Advertisement Sync Prefix
-	AdvSyncPfxN enc.Name
+	advSyncPfxN enc.Name
 	// Advertisement Data Prefix
-	AdvDataPfxN enc.Name
+	advDataPfxN enc.Name
 	// Prefix Table Sync Prefix
-	PfxSyncPfxN enc.Name
+	pfxSyncPfxN enc.Name
 	// Prefix Table Data Prefix
-	PfxDataPfxN enc.Name
+	pfxDataPfxN enc.Name
 	// NLSR readvertise prefix
-	ReadvertisePfxN enc.Name
+	readvertisePfxN enc.Name
+}
+
+func DefaultConfig() Config {
+	return Config{
+		Network:                      "", // invalid
+		Router:                       "", // invalid
+		AdvertisementSyncInterval_ms: 5000,
+		RouterDeadInterval_ms:        30000,
+	}
 }
 
 func (c *Config) Parse() (err error) {
 	// Validate prefixes not empty
-	if c.NetworkName == "" || c.RouterName == "" {
-		return errors.New("NetworkName and RouterName must be set")
+	if c.Network == "" || c.Router == "" {
+		return errors.New("network and router must be set")
 	}
 
 	// Parse prefixes
-	c.NetworkNameN, err = enc.NameFromStr(c.NetworkName)
+	c.networkNameN, err = enc.NameFromStr(c.Network)
 	if err != nil {
 		return err
 	}
 
-	c.RouterNameN, err = enc.NameFromStr(c.RouterName)
+	c.routerNameN, err = enc.NameFromStr(c.Router)
 	if err != nil {
 		return err
 	}
 
 	// Validate intervals are not too short
-	if c.AdvertisementSyncInterval < 1*time.Second {
+	if c.AdvertisementSyncInterval() < 1*time.Second {
 		return errors.New("AdvertisementSyncInterval must be at least 1 second")
 	}
 
 	// Dead interval at least 2 sync intervals
-	if c.RouterDeadInterval < 2*c.AdvertisementSyncInterval {
+	if c.RouterDeadInterval() < 2*c.AdvertisementSyncInterval() {
 		return errors.New("RouterDeadInterval must be at least 2*AdvertisementSyncInterval")
 	}
 
 	// Create name table
-	c.AdvSyncPfxN = append(Localhop, append(c.NetworkNameN,
+	c.advSyncPfxN = append(Localhop, append(c.networkNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)...)
-	c.AdvDataPfxN = append(Localhop, append(c.RouterNameN,
+	c.advDataPfxN = append(Localhop, append(c.routerNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
 	)...)
-	c.PfxSyncPfxN = append(c.NetworkNameN,
+	c.pfxSyncPfxN = append(c.networkNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFS"),
 	)
-	c.PfxDataPfxN = append(c.RouterNameN,
+	c.pfxDataPfxN = append(c.routerNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PFX"),
 	)
-	c.ReadvertisePfxN = append(Localhost,
+	c.readvertisePfxN = append(Localhost,
 		enc.NewStringComponent(enc.TypeGenericNameComponent, "nlsr"),
 	)
 
 	return nil
+}
+
+func (c *Config) NetworkName() enc.Name {
+	return c.networkNameN
+}
+
+func (c *Config) RouterName() enc.Name {
+	return c.routerNameN
+}
+
+func (c *Config) AdvertisementSyncPrefix() enc.Name {
+	return c.advSyncPfxN
+}
+
+func (c *Config) AdvertisementDataPrefix() enc.Name {
+	return c.advDataPfxN
+}
+
+func (c *Config) PrefixTableSyncPrefix() enc.Name {
+	return c.pfxSyncPfxN
+}
+
+func (c *Config) PrefixTableDataPrefix() enc.Name {
+	return c.pfxDataPfxN
+}
+
+func (c *Config) ReadvertisePrefix() enc.Name {
+	return c.readvertisePfxN
+}
+
+func (c *Config) AdvertisementSyncInterval() time.Duration {
+	return time.Duration(c.AdvertisementSyncInterval_ms) * time.Millisecond
+}
+
+func (c *Config) RouterDeadInterval() time.Duration {
+	return time.Duration(c.RouterDeadInterval_ms) * time.Millisecond
 }

@@ -85,7 +85,7 @@ func (nt *NeighborTable) GetAll() []*NeighborState {
 }
 
 func (ns *NeighborState) IsDead() bool {
-	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval
+	return time.Since(ns.lastSeen) > ns.nt.config.RouterDeadInterval()
 }
 
 // Call this when a ping is received from a face.
@@ -138,7 +138,7 @@ func (ns *NeighborState) routeRegister(faceId uint64) {
 		Module: "rib",
 		Cmd:    "register",
 		Args: &mgmt.ControlArgs{
-			Name:   ns.nt.config.PfxSyncPfxN,
+			Name:   ns.nt.config.PrefixTableSyncPrefix(),
 			FaceId: utils.IdPtr(faceId),
 			Origin: utils.IdPtr(config.NlsrOrigin),
 			Cost:   utils.IdPtr(uint64(0)),
@@ -175,7 +175,7 @@ func (ns *NeighborState) routeUnregister() {
 		Module: "rib",
 		Cmd:    "unregister",
 		Args: &mgmt.ControlArgs{
-			Name:   ns.nt.config.PfxSyncPfxN,
+			Name:   ns.nt.config.PrefixTableSyncPrefix(),
 			FaceId: utils.IdPtr(ns.faceId),
 			Origin: utils.IdPtr(config.NlsrOrigin),
 		},

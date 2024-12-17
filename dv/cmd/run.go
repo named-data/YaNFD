@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"time"
 
 	"github.com/pulsejet/go-ndn-dv/config"
 	"github.com/pulsejet/go-ndn-dv/dv"
@@ -13,44 +12,24 @@ import (
 )
 
 type DvConfig struct {
-	// Same as config.Config for parsing
-	Config struct {
-		NetworkName                  string `json:"network"`
-		RouterName                   string `json:"router"`
-		AdvertisementSyncInterval_ms uint64 `json:"advertise_interval"`
-		RouterDeadInterval_ms        uint64 `json:"router_dead_interval"`
-	} `json:"config"`
-
 	// NFD related options
 	Nfd struct {
 		Unix string `json:"unix"`
 	} `json:"nfd"`
+
+	// Underlying configuration
+	Config config.Config `json:"config"`
 }
 
 func DefaultConfig() DvConfig {
 	dc := DvConfig{}
 	dc.Nfd.Unix = "/var/run/nfd/nfd.sock"
-	dc.Config.AdvertisementSyncInterval_ms = 5000
-	dc.Config.RouterDeadInterval_ms = 30000
+	dc.Config = config.DefaultConfig()
 	return dc
 }
 
-func (yc DvConfig) Parse() (*config.Config, error) {
-	// Convert to config.Config
-	out := &config.Config{
-		NetworkName:               yc.Config.NetworkName,
-		RouterName:                yc.Config.RouterName,
-		AdvertisementSyncInterval: time.Duration(yc.Config.AdvertisementSyncInterval_ms * uint64(time.Millisecond)),
-		RouterDeadInterval:        time.Duration(yc.Config.RouterDeadInterval_ms * uint64(time.Millisecond)),
-	}
-
-	// Validate configuration
-	err := out.Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	return out, err
+func (dc DvConfig) Parse() error {
+	return dc.Config.Parse()
 }
 
 type DvExecutor struct {
@@ -62,7 +41,7 @@ func NewDvExecutor(dc DvConfig) (*DvExecutor, error) {
 	dve := new(DvExecutor)
 
 	// Validate configuration sanity
-	cfg, err := dc.Parse()
+	err := dc.Parse()
 	if err != nil {
 		return nil, errors.New("failed to validate dv config: " + err.Error())
 	}
@@ -73,7 +52,7 @@ func NewDvExecutor(dc DvConfig) (*DvExecutor, error) {
 	dve.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), dve.noValidate)
 
 	// Create the DV router
-	dve.router, err = dv.NewRouter(cfg, dve.engine)
+	dve.router, err = dv.NewRouter(&dc.Config, dve.engine)
 	if err != nil {
 		return nil, errors.New("failed to create dv router: " + err.Error())
 	}

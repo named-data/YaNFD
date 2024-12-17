@@ -63,12 +63,12 @@ func NewRouter(config *config.Config, engine ndn.Engine) (*Router, error) {
 	}
 
 	// Create sync groups
-	dv.pfxSvs = ndn_sync.NewSvSync(engine, config.PfxSyncPfxN, dv.onPfxSyncUpdate)
+	dv.pfxSvs = ndn_sync.NewSvSync(engine, config.PrefixTableSyncPrefix(), dv.onPfxSyncUpdate)
 
 	// Set initial sequence numbers
 	now := uint64(time.Now().UnixMilli())
 	dv.advertSyncSeq = now
-	dv.pfxSvs.SetSeqNo(dv.config.RouterNameN, now)
+	dv.pfxSvs.SetSeqNo(dv.config.RouterName(), now)
 
 	// Create tables
 	dv.neighbors = table.NewNeighborTable(config, dv.nfdc)
@@ -84,8 +84,8 @@ func (dv *Router) Start() (err error) {
 	dv.stop = make(chan bool, 1)
 
 	// Start timers
-	dv.heartbeat = time.NewTicker(dv.config.AdvertisementSyncInterval)
-	dv.deadcheck = time.NewTicker(dv.config.RouterDeadInterval)
+	dv.heartbeat = time.NewTicker(dv.config.AdvertisementSyncInterval())
+	dv.deadcheck = time.NewTicker(dv.config.RouterDeadInterval())
 	defer dv.heartbeat.Stop()
 	defer dv.deadcheck.Stop()
 
@@ -110,7 +110,7 @@ func (dv *Router) Start() (err error) {
 	defer dv.pfxSvs.Stop()
 
 	// Add self to the RIB
-	dv.rib.Set(dv.config.RouterNameN, dv.config.RouterNameN, 0)
+	dv.rib.Set(dv.config.RouterName(), dv.config.RouterName(), 0)
 
 	for {
 		select {
@@ -148,36 +148,36 @@ func (dv *Router) configureFace() (err error) {
 // Register interest handlers for DV prefixes.
 func (dv *Router) register() (err error) {
 	// Advertisement Sync
-	err = dv.engine.AttachHandler(dv.config.AdvSyncPfxN, dv.advertSyncOnInterestAsync)
+	err = dv.engine.AttachHandler(dv.config.AdvertisementSyncPrefix(), dv.advertSyncOnInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Advertisement Data
-	err = dv.engine.AttachHandler(dv.config.AdvDataPfxN, dv.advertDataOnInterestAsync)
+	err = dv.engine.AttachHandler(dv.config.AdvertisementDataPrefix(), dv.advertDataOnInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Prefix Data
-	err = dv.engine.AttachHandler(dv.config.PfxDataPfxN, dv.pfx.OnDataInterestAsync)
+	err = dv.engine.AttachHandler(dv.config.PrefixTableDataPrefix(), dv.pfx.OnDataInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Readvertise Data
-	err = dv.engine.AttachHandler(dv.config.ReadvertisePfxN, dv.readvertiseOnInterestAsync)
+	err = dv.engine.AttachHandler(dv.config.ReadvertisePrefix(), dv.readvertiseOnInterestAsync)
 	if err != nil {
 		return err
 	}
 
 	// Register routes to forwarder
 	pfxs := []enc.Name{
-		dv.config.AdvSyncPfxN,
-		dv.config.AdvDataPfxN,
-		dv.config.PfxSyncPfxN,
-		dv.config.PfxDataPfxN,
-		dv.config.ReadvertisePfxN,
+		dv.config.AdvertisementSyncPrefix(),
+		dv.config.AdvertisementDataPrefix(),
+		dv.config.PrefixTableSyncPrefix(),
+		dv.config.PrefixTableDataPrefix(),
+		dv.config.ReadvertisePrefix(),
 	}
 	for _, prefix := range pfxs {
 		dv.nfdc.Exec(nfdc.NfdMgmtCmd{
@@ -195,8 +195,8 @@ func (dv *Router) register() (err error) {
 	// Set strategy to multicast for sync prefixes
 	mcast, _ := enc.NameFromStr(config.MulticastStrategy)
 	pfxs = []enc.Name{
-		dv.config.AdvSyncPfxN,
-		dv.config.PfxSyncPfxN,
+		dv.config.AdvertisementSyncPrefix(),
+		dv.config.PrefixTableSyncPrefix(),
 	}
 	for _, prefix := range pfxs {
 		dv.nfdc.Exec(nfdc.NfdMgmtCmd{
