@@ -230,12 +230,12 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 
 	// Drop packet if no nonce is found
 	if interest.NonceV == nil {
-		core.LogInfo(t, "Interest ", packet.Name, " is missing Nonce - DROP")
+		core.LogDebug(t, "Interest ", packet.Name, " is missing Nonce - DROP")
 		return
 	}
 
 	if exists := t.deadNonceList.Find(interest.NameV, *interest.NonceV); exists {
-		core.LogInfo(t, "Interest ", packet.Name, " is dropped by DeadNonce: ", *interest.NonceV)
+		core.LogDebug(t, "Interest ", packet.Name, " is dropped by DeadNonce: ", *interest.NonceV)
 		return
 	}
 	// Check if any matching PIT entries (and if duplicate)
@@ -243,7 +243,7 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 	pitEntry, isDuplicate := t.pitCS.InsertInterest(interest, fhName, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
-		core.LogInfo(t, "Interest ", packet.Name, " is looping - DROP")
+		core.LogDebug(t, "Interest ", packet.Name, " is looping - DROP")
 		return
 	}
 
@@ -421,7 +421,7 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 	pitEntries := t.pitCS.FindInterestPrefixMatchByDataEnc(data, pitToken)
 	if len(pitEntries) == 0 {
 		// Unsolicated Data - nothing more to do
-		core.LogDebug(t, "Unsolicited data ", packet.Name, " - DROP")
+		core.LogDebug(t, "Unsolicited data ", packet.Name, " FaceID=", *packet.IncomingFaceID, " - DROP")
 		return
 	}
 
