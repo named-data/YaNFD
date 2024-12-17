@@ -27,7 +27,13 @@ type Face interface {
 
 	State() defn.State
 
-	SendPacket(packet *defn.Pkt)
+	SendPacket(out OutPkt)
+}
+
+type OutPkt struct {
+	Pkt      *defn.Pkt
+	PitToken []byte
+	InFace   *uint64
 }
 
 // FaceDispatch is used to allow forwarding to interact with faces without a circular dependency issue.

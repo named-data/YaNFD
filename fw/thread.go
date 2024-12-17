@@ -193,15 +193,8 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 		*interest.HopLimitV -= 1
 	}
 
-	// Get PIT token (if any)
-	incomingPitToken := make([]byte, 0)
-	if len(packet.PitToken) > 0 {
-		incomingPitToken = make([]byte, len(packet.PitToken))
-		copy(incomingPitToken, packet.PitToken)
-		core.LogTrace(t, "OnIncomingInterest: ", packet.Name, ", FaceID=", incomingFace.FaceID(), ", Has PitToken")
-	} else {
-		core.LogTrace(t, "OnIncomingInterest: ", packet.Name, ", FaceID=", incomingFace.FaceID())
-	}
+	// Log PIT token (if any)
+	core.LogTrace(t, "OnIncomingInterest: ", packet.Name, ", FaceID=", incomingFace.FaceID(), ", PitTokenL=", len(packet.PitToken))
 
 	// Check if violates /localhost
 	if incomingFace.Scope() == defn.NonLocal &&
@@ -260,7 +253,7 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 
 	// Add in-record and determine if already pending
 	// this looks like custom interest again, but again can be changed without much issue?
-	_, isAlreadyPending := pitEntry.InsertInRecord(interest, incomingFace.FaceID(), incomingPitToken)
+	_, isAlreadyPending := pitEntry.InsertInRecord(interest, incomingFace.FaceID(), packet.PitToken)
 
 	if !isAlreadyPending {
 		core.LogTrace(t, "Interest ", packet.Name, " is not pending")
@@ -299,21 +292,25 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 	if packet.NextHopFaceID != nil {
 		if dispatch.GetFace(*packet.NextHopFaceID) != nil {
 			core.LogTrace(t, "NextHopFaceId is set for Interest ", packet.Name, " - dispatching directly to face")
-			dispatch.GetFace(*packet.NextHopFaceID).SendPacket(packet)
+			dispatch.GetFace(*packet.NextHopFaceID).SendPacket(dispatch.OutPkt{
+				Pkt:      packet,
+				PitToken: packet.PitToken, // TODO: ??
+				InFace:   packet.IncomingFaceID,
+			})
 		} else {
 			core.LogInfo(t, "Non-existent face specified in NextHopFaceId for Interest ", packet.Name, " - DROP")
 		}
 		return
 	}
 
-	// Pass to strategy AfterReceiveInterest pipeline
-	var nexthops []*table.FibNextHopEntry
-	if fhName == nil {
-		nexthops = table.FibStrategyTable.FindNextHopsEnc(interest.NameV)
-	} else {
-		nexthops = table.FibStrategyTable.FindNextHopsEnc(fhName)
+	// Use forwarding hint if present
+	lookupName := interest.NameV
+	if fhName != nil {
+		lookupName = fhName
 	}
 
+	// Pass to strategy AfterReceiveInterest pipeline
+	nexthops := table.FibStrategyTable.FindNextHopsEnc(lookupName)
 	strategy.AfterReceiveInterest(packet, pitEntry, incomingFace.FaceID(), nexthops)
 }
 
@@ -353,16 +350,18 @@ func (t *Thread) processOutgoingInterest(
 
 	t.NOutInterests++
 
-	// Send on outgoing face
-	packet.IncomingFaceID = utils.IdPtr(inFace)
-
 	// Make new PIT token if needed
-	if len(packet.PitToken) != 6 {
-		packet.PitToken = make([]byte, 6)
-	}
-	binary.BigEndian.PutUint16(packet.PitToken, uint16(t.threadID))
-	binary.BigEndian.PutUint32(packet.PitToken[2:], pitEntry.Token())
-	outgoingFace.SendPacket(packet)
+	pitToken := make([]byte, 6)
+	binary.BigEndian.PutUint16(pitToken, uint16(t.threadID))
+	binary.BigEndian.PutUint32(pitToken[2:], pitEntry.Token())
+
+	// Send on outgoing face
+	outgoingFace.SendPacket(dispatch.OutPkt{
+		Pkt:      packet,
+		PitToken: pitToken,
+		InFace:   utils.IdPtr(inFace),
+	})
+
 	return true
 }
 
@@ -517,10 +516,9 @@ func (t *Thread) processOutgoingData(
 	t.NSatisfiedInterests++
 
 	// Send on outgoing face
-	if len(packet.PitToken) != len(pitToken) {
-		packet.PitToken = make([]byte, len(pitToken))
-	}
-	copy(packet.PitToken, pitToken)
-	packet.IncomingFaceID = utils.IdPtr(uint64(inFace))
-	outgoingFace.SendPacket(packet)
+	outgoingFace.SendPacket(dispatch.OutPkt{
+		Pkt:      packet,
+		PitToken: pitToken,
+		InFace:   utils.IdPtr(inFace),
+	})
 }
