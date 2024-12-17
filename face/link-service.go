@@ -214,7 +214,7 @@ func (l *linkServiceBase) SendPacket(out dispatch.OutPkt) {
 		core.LogTrace(l, "Queued packet for Link Service")
 	default:
 		// Drop packet due to congestion
-		core.LogWarn(l, "Dropped packet due to congestion")
+		core.LogDebug(l, "Dropped packet due to congestion")
 
 		// TODO: Signal congestion
 	}
