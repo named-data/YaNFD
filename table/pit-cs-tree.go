@@ -121,7 +121,7 @@ func (p *PitCsTree) updatePitExpiry(pitEntry PitEntry) {
 	if e.queueIndex < 0 {
 		e.queueIndex = p.pitExpiryQueue.Push(e, e.expirationTime.UnixNano())
 	} else {
-		p.pitExpiryQueue.Update(e.queueIndex, e, e.expirationTime.UnixNano())
+		e.queueIndex = p.pitExpiryQueue.Update(e.queueIndex, e, e.expirationTime.UnixNano())
 	}
 }
 

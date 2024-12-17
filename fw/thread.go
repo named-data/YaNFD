@@ -465,6 +465,7 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 		}
 
 		// Clear out records from PIT entry
+		pitEntries[0].ClearInRecords()
 		pitEntries[0].ClearOutRecords()
 	} else {
 		for _, pitEntry := range pitEntries {
