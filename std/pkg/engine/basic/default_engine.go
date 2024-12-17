@@ -165,15 +165,15 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			e.log.Errorf("Received nack for an Data")
 			return nil
 		}
-		if e.log.Level <= log.InfoLevel {
-			nameStr := pkt.Interest.NameV.String()
-			e.log.WithField("name", nameStr).Infof("Nack received for %v", nackReason)
+		if e.log.Level <= log.DebugLevel {
+			e.log.WithField("name", pkt.Interest.NameV.String()).
+				Debugf("Nack received for %v", nackReason)
 		}
 		e.onNack(pkt.Interest.NameV, nackReason)
 	} else if pkt.Interest != nil {
-		if e.log.Level <= log.InfoLevel {
-			nameStr := pkt.Interest.NameV.String()
-			e.log.WithField("name", nameStr).Info("Interest received.")
+		if e.log.Level <= log.DebugLevel {
+			e.log.WithField("name", pkt.Interest.NameV.String()).
+				Debug("Interest received.")
 		}
 		e.onInterest(pkt.Interest, ndn.InterestHandlerExtra{
 			RawInterest:    raw,
@@ -182,9 +182,9 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			IncomingFaceId: incomingFaceId,
 		})
 	} else if pkt.Data != nil {
-		if e.log.Level <= log.InfoLevel {
-			nameStr := pkt.Data.NameV.String()
-			e.log.WithField("name", nameStr).Info("Data received.")
+		if e.log.Level <= log.DebugLevel {
+			e.log.WithField("name", pkt.Data.NameV.String()).
+				Debug("Data received.")
 		}
 		// PitToken is not used for now
 		e.onData(pkt.Data, ctx.Data_context.SigCovered(), raw, pitToken)
@@ -425,8 +425,9 @@ func (e *Engine) Express(
 	err := e.face.Send(rawInterest)
 	if err != nil {
 		e.log.Errorf("Failed to send Interest: %v", err)
-	} else if e.log.Level <= log.InfoLevel {
-		e.log.WithField("name", finalName.String()).Info("Interest sent.")
+	} else if e.log.Level <= log.DebugLevel {
+		e.log.WithField("name", finalName.String()).
+			Debug("Interest sent.")
 	}
 
 	return err
@@ -492,10 +493,12 @@ func (e *Engine) ExecMgmtCmd(module string, cmd string, args any) error {
 func (e *Engine) RegisterRoute(prefix enc.Name) error {
 	err := e.ExecMgmtCmd("rib", "register", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
+		e.log.WithField("name", prefix.String()).
+			Errorf("Failed to register prefix: %v", err)
 		return err
 	} else {
-		e.log.WithField("name", prefix.String()).Info("Prefix registered.")
+		e.log.WithField("name", prefix.String()).
+			Info("Prefix registered.")
 	}
 	return nil
 }
@@ -503,10 +506,12 @@ func (e *Engine) RegisterRoute(prefix enc.Name) error {
 func (e *Engine) UnregisterRoute(prefix enc.Name) error {
 	err := e.ExecMgmtCmd("rib", "unregister", &mgmt.ControlArgs{Name: prefix})
 	if err != nil {
-		e.log.WithField("name", prefix.String()).Errorf("Failed to register prefix: %v", err)
+		e.log.WithField("name", prefix.String()).
+			Errorf("Failed to register prefix: %v", err)
 		return err
 	} else {
-		e.log.WithField("name", prefix.String()).Info("Prefix registered.")
+		e.log.WithField("name", prefix.String()).
+			Info("Prefix registered.")
 	}
 	return nil
 }

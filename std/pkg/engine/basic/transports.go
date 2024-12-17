@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"sync"
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
@@ -20,6 +21,7 @@ type StreamFace struct {
 	running atomic.Bool
 	onPkt   func(r enc.ParseReader) error
 	onError func(err error) error
+	sendMut sync.Mutex
 }
 
 func (f *StreamFace) Run() {
@@ -102,6 +104,8 @@ func (f *StreamFace) Send(pkt enc.Wire) error {
 	if !f.running.Load() {
 		return errors.New("face is not running")
 	}
+	f.sendMut.Lock()
+	defer f.sendMut.Unlock()
 	for _, buf := range pkt {
 		_, err := f.conn.Write(buf)
 		if err != nil {
