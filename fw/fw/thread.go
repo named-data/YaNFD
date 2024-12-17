@@ -327,7 +327,7 @@ func (t *Thread) processOutgoingInterest(
 		panic("processOutgoingInterest called with non-Interest packet")
 	}
 
-	core.LogTrace(t, "OnOutgoingInterest: ", ", FaceID=", nexthop)
+	core.LogTrace(t, "OnOutgoingInterest: ", packet.Name, ", FaceID=", nexthop)
 
 	// Get outgoing face
 	outgoingFace := dispatch.GetFace(nexthop)
