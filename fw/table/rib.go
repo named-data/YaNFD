@@ -108,12 +108,28 @@ func (r *RibEntry) pruneIfEmpty() {
 		delete(entry.parent.children, entry)
 	}
 }
+
 func (r *RibEntry) updateNexthopsEnc() {
 	FibStrategyTable.ClearNextHopsEnc(r.Name)
 
+	// All routes including parents if needed
+	routes := append([]*Route{}, r.routes...)
+
+	// Get all possible nexthops for parents that are inherited,
+	// unless we have the capture flag set
+	if !r.HasCaptureRoute() {
+		for entry := r; entry != nil; entry = entry.parent {
+			for _, route := range entry.routes {
+				if route.HasChildInheritFlag() {
+					routes = append(routes, route)
+				}
+			}
+		}
+	}
+
 	// Find minimum cost route per nexthop
 	minCostRoutes := make(map[uint64]uint64) // FaceID -> Cost
-	for _, route := range r.routes {
+	for _, route := range routes {
 		cost, ok := minCostRoutes[route.FaceID]
 		if !ok || route.Cost < cost {
 			minCostRoutes[route.FaceID] = route.Cost
@@ -123,6 +139,11 @@ func (r *RibEntry) updateNexthopsEnc() {
 	// Add "flattened" set of nexthops
 	for nexthop, cost := range minCostRoutes {
 		FibStrategyTable.InsertNextHopEnc(r.Name, nexthop, cost)
+	}
+
+	// Trigger update for all children for inheritance
+	for child := range r.children {
+		child.updateNexthopsEnc()
 	}
 }
 
@@ -222,4 +243,21 @@ func (r *RibEntry) CleanUpFace(faceId uint64) {
 	}
 	r.updateNexthopsEnc()
 	r.pruneIfEmpty()
+}
+
+func (r *RibEntry) HasCaptureRoute() bool {
+	for _, route := range r.routes {
+		if route.HasCaptureFlag() {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Route) HasCaptureFlag() bool {
+	return r.Flags&RouteFlagCapture != 0
+}
+
+func (r *Route) HasChildInheritFlag() bool {
+	return r.Flags&RouteFlagChildInherit != 0
 }

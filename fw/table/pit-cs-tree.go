@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/utils/priority_queue"
+	pq "github.com/named-data/YaNFD/utils/priority_queue"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
@@ -27,16 +27,16 @@ type PitCsTree struct {
 	csReplacement CsReplacementPolicy
 	csMap         map[uint64]*nameTreeCsEntry
 
-	pitExpiryQueue priority_queue.Queue[*nameTreePitEntry, int64]
+	pitExpiryQueue pq.Queue[*nameTreePitEntry, int64]
 	updateTimer    chan struct{}
 	onExpiration   OnPitExpiration
 }
 
 type nameTreePitEntry struct {
-	basePitEntry                // compose with BasePitEntry
-	pitCsTable   *PitCsTree     // pointer to tree
-	node         *pitCsTreeNode // the tree node associated with this entry
-	queueIndex   int            // index of entry in the expiring queue
+	basePitEntry                                    // compose with BasePitEntry
+	pitCsTable   *PitCsTree                         // pointer to tree
+	node         *pitCsTreeNode                     // the tree node associated with this entry
+	pqItem       *pq.Item[*nameTreePitEntry, int64] // entry in the expiring queue
 }
 
 type nameTreeCsEntry struct {
@@ -66,7 +66,7 @@ func NewPitCS(onExpiration OnPitExpiration) *PitCsTree {
 	pitCs.root.children = make(map[uint64]*pitCsTreeNode)
 	pitCs.onExpiration = onExpiration
 	pitCs.pitTokenMap = make(map[uint32]*nameTreePitEntry)
-	pitCs.pitExpiryQueue = priority_queue.New[*nameTreePitEntry, int64]()
+	pitCs.pitExpiryQueue = pq.New[*nameTreePitEntry, int64]()
 	pitCs.updateTimer = make(chan struct{})
 
 	// This value has already been validated from loading the configuration,
@@ -94,7 +94,7 @@ func (p *PitCsTree) UpdateTimer() <-chan struct{} {
 func (p *PitCsTree) Update() {
 	for p.pitExpiryQueue.Len() > 0 && p.pitExpiryQueue.PeekPriority() <= time.Now().UnixNano() {
 		entry := p.pitExpiryQueue.Pop()
-		entry.queueIndex = -1
+		entry.pqItem = nil
 		p.onExpiration(entry)
 		p.RemoveInterest(entry)
 	}
@@ -118,10 +118,10 @@ func (p *PitCsTree) Update() {
 
 func (p *PitCsTree) updatePitExpiry(pitEntry PitEntry) {
 	e := pitEntry.(*nameTreePitEntry)
-	if e.queueIndex < 0 {
-		e.queueIndex = p.pitExpiryQueue.Push(e, e.expirationTime.UnixNano())
+	if e.pqItem == nil {
+		e.pqItem = p.pitExpiryQueue.Push(e, e.expirationTime.UnixNano())
 	} else {
-		p.pitExpiryQueue.Update(e.queueIndex, e, e.expirationTime.UnixNano())
+		p.pitExpiryQueue.Update(e.pqItem, e, e.expirationTime.UnixNano())
 	}
 }
 
@@ -159,12 +159,13 @@ func (p *PitCsTree) InsertInterest(interest *spec.Interest, hint enc.Name, inFac
 		entry.satisfied = false
 		node.pitEntries = append(node.pitEntries, entry)
 		entry.token = p.generateNewPitToken()
-		entry.queueIndex = -1
+		entry.pqItem = nil
 		p.pitTokenMap[entry.token] = entry
 	}
 
+	// Only considered a duplicate (loop) if from different face since
+	// is just retransmission and not loop if same face
 	for face, inRecord := range entry.inRecords {
-		// Only considered a duplicate (loop) if from different face since is just retransmission and not loop if same face
 		if face != inFace && inRecord.LatestNonce == *interest.NonceV {
 			return entry, true
 		}
@@ -267,6 +268,11 @@ func (p *PitCsTree) IsCsServing() bool {
 // InsertOutRecord inserts an outrecord for the given interest, updating the
 // preexisting one if it already occcurs.
 func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64) *PitOutRecord {
+	lifetime := time.Millisecond * 4000
+	if interest.Lifetime() != nil {
+		lifetime = *interest.Lifetime()
+	}
+
 	var record *PitOutRecord
 	var ok bool
 	if record, ok = e.outRecords[face]; !ok {
@@ -275,7 +281,7 @@ func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64)
 		record.LatestNonce = *interest.NonceV
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest.NameV.Clone()
-		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+		record.ExpirationTime = time.Now().Add(lifetime)
 		e.outRecords[face] = record
 		return record
 	}
@@ -284,7 +290,7 @@ func (e *nameTreePitEntry) InsertOutRecord(interest *spec.Interest, face uint64)
 	record.LatestNonce = *interest.NonceV
 	record.LatestTimestamp = time.Now()
 	record.LatestInterest = interest.NameV.Clone()
-	record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+	record.ExpirationTime = time.Now().Add(lifetime)
 	return record
 }
 

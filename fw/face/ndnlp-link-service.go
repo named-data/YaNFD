@@ -15,6 +15,7 @@ import (
 
 	"github.com/named-data/YaNFD/core"
 	defn "github.com/named-data/YaNFD/defn"
+	"github.com/named-data/YaNFD/dispatch"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
@@ -171,7 +172,8 @@ func (l *NDNLPLinkService) runSend() {
 	}
 }
 
-func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
+func sendPacket(l *NDNLPLinkService, out dispatch.OutPkt) {
+	pkt := out.Pkt
 	wire := pkt.Raw
 
 	// Counters
@@ -201,33 +203,22 @@ func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 
 		// Split up fragment
 		nFragments := int((len(wire) + effectiveMtu - 1) / effectiveMtu)
-		lastFragSize := len(wire) - effectiveMtu*(nFragments-1)
 		fragments = make([]*spec.LpPacket, nFragments)
 		reader := enc.NewBufferReader(wire)
 		for i := 0; i < nFragments; i++ {
-			if i < nFragments-1 {
-				frag, err := reader.ReadWire(effectiveMtu)
-				if err != nil {
-					core.LogFatal(l, "Unexpected Wire reading error")
-				}
-				fragments[i] = &spec.LpPacket{
-					Fragment: frag,
-				}
-			} else {
-				frag, err := reader.ReadWire(lastFragSize)
-				if err != nil {
-					core.LogFatal(l, "Unexpected Wire reading error")
-				}
-				fragments[i] = &spec.LpPacket{
-					Fragment: frag,
-				}
+			readSize := effectiveMtu
+			if i == nFragments-1 {
+				readSize = len(wire) - effectiveMtu*(nFragments-1)
 			}
+
+			frag, err := reader.ReadWire(readSize)
+			if err != nil {
+				core.LogFatal(l, "Unexpected Wire reading error")
+			}
+			fragments[i] = &spec.LpPacket{Fragment: frag}
 		}
 	} else {
-		fragments = make([]*spec.LpPacket, 1)
-		fragments[0] = &spec.LpPacket{
-			Fragment: enc.Wire{wire},
-		}
+		fragments = []*spec.LpPacket{{Fragment: enc.Wire{wire}}}
 	}
 
 	// Sequence
@@ -239,6 +230,7 @@ func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 	}
 
 	// Congestion marking
+	congestionMark := pkt.CongestionMark // from upstream
 	if congestionMarking {
 		// GetSendQueueSize is expensive, so only check every 1/2 of the threshold
 		// and only if we can mark congestion for this particular packet
@@ -246,7 +238,7 @@ func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 			if now.After(l.lastTimeCongestionMarked.Add(l.options.BaseCongestionMarkingInterval)) &&
 				l.transport.GetSendQueueSize() > l.options.DefaultCongestionThresholdBytes {
 				core.LogWarn(l, "Marking congestion")
-				fragments[0].CongestionMark = utils.IdPtr[uint64](1)
+				congestionMark = utils.IdPtr[uint64](1) // ours
 				l.lastTimeCongestionMarked = now
 			}
 
@@ -256,23 +248,23 @@ func sendPacket(l *NDNLPLinkService, pkt *defn.Pkt) {
 		l.congestionCheck += uint64(len(wire)) // approx
 	}
 
-	// PIT tokens
-	if len(pkt.PitToken) > 0 {
-		fragments[0].PitToken = pkt.PitToken
-	}
-
-	// Incoming face indication
-	if l.options.IsIncomingFaceIndicationEnabled && pkt.IncomingFaceID != nil {
-		fragments[0].IncomingFaceId = pkt.IncomingFaceID
-	}
-
-	// Congestion marking
-	if pkt.CongestionMark != nil {
-		fragments[0].CongestionMark = pkt.CongestionMark
-	}
-
 	// Send fragment(s)
 	for _, fragment := range fragments {
+		// PIT tokens
+		if len(out.PitToken) > 0 {
+			fragment.PitToken = out.PitToken
+		}
+
+		// Incoming face indication
+		if l.options.IsIncomingFaceIndicationEnabled && out.InFace != nil {
+			fragment.IncomingFaceId = out.InFace
+		}
+
+		// Congestion marking
+		if congestionMark != nil {
+			fragment.CongestionMark = congestionMark
+		}
+
 		pkt := &spec.Packet{
 			LpPacket: fragment,
 		}

@@ -9,12 +9,15 @@ package fw
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
+
+const MulticastSuppressionTime = 500 * time.Millisecond
 
 // Multicast is a forwarding strategy that forwards Interests to all nexthop faces.
 type Multicast struct {
@@ -64,6 +67,17 @@ func (s *Multicast) AfterReceiveInterest(
 		return
 	}
 
+	// If there is an out record less than suppression interval ago, drop the
+	// retransmission to suppress it (only if the nonce is different)
+	for _, outRecord := range pitEntry.OutRecords() {
+		if outRecord.LatestNonce != *packet.L3.Interest.NonceV &&
+			outRecord.LatestTimestamp.Add(MulticastSuppressionTime).After(time.Now()) {
+			core.LogDebug(s, "AfterReceiveInterest: Suppressed Interest=", packet.Name, " - DROP")
+			return
+		}
+	}
+
+	// Send interest to all nexthops
 	for _, nexthop := range nexthops {
 		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nexthop.Nexthop)
 		s.SendInterest(packet, pitEntry, nexthop.Nexthop, inFace)
