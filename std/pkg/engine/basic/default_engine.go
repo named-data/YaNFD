@@ -175,7 +175,8 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			e.log.WithField("name", pkt.Interest.NameV.String()).
 				Debug("Interest received.")
 		}
-		e.onInterest(pkt.Interest, ndn.InterestHandlerExtra{
+		e.onInterest(ndn.InterestHandlerArgs{
+			Interest:       pkt.Interest,
 			RawInterest:    raw,
 			SigCovered:     ctx.Interest_context.SigCovered(),
 			PitToken:       pitToken,
@@ -194,20 +195,22 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 	return nil
 }
 
-func (e *Engine) onInterest(pkt *spec.Interest, extra ndn.InterestHandlerExtra) {
+func (e *Engine) onInterest(args ndn.InterestHandlerArgs) {
+	name := args.Interest.Name()
+
 	// Compute deadline
-	extra.Deadline = e.timer.Now()
-	if pkt.InterestLifetimeV != nil {
-		extra.Deadline = extra.Deadline.Add(*pkt.InterestLifetimeV)
+	args.Deadline = e.timer.Now()
+	if args.Interest.Lifetime() != nil {
+		args.Deadline = args.Deadline.Add(*args.Interest.Lifetime())
 	} else {
-		extra.Deadline = extra.Deadline.Add(DefaultInterestLife)
+		args.Deadline = args.Deadline.Add(DefaultInterestLife)
 	}
 
 	// Match node
 	handler := func() ndn.InterestHandler {
 		e.fibLock.Lock()
 		defer e.fibLock.Unlock()
-		n := e.fib.PrefixMatch(pkt.NameV)
+		n := e.fib.PrefixMatch(name)
 		// We can directly return because of the prefix-free condition
 		return n.Value()
 		// If it does not hold, us the following:
@@ -221,25 +224,25 @@ func (e *Engine) onInterest(pkt *spec.Interest, extra ndn.InterestHandlerExtra) 
 		// }
 	}()
 	if handler == nil {
-		e.log.WithField("name", pkt.NameV.String()).Warn("No handler. Drop.")
+		e.log.WithField("name", name.String()).Warn("No handler. Drop.")
 		return
 	}
 
 	// The reply callback function
-	reply := func(encodedData enc.Wire) error {
+	args.Reply = func(encodedData enc.Wire) error {
 		now := e.timer.Now()
-		if extra.Deadline.Before(now) {
-			e.log.WithField("name", pkt.NameV.String()).Warn("Deadline exceeded. Drop.")
+		if args.Deadline.Before(now) {
+			e.log.WithField("name", name).Warn("Deadline exceeded. Drop.")
 			return ndn.ErrDeadlineExceed
 		}
 		if !e.face.IsRunning() {
-			e.log.WithField("name", pkt.NameV.String()).Error("Cannot send through a closed face. Drop.")
+			e.log.WithField("name", name).Error("Cannot send through a closed face. Drop.")
 			return ndn.ErrFaceDown
 		}
-		if extra.PitToken != nil {
+		if args.PitToken != nil {
 			lpPkt := &spec.Packet{
 				LpPacket: &spec.LpPacket{
-					PitToken: extra.PitToken,
+					PitToken: args.PitToken,
 					Fragment: encodedData,
 				},
 			}
@@ -257,7 +260,7 @@ func (e *Engine) onInterest(pkt *spec.Interest, extra ndn.InterestHandlerExtra) 
 
 	// Call the handler. The handler should create goroutine to avoid blocking.
 	// Do not `go` here because if Data is ready at hand, creating a go routine may be slower. Not tested though.
-	handler(pkt, reply, extra)
+	handler(args)
 }
 
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
@@ -299,7 +302,13 @@ func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitTo
 				e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
 				continue
 			}
-			entry.callback(ndn.InterestResultData, pkt, raw, sigCovered, spec.NackReasonNone)
+			entry.callback(ndn.ExpressCallbackArgs{
+				Result:     ndn.InterestResultData,
+				Data:       pkt,
+				RawData:    raw,
+				SigCovered: sigCovered,
+				NackReason: spec.NackReasonNone,
+			})
 		}
 		cur.SetValue(newList)
 	}
@@ -319,7 +328,10 @@ func (e *Engine) onNack(name enc.Name, reason uint64) {
 	for _, entry := range n.Value() {
 		entry.timeoutCancel()
 		if entry.callback != nil {
-			entry.callback(ndn.InterestResultNack, nil, nil, nil, reason)
+			entry.callback(ndn.ExpressCallbackArgs{
+				Result:     ndn.InterestResultNack,
+				NackReason: reason,
+			})
 		} else {
 			e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
 		}
@@ -355,14 +367,14 @@ func (e *Engine) Shutdown() error {
 	return e.face.Close()
 }
 
-func (e *Engine) Express(
-	finalName enc.Name, config *ndn.InterestConfig, rawInterest enc.Wire, callback ndn.ExpressCallbackFunc,
-) error {
+func (e *Engine) Express(interest *ndn.EncodedInterest, callback ndn.ExpressCallbackFunc) error {
 	var impSha256 []byte = nil
-	var nodeName enc.Name = finalName
+
+	finalName := interest.FinalName
+	nodeName := interest.FinalName
 
 	if callback == nil {
-		callback = func(ndn.InterestResult, ndn.Data, enc.Wire, enc.Wire, uint64) {}
+		callback = func(ndn.ExpressCallbackArgs) {}
 	}
 
 	// Handle implicit digest
@@ -377,8 +389,8 @@ func (e *Engine) Express(
 
 	// Handle deadline
 	lifetime := DefaultInterestLife
-	if config.Lifetime != nil {
-		lifetime = *config.Lifetime
+	if interest.Config.Lifetime != nil {
+		lifetime = *interest.Config.Lifetime
 	}
 	deadline := e.timer.Now().Add(lifetime)
 
@@ -399,7 +411,10 @@ func (e *Engine) Express(
 					newLst = append(newLst, entry)
 				} else {
 					if entry.callback != nil {
-						entry.callback(ndn.InterestResultTimeout, nil, nil, nil, spec.NackReasonNone)
+						entry.callback(ndn.ExpressCallbackArgs{
+							Result:     ndn.InterestResultTimeout,
+							NackReason: spec.NackReasonNone,
+						})
 					} else {
 						e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
 					}
@@ -413,8 +428,8 @@ func (e *Engine) Express(
 		entry := &pendInt{
 			callback:      callback,
 			deadline:      deadline,
-			canBePrefix:   config.CanBePrefix,
-			mustBeFresh:   config.MustBeFresh,
+			canBePrefix:   interest.Config.CanBePrefix,
+			mustBeFresh:   interest.Config.MustBeFresh,
 			impSha256:     impSha256,
 			timeoutCancel: e.timer.Schedule(lifetime+TimeoutMargin, timeoutFunc),
 		}
@@ -422,7 +437,7 @@ func (e *Engine) Express(
 	}()
 
 	// Send interest
-	err := e.face.Send(rawInterest)
+	err := e.face.Send(interest.Wire)
 	if err != nil {
 		e.log.Errorf("Failed to send Interest: %v", err)
 	} else if e.log.Level <= log.DebugLevel {
@@ -443,43 +458,43 @@ func (e *Engine) ExecMgmtCmd(module string, cmd string, args any) error {
 		Lifetime: utils.IdPtr(1 * time.Second),
 		Nonce:    utils.ConvertNonce(e.timer.Nonce()),
 	}
-	name, cmdWire, err := e.mgmtConf.MakeCmd(module, cmd, cmdArgs, intCfg)
+	interest, err := e.mgmtConf.MakeCmd(module, cmd, cmdArgs, intCfg)
 	if err != nil {
 		return err
 	}
 	ch := make(chan error)
-	err = e.Express(name, intCfg, cmdWire,
-		func(result ndn.InterestResult, data ndn.Data, rawData enc.Wire, sigCovered enc.Wire, nackReason uint64) {
-			if result == ndn.InterestResultNack {
-				ch <- fmt.Errorf("nack received: %v", nackReason)
-			} else if result == ndn.InterestResultTimeout {
-				ch <- ndn.ErrDeadlineExceed
-			} else if result == ndn.InterestResultData {
-				valid := e.cmdChecker(data.Name(), sigCovered, data.Signature())
-				if !valid {
-					ch <- fmt.Errorf("command signature is not valid")
+	err = e.Express(interest, func(args ndn.ExpressCallbackArgs) {
+		if args.Result == ndn.InterestResultNack {
+			ch <- fmt.Errorf("nack received: %v", args.NackReason)
+		} else if args.Result == ndn.InterestResultTimeout {
+			ch <- ndn.ErrDeadlineExceed
+		} else if args.Result == ndn.InterestResultData {
+			data := args.Data
+			valid := e.cmdChecker(data.Name(), args.SigCovered, data.Signature())
+			if !valid {
+				ch <- fmt.Errorf("command signature is not valid")
+			} else {
+				ret, err := mgmt.ParseControlResponse(enc.NewWireReader(data.Content()), true)
+				if err != nil {
+					ch <- err
 				} else {
-					ret, err := mgmt.ParseControlResponse(enc.NewWireReader(data.Content()), true)
-					if err != nil {
-						ch <- err
-					} else {
-						if ret.Val != nil {
-							if ret.Val.StatusCode == 200 {
-								ch <- nil
-							} else {
-								errText := ret.Val.StatusText
-								ch <- fmt.Errorf("command failed due to error %d: %s", ret.Val.StatusCode, errText)
-							}
+					if ret.Val != nil {
+						if ret.Val.StatusCode == 200 {
+							ch <- nil
 						} else {
-							ch <- fmt.Errorf("improper response")
+							errText := ret.Val.StatusText
+							ch <- fmt.Errorf("command failed due to error %d: %s", ret.Val.StatusCode, errText)
 						}
+					} else {
+						ch <- fmt.Errorf("improper response")
 					}
 				}
-			} else {
-				ch <- fmt.Errorf("unknown result: %v", result)
 			}
-			close(ch)
-		})
+		} else {
+			ch <- fmt.Errorf("unknown result: %v", args.Result)
+		}
+		close(ch)
+	})
 	if err != nil {
 		return err
 	}

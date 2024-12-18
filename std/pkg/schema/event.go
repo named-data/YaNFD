@@ -45,7 +45,7 @@ type Event struct {
 	// Should be larger than FreshnessPeriod. Not affected data fetched remotely.
 	ValidDuration *time.Duration
 	// Reply is the func called to reply to an Interest
-	Reply ndn.ReplyFunc
+	Reply ndn.WireReplyFunc
 	// NeedStatus is the result status in the callback of need()
 	NeedStatus *ndn.InterestResult
 	// Error is the optional error happened in an event

@@ -74,7 +74,9 @@ func NewSvSync(
 }
 
 func (s *SvSync) Start() (err error) {
-	err = s.engine.AttachHandler(s.groupPrefix, s.onSyncInterestAsync)
+	err = s.engine.AttachHandler(s.groupPrefix, func(args ndn.InterestHandlerArgs) {
+		go s.onSyncInterest(args.Interest)
+	})
 	if err != nil {
 		return err
 	}
@@ -296,25 +298,17 @@ func (s *SvSync) sendSyncInterest() {
 
 	// TODO: sign the sync interest
 
-	wire, _, finalName, err := s.engine.Spec().MakeInterest(syncName, cfg, svWire, nil)
+	interest, err := s.engine.Spec().MakeInterest(syncName, cfg, svWire, nil)
 	if err != nil {
 		log.Errorf("SvSync: sendSyncInterest failed make: %+v", err)
 		return
 	}
 
 	// [Spec] Sync Ack Policy - Do not acknowledge Sync Interests
-	err = s.engine.Express(finalName, cfg, wire, nil)
+	err = s.engine.Express(interest, nil)
 	if err != nil {
 		log.Errorf("SvSync: sendSyncInterest failed express: %+v", err)
 	}
-}
-
-func (s *SvSync) onSyncInterestAsync(
-	interest ndn.Interest,
-	_ ndn.ReplyFunc,
-	_ ndn.InterestHandlerExtra,
-) {
-	go s.onSyncInterest(interest)
 }
 
 func (s *SvSync) onSyncInterest(interest ndn.Interest) {

@@ -72,21 +72,19 @@ func (t *Tree) Match(name enc.Name) *MatchedNode {
 }
 
 // intHandler is the callback called by the engine that handles an incoming Interest.
-func (t *Tree) intHandler(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
+func (t *Tree) intHandler(args ndn.InterestHandlerArgs) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	matchName := interest.Name()
+	matchName := args.Interest.Name()
 	mNode := t.root.Match(matchName)
 	if mNode == nil {
-		log.WithField("module", "schema").WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+		log.WithField("module", "schema").
+			WithField("name", args.Interest.Name().String()).
+			Warn("Unexpected Interest. Drop.")
 		return
 	}
-	mNode.Node.OnInterest(interest, reply, extra, mNode.Matching)
+	mNode.Node.OnInterest(args, mNode.Matching)
 }
 
 // At the path return the node. Path does not include the attached prefix.

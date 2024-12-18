@@ -24,7 +24,9 @@ func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
 	return true
 }
 
-func onInterest(interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra) {
+func onInterest(args ndn.InterestHandlerArgs) {
+	interest := args.Interest
+
 	fmt.Printf(">> I: %s\n", interest.Name().String())
 	content := []byte("Hello, world!")
 
@@ -33,7 +35,7 @@ func onInterest(interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHa
 	cert := identity.FindCert(func(_ sec_pib.Cert) bool { return true })
 	signer := cert.AsSigner()
 
-	wire, _, err := app.Spec().MakeData(
+	data, err := app.Spec().MakeData(
 		interest.Name(),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -45,7 +47,7 @@ func onInterest(interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHa
 		log.WithField("module", "main").Errorf("unable to encode data: %+v", err)
 		return
 	}
-	err = reply(wire)
+	err = args.Reply(data.Wire)
 	if err != nil {
 		log.WithField("module", "main").Errorf("unable to reply with data: %+v", err)
 		return

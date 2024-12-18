@@ -47,16 +47,15 @@ func TestConsumerBasic(t *testing.T) {
 			CanBePrefix: false,
 			Lifetime:    utils.IdPtr(6 * time.Second),
 		}
-		wire, _, finalName, err := spec.MakeInterest(name, config, nil, nil)
+		interest, err := spec.MakeInterest(name, config, nil, nil)
 		require.NoError(t, err)
-		err = engine.Express(finalName, config, wire,
-			func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultData, result)
-				require.True(t, data.Name().Equal(name))
-				require.Equal(t, 1*time.Second, *data.Freshness())
-				require.Equal(t, []byte("Hello, world!"), data.Content().Join())
-			})
+		err = engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultData, args.Result)
+			require.True(t, args.Data.Name().Equal(name))
+			require.Equal(t, 1*time.Second, *args.Data.Freshness())
+			require.Equal(t, []byte("Hello, world!"), args.Data.Content().Join())
+		})
 		require.NoError(t, err)
 		buf := utils.WithoutErr(face.Consume())
 		require.Equal(t, enc.Buffer(
@@ -87,14 +86,13 @@ func TestInterestNack(t *testing.T) {
 			CanBePrefix: true,
 			Lifetime:    utils.IdPtr(1 * time.Second),
 		}
-		wire, _, finalName, err := spec.MakeInterest(name, config, nil, nil)
+		interest, err := spec.MakeInterest(name, config, nil, nil)
 		require.NoError(t, err)
-		err = engine.Express(finalName, config, wire,
-			func(result ndn.InterestResult, _ ndn.Data, _ enc.Wire, _ enc.Wire, nackReason uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultNack, result)
-				require.Equal(t, spec_2022.NackReasonNoRoute, nackReason)
-			})
+		err = engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultNack, args.Result)
+			require.Equal(t, spec_2022.NackReasonNoRoute, args.NackReason)
+		})
 		require.NoError(t, err)
 		buf := utils.WithoutErr(face.Consume())
 		require.Equal(t, enc.Buffer(
@@ -121,19 +119,18 @@ func TestInterestTimeout(t *testing.T) {
 		config := &ndn.InterestConfig{
 			Lifetime: utils.IdPtr(10 * time.Millisecond),
 		}
-		wire, _, finalName, err := spec.MakeInterest(name, config, nil, nil)
+		interest, err := spec.MakeInterest(name, config, nil, nil)
 		require.NoError(t, err)
-		err = engine.Express(finalName, config, wire,
-			func(result ndn.InterestResult, _ ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultTimeout, result)
-			})
+		err = engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultTimeout, args.Result)
+		})
 		require.NoError(t, err)
 		buf := utils.WithoutErr(face.Consume())
 		require.Equal(t, enc.Buffer("\x05\x14\x07\x0f\x08\rnot important\x0c\x01\x0a"), buf)
 		timer.MoveForward(50 * time.Millisecond)
-		data, _, _ := spec.MakeData(name, &ndn.DataConfig{}, enc.Wire{enc.Buffer("\x0a")}, signer)
-		require.NoError(t, face.FeedPacket(data.Join()))
+		data, _ := spec.MakeData(name, &ndn.DataConfig{}, enc.Wire{enc.Buffer("\x0a")}, signer)
+		require.NoError(t, face.FeedPacket(data.Wire.Join()))
 
 		require.Equal(t, 1, hitCnt)
 	})
@@ -154,40 +151,37 @@ func TestInterestCanBePrefix(t *testing.T) {
 			Lifetime:    utils.IdPtr(5 * time.Millisecond),
 			CanBePrefix: true,
 		}
-		wire1, _, finalName1, err := spec.MakeInterest(name1, config1, nil, nil)
+		interest1, err := spec.MakeInterest(name1, config1, nil, nil)
 		require.NoError(t, err)
-		wire2, _, finalName2, err := spec.MakeInterest(name1, config2, nil, nil)
+		interest2, err := spec.MakeInterest(name1, config2, nil, nil)
 		require.NoError(t, err)
-		wire3, _, finalName3, err := spec.MakeInterest(name2, config1, nil, nil)
+		interest3, err := spec.MakeInterest(name2, config1, nil, nil)
 		require.NoError(t, err)
 
 		dataWire := []byte("\x06\x1d\x07\x10\x08\x03not\x08\timportant\x14\x03\x18\x01\x00\x15\x04test")
 
-		err = engine.Express(finalName1, config1, wire1,
-			func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultTimeout, result)
-			})
+		err = engine.Express(interest1, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultTimeout, args.Result)
+		})
 		require.NoError(t, err)
 
-		err = engine.Express(finalName2, config2, wire2,
-			func(result ndn.InterestResult, data ndn.Data, raw enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultData, result)
-				require.True(t, data.Name().Equal(name2))
-				require.Equal(t, []byte("test"), data.Content().Join())
-				require.Equal(t, dataWire, raw.Join())
-			})
+		err = engine.Express(interest2, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultData, args.Result)
+			require.True(t, args.Data.Name().Equal(name2))
+			require.Equal(t, []byte("test"), args.Data.Content().Join())
+			require.Equal(t, dataWire, args.RawData.Join())
+		})
 		require.NoError(t, err)
 
-		err = engine.Express(finalName3, config1, wire3,
-			func(result ndn.InterestResult, data ndn.Data, raw enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultData, result)
-				require.True(t, data.Name().Equal(name2))
-				require.Equal(t, []byte("test"), data.Content().Join())
-				require.Equal(t, dataWire, raw.Join())
-			})
+		err = engine.Express(interest3, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultData, args.Result)
+			require.True(t, args.Data.Name().Equal(name2))
+			require.Equal(t, []byte("test"), args.Data.Content().Join())
+			require.Equal(t, dataWire, args.RawData.Join())
+		})
 		require.NoError(t, err)
 
 		buf := utils.WithoutErr(face.Consume())
@@ -217,24 +211,22 @@ func TestImplicitSha256(t *testing.T) {
 		config := &ndn.InterestConfig{
 			Lifetime: utils.IdPtr(5 * time.Millisecond),
 		}
-		wire1, _, finalName1, err := spec.MakeInterest(name1, config, nil, nil)
+		interest1, err := spec.MakeInterest(name1, config, nil, nil)
 		require.NoError(t, err)
-		wire2, _, finalName2, err := spec.MakeInterest(name2, config, nil, nil)
+		interest2, err := spec.MakeInterest(name2, config, nil, nil)
 		require.NoError(t, err)
 
-		err = engine.Express(finalName1, config, wire1,
-			func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultTimeout, result)
-			})
+		err = engine.Express(interest1, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultTimeout, args.Result)
+		})
 		require.NoError(t, err)
-		err = engine.Express(finalName2, config, wire2,
-			func(result ndn.InterestResult, data ndn.Data, _ enc.Wire, _ enc.Wire, _ uint64) {
-				hitCnt += 1
-				require.Equal(t, ndn.InterestResultData, result)
-				require.True(t, data.Name().Equal(utils.WithoutErr(enc.NameFromStr("/test"))))
-				require.Equal(t, []byte("test"), data.Content().Join())
-			})
+		err = engine.Express(interest2, func(args ndn.ExpressCallbackArgs) {
+			hitCnt += 1
+			require.Equal(t, ndn.InterestResultData, args.Result)
+			require.True(t, args.Data.Name().Equal(utils.WithoutErr(enc.NameFromStr("/test"))))
+			require.Equal(t, []byte("test"), args.Data.Content().Join())
+		})
 		require.NoError(t, err)
 
 		buf := utils.WithoutErr(face.Consume())
@@ -269,23 +261,21 @@ func TestRoute(t *testing.T) {
 		hitCnt := 0
 		spec := engine.Spec()
 
-		handler := func(
-			interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra,
-		) {
+		handler := func(args ndn.InterestHandlerArgs) {
 			hitCnt += 1
 			require.Equal(t, []byte(
 				"\x05\x15\x07\x10\x08\x03not\x08\timportant\x0c\x01\x05",
-			), extra.RawInterest.Join())
-			require.True(t, interest.Signature().SigType() == ndn.SignatureNone)
-			data, _, err := spec.MakeData(
-				interest.Name(),
+			), args.RawInterest.Join())
+			require.True(t, args.Interest.Signature().SigType() == ndn.SignatureNone)
+			data, err := spec.MakeData(
+				args.Interest.Name(),
 				&ndn.DataConfig{
 					ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 				},
 				enc.Wire{[]byte("test")},
 				sec.NewEmptySigner())
 			require.NoError(t, err)
-			reply(data)
+			args.Reply(data.Wire)
 		}
 
 		prefix := utils.WithoutErr(enc.NameFromStr("/not"))
@@ -305,19 +295,17 @@ func TestPitToken(t *testing.T) {
 		hitCnt := 0
 		spec := engine.Spec()
 
-		handler := func(
-			interest ndn.Interest, reply ndn.ReplyFunc, extra ndn.InterestHandlerExtra,
-		) {
+		handler := func(args ndn.InterestHandlerArgs) {
 			hitCnt += 1
-			data, _, err := spec.MakeData(
-				interest.Name(),
+			data, err := spec.MakeData(
+				args.Interest.Name(),
 				&ndn.DataConfig{
 					ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 				},
 				enc.Wire{[]byte("test")},
 				sec.NewEmptySigner())
 			require.NoError(t, err)
-			reply(data)
+			args.Reply(data.Wire)
 		}
 
 		prefix := utils.WithoutErr(enc.NameFromStr("/not"))

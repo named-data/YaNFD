@@ -194,16 +194,11 @@ func (n *Node) ConstructName(matching enc.Matching, ret enc.Name) error {
 
 // OnInterest is the function called when an Interest comes.
 // A base node shouldn't receive any Interest, so drops it.
-func (n *Node) OnInterest(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-	matching enc.Matching,
-) {
+func (n *Node) OnInterest(args ndn.InterestHandlerArgs, matching enc.Matching) {
 	if n.impl == nil {
-		n.log.WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+		n.log.WithField("name", args.Interest.Name().String()).Warn("Unexpected Interest. Drop.")
 	} else {
-		n.impl.OnInterest(interest, reply, extra, matching)
+		n.impl.OnInterest(args, matching)
 	}
 }
 
@@ -350,11 +345,8 @@ func (n *BaseNodeImpl) NodeImplTrait() NodeImpl {
 }
 
 // OnInterest is the callback function when there is an incoming Interest.
-func (n *BaseNodeImpl) OnInterest(
-	interest ndn.Interest, reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra, matching enc.Matching,
-) {
-	n.Node.Log().WithField("name", interest.Name().String()).Warn("Unexpected Interest. Drop.")
+func (n *BaseNodeImpl) OnInterest(args ndn.InterestHandlerArgs, matching enc.Matching) {
+	n.Node.Log().WithField("name", args.Interest.Name().String()).Warn("Unexpected Interest. Drop.")
 }
 
 // OnAttach is called when the node is attached to an engine

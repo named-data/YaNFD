@@ -75,25 +75,22 @@ func (n *ExpressPoint) SearchCache(event *Event) enc.Wire {
 	}
 }
 
-func (n *ExpressPoint) OnInterest(
-	interest ndn.Interest, reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra, matching enc.Matching,
-) {
+func (n *ExpressPoint) OnInterest(args ndn.InterestHandlerArgs, matching enc.Matching) {
 	node := n.Node
 	event := &Event{
 		TargetNode: node,
 		Target: &MatchedNode{
 			Node:     node,
 			Matching: matching,
-			Name:     interest.Name(),
+			Name:     args.Interest.Name(),
 		},
-		RawPacket:  extra.RawInterest,
-		SigCovered: extra.SigCovered,
-		Interest:   interest,
-		Signature:  interest.Signature(),
-		Reply:      reply,
-		Deadline:   &extra.Deadline,
-		Content:    interest.AppParam(),
+		RawPacket:  args.RawInterest,
+		SigCovered: args.SigCovered,
+		Interest:   args.Interest,
+		Signature:  args.Interest.Signature(),
+		Reply:      args.Reply,
+		Deadline:   &args.Deadline,
+		Content:    args.Interest.AppParam(),
 	}
 	logger := event.Target.Logger("ExpressPoint")
 
@@ -109,7 +106,7 @@ func (n *ExpressPoint) OnInterest(
 	// This is the same behavior as a forwarder.
 	cachedData := n.SearchCache(event)
 	if len(cachedData) > 0 {
-		err := reply(cachedData)
+		err := args.Reply(cachedData)
 		if err != nil {
 			logger.Errorf("Unable to reply Interest. Drop: %+v", err)
 		}
@@ -120,7 +117,7 @@ func (n *ExpressPoint) OnInterest(
 		// Validate Interest
 		// Only done when there is a signature.
 		// TODO: Validate Sha256 in name
-		if interest.Signature().SigType() != ndn.SignatureNone || interest.AppParam() != nil {
+		if args.Interest.Signature().SigType() != ndn.SignatureNone || args.Interest.AppParam() != nil {
 			validRes := VrSilence
 			event.ValidResult = &validRes
 			ret := n.OnValidateInt.DispatchUntil(event, func(a any) bool {
@@ -229,7 +226,7 @@ func (n *ExpressPoint) NeedCallback(
 	}
 
 	// Construst Interest
-	wire, _, finalName, err := spec.MakeInterest(mNode.Name, intConfig, appParam, signer)
+	interest, err := spec.MakeInterest(mNode.Name, intConfig, appParam, signer)
 	if err != nil {
 		logger.Errorf("Unable to encode Interest in Need(): %+v", err)
 		go callback(&Event{
@@ -269,63 +266,63 @@ func (n *ExpressPoint) NeedCallback(
 	// Express the Interest
 	// Note that this function runs on a different go routine than the callback.
 	// To avoid clogging the engine, the callback needs to return ASAP, so an inner goroutine is created.
-	err = engine.Express(finalName, intConfig, wire,
-		func(result ndn.InterestResult, data ndn.Data, rawData, sigCovered enc.Wire, nackReason uint64) {
-			if result != ndn.InterestResultData {
-				if result == ndn.InterestResultNack {
-					cbEvt.NackReason = &nackReason
-				}
-				cbEvt.NeedStatus = utils.IdPtr(result)
-				go callback(cbEvt)
+	err = engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
+		if args.Result != ndn.InterestResultData {
+			if args.Result == ndn.InterestResultNack {
+				cbEvt.NackReason = &args.NackReason
+			}
+			cbEvt.NeedStatus = utils.IdPtr(args.Result)
+			go callback(cbEvt)
+			return
+		}
+
+		go func() {
+			data := args.Data
+			dataMatch := mNode.Refine(data.Name())
+			cbEvt.Target = dataMatch
+			cbEvt.Data = data
+			cbEvt.RawPacket = args.RawData
+			cbEvt.SelfProduced = utils.IdPtr(false)
+			cbEvt.SigCovered = args.SigCovered
+			cbEvt.Content = data.Content()
+			cbEvt.Signature = data.Signature()
+
+			// Validate data
+			validRes := VrSilence
+			cbEvt.ValidResult = &validRes
+			ret := n.OnValidateData.DispatchUntil(cbEvt, func(a any) bool {
+				res, ok := a.(ValidRes)
+				cbEvt.ValidResult = &res
+				return !ok || res < VrSilence || res >= VrBypass
+			})
+			res, ok := ret.(ValidRes)
+			if ok {
+				cbEvt.ValidResult = &res
+			}
+			if !ok || res < VrSilence {
+				logger.Warnf("Verification failed (%d) for Data. Drop.", res)
+				cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
+				cbEvt.Content = nil
+				callback(cbEvt)
 				return
 			}
-
-			go func() {
-				dataMatch := mNode.Refine(data.Name())
-				cbEvt.Target = dataMatch
-				cbEvt.Data = data
-				cbEvt.RawPacket = rawData
-				cbEvt.SelfProduced = utils.IdPtr(false)
-				cbEvt.SigCovered = sigCovered
-				cbEvt.Content = data.Content()
-				cbEvt.Signature = data.Signature()
-
-				// Validate data
-				validRes := VrSilence
-				cbEvt.ValidResult = &validRes
-				ret := n.OnValidateData.DispatchUntil(cbEvt, func(a any) bool {
-					res, ok := a.(ValidRes)
-					cbEvt.ValidResult = &res
-					return !ok || res < VrSilence || res >= VrBypass
-				})
-				res, ok := ret.(ValidRes)
-				if ok {
-					cbEvt.ValidResult = &res
-				}
-				if !ok || res < VrSilence {
-					logger.Warnf("Verification failed (%d) for Data. Drop.", res)
-					cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
-					cbEvt.Content = nil
-					callback(cbEvt)
-					return
-				}
-				if res == VrSilence {
-					logger.Warn("Unverified Data. Drop.")
-					cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
-					cbEvt.Content = nil
-					callback(cbEvt)
-					return
-				}
-				cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultData)
-
-				// Save (cache) the data in the storage
-				cbEvt.ValidDuration = data.Freshness()
-				n.OnSaveStorage.Dispatch(cbEvt)
-
-				// Return the result
+			if res == VrSilence {
+				logger.Warn("Unverified Data. Drop.")
+				cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultUnverified)
+				cbEvt.Content = nil
 				callback(cbEvt)
-			}()
-		})
+				return
+			}
+			cbEvt.NeedStatus = utils.IdPtr(ndn.InterestResultData)
+
+			// Save (cache) the data in the storage
+			cbEvt.ValidDuration = data.Freshness()
+			n.OnSaveStorage.Dispatch(cbEvt)
+
+			// Return the result
+			callback(cbEvt)
+		}()
+	})
 	if err != nil {
 		logger.Warn("Failed to express Interest.")
 		go callback(&Event{

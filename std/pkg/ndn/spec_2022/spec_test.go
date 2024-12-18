@@ -20,7 +20,7 @@ func TestMakeDataBasic(t *testing.T) {
 
 	spec := spec_2022.Spec{}
 
-	wire, _, err := spec.MakeData(
+	data, err := spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -35,9 +35,9 @@ func TestMakeDataBasic(t *testing.T) {
 			"\x16\x03\x1b\x01\x00"+
 			"\x17 \x7f1\xe4\t\xc5z/\x1d\r\xdaVh8\xfd\xd9\x94"+
 			"\xd8'S\x13[\xd7\x15\xa5\x9d%^\x80\xf2\xab\xf0\xb5"),
-		wire.Join())
+		data.Wire.Join())
 
-	wire, _, err = spec.MakeData(
+	data, err = spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -53,9 +53,9 @@ func TestMakeDataBasic(t *testing.T) {
 			"\x16\x03\x1b\x01\x00"+
 			"\x17 \x94\xe9\xda\x91\x1a\x11\xfft\x02i:G\x0cO\xdd!"+
 			"\xe0\xc7\xb6\xfd\x8f\x9cn\xc5\x93{\x93\x04\xe0\xdf\xa6S"),
-		wire.Join())
+		data.Wire.Join())
 
-	wire, _, err = spec.MakeData(
+	data, err = spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -67,9 +67,9 @@ func TestMakeDataBasic(t *testing.T) {
 	require.Equal(t, []byte(
 		"\x06\x1b\x07\x14\x08\x05local\x08\x03ndn\x08\x06prefix"+
 			"\x14\x03\x18\x01\x00"),
-		wire.Join())
+		data.Wire.Join())
 
-	wire, _, err = spec.MakeData(
+	data, err = spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/E")),
 		&ndn.DataConfig{
 			ContentType: nil,
@@ -82,14 +82,14 @@ func TestMakeDataBasic(t *testing.T) {
 		"06300703080145"+
 			"1400150016031b0100"+
 			"1720f965ee682c6973c3cbaa7b69e4c7063680f83be93a46be2ccc98686134354b66")),
-		wire.Join())
+		data.Wire.Join())
 }
 
 func TestMakeDataMetaInfo(t *testing.T) {
 	utils.SetTestingT(t)
 	spec := spec_2022.Spec{}
 
-	wire, _, err := spec.MakeData(
+	data, err := spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix/37=%00")),
 		&ndn.DataConfig{
 			ContentType:  utils.IdPtr(ndn.ContentTypeBlob),
@@ -105,7 +105,7 @@ func TestMakeDataMetaInfo(t *testing.T) {
 			"\x14\x0c\x18\x01\x00\x19\x02\x03\xe8\x1a\x03\x3a\x01\x02"+
 			"\x16\x03\x1b\x01\x00"+
 			"\x17 \x0f^\xa1\x0c\xa7\xf5Fb\xf0\x9cOT\xe0FeC\x8f92\x04\x9d\xabP\x80o'\x94\xaa={hQ"),
-		wire.Join())
+		data.Wire.Join())
 }
 
 type testSigner struct{}
@@ -130,7 +130,7 @@ func TestMakeDataShrink(t *testing.T) {
 	utils.SetTestingT(t)
 	spec := spec_2022.Spec{}
 
-	wire, _, err := spec.MakeData(
+	data, err := spec.MakeData(
 		utils.WithoutErr(enc.NameFromStr("/test")),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -143,7 +143,7 @@ func TestMakeDataShrink(t *testing.T) {
 		0x6, 0x22, 0x7, 0x6, 0x8, 0x4, 0x74, 0x65, 0x73, 0x74, 0x14, 0x3, 0x18, 0x1, 0x0,
 		0x16, 0xc, 0x1b, 0x1, 0xc8, 0x1c, 0x7, 0x7, 0x5, 0x8, 0x3, 0x4b, 0x45, 0x59,
 		0x17, 0x5, 0x0, 0x0, 0x0, 0x0, 0x0},
-		wire.Join())
+		data.Wire.Join())
 }
 
 func TestReadDataBasic(t *testing.T) {
@@ -255,7 +255,7 @@ func TestMakeIntBasic(t *testing.T) {
 	utils.SetTestingT(t)
 	spec := spec_2022.Spec{}
 
-	wire, _, finalName, err := spec.MakeInterest(
+	interest, err := spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -264,11 +264,11 @@ func TestMakeIntBasic(t *testing.T) {
 		nil,
 	)
 	require.NoError(t, err)
-	require.Equal(t, "/local/ndn/prefix", finalName.String())
+	require.Equal(t, "/local/ndn/prefix", interest.FinalName.String())
 	require.Equal(t, []byte("\x05\x1a\x07\x14\x08\x05local\x08\x03ndn\x08\x06prefix\x0c\x02\x0f\xa0"),
-		wire.Join())
+		interest.Wire.Join())
 
-	wire, _, _, err = spec.MakeInterest(
+	interest, err = spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			CanBePrefix: true,
@@ -284,9 +284,9 @@ func TestMakeIntBasic(t *testing.T) {
 	require.Equal(t, []byte(
 		"\x05\x26\x07\x14\x08\x05local\x08\x03ndn\x08\x06prefix"+
 			"\x21\x00\x12\x00\x0a\x04\x00\x00\x00\x00\x0c\x01\x0a\x22\x01\x01"),
-		wire.Join())
+		interest.Wire.Join())
 
-	wire, _, _, err = spec.MakeInterest(
+	interest, err = spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -307,7 +307,7 @@ func TestMakeIntBasic(t *testing.T) {
 			"\x07\x08\x08\x03ndn\x08\x01B"+
 			"\x07\r\x08\x0bshekkuenseu"+
 			"\x0a\x04\x01\x02\x03\x04\x0c\x02\x0f\xa0"),
-		wire.Join())
+		interest.Wire.Join())
 }
 
 func TestMakeIntLargeAppParam(t *testing.T) {
@@ -318,7 +318,7 @@ func TestMakeIntLargeAppParam(t *testing.T) {
 	for i := range appParam {
 		appParam[i] = byte(i & 0xff)
 	}
-	wire, _, finalName, err := spec.MakeInterest(
+	encoded, err := spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/interest/with/large/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -328,17 +328,17 @@ func TestMakeIntLargeAppParam(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	interest, _, err := spec.ReadInterest(enc.NewWireReader(wire))
+	interest, _, err := spec.ReadInterest(enc.NewWireReader(encoded.Wire))
 	require.NoError(t, err)
 	require.Equal(t, appParam, interest.AppParam().Join())
-	require.True(t, interest.Name().Equal(finalName))
+	require.True(t, interest.Name().Equal(encoded.FinalName))
 }
 
 func TestMakeIntSign(t *testing.T) {
 	utils.SetTestingT(t)
 	spec := spec_2022.Spec{}
 
-	wire, _, finalName, err := spec.MakeInterest(
+	interest, err := spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -349,17 +349,17 @@ func TestMakeIntSign(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t,
 		"/local/ndn/prefix/params-sha256=47756f21fe0ee265149aa2be3c63c538a72378e9b0a58b39c5916367d35bda10",
-		finalName.String())
+		interest.FinalName.String())
 	require.Equal(t, []byte(
 		"\x05\x42\x07\x36\x08\x05local\x08\x03ndn\x08\x06prefix"+
 			"\x02 \x47\x75\x6f\x21\xfe\x0e\xe2\x65\x14\x9a\xa2\xbe\x3c\x63\xc5\x38"+
 			"\xa7\x23\x78\xe9\xb0\xa5\x8b\x39\xc5\x91\x63\x67\xd3\x5b\xda\x10"+
 			"\x0c\x02\x0f\xa0\x24\x04\x01\x02\x03\x04"),
-		wire.Join())
+		interest.Wire.Join())
 
 	// "/test/params-sha256=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/ndn" is not supported yet
 
-	wire, _, finalName, err = spec.MakeInterest(
+	interest, err = spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -371,7 +371,7 @@ func TestMakeIntSign(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t,
 		"/local/ndn/prefix/params-sha256=8e6e36d7eabcde43756140c90bda09d500d2a577f2f533b569f0441df0a7f9e2",
-		finalName.String())
+		interest.FinalName.String())
 	require.Equal(t, []byte(
 		"\x05\x6f\x07\x36\x08\x05local\x08\x03ndn\x08\x06prefix"+
 			"\x02 \x8e\x6e\x36\xd7\xea\xbc\xde\x43\x75\x61\x40\xc9\x0b\xda\x09\xd5"+
@@ -381,9 +381,9 @@ func TestMakeIntSign(t *testing.T) {
 			"\x2c\x03\x1b\x01\x00"+
 			"\x2e \xea\xa8\xf0\x99\x08\x63\x78\x95\x1d\xe0\x5f\xf1\xde\xbb\xc1\x18"+
 			"\xb5\x21\x8b\x2f\xca\xa0\xb5\x1d\x18\xfa\xbc\x29\xf5\x4d\x58\xff"),
-		wire.Join())
+		interest.Wire.Join())
 
-	wire, _, finalName, err = spec.MakeInterest(
+	interest, err = spec.MakeInterest(
 		utils.WithoutErr(enc.NameFromStr("/local/ndn/prefix")),
 		&ndn.InterestConfig{
 			Lifetime: utils.IdPtr(4 * time.Second),
@@ -395,7 +395,7 @@ func TestMakeIntSign(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t,
 		"/local/ndn/prefix/params-sha256=4077a57049d83848b525a423ab978e6480f96d5ca38a80a5e2d6e250a617be4f",
-		finalName.String())
+		interest.FinalName.String())
 	require.Equal(t, []byte(
 		"\x05\x6b\x07\x36\x08\x05local\x08\x03ndn\x08\x06prefix"+
 			"\x02 \x40\x77\xa5\x70\x49\xd8\x38\x48\xb5\x25\xa4\x23\xab\x97\x8e\x64"+
@@ -405,7 +405,7 @@ func TestMakeIntSign(t *testing.T) {
 			"\x2c\x03\x1b\x01\x00"+
 			"\x2e \x09\x4e\x00\x9d\x74\x59\x82\x5c\xa0\x2d\xaa\xb7\xad\x60\x48\x30"+
 			"\x39\x19\xd8\x99\x80\x25\xbe\xff\xa6\xf9\x96\x79\xd6\x5e\x9f\x62"),
-		wire.Join())
+		interest.Wire.Join())
 }
 
 func TestReadIntBasic(t *testing.T) {
