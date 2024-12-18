@@ -91,8 +91,8 @@ tables:
     regions: []
 
   rib:
-    # Enables or disables auto prefix propagation
-    auto_prefix_propagation: false
+    # Enables or disables readvertising to the routing daemon
+    readvertise_nlsr: true
 
   fib:
     # Selects the algorithm used to implement the FIB

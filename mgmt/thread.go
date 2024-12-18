@@ -56,8 +56,11 @@ func MakeMgmtThread() *Thread {
 	m.registerModule("status", new(ForwarderStatusModule))
 	m.registerModule("strategy-choice", new(StrategyChoiceModule))
 
-	// TODO: configurable
-	table.AddReadvertiser(&ReadvertiseNlsr{m: m})
+	// readvertisers run in the management thread for ease of
+	// implementation, since they use the internal transport
+	if core.GetConfig().Tables.Rib.ReadvertiseNlsr {
+		table.AddReadvertiser(&ReadvertiseNlsr{m: m})
+	}
 
 	return m
 }
