@@ -47,10 +47,6 @@ func HashNameToAllPrefixFwThreads(name enc.Name) []int {
 		return []int{0}
 	}
 
-	// Strings are likely better to work with for performance here than calling Name.prefix
-	// for nameString := (*name); len(nameString) > 1; nameString = nameString[:len(nameString)-1] {
-	// 	threadMap[int(xxhash.Sum64(nameString.Bytes())%uint64(len(Threads)))] = true
-	// }
 	threadList := make([]int, 0, len(Threads))
 	prefixHash := name.PrefixHash()
 	for i := 1; i < len(prefixHash); i++ {
@@ -221,9 +217,8 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 			}
 		}
 		if isReachingProducerRegion {
-			//interest.SetForwardingHint(nil)
-			//will need to add this back again!
-			// TODO: Unable to drop the forwarding hint for now.
+			// TODO: Drop the forwarding hint for now.
+			// No way without re-encoding Interest for now.
 			fhName = nil
 		}
 	}
@@ -241,7 +236,7 @@ func (t *Thread) processIncomingInterest(packet *defn.Pkt) {
 	}
 
 	// Check if any matching PIT entries (and if duplicate)
-	//read into this, looks like this one will have to be manually changed
+	// read into this, looks like this one will have to be manually changed
 	pitEntry, isDuplicate := t.pitCS.InsertInterest(interest, fhName, incomingFace.FaceID())
 	if isDuplicate {
 		// Interest loop - since we don't use Nacks, just drop
