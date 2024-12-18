@@ -121,8 +121,8 @@ type Config struct {
 		} `json:"network_region"`
 
 		Rib struct {
-			// Enables or disables auto prefix propagation
-			AutoPrefixPropagation bool `json:"auto_prefix_propagation"`
+			// Enables or disables readvertising to the routing daemon
+			ReadvertiseNlsr bool `json:"readvertise_nlsr"`
 		} `json:"rib"`
 
 		Fib struct {
@@ -181,7 +181,7 @@ func DefaultConfig() *Config {
 
 	c.Tables.DeadNonceList.Lifetime = 6000
 	c.Tables.NetworkRegion.Regions = []string{}
-	c.Tables.Rib.AutoPrefixPropagation = false
+	c.Tables.Rib.ReadvertiseNlsr = true
 
 	c.Tables.Fib.Algorithm = "nametree"
 	c.Tables.Fib.Hashtable.M = 5
