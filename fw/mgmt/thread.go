@@ -59,7 +59,7 @@ func MakeMgmtThread() *Thread {
 	// readvertisers run in the management thread for ease of
 	// implementation, since they use the internal transport
 	if core.GetConfig().Tables.Rib.ReadvertiseNlsr {
-		table.AddReadvertiser(&ReadvertiseNlsr{m: m})
+		table.AddReadvertiser(NewNlsrReadvertiser(m))
 	}
 
 	return m
