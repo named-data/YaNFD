@@ -8,6 +8,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
+// Simple readvertiser that echoes the register command to NLSR.
+// Currently the command is one-shot, and does not handle failures.
 type ReadvertiseNlsr struct {
 	m *Thread
 }
