@@ -60,7 +60,7 @@ type PitEntry interface {
 
 	Token() uint32
 
-	InsertInRecord(interest *spec.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool)
+	InsertInRecord(interest *spec.Interest, face uint64, incomingPitToken []byte) (*PitInRecord, bool, uint32)
 	InsertOutRecord(interest *spec.Interest, face uint64) *PitOutRecord
 
 	GetOutRecords() []*PitOutRecord
@@ -119,11 +119,17 @@ type baseCsEntry struct {
 
 // InsertInRecord finds or inserts an InRecord for the face, updating the
 // metadata and returning whether there was already an in-record in the entry.
+// The third return value is the previous nonce if the in-record already existed.
 func (bpe *basePitEntry) InsertInRecord(
 	interest *spec.Interest,
 	face uint64,
 	incomingPitToken []byte,
-) (*PitInRecord, bool) {
+) (*PitInRecord, bool, uint32) {
+	lifetime := time.Millisecond * 4000
+	if interest.Lifetime() != nil {
+		lifetime = *interest.Lifetime()
+	}
+
 	var record *PitInRecord
 	var ok bool
 	if record, ok = bpe.inRecords[face]; !ok {
@@ -132,18 +138,19 @@ func (bpe *basePitEntry) InsertInRecord(
 		record.LatestNonce = *interest.NonceV
 		record.LatestTimestamp = time.Now()
 		record.LatestInterest = interest.NameV.Clone()
-		record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
+		record.ExpirationTime = time.Now().Add(lifetime)
 		record.PitToken = append([]byte{}, incomingPitToken...)
 		bpe.inRecords[face] = record
-		return record, false
+		return record, false, 0
 	}
 
 	// Existing record
+	previousNonce := record.LatestNonce
 	record.LatestNonce = *interest.NonceV
 	record.LatestTimestamp = time.Now()
 	record.LatestInterest = interest.NameV.Clone()
-	record.ExpirationTime = time.Now().Add(time.Millisecond * 4000)
-	return record, true
+	record.ExpirationTime = time.Now().Add(lifetime)
+	return record, true, previousNonce
 }
 
 // SetExpirationTimerToNow updates the expiration timer to the current time.

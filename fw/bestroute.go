@@ -10,12 +10,15 @@ package fw
 import (
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/defn"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
+
+const BestRouteSuppressionTime = 500 * time.Millisecond
 
 // BestRoute is a forwarding strategy that forwards Interests
 // to the nexthop with the lowest cost.
@@ -61,6 +64,22 @@ func (s *BestRoute) AfterReceiveInterest(
 	inFace uint64,
 	nexthops []*table.FibNextHopEntry,
 ) {
+	if len(nexthops) == 0 {
+		core.LogDebug(s, "AfterReceiveInterest: No nexthop for Interest=", packet.Name, " - DROP")
+		return
+	}
+
+	// If there is an out record less than suppression interval ago, drop the
+	// retransmission to suppress it (only if the nonce is different)
+	for _, outRecord := range pitEntry.OutRecords() {
+		if outRecord.LatestNonce != *packet.L3.Interest.NonceV &&
+			outRecord.LatestTimestamp.Add(BestRouteSuppressionTime).After(time.Now()) {
+			core.LogDebug(s, "AfterReceiveInterest: Suppressed Interest=", packet.Name, " - DROP")
+			return
+		}
+	}
+
+	// Sort nexthops by cost and send to best-possible nexthop
 	sort.Slice(nexthops, func(i, j int) bool { return nexthops[i].Cost < nexthops[j].Cost })
 	for _, nh := range nexthops {
 		core.LogTrace(s, "AfterReceiveInterest: Forwarding Interest=", packet.Name, " to FaceID=", nh.Nexthop)

@@ -42,7 +42,7 @@ type LinkService interface {
 	Run(initial []byte)
 
 	// Add a packet to the send queue for this link service
-	SendPacket(packet *defn.Pkt)
+	SendPacket(out dispatch.OutPkt)
 	// Synchronously handle an incoming frame and dispatch to fw
 	handleIncomingFrame(frame []byte)
 
@@ -63,7 +63,7 @@ type linkServiceBase struct {
 	faceID    uint64
 	transport transport
 	stopped   chan bool
-	sendQueue chan *defn.Pkt
+	sendQueue chan dispatch.OutPkt
 
 	// Counters
 	nInInterests  uint64
@@ -93,7 +93,7 @@ func (l *linkServiceBase) SetFaceID(faceID uint64) {
 
 func (l *linkServiceBase) makeLinkServiceBase() {
 	l.stopped = make(chan bool)
-	l.sendQueue = make(chan *defn.Pkt, faceQueueSize)
+	l.sendQueue = make(chan dispatch.OutPkt, faceQueueSize)
 }
 
 //
@@ -207,14 +207,14 @@ func (l *linkServiceBase) Close() {
 //
 
 // SendPacket adds a packet to the send queue for this link service
-func (l *linkServiceBase) SendPacket(packet *defn.Pkt) {
+func (l *linkServiceBase) SendPacket(out dispatch.OutPkt) {
 	select {
-	case l.sendQueue <- packet:
+	case l.sendQueue <- out:
 		// Packet queued successfully
 		core.LogTrace(l, "Queued packet for Link Service")
 	default:
 		// Drop packet due to congestion
-		core.LogWarn(l, "Dropped packet due to congestion")
+		core.LogDebug(l, "Dropped packet due to congestion")
 
 		// TODO: Signal congestion
 	}
