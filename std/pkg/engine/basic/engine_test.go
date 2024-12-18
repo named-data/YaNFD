@@ -129,7 +129,9 @@ func TestInterestTimeout(t *testing.T) {
 		buf := utils.WithoutErr(face.Consume())
 		require.Equal(t, enc.Buffer("\x05\x14\x07\x0f\x08\rnot important\x0c\x01\x0a"), buf)
 		timer.MoveForward(50 * time.Millisecond)
-		data, _ := spec.MakeData(name, &ndn.DataConfig{}, enc.Wire{enc.Buffer("\x0a")}, signer)
+
+		data, err := spec.MakeData(name, &ndn.DataConfig{}, enc.Wire{enc.Buffer("\x0a")}, sec.NewSha256Signer())
+		require.NoError(t, err)
 		require.NoError(t, face.FeedPacket(data.Wire.Join()))
 
 		require.Equal(t, 1, hitCnt)
