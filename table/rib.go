@@ -155,7 +155,7 @@ func (r *RibTable) AddEncRoute(name enc.Name, route *Route) {
 		node.Name = name
 	}
 
-	defer r.readvertiseAnnounce(name, route)
+	defer readvertiseAnnounce(name, route)
 	defer node.updateNexthopsEnc()
 
 	for _, existingRoute := range node.routes {
@@ -199,16 +199,15 @@ func (r *RibEntry) GetRoutes() []*Route {
 
 // RemoveRoute removes the specified route from the specified prefix.
 func (r *RibTable) RemoveRouteEnc(name enc.Name, faceID uint64, origin uint64) {
-	r.readvertiseWithdraw(name, faceID, origin)
-
 	entry := r.findExactMatchEntryEnc(name)
 	if entry != nil {
-		for i, existingRoute := range entry.routes {
-			if existingRoute.FaceID == faceID && existingRoute.Origin == origin {
+		for i, route := range entry.routes {
+			if route.FaceID == faceID && route.Origin == origin {
 				if i < len(entry.routes)-1 {
 					copy(entry.routes[i:], entry.routes[i+1:])
 				}
 				entry.routes = entry.routes[:len(entry.routes)-1]
+				readvertiseWithdraw(name, route)
 				break
 			}
 		}
@@ -227,12 +226,14 @@ func (r *RibEntry) CleanUpFace(faceId uint64) {
 	if r.Name == nil {
 		return
 	}
-	for i, existingNexthop := range r.routes {
-		if existingNexthop.FaceID == faceId {
+
+	for i, route := range r.routes {
+		if route.FaceID == faceId {
 			if i < len(r.routes)-1 {
 				copy(r.routes[i:], r.routes[i+1:])
 			}
 			r.routes = r.routes[:len(r.routes)-1]
+			readvertiseWithdraw(r.Name, route)
 			break
 		}
 	}
