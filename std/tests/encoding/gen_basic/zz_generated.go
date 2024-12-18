@@ -1708,11 +1708,8 @@ func (context *FixedUintFieldParsingContext) Parse(reader enc.ParseReader, ignor
 				if true {
 					handled = true
 					value.Byte, err = reader.ReadByte()
-
 					if err == io.EOF {
-
 						err = io.ErrUnexpectedEOF
-
 					}
 
 				}
