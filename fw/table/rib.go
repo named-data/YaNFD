@@ -148,33 +148,26 @@ func (r *RibEntry) updateNexthopsEnc() {
 }
 
 // AddRoute adds or updates a RIB entry for the specified prefix.
-func (r *RibTable) AddEncRoute(
-	name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration,
-) {
+func (r *RibTable) AddEncRoute(name enc.Name, route *Route) {
 	name = name.Clone()
 	node := r.fillTreeToPrefixEnc(name)
 	if node.Name == nil {
 		node.Name = name
 	}
 
+	defer r.readvertiseAnnounce(name, route)
 	defer node.updateNexthopsEnc()
 
 	for _, existingRoute := range node.routes {
-		if existingRoute.FaceID == faceID && existingRoute.Origin == origin {
-			existingRoute.Cost = cost
-			existingRoute.Flags = flags
-			existingRoute.ExpirationPeriod = expirationPeriod
+		if existingRoute.FaceID == route.FaceID && existingRoute.Origin == route.Origin {
+			existingRoute.Cost = route.Cost
+			existingRoute.Flags = route.Flags
+			existingRoute.ExpirationPeriod = route.ExpirationPeriod
 			return
 		}
 	}
 
-	node.routes = append(node.routes, &Route{
-		FaceID:           faceID,
-		Origin:           origin,
-		Cost:             cost,
-		Flags:            flags,
-		ExpirationPeriod: expirationPeriod,
-	})
+	node.routes = append(node.routes, route)
 }
 
 // GetAllEntries returns all routes in the RIB.
@@ -206,6 +199,8 @@ func (r *RibEntry) GetRoutes() []*Route {
 
 // RemoveRoute removes the specified route from the specified prefix.
 func (r *RibTable) RemoveRouteEnc(name enc.Name, faceID uint64, origin uint64) {
+	r.readvertiseWithdraw(name, faceID, origin)
+
 	entry := r.findExactMatchEntryEnc(name)
 	if entry != nil {
 		for i, existingRoute := range entry.routes {
