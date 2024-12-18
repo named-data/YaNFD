@@ -42,17 +42,17 @@ func (r *ReadvertiseNlsr) Announce(name enc.Name, route *table.Route) {
 	r.m.sendInterest(cmd, params.Encode())
 }
 
-func (r *ReadvertiseNlsr) Withdraw(name enc.Name, faceID uint64, origin uint64) {
-	if origin != table.RouteOriginClient {
-		core.LogDebug(r, "skip withdraw=", name, " origin=", origin)
+func (r *ReadvertiseNlsr) Withdraw(name enc.Name, route *table.Route) {
+	if route.Origin != table.RouteOriginClient {
+		core.LogDebug(r, "skip withdraw=", name, " origin=", route.Origin)
 		return
 	}
 	core.LogInfo(r, "withdraw=", name)
 
 	params := &ndn_mgmt.ControlArgs{
 		Name:   name,
-		FaceId: utils.IdPtr(faceID),
-		Origin: utils.IdPtr(origin),
+		FaceId: utils.IdPtr(route.FaceID),
+		Origin: utils.IdPtr(route.Origin),
 	}
 
 	iparams := &ndn_mgmt.ControlParameters{

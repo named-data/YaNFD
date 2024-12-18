@@ -9,21 +9,21 @@ type RibReadvertise interface {
 	// Advertise a route in the RIB
 	Announce(name enc.Name, route *Route)
 	// Remove a route from the RIB
-	Withdraw(name enc.Name, faceID uint64, origin uint64)
+	Withdraw(name enc.Name, route *Route)
 }
 
 func AddReadvertiser(r RibReadvertise) {
 	readvertisers = append(readvertisers, r)
 }
 
-func (r *RibTable) readvertiseAnnounce(name enc.Name, route *Route) {
+func readvertiseAnnounce(name enc.Name, route *Route) {
 	for _, r := range readvertisers {
 		r.Announce(name, route)
 	}
 }
 
-func (r *RibTable) readvertiseWithdraw(name enc.Name, faceID uint64, origin uint64) {
+func readvertiseWithdraw(name enc.Name, route *Route) {
 	for _, r := range readvertisers {
-		r.Withdraw(name, faceID, origin)
+		r.Withdraw(name, route)
 	}
 }
