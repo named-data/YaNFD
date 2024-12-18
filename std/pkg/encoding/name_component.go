@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/cespare/xxhash"
@@ -30,6 +31,12 @@ const (
 	ParamShaNameConvention  = "params-sha256"
 	DigestShaNameConvention = "sha256digest"
 )
+
+var hashPool = sync.Pool{
+	New: func() interface{} {
+		return xxhash.New()
+	},
+}
 
 type compValFmt interface {
 	ToString(val []byte) string
@@ -537,7 +544,9 @@ func (c Component) NumberVal() uint64 {
 
 // Hash returns the hash of the component
 func (c Component) Hash() uint64 {
-	h := xxhash.New()
+	h := hashPool.Get().(hash.Hash64)
+	defer hashPool.Put(h)
+	h.Reset()
 	c.HashInto(h)
 	return h.Sum64()
 }
