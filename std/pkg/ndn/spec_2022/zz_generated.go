@@ -3936,14 +3936,12 @@ func (context *InterestParsingContext) Parse(reader enc.ParseReader, ignoreCriti
 				if progress+1 == 8 {
 					handled = true
 					{
-						tempVal := byte(0)
-						tempVal, err = reader.ReadByte()
+						err = reader.Skip(1)
 						if err == io.EOF {
 							err = io.ErrUnexpectedEOF
 						}
-						value.HopLimitV = &tempVal
+						value.HopLimitV = &reader.Range(reader.Pos()-1, reader.Pos())[0][0]
 					}
-					value.HopLimitV = &reader.Range(reader.Pos()-1, reader.Pos())[0][0]
 
 				}
 			case 36:

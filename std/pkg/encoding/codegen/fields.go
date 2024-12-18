@@ -913,16 +913,22 @@ func (f *FixedUintField) GenReadFrom() (string, error) {
 
 	if f.opt {
 		g.printlnf("{")
-		g.printlnf("tempVal := %s(0)", digit)
-		gen("tempVal")
-		g.printlnf("value.%s = &tempVal", f.name)
-		g.printlnf("}")
 
 		// Special case for a single byte - directly use wire address
 		// This is useful to modify the TLV in-place (e.g. HopLimit)
 		if f.l == 1 {
+			g.printlnf("err = reader.Skip(1)")
+			g.printlnf("if err == io.EOF {")
+			g.printlnf("err = io.ErrUnexpectedEOF")
+			g.printlnf("}")
 			g.printlnf("value.%s = &reader.Range(reader.Pos()-1, reader.Pos())[0][0]", f.name)
+		} else {
+			g.printlnf("tempVal := %s(0)", digit)
+			gen("tempVal")
+			g.printlnf("value.%s = &tempVal", f.name)
 		}
+
+		g.printlnf("}")
 	} else {
 		gen("value." + f.name)
 	}
