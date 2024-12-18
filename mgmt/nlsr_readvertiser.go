@@ -36,24 +36,16 @@ func (r *NlsrReadvertiser) Announce(name enc.Name, route *table.Route) {
 		core.LogDebug(r, "skip advertise=", name, " origin=", route.Origin)
 		return
 	}
+	core.LogInfo(r, "advertise=", name)
 
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-
-	nhash := name.Hash()
-	r.advertised[nhash] += 1
-	if r.advertised[nhash] > 1 {
-		core.LogDebug(r, "skip advertise=", name, " already advertised")
-		return
-	}
-	core.LogInfo(r, "advertise=", name)
+	r.advertised[name.Hash()] += 1
 
 	params := &ndn_mgmt.ControlArgs{
 		Name:   name,
-		FaceId: utils.IdPtr(route.FaceID),
 		Origin: utils.IdPtr(route.Origin),
 		Cost:   utils.IdPtr(route.Cost),
-		Flags:  utils.IdPtr(route.Flags),
 	}
 
 	iparams := &ndn_mgmt.ControlParameters{
@@ -84,7 +76,6 @@ func (r *NlsrReadvertiser) Withdraw(name enc.Name, route *table.Route) {
 
 	params := &ndn_mgmt.ControlArgs{
 		Name:   name,
-		FaceId: utils.IdPtr(route.FaceID),
 		Origin: utils.IdPtr(route.Origin),
 	}
 

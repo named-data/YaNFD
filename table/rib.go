@@ -155,7 +155,6 @@ func (r *RibTable) AddEncRoute(name enc.Name, route *Route) {
 		node.Name = name
 	}
 
-	defer readvertiseAnnounce(name, route)
 	defer node.updateNexthopsEnc()
 
 	for _, existingRoute := range node.routes {
@@ -168,6 +167,7 @@ func (r *RibTable) AddEncRoute(name enc.Name, route *Route) {
 	}
 
 	node.routes = append(node.routes, route)
+	readvertiseAnnounce(name, route)
 }
 
 // GetAllEntries returns all routes in the RIB.
