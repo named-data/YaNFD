@@ -449,33 +449,41 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 	strategy := t.strategies[strategyName.Hash()]
 
 	if len(pitEntries) == 1 {
+		// When a single PIT entry matches, we pass the data to the strategy.
+		// See alternative behavior for multiple matches below.
+		pitEntry := pitEntries[0]
+
 		// Set PIT entry expiration to now
-		table.SetExpirationTimerToNow(pitEntries[0])
+		table.SetExpirationTimerToNow(pitEntry)
 
 		// Invoke strategy's AfterReceiveData
 		core.LogTrace(t, "Sending Data=", packet.Name, " to strategy=", strategyName)
-		strategy.AfterReceiveData(packet, pitEntries[0], *packet.IncomingFaceID)
+		strategy.AfterReceiveData(packet, pitEntry, *packet.IncomingFaceID)
 
 		// Mark PIT entry as satisfied
-		pitEntries[0].SetSatisfied(true)
+		pitEntry.SetSatisfied(true)
 
 		// Insert into dead nonce list
-		for _, outRecord := range pitEntries[0].OutRecords() {
+		for _, outRecord := range pitEntry.OutRecords() {
 			t.deadNonceList.Insert(data.NameV, outRecord.LatestNonce)
 		}
 
 		// Clear out records from PIT entry
-		pitEntries[0].ClearInRecords()
-		pitEntries[0].ClearOutRecords()
+		// TODO: NFD dev guide specifies in-records should not be cleared - why?
+		pitEntry.ClearInRecords()
+		pitEntry.ClearOutRecords()
 	} else {
+		// Multiple PIT entries can match when two interest have e.g. different flags
+		// like CanBePrefix, or different forwarding hints. In this case, we send to all
+		// downstream faces without consulting strategy (see NFD dev guide)
 		for _, pitEntry := range pitEntries {
 			// Store all pending downstreams (except face Data packet arrived on) and PIT tokens
 			downstreams := make(map[uint64][]byte)
-			for downstreamFaceID, downstreamFaceRecord := range pitEntry.InRecords() {
-				if downstreamFaceID != *packet.IncomingFaceID {
+			for face, record := range pitEntry.InRecords() {
+				if face != *packet.IncomingFaceID {
 					// TODO: Ad-hoc faces
-					downstreams[downstreamFaceID] = make([]byte, len(downstreamFaceRecord.PitToken))
-					copy(downstreams[downstreamFaceID], downstreamFaceRecord.PitToken)
+					downstreams[face] = make([]byte, len(record.PitToken))
+					copy(downstreams[face], record.PitToken)
 				}
 			}
 
@@ -497,10 +505,10 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 			pitEntry.ClearInRecords()
 			pitEntry.ClearOutRecords()
 
-			// Call outoing Data pipeline for each pending downstream
-			for downstreamFaceID, downstreamPITToken := range downstreams {
-				core.LogTrace(t, "Multiple matching PIT entries for ", packet.Name, ": sending to OnOutgoingData pipeline")
-				t.processOutgoingData(packet, downstreamFaceID, downstreamPITToken, *packet.IncomingFaceID)
+			// Call outgoing Data pipeline for each pending downstream
+			for face, token := range downstreams {
+				core.LogTrace(t, "Multiple PIT entries Data=", packet.Name)
+				t.processOutgoingData(packet, face, token, *packet.IncomingFaceID)
 			}
 		}
 	}
