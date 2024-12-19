@@ -44,14 +44,14 @@ func (store *DemoHmacKeyStore) EnrollKey(keyName enc.Name, keyBits enc.Buffer, s
 	}
 	signer := sec.NewHmacSigner(keyName, signKey.KeyBits, false, 3600*time.Second)
 	spec := spec_2022.Spec{}
-	certWire, _, err := spec.MakeData(keyName, &ndn.DataConfig{
+	cert, err := spec.MakeData(keyName, &ndn.DataConfig{
 		ContentType: utils.IdPtr(ndn.ContentTypeKey),
 		Freshness:   utils.IdPtr(3600 * time.Second),
 	}, enc.Wire{keyBits}, signer)
 	if err != nil {
 		return fmt.Errorf("unable to make certificate: %+v", err)
 	}
-	return store.SaveKey(keyName, keyBits, certWire.Join())
+	return store.SaveKey(keyName, keyBits, cert.Wire.Join())
 }
 
 // GetKey returns the key & cert of a specific key name

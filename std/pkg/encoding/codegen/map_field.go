@@ -26,10 +26,9 @@ func (f *MapField) GenEncoderStruct() (string, error) {
 }
 
 func (f *MapField) GenInitEncoder() (string, error) {
-	var g strErrBuf
 	// SA Sequence Field
 	// KeyField does not need an encoder
-	const Temp = `{
+	templ := template.Must(template.New("MapInitEncoder").Parse(`{
 		{{.Name}}_l := len(value.{{.Name}})
 		encoder.{{.Name}}_valencoder = make(map[{{.KeyFieldType}}]*struct{
 			{{.ValField.GenEncoderStruct}}
@@ -53,9 +52,10 @@ func (f *MapField) GenInitEncoder() (string, error) {
 			}
 		}
 	}
-	`
-	t := template.Must(template.New("MapInitEncoder").Parse(Temp))
-	g.executeTemplate(t, f)
+	`))
+
+	var g strErrBuf
+	g.executeTemplate(templ, f)
 	return g.output()
 }
 
@@ -69,31 +69,31 @@ func (f *MapField) GenInitContext() (string, error) {
 }
 
 func (f *MapField) encodingGeneral(funcName string) (string, error) {
-	var g strErrBuf
-	const TempFmt = `if value.{{.Name}} != nil {
-			for map_k, map_v := range value.{{.Name}} {
-			pseudoEncoder := encoder.{{.Name}}_valencoder[map_k]
-			pseudoValue := struct {
-				{{.Name}}_k {{.KeyFieldType}}
-				{{.Name}}_v {{.ValFieldType}}
-			}{
-				{{.Name}}_k: map_k,
-				{{.Name}}_v: map_v,
-			}
-			{
-				encoder := pseudoEncoder
-				value := &pseudoValue
-				{{.KeyField.%s}}
-				{{.ValField.%s}}
-				_ = encoder
-				_ = value
+	templ := template.Must(template.New("MapEncodingGeneral").Parse(fmt.Sprintf(`
+		if value.{{.Name}} != nil {
+				for map_k, map_v := range value.{{.Name}} {
+				pseudoEncoder := encoder.{{.Name}}_valencoder[map_k]
+				pseudoValue := struct {
+					{{.Name}}_k {{.KeyFieldType}}
+					{{.Name}}_v {{.ValFieldType}}
+				}{
+					{{.Name}}_k: map_k,
+					{{.Name}}_v: map_v,
+				}
+				{
+					encoder := pseudoEncoder
+					value := &pseudoValue
+					{{.KeyField.%[1]s}}
+					{{.ValField.%[1]s}}
+					_ = encoder
+					_ = value
+				}
 			}
 		}
-	}
-	`
-	temp := fmt.Sprintf(TempFmt, funcName, funcName)
-	t := template.Must(template.New("MapEncodingGeneral").Parse(temp))
-	g.executeTemplate(t, f)
+	`, funcName)))
+
+	var g strErrBuf
+	g.executeTemplate(templ, f)
 	return g.output()
 }
 
@@ -110,47 +110,47 @@ func (f *MapField) GenEncodeInto() (string, error) {
 }
 
 func (f *MapField) GenReadFrom() (string, error) {
-	var g strErrBuf
-	const Temp = `if value.{{.M.Name}} == nil {
-		value.{{.M.Name}} = make(map[{{.M.KeyFieldType}}]{{.M.ValFieldType}})
-	}
-	{
-		pseudoValue := struct {
-			{{.M.Name}}_k {{.M.KeyFieldType}}
-			{{.M.Name}}_v {{.M.ValFieldType}}
-		}{}
-		{
-			value := &pseudoValue
-			{{.M.KeyField.GenReadFrom}}
-			typ := enc.TLNum(0)
-			l := enc.TLNum(0)
-			{{call .GenTlvNumberDecode "typ"}}
-			{{call .GenTlvNumberDecode "l"}}
-			if typ != {{.M.ValField.TypeNum}} {
-				return nil, enc.ErrFailToParse{TypeNum: {{.M.KeyField.TypeNum}}, Err: enc.ErrUnrecognizedField{TypeNum: typ}}
-			}
-			{{.M.ValField.GenReadFrom}}
-			_ = value
+	templ := template.Must(template.New("NameEncodeInto").Parse(`
+		if value.{{.M.Name}} == nil {
+			value.{{.M.Name}} = make(map[{{.M.KeyFieldType}}]{{.M.ValFieldType}})
 		}
-		value.{{.M.Name}}[pseudoValue.{{.M.Name}}_k] = pseudoValue.{{.M.Name}}_v
-	}
-	progress --
-	`
-	data := struct {
+		{
+			pseudoValue := struct {
+				{{.M.Name}}_k {{.M.KeyFieldType}}
+				{{.M.Name}}_v {{.M.ValFieldType}}
+			}{}
+			{
+				value := &pseudoValue
+				{{.M.KeyField.GenReadFrom}}
+				typ := enc.TLNum(0)
+				l := enc.TLNum(0)
+				{{call .GenTlvNumberDecode "typ"}}
+				{{call .GenTlvNumberDecode "l"}}
+				if typ != {{.M.ValField.TypeNum}} {
+					return nil, enc.ErrFailToParse{TypeNum: {{.M.KeyField.TypeNum}}, Err: enc.ErrUnrecognizedField{TypeNum: typ}}
+				}
+				{{.M.ValField.GenReadFrom}}
+				_ = value
+			}
+			value.{{.M.Name}}[pseudoValue.{{.M.Name}}_k] = pseudoValue.{{.M.Name}}_v
+		}
+		progress --
+	`))
+
+	var g strErrBuf
+	g.executeTemplate(templ, struct {
 		M                  *MapField
 		GenTlvNumberDecode func(string) (string, error)
 	}{
 		M:                  f,
 		GenTlvNumberDecode: GenTlvNumberDecode,
-	}
-	t := template.Must(template.New("NameEncodeInto").Parse(Temp))
-	g.executeTemplate(t, data)
+	})
 	return g.output()
 }
 
 func (f *MapField) GenSkipProcess() (string, error) {
 	// Skip is called after all elements are parsed, so we should not assign nil.
-	return "", nil
+	return "// map - skip", nil
 }
 
 func (f *MapField) GenToDict() (string, error) {

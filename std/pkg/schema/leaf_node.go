@@ -61,21 +61,21 @@ func (n *LeafNode) Provide(
 	})
 	signer, _ := evtRet.(ndn.Signer)
 
-	wire, _, err := spec.MakeData(mNode.Name, dataCfg, content, signer)
+	data, err := spec.MakeData(mNode.Name, dataCfg, content, signer)
 	if err != nil {
 		logger.Errorf("Unable to encode Data in Provide(): %+v", err)
 		return nil
 	}
 
 	// Store data in the storage
-	event.RawPacket = wire
+	event.RawPacket = data.Wire
 	event.SelfProduced = utils.IdPtr(true)
 	event.ValidDuration = &validDur
 	event.Deadline = utils.IdPtr(engine.Timer().Now().Add(validDur))
 	n.OnSaveStorage.Dispatch(event)
 
 	// Return encoded data
-	return wire
+	return data.Wire
 }
 
 func CreateLeafNode(node *Node) NodeImpl {

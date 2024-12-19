@@ -56,15 +56,14 @@ func main() {
 		} else if pkgName != pkg.Name {
 			continue
 		}
-		log.Printf("Processing package %s:\n", pkgName)
+		log.Printf("processing package %s:\n", pkgName)
 		for fileName, astFile := range pkg.Files {
 			if filepath.Join(pkgFullPath, fileName) == outFullName {
 				continue
 			}
-			log.Printf("\tProcessing file %s ...\n", fileName)
+			log.Printf("\tfile %s ...\n", fileName)
 			ast.Inspect(astFile, g.ProcessDecl)
 		}
-		log.Println("Done.")
 	}
 
 	g.Generate(pkgName)

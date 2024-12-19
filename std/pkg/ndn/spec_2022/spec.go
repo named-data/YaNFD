@@ -229,15 +229,13 @@ func (t *Interest) AppParam() enc.Wire {
 	return t.ApplicationParameters
 }
 
-func (_ Spec) MakeData(
-	name enc.Name, config *ndn.DataConfig, content enc.Wire, signer ndn.Signer,
-) (enc.Wire, enc.Wire, error) {
+func (Spec) MakeData(name enc.Name, config *ndn.DataConfig, content enc.Wire, signer ndn.Signer) (*ndn.EncodedData, error) {
 	// Create Data packet.
 	if name == nil {
-		return nil, nil, ndn.ErrInvalidValue{Item: "Data.Name", Value: nil}
+		return nil, ndn.ErrInvalidValue{Item: "Data.Name", Value: nil}
 	}
 	if config == nil {
-		return nil, nil, ndn.ErrInvalidValue{Item: "Data.DataConfig", Value: nil}
+		return nil, ndn.ErrInvalidValue{Item: "Data.DataConfig", Value: nil}
 	}
 	finalBlock := []byte(nil)
 	if config.FinalBlockID != nil {
@@ -263,7 +261,7 @@ func (_ Spec) MakeData(
 	if signer != nil {
 		sigConfig, err := signer.SigInfo()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if sigConfig != nil && sigConfig.Type != ndn.SignatureNone {
 			estSigLen = int(signer.EstimateSize())
@@ -271,13 +269,13 @@ func (_ Spec) MakeData(
 			// 	return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
 			// }
 			if sigConfig.Nonce != nil {
-				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureNonce"}
+				return nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureNonce"}
 			}
 			if sigConfig.SeqNum != nil {
-				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureSeqNum"}
+				return nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureSeqNum"}
 			}
 			if sigConfig.SigTime != nil {
-				return nil, nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureTime"}
+				return nil, ndn.ErrNotSupported{Item: "Data.SignatureInfo.SignatureTime"}
 			}
 			// if sigConfig.KeyName == nil {
 			// 	return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.KeyLocator", Value: nil}
@@ -295,10 +293,10 @@ func (_ Spec) MakeData(
 
 			if sigConfig.NotBefore != nil || sigConfig.NotAfter != nil {
 				if sigConfig.NotBefore == nil {
-					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
+					return nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
 				}
 				if sigConfig.NotAfter == nil {
-					return nil, nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
+					return nil, ndn.ErrInvalidValue{Item: "Data.SignatureInfo.Validity.NotBefore", Value: nil}
 				}
 				data.SignatureInfo.ValidityPeriod = &ValidityPeriod{
 					NotBefore: sigConfig.NotBefore.UTC().Format(TimeFmt),
@@ -320,7 +318,7 @@ func (_ Spec) MakeData(
 	encoder.Init(packet)
 	wire := encoder.Encode(packet)
 	if wire == nil {
-		return nil, nil, ndn.ErrFailedToEncode
+		return nil, ndn.ErrFailedToEncode
 	}
 	sigCovered := enc.Wire(nil)
 	if estSigLen > 0 {
@@ -330,10 +328,10 @@ func (_ Spec) MakeData(
 		// if encoder.Data_encoder.SignatureValue_wireIdx >= 0 {
 		sigVal, err := signer.ComputeSigValue(sigCovered)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if len(sigVal) > estSigLen {
-			return nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+			return nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
 		}
 		wire[encoder.Data_encoder.SignatureValue_wireIdx] = sigVal
 		// Fix SignatureValue length
@@ -345,7 +343,11 @@ func (_ Spec) MakeData(
 		wire[0] = enc.ShrinkLength(wire[0], shrink)
 		// }
 	}
-	return wire, sigCovered, nil
+	return &ndn.EncodedData{
+		Wire:       wire,
+		SigCovered: sigCovered,
+		Config:     config,
+	}, nil
 }
 
 func (Spec) ReadData(reader enc.ParseReader) (ndn.Data, enc.Wire, error) {
@@ -364,15 +366,13 @@ func (Spec) ReadData(reader enc.ParseReader) (ndn.Data, enc.Wire, error) {
 	return ret.Data, context.Data_context.sigCovered, nil
 }
 
-func (_ Spec) MakeInterest(
-	name enc.Name, config *ndn.InterestConfig, appParam enc.Wire, signer ndn.Signer,
-) (enc.Wire, enc.Wire, enc.Name, error) {
+func (Spec) MakeInterest(name enc.Name, config *ndn.InterestConfig, appParam enc.Wire, signer ndn.Signer) (*ndn.EncodedInterest, error) {
 	// Create Interest packet.
 	if name == nil {
-		return nil, nil, nil, ndn.ErrInvalidValue{Item: "Interest.Name", Value: nil}
+		return nil, ndn.ErrInvalidValue{Item: "Interest.Name", Value: nil}
 	}
 	if config == nil {
-		return nil, nil, nil, ndn.ErrInvalidValue{Item: "Interest.DataConfig", Value: nil}
+		return nil, ndn.ErrInvalidValue{Item: "Interest.DataConfig", Value: nil}
 	}
 	forwardingHint := (*Links)(nil)
 	if config.ForwardingHint != nil {
@@ -403,21 +403,21 @@ func (_ Spec) MakeInterest(
 	if signer != nil {
 		sigConfig, err := signer.SigInfo()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 		if sigConfig != nil && sigConfig.Type != ndn.SignatureNone {
 			if !needDigest {
-				return nil, nil, nil, ndn.ErrInvalidValue{Item: "Interest.ApplicationParameters", Value: nil}
+				return nil, ndn.ErrInvalidValue{Item: "Interest.ApplicationParameters", Value: nil}
 			}
 			if sigConfig.NotBefore != nil {
-				return nil, nil, nil, ndn.ErrNotSupported{Item: "Interest.SignatureInfo.Validity.NotBefore"}
+				return nil, ndn.ErrNotSupported{Item: "Interest.SignatureInfo.Validity.NotBefore"}
 			}
 			if sigConfig.NotAfter != nil {
-				return nil, nil, nil, ndn.ErrNotSupported{Item: "Interest.SignatureInfo.Validity.NotAfter"}
+				return nil, ndn.ErrNotSupported{Item: "Interest.SignatureInfo.Validity.NotAfter"}
 			}
 			if sigConfig.Type != ndn.SignatureDigestSha256 {
 				if sigConfig.KeyName == nil {
-					return nil, nil, nil, ndn.ErrInvalidValue{Item: "Interest.SignatureInfo.KeyLocator", Value: nil}
+					return nil, ndn.ErrInvalidValue{Item: "Interest.SignatureInfo.KeyLocator", Value: nil}
 				}
 				interest.SignatureInfo = &SignatureInfo{
 					SignatureType:   uint64(sigConfig.Type),
@@ -440,7 +440,7 @@ func (_ Spec) MakeInterest(
 			}
 			estSigLen = int(signer.EstimateSize())
 			if estSigLen >= 253 {
-				return nil, nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+				return nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
 			}
 		}
 	}
@@ -456,7 +456,7 @@ func (_ Spec) MakeInterest(
 	encoder.Init(packet)
 	wire := encoder.Encode(packet)
 	if wire == nil {
-		return nil, nil, nil, ndn.ErrFailedToEncode
+		return nil, ndn.ErrFailedToEncode
 	}
 	sigVal := []byte(nil)
 	err := error(nil)
@@ -466,15 +466,15 @@ func (_ Spec) MakeInterest(
 		// Since PacketEncoder only adds a TL, Interest_encoder.SignatureValue_wireIdx is still valid
 		sigCovered = ecdr.sigCovered
 		if ecdr.SignatureValue_wireIdx < 0 {
-			return nil, nil, nil, enc.ErrUnexpected{Err: errors.New("SignatureValue is not correctly set")}
+			return nil, enc.ErrUnexpected{Err: errors.New("SignatureValue is not correctly set")}
 		}
 
 		sigVal, err = signer.ComputeSigValue(sigCovered)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 		if uint(len(sigVal)) > ecdr.SignatureValue_estLen {
-			return nil, nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+			return nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
 		}
 		wire[ecdr.SignatureValue_wireIdx] = sigVal
 		// Fix SignatureValue length
@@ -504,7 +504,7 @@ func (_ Spec) MakeInterest(
 		for _, buf := range digestCovered {
 			_, err = h.Write(buf)
 			if err != nil {
-				return nil, nil, nil, enc.ErrUnexpected{Err: err}
+				return nil, enc.ErrUnexpected{Err: err}
 			}
 		}
 		copy(digestBuf, h.Sum(nil))
@@ -515,9 +515,15 @@ func (_ Spec) MakeInterest(
 	if shrink > 0 {
 		wire[0] = enc.ShrinkLength(wire[0], shrink)
 	} else if shrink < 0 {
-		return nil, nil, nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
+		return nil, ndn.ErrNotSupported{Item: "Too long signature value is not supported"}
 	}
-	return wire, sigCovered, finalName, nil
+
+	return &ndn.EncodedInterest{
+		Wire:       wire,
+		SigCovered: sigCovered,
+		FinalName:  finalName,
+		Config:     config,
+	}, nil
 }
 
 func checkInterest(val *Interest, context *InterestParsingContext) error {
@@ -549,7 +555,7 @@ func checkInterest(val *Interest, context *InterestParsingContext) error {
 	return nil
 }
 
-func (_ Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, error) {
+func (Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, error) {
 	context := PacketParsingContext{}
 	context.Init()
 	pkt, err := context.Parse(reader, false)
@@ -568,7 +574,7 @@ func (_ Spec) ReadInterest(reader enc.ParseReader) (ndn.Interest, enc.Wire, erro
 	return pkt.Interest, context.Interest_context.sigCovered, nil
 }
 
-func (_ Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
+func (Spec) EncodeSigInfo(config *ndn.SigConfig) ([]byte, error) {
 	ret := &SignatureInfo{
 		SignatureType: uint64(config.Type),
 		KeyLocator: &KeyLocator{

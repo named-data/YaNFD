@@ -9,7 +9,6 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	schema "github.com/zjkmxy/go-ndn/pkg/schema_old"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -218,9 +217,9 @@ func (p *FixedHmacSignerPolicy) onValidateData(event *Event) any {
 		return VrSilence
 	}
 	if sec.CheckHmacSig(sigCovered, signature.SigValue(), []byte(p.Key)) {
-		return schema.VrPass
+		return VrPass
 	} else {
-		return schema.VrFail
+		return VrFail
 	}
 }
 
@@ -267,9 +266,9 @@ func (p *FixedHmacIntSignerPolicy) onValidateInt(event *Event) any {
 		return VrSilence
 	}
 	if sec.CheckHmacSig(sigCovered, signature.SigValue(), []byte(p.Key)) {
-		return schema.VrPass
+		return VrPass
 	} else {
-		return schema.VrFail
+		return VrFail
 	}
 }
 

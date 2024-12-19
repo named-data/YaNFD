@@ -29,11 +29,16 @@ func (m *strErrBuf) printlnf(format string, args ...any) {
 }
 
 func (m *strErrBuf) output() (string, error) {
-	return m.b.String(), m.err
+	return strings.TrimSpace(m.b.String()), m.err
 }
 
 func (m *strErrBuf) executeTemplate(t *template.Template, data any) {
 	if m.err == nil {
 		m.err = t.Execute(&m.b, data)
 	}
+}
+
+func (m *strErrBuf) execTemplS(name string, templ string, data any) {
+	t := template.Must(template.New(name).Parse(templ))
+	m.executeTemplate(t, data)
 }

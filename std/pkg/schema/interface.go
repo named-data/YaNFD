@@ -49,8 +49,7 @@ type NodeImpl interface {
 	CastTo(ptr any) any
 
 	// OnInterest is the callback function when there is an incoming Interest.
-	OnInterest(interest ndn.Interest, reply ndn.ReplyFunc,
-		extra ndn.InterestHandlerExtra, matching enc.Matching)
+	OnInterest(interest ndn.InterestHandlerArgs, matching enc.Matching)
 
 	// OnAttach is called when the node is attached to an engine
 	OnAttach() error

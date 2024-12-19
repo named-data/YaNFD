@@ -28,11 +28,10 @@ func (f *SignatureField) GenEncoderStruct() (string, error) {
 func (f *SignatureField) GenInitEncoder() (string, error) {
 	// SignatureInfo is set in Data/Interest.Encode()
 	// {{.}}_estLen is required as an input to the encoder
-	const Temp = `encoder.{{.}}_wireIdx = -1
-	`
 	var g strErrBuf
-	t := template.Must(template.New("SignatureInitEncoder").Parse(Temp))
-	g.executeTemplate(t, f.name)
+	g.execTemplS("SignatureInitEncoder", `
+		encoder.{{.}}_wireIdx = -1
+	`, f.name)
 	return g.output()
 }
 
@@ -206,24 +205,23 @@ func (f *InterestNameField) GenEncodeInto() (string, error) {
 	g.printlne(GenNaturalNumberEncode("encoder."+f.name+"_length", true))
 	g.printlnf("sigCoverStart := pos")
 
-	const Temp = `i := 0
-	for i = 0; i < len(value.{{.}}) - 1; i ++ {
-		c := value.{{.}}[i]
-		pos += uint(c.EncodeInto(buf[pos:]))
-	}
-	sigCoverEnd := pos
-	encoder.{{.}}_wireIdx = int(wireIdx)
-	if len(value.{{.}}) > 0 {
-		encoder.{{.}}_pos = pos + 2
-		c := value.{{.}}[i]
-		pos += uint(c.EncodeInto(buf[pos:]))
-		if !encoder.{{.}}_needDigest {
-			sigCoverEnd = pos
+	g.execTemplS("InterestNameEncodeInto", `
+		i := 0
+		for i = 0; i < len(value.{{.}}) - 1; i ++ {
+			c := value.{{.}}[i]
+			pos += uint(c.EncodeInto(buf[pos:]))
 		}
-	}
-	`
-	t := template.Must(template.New("InterestNameEncodeInto").Parse(Temp))
-	g.executeTemplate(t, f.name)
+		sigCoverEnd := pos
+		encoder.{{.}}_wireIdx = int(wireIdx)
+		if len(value.{{.}}) > 0 {
+			encoder.{{.}}_pos = pos + 2
+			c := value.{{.}}[i]
+			pos += uint(c.EncodeInto(buf[pos:]))
+			if !encoder.{{.}}_needDigest {
+				sigCoverEnd = pos
+			}
+		}
+	`, f.name)
 
 	g.printlnf("encoder.%s = append(encoder.%s, buf[sigCoverStart:sigCoverEnd])", f.sigCovered, f.sigCovered)
 	g.printlnf("}")
@@ -235,46 +233,44 @@ func (f *InterestNameField) GenReadFrom() (string, error) {
 
 	g.printlnf("{")
 
-	const Temp = `value.{{.Name}} = make(enc.Name, l/2+1)
-	startName := reader.Pos()
-	endName := startName + int(l)
-	sigCoverEnd := endName
-	for j := range value.{{.Name}} {
-		var err1, err3 error
-		startComponent := reader.Pos()
-		if startComponent >= endName {
-			value.{{.Name}} = value.{{.Name}}[:j]
-			break
+	g.execTemplS("NameEncodeInto", `
+		value.{{.Name}} = make(enc.Name, l/2+1)
+		startName := reader.Pos()
+		endName := startName + int(l)
+		sigCoverEnd := endName
+		for j := range value.{{.Name}} {
+			var err1, err3 error
+			startComponent := reader.Pos()
+			if startComponent >= endName {
+				value.{{.Name}} = value.{{.Name}}[:j]
+				break
+			}
+			value.{{.Name}}[j].Typ, err1 = enc.ReadTLNum(reader)
+			l, err2 := enc.ReadTLNum(reader)
+			value.{{.Name}}[j].Val, err3 = reader.ReadBuf(int(l))
+			if err1 != nil || err2 != nil || err3 != nil {
+				err = io.ErrUnexpectedEOF
+				break
+			}
+			if value.{{.Name}}[j].Typ == enc.TypeParametersSha256DigestComponent {
+				sigCoverEnd = startComponent
+			}
 		}
-		value.{{.Name}}[j].Typ, err1 = enc.ReadTLNum(reader)
-		l, err2 := enc.ReadTLNum(reader)
-		value.{{.Name}}[j].Val, err3 = reader.ReadBuf(int(l))
-		if err1 != nil || err2 != nil || err3 != nil {
-			err = io.ErrUnexpectedEOF
-			break
+		if err == nil && reader.Pos() != endName {
+			err = enc.ErrBufferOverflow
 		}
-		if value.{{.Name}}[j].Typ == enc.TypeParametersSha256DigestComponent {
-			sigCoverEnd = startComponent
-		}
-	}
-	if err == nil && reader.Pos() != endName {
-		err = enc.ErrBufferOverflow
-	}
-	`
-	t := template.Must(template.New("NameEncodeInto").Parse(Temp))
-	g.executeTemplate(t, f)
+	`, f)
 
 	g.printlnf("if err == nil {")
 	g.printlnf("coveredPart := reader.Range(startName, sigCoverEnd)")
-	g.printlnf("context.%s = append(context.%s, coveredPart...)", f.sigCovered, f.sigCovered)
+	g.printlnf("context.%[1]s = append(context.%[1]s, coveredPart...)", f.sigCovered)
 	g.printlnf("}")
-
 	g.printlnf("}")
 	return g.output()
 }
 
 func (f *InterestNameField) GenSkipProcess() (string, error) {
-	return "value." + f.name + " = nil", nil
+	return fmt.Sprintf("value.%s = nil", f.name), nil
 }
 
 func NewInterestNameField(name string, typeNum uint64, annotation string, _ *TlvModel) (TlvField, error) {

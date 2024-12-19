@@ -40,24 +40,25 @@ func main() {
 		Lifetime:    utils.IdPtr(6 * time.Second),
 		Nonce:       utils.ConvertNonce(timer.Nonce()),
 	}
-	wire, _, finalName, err := app.Spec().MakeInterest(name, intCfg, nil, nil)
+	interest, err := app.Spec().MakeInterest(name, intCfg, nil, nil)
 	if err != nil {
 		logger.Errorf("Unable to make Interest: %+v", err)
 		return
 	}
 
-	fmt.Printf("Sending Interest %s\n", finalName.String())
+	fmt.Printf("Sending Interest %s\n", interest.FinalName.String())
 	ch := make(chan struct{})
-	err = app.Express(finalName, intCfg, wire,
-		func(result ndn.InterestResult, data ndn.Data, rawData, sigCovered enc.Wire, nackReason uint64) {
-			switch result {
+	err = app.Express(interest,
+		func(args ndn.ExpressCallbackArgs) {
+			switch args.Result {
 			case ndn.InterestResultNack:
-				fmt.Printf("Nacked with reason=%d\n", nackReason)
+				fmt.Printf("Nacked with reason=%d\n", args.NackReason)
 			case ndn.InterestResultTimeout:
 				fmt.Printf("Timeout\n")
 			case ndn.InterestCancelled:
 				fmt.Printf("Canceled\n")
 			case ndn.InterestResultData:
+				data := args.Data
 				fmt.Printf("Received Data Name: %s\n", data.Name().String())
 				fmt.Printf("%+v\n", data.Content().Join())
 			}

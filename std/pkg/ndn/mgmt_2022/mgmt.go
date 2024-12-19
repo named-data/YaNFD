@@ -16,44 +16,38 @@ type MgmtConfig struct {
 
 // MakeCmd makes and encodes a NFD mgmt command Interest.
 // Currently NFD and YaNFD supports signed Interest.
-func (mgmt *MgmtConfig) MakeCmd(module string, cmd string, args *ControlArgs,
-	intParam *ndn.InterestConfig) (enc.Name, enc.Wire, error) {
+func (mgmt *MgmtConfig) MakeCmd(module string, cmd string,
+	args *ControlArgs, config *ndn.InterestConfig) (*ndn.EncodedInterest, error) {
 
-	var err error = nil
-	val := ControlParameters{
-		Val: args,
-	}
+	params := ControlParameters{Val: args}
 
-	// Make first part of name
-	name := enc.Name(nil)
+	var name enc.Name
 	if mgmt.local {
-		name, err = enc.NameFromStr("/localhost/nfd/" + module + "/" + cmd)
+		name = append(name, enc.NewStringComponent(enc.TypeGenericNameComponent, "localhost"))
 	} else {
-		name, err = enc.NameFromStr("/localhop/nfd/" + module + "/" + cmd)
+		name = append(name, enc.NewStringComponent(enc.TypeGenericNameComponent, "localhop"))
 	}
-	if err != nil {
-		return nil, nil, err
-	}
-	name = append(name, enc.NewBytesComponent(enc.TypeGenericNameComponent, val.Bytes()))
+
+	name = append(name,
+		enc.NewStringComponent(enc.TypeGenericNameComponent, "nfd"),
+		enc.NewStringComponent(enc.TypeGenericNameComponent, module),
+		enc.NewStringComponent(enc.TypeGenericNameComponent, cmd),
+		enc.NewBytesComponent(enc.TypeGenericNameComponent, params.Bytes()),
+	)
 
 	// Make and sign Interest
-	wire, _, finalName, err := mgmt.spec.MakeInterest(name, intParam, enc.Wire{}, mgmt.signer)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return finalName, wire, nil
+	return mgmt.spec.MakeInterest(name, config, enc.Wire{}, mgmt.signer)
 }
 
 // MakeCmdDict is the same as MakeCmd but receives a map[string]any as arguments.
 func (mgmt *MgmtConfig) MakeCmdDict(module string, cmd string, args map[string]any,
-	intParam *ndn.InterestConfig) (enc.Name, enc.Wire, error) {
+	config *ndn.InterestConfig) (*ndn.EncodedInterest, error) {
 	// Parse arguments
 	vv, err := DictToControlArgs(args)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return mgmt.MakeCmd(module, cmd, vv, intParam)
+	return mgmt.MakeCmd(module, cmd, vv, config)
 }
 
 func NewConfig(local bool, signer ndn.Signer, spec ndn.Spec) *MgmtConfig {

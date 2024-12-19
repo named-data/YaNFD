@@ -78,7 +78,6 @@ type Signature interface {
 	SigTime() *time.Time
 	SigSeqNum() *uint64
 	Validity() (notBefore, notAfter *time.Time)
-
 	SigValue() []byte
 }
 
@@ -117,29 +116,56 @@ type InterestConfig struct {
 	HopLimit       *uint
 }
 
-// Interest is the abstract of a received Interest packet.
+// Interest is the abstract of a received Interest packet
 type Interest interface {
+	// Name of the Interest packet
 	Name() enc.Name
+	// Indicates whether a Data with a longer name can match
 	CanBePrefix() bool
+	// Indicates whether the Data must be fresh
 	MustBeFresh() bool
+	// ForwardingHint is the list of names to guide the Interest forwarding
 	ForwardingHint() []enc.Name
+	// Number to identify the Interest uniquely
 	Nonce() *uint64
+	// Lifetime of the Interest
 	Lifetime() *time.Duration
+	// Max number of hops the Interest can traverse
 	HopLimit() *uint
+	// Application parameters of the Interest (optional)
 	AppParam() enc.Wire
-
+	// Signature on the Interest (optional)
 	Signature() Signature
+}
+
+// Container for an encoded Interest packet
+type EncodedInterest struct {
+	// Encoded Interest packet
+	Wire enc.Wire
+	// Signed part of the Interest
+	SigCovered enc.Wire
+	// Final name of the Interest
+	FinalName enc.Name
+	// Parameter configuration of the Interest
+	Config *InterestConfig
+}
+
+// Container for an encoded Data packet
+type EncodedData struct {
+	// Encoded Data packet
+	Wire enc.Wire
+	// Signed part of the Data
+	SigCovered enc.Wire
+	// Parameter configuration of the Data
+	Config *DataConfig
 }
 
 // Spec represents an NDN packet specification.
 type Spec interface {
-	// MakeData creates a Data packet, returns the encoded Data, signature covered parts, and error.
-	MakeData(name enc.Name, config *DataConfig, content enc.Wire, signer Signer) (enc.Wire, enc.Wire, error)
-	// MakeData creates an Interest packet, returns the encoded Interest, signature covered parts,
-	// the final Interest name, and error.
-	MakeInterest(
-		name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer,
-	) (enc.Wire, enc.Wire, enc.Name, error)
+	// MakeData creates a Data packet, returns the encoded DataContainer
+	MakeData(name enc.Name, config *DataConfig, content enc.Wire, signer Signer) (*EncodedData, error)
+	// MakeData creates an Interest packet, returns an encoded InterestContainer
+	MakeInterest(name enc.Name, config *InterestConfig, appParam enc.Wire, signer Signer) (*EncodedInterest, error)
 	// ReadData reads and parses a Data from the reader, returns the Data, signature covered parts, and error.
 	ReadData(reader enc.ParseReader) (Data, enc.Wire, error)
 	// ReadData reads and parses an Interest from the reader, returns the Data, signature covered parts, and error.
@@ -147,20 +173,32 @@ type Spec interface {
 }
 
 // ReplyFunc represents the callback function to reply for an Interest.
-type ReplyFunc func(encodedData enc.Wire) error
+type WireReplyFunc func(wire enc.Wire) error
 
 // ExpressCallbackFunc represents the callback function for Interest expression.
-type ExpressCallbackFunc func(result InterestResult, data Data, rawData enc.Wire,
-	sigCovered enc.Wire, nackReason uint64)
+type ExpressCallbackFunc func(args ExpressCallbackArgs)
+
+// ExpressCallbackArgs represents the arguments passed to the ExpressCallbackFunc.
+type ExpressCallbackArgs struct {
+	Result     InterestResult
+	Data       Data
+	RawData    enc.Wire
+	SigCovered enc.Wire
+	NackReason uint64
+}
 
 // InterestHandler represents the callback function for an Interest handler.
 // It should create a go routine to avoid blocking the main thread, if either
 // 1) Data is not ready to send; or
 // 2) Validation is required.
-type InterestHandler func(interest Interest, reply ReplyFunc, extra InterestHandlerExtra)
+type InterestHandler func(args InterestHandlerArgs)
 
 // Extra information passed to the InterestHandler
-type InterestHandlerExtra struct {
+type InterestHandlerArgs struct {
+	// Decoded interest packet
+	Interest Interest
+	// Function to reply to the Interest
+	Reply WireReplyFunc
 	// Raw Interest packet wire
 	RawInterest enc.Wire
 	// Signature covered part of the Interest
@@ -213,7 +251,7 @@ type Engine interface {
 	// Express expresses an Interest, with callback called when there is result.
 	// To simplify the implementation, finalName needs to be the final Interest name given by MakeInterest.
 	// The callback should create go routine or channel back to another routine to avoid blocking the main thread.
-	Express(finalName enc.Name, config *InterestConfig, rawInterest enc.Wire, callback ExpressCallbackFunc) error
+	Express(interest *EncodedInterest, callback ExpressCallbackFunc) error
 	// ExecMgmtCmd executes a management command.
 	// args is a pointer to mgmt.ControlArgs
 	ExecMgmtCmd(module string, cmd string, args any) error
