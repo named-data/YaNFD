@@ -8,12 +8,14 @@
 package mgmt
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/named-data/YaNFD/core"
 	"github.com/named-data/YaNFD/face"
 	"github.com/named-data/YaNFD/table"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
 	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
@@ -28,11 +30,14 @@ type Thread struct {
 	localPrefix    enc.Name
 	nonLocalPrefix enc.Name
 	modules        map[string]Module
+	timer          ndn.Timer
 }
 
 // MakeMgmtThread creates a new management thread.
 func MakeMgmtThread() *Thread {
 	m := new(Thread)
+	m.timer = basic_engine.NewTimer()
+
 	var err error
 	m.localPrefix, err = enc.NameFromStr("/localhost/nfd")
 	if err != nil {
@@ -42,6 +47,7 @@ func MakeMgmtThread() *Thread {
 	if err != nil {
 		core.LogFatal(m, "Unable to create name for management prefix: ", err)
 	}
+
 	m.modules = make(map[string]Module)
 	m.registerModule("cs", new(ContentStoreModule))
 	m.registerModule("faces", new(FaceModule))
@@ -49,6 +55,13 @@ func MakeMgmtThread() *Thread {
 	m.registerModule("rib", new(RIBModule))
 	m.registerModule("status", new(ForwarderStatusModule))
 	m.registerModule("strategy-choice", new(StrategyChoiceModule))
+
+	// readvertisers run in the management thread for ease of
+	// implementation, since they use the internal transport
+	if core.GetConfig().Tables.Rib.ReadvertiseNlsr {
+		table.AddReadvertiser(NewNlsrReadvertiser(m))
+	}
+
 	return m
 }
 
@@ -63,6 +76,22 @@ func (m *Thread) registerModule(name string, module Module) {
 
 func (m *Thread) prefixLength() int {
 	return len(m.localPrefix)
+}
+
+func (m *Thread) sendInterest(name enc.Name, params enc.Wire) {
+	config := ndn.InterestConfig{
+		MustBeFresh: true,
+		Nonce:       utils.IdPtr(rand.Uint64()),
+	}
+	interestWire, _, finalName, err := spec.Spec{}.MakeInterest(
+		name, &config, params, sec.NewSha256IntSigner(m.timer))
+	if err != nil {
+		core.LogWarn(m, "Unable to encode Interest for ", name, ": ", err)
+		return
+	}
+
+	m.transport.Send(interestWire, nil, nil)
+	core.LogTrace(m, "Sent management Interest for ", finalName)
 }
 
 func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *spec.Interest, pitToken []byte, inFace uint64) {
@@ -117,7 +146,7 @@ func (m *Thread) Run() {
 
 		// We only expect Interests, so drop Data packets
 		if pkt.Interest == nil {
-			core.LogWarn(m, "Dropping received non-Interest packet")
+			core.LogDebug(m, "Dropping received non-Interest packet")
 			continue
 		}
 		interest := pkt.Interest

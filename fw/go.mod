@@ -3,7 +3,6 @@ module github.com/named-data/YaNFD
 go 1.23.0
 
 require (
-	github.com/cornelk/hashmap v1.0.8
 	github.com/goccy/go-yaml v1.15.10
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.10.0

@@ -114,7 +114,13 @@ func (r *RIBModule) register(interest *spec.Interest, pitToken []byte, inFace ui
 		*expirationPeriod = time.Duration(*params.ExpirationPeriod) * time.Millisecond
 	}
 
-	table.Rib.AddEncRoute(params.Name, faceID, origin, cost, flags, expirationPeriod)
+	table.Rib.AddEncRoute(params.Name, &table.Route{
+		FaceID:           faceID,
+		Origin:           origin,
+		Cost:             cost,
+		Flags:            flags,
+		ExpirationPeriod: expirationPeriod,
+	})
 	if expirationPeriod != nil {
 		core.LogInfo(r, "Created route for Prefix=", params.Name, ", FaceID=", faceID, ", Origin=", origin,
 			", Cost=", cost, ", Flags=0x", strconv.FormatUint(flags, 16), ", ExpirationPeriod=", expirationPeriod)
@@ -212,12 +218,6 @@ func (r *RIBModule) announce(interest *spec.Interest, pitToken []byte, inFace ui
 	}
 	if data != nil {
 	}
-
-	// prefix := data.Name()[:len(data.Name())-3]
-	// faceID := inFace
-	// origin := table.RouteOriginPrefixAnn
-	// cost := uint64(0)
-	// expirationPeriod := 0 * time.Millisecond // TODO: Wrong thing to do
 
 	core.LogError(r, "YaNFD does not support PrefixAnnouncement")
 	response = makeControlResponse(501, "YaNFD does not support PrefixAnnouncement", nil)
