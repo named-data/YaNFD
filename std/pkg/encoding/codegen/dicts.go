@@ -158,10 +158,9 @@ func (f *StructField) GenFromDict() (string, error) {
 }
 
 func (f *SequenceField) GenToDict() (string, error) {
-	var g strErrBuf
 	// Sequence uses faked encoder variable to embed the subfield.
 	// I have verified that the Go compiler can optimize this in simple cases.
-	const Temp = `{
+	t := template.Must(template.New("SeqInitEncoder").Parse(`{
 		{{.Name}}_l := len(value.{{.Name}})
 		dictSeq = make([]{{.FieldType}}, {{.Name}}_l)
 		for i := 0; i < {{.Name}}_l; i ++ {
@@ -182,8 +181,9 @@ func (f *SequenceField) GenToDict() (string, error) {
 		}
 		dict[\"{{.Name}}\"] = dictSeq
 	}
-	`
-	t := template.Must(template.New("SeqInitEncoder").Parse(Temp))
+	`))
+
+	var g strErrBuf
 	g.executeTemplate(t, f)
 	return g.output()
 }
