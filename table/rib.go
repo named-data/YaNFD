@@ -148,9 +148,7 @@ func (r *RibEntry) updateNexthopsEnc() {
 }
 
 // AddRoute adds or updates a RIB entry for the specified prefix.
-func (r *RibTable) AddEncRoute(
-	name enc.Name, faceID uint64, origin uint64, cost uint64, flags uint64, expirationPeriod *time.Duration,
-) {
+func (r *RibTable) AddEncRoute(name enc.Name, route *Route) {
 	name = name.Clone()
 	node := r.fillTreeToPrefixEnc(name)
 	if node.Name == nil {
@@ -160,21 +158,16 @@ func (r *RibTable) AddEncRoute(
 	defer node.updateNexthopsEnc()
 
 	for _, existingRoute := range node.routes {
-		if existingRoute.FaceID == faceID && existingRoute.Origin == origin {
-			existingRoute.Cost = cost
-			existingRoute.Flags = flags
-			existingRoute.ExpirationPeriod = expirationPeriod
+		if existingRoute.FaceID == route.FaceID && existingRoute.Origin == route.Origin {
+			existingRoute.Cost = route.Cost
+			existingRoute.Flags = route.Flags
+			existingRoute.ExpirationPeriod = route.ExpirationPeriod
 			return
 		}
 	}
 
-	node.routes = append(node.routes, &Route{
-		FaceID:           faceID,
-		Origin:           origin,
-		Cost:             cost,
-		Flags:            flags,
-		ExpirationPeriod: expirationPeriod,
-	})
+	node.routes = append(node.routes, route)
+	readvertiseAnnounce(name, route)
 }
 
 // GetAllEntries returns all routes in the RIB.
@@ -208,12 +201,13 @@ func (r *RibEntry) GetRoutes() []*Route {
 func (r *RibTable) RemoveRouteEnc(name enc.Name, faceID uint64, origin uint64) {
 	entry := r.findExactMatchEntryEnc(name)
 	if entry != nil {
-		for i, existingRoute := range entry.routes {
-			if existingRoute.FaceID == faceID && existingRoute.Origin == origin {
+		for i, route := range entry.routes {
+			if route.FaceID == faceID && route.Origin == origin {
 				if i < len(entry.routes)-1 {
 					copy(entry.routes[i:], entry.routes[i+1:])
 				}
 				entry.routes = entry.routes[:len(entry.routes)-1]
+				readvertiseWithdraw(name, route)
 				break
 			}
 		}
@@ -232,12 +226,14 @@ func (r *RibEntry) CleanUpFace(faceId uint64) {
 	if r.Name == nil {
 		return
 	}
-	for i, existingNexthop := range r.routes {
-		if existingNexthop.FaceID == faceId {
+
+	for i, route := range r.routes {
+		if route.FaceID == faceId {
 			if i < len(r.routes)-1 {
 				copy(r.routes[i:], r.routes[i+1:])
 			}
 			r.routes = r.routes[:len(r.routes)-1]
+			readvertiseWithdraw(r.Name, route)
 			break
 		}
 	}
