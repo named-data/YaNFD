@@ -78,17 +78,13 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 		name = append(name, enc.NewSequenceNumComponent(router.Known+1))
 	}
 
-	wire, _, finalName, err := dv.engine.Spec().MakeInterest(name, cfg, nil, nil)
+	interest, err := dv.engine.Spec().MakeInterest(name, cfg, nil, nil)
 	if err != nil {
 		log.Warnf("prefixDataFetch: failed to make Interest: %+v", err)
 		return
 	}
 
-	err = dv.engine.Express(finalName, cfg, wire, func(
-		result ndn.InterestResult,
-		data ndn.Data,
-		_, _ enc.Wire, _ uint64,
-	) {
+	err = dv.engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
 		go func() {
 			// Done fetching, restart if needed
 			defer func() {
@@ -100,11 +96,11 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 			}()
 
 			// Sleep this goroutine if no data was received
-			if result != ndn.InterestResultData {
-				log.Warnf("prefixDataFetch: failed to fetch prefix data %s: %d", finalName, result)
+			if args.Result != ndn.InterestResultData {
+				log.Warnf("prefixDataFetch: failed to fetch prefix data %s: %d", interest.FinalName, args.Result)
 
 				// see advertDataFetch
-				if result != ndn.InterestResultTimeout {
+				if args.Result != ndn.InterestResultTimeout {
 					time.Sleep(2 * time.Second)
 				} else {
 					time.Sleep(100 * time.Millisecond)
@@ -112,7 +108,7 @@ func (dv *Router) prefixDataFetch(nodeId enc.Name) {
 				return
 			}
 
-			dv.processPrefixData(data, router)
+			dv.processPrefixData(args.Data, router)
 		}()
 	})
 	if err != nil {

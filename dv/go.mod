@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/goccy/go-yaml v1.15.10
-	github.com/zjkmxy/go-ndn v0.0.8
+	github.com/zjkmxy/go-ndn v0.0.9-0.20241219044041-bbb142edba29
 )
 
 require (

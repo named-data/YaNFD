@@ -33,22 +33,19 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 		Nonce:       utils.ConvertNonce(dv.engine.Timer().Nonce()),
 	}
 
-	wire, _, finalName, err := dv.engine.Spec().MakeInterest(advName, cfg, nil, nil)
+	interest, err := dv.engine.Spec().MakeInterest(advName, cfg, nil, nil)
 	if err != nil {
 		log.Warnf("advertDataFetch: failed to make Interest: %+v", err)
 		return
 	}
 
 	// Fetch the advertisement
-	err = dv.engine.Express(finalName, cfg, wire, func(
-		result ndn.InterestResult, data ndn.Data,
-		_ enc.Wire, _ enc.Wire, _ uint64,
-	) {
+	err = dv.engine.Express(interest, func(args ndn.ExpressCallbackArgs) {
 		go func() { // Don't block the main loop
-			if result != ndn.InterestResultData {
+			if args.Result != ndn.InterestResultData {
 				// If this wasn't a timeout, wait for 2s before retrying
 				// This prevents excessive retries in case of NACKs
-				if result != ndn.InterestResultTimeout {
+				if args.Result != ndn.InterestResultTimeout {
 					time.Sleep(2 * time.Second)
 				} else {
 					time.Sleep(100 * time.Millisecond)
@@ -57,13 +54,13 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 				// Keep retrying until we get the advertisement
 				// If the router is dead, we break out of this by checking
 				// that the sequence number is gone (above)
-				log.Warnf("advertDataFetch: retrying %s: %+v", finalName.String(), result)
+				log.Warnf("advertDataFetch: retrying %s: %+v", interest.FinalName.String(), args.Result)
 				dv.advertDataFetch(nodeId, seqNo)
 				return
 			}
 
 			// Process the advertisement
-			dv.advertDataHandler(data)
+			dv.advertDataHandler(args.Data)
 		}()
 	})
 	if err != nil {
@@ -71,20 +68,8 @@ func (dv *Router) advertDataFetch(nodeId enc.Name, seqNo uint64) {
 	}
 }
 
-func (dv *Router) advertDataOnInterestAsync(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
-	go dv.advertDataOnInterest(interest, reply, extra)
-}
-
 // Received advertisement Interest
-func (dv *Router) advertDataOnInterest(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	_ ndn.InterestHandlerExtra,
-) {
+func (dv *Router) advertDataOnInterest(args ndn.InterestHandlerArgs) {
 	// For now, just send the latest advertisement at all times
 	// This will need to change if we switch to differential updates
 
@@ -98,8 +83,8 @@ func (dv *Router) advertDataOnInterest(
 		return dv.rib.Advert()
 	}().Encode()
 
-	wire, _, err := dv.engine.Spec().MakeData(
-		interest.Name(),
+	data, err := dv.engine.Spec().MakeData(
+		args.Interest.Name(),
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 			Freshness:   utils.IdPtr(10 * time.Second),
@@ -112,7 +97,7 @@ func (dv *Router) advertDataOnInterest(
 	}
 
 	// Send the Data packet
-	err = reply(wire)
+	err = args.Reply(data.Wire)
 	if err != nil {
 		log.Warnf("advertDataOnInterest: failed to reply: %+v", err)
 		return

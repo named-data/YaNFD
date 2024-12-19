@@ -197,7 +197,7 @@ func (pt *PrefixTable) publish(name enc.Name, content enc.Wire) {
 	// TODO: sign the prefix table data
 	signer := security.NewSha256Signer()
 
-	wire, _, err := pt.engine.Spec().MakeData(
+	data, err := pt.engine.Spec().MakeData(
 		name,
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
@@ -213,32 +213,20 @@ func (pt *PrefixTable) publish(name enc.Name, content enc.Wire) {
 	// Store the data packet in our mem repo
 	pt.repoMutex.Lock()
 	defer pt.repoMutex.Unlock()
-	pt.repo[name.Hash()] = wire.Join()
-}
-
-func (pt *PrefixTable) OnDataInterestAsync(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
-	go pt.onDataInterest(interest, reply, extra)
+	pt.repo[name.Hash()] = data.Wire.Join()
 }
 
 // Received prefix data Interest
-func (pt *PrefixTable) onDataInterest(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	_ ndn.InterestHandlerExtra,
-) {
+func (pt *PrefixTable) OnDataInterest(args ndn.InterestHandlerArgs) {
 	// TODO: remove old entries from repo
 
 	pt.repoMutex.RLock()
 	defer pt.repoMutex.RUnlock()
 
 	// Find exact match in repo
-	name := interest.Name()
+	name := args.Interest.Name()
 	if data := pt.repo[name.Hash()]; data != nil {
-		err := reply(enc.Wire{data})
+		err := args.Reply(enc.Wire{data})
 		if err != nil {
 			log.Warnf("prefix-table: failed to reply: %+v", err)
 		}

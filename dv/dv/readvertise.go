@@ -11,20 +11,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func (dv *Router) readvertiseOnInterestAsync(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
-	go dv.readvertiseOnInterest(interest, reply, extra)
-}
-
 // Received advertisement Interest
-func (dv *Router) readvertiseOnInterest(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	_ ndn.InterestHandlerExtra,
-) {
+func (dv *Router) readvertiseOnInterest(args ndn.InterestHandlerArgs) {
 	res := &mgmt.ControlResponse{
 		Val: &mgmt.ControlResponseVal{
 			StatusCode: 400,
@@ -35,8 +23,8 @@ func (dv *Router) readvertiseOnInterest(
 
 	defer func() {
 		signer := security.NewSha256Signer()
-		wire, _, err := dv.engine.Spec().MakeData(
-			interest.Name(),
+		data, err := dv.engine.Spec().MakeData(
+			args.Interest.Name(),
 			&ndn.DataConfig{
 				ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 				Freshness:   utils.IdPtr(1 * time.Second),
@@ -47,12 +35,12 @@ func (dv *Router) readvertiseOnInterest(
 			log.Warnf("readvertise: failed to make response Data: %+v", err)
 			return
 		}
-		reply(wire)
+		args.Reply(data.Wire)
 	}()
 
 	// /localhost/nlsr/rib/register/h%0C%07%07%08%05cathyo%01A/params-sha256=a971bb4753691b756cb58239e2585362a154ec6551985133990c8bd2401c466a
 	// readvertise:  /localhost/nlsr/rib/unregister/h%0C%07%07%08%05cathyo%01A/params-sha256=026dd595c75032c5101b321fbc11eeb96277661c66bc0564ac7ea1a281ae8210
-	iname := interest.Name()
+	iname := args.Interest.Name()
 	if len(iname) != 6 {
 		log.Warnf("readvertise: invalid interest %s", iname)
 		return

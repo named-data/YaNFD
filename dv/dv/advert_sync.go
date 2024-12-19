@@ -35,13 +35,13 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 
 	// TODO: sign the sync interest
 
-	wire, _, finalName, err := dv.engine.Spec().MakeInterest(syncName, cfg, sv.Encode(), nil)
+	interest, err := dv.engine.Spec().MakeInterest(syncName, cfg, sv.Encode(), nil)
 	if err != nil {
 		return err
 	}
 
 	// Sync Interest has no reply
-	err = dv.engine.Express(finalName, cfg, wire, nil)
+	err = dv.engine.Express(interest, nil)
 	if err != nil {
 		return err
 	}
@@ -49,34 +49,22 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	return nil
 }
 
-func (dv *Router) advertSyncOnInterestAsync(
-	interest ndn.Interest,
-	reply ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
-	go dv.advertSyncOnInterest(interest, reply, extra)
-}
-
-func (dv *Router) advertSyncOnInterest(
-	interest ndn.Interest,
-	_ ndn.ReplyFunc,
-	extra ndn.InterestHandlerExtra,
-) {
+func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
 	// Check if app param is present
-	if interest.AppParam() == nil {
+	if args.Interest.AppParam() == nil {
 		log.Warn("advertSyncOnInterest: received Sync Interest with no AppParam, ignoring")
 		return
 	}
 
 	// If there is no incoming face ID, we can't use this
-	if extra.IncomingFaceId == nil {
+	if args.IncomingFaceId == nil {
 		log.Warn("advertSyncOnInterest: received Sync Interest with no incoming face ID, ignoring")
 		return
 	}
 
 	// TODO: verify signature on Sync Interest
 
-	params, err := ndn_sync.ParseStateVectorAppParam(enc.NewWireReader(interest.AppParam()), true)
+	params, err := ndn_sync.ParseStateVectorAppParam(enc.NewWireReader(args.Interest.AppParam()), true)
 	if err != nil || params.StateVector == nil {
 		log.Warnf("advertSyncOnInterest: failed to parse StateVec: %+v", err)
 		return
@@ -99,7 +87,7 @@ func (dv *Router) advertSyncOnInterest(
 		if ns != nil {
 			if ns.AdvertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
-				ns.RecvPing(*extra.IncomingFaceId)
+				ns.RecvPing(*args.IncomingFaceId)
 				continue
 			}
 		} else {
@@ -109,7 +97,7 @@ func (dv *Router) advertSyncOnInterest(
 			ns = dv.neighbors.Add(nodeId)
 		}
 
-		ns.RecvPing(*extra.IncomingFaceId)
+		ns.RecvPing(*args.IncomingFaceId)
 		ns.AdvertSeq = entry.SeqNo
 
 		go dv.advertDataFetch(nodeId, entry.SeqNo)
