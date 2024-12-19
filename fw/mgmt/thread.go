@@ -83,20 +83,20 @@ func (m *Thread) sendInterest(name enc.Name, params enc.Wire) {
 		MustBeFresh: true,
 		Nonce:       utils.IdPtr(rand.Uint64()),
 	}
-	interestWire, _, finalName, err := spec.Spec{}.MakeInterest(
+	interest, err := spec.Spec{}.MakeInterest(
 		name, &config, params, sec.NewSha256IntSigner(m.timer))
 	if err != nil {
 		core.LogWarn(m, "Unable to encode Interest for ", name, ": ", err)
 		return
 	}
 
-	m.transport.Send(interestWire, nil, nil)
-	core.LogTrace(m, "Sent management Interest for ", finalName)
+	m.transport.Send(interest.Wire, nil, nil)
+	core.LogTrace(m, "Sent management Interest for ", interest.FinalName)
 }
 
 func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *spec.Interest, pitToken []byte, inFace uint64) {
 	encodedResponse := response.Encode()
-	dataWire, _, err := spec.Spec{}.MakeData(interest.NameV,
+	data, err := spec.Spec{}.MakeData(interest.NameV,
 		&ndn.DataConfig{
 			ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 			Freshness:   utils.IdPtr(time.Second),
@@ -109,7 +109,7 @@ func (m *Thread) sendResponse(response *mgmt.ControlResponse, interest *spec.Int
 		return
 	}
 
-	m.transport.Send(dataWire, pitToken, &inFace)
+	m.transport.Send(data.Wire, pitToken, &inFace)
 	core.LogTrace(m, "Sent ControlResponse for ", interest.Name())
 }
 

@@ -63,7 +63,7 @@ func makeStatusDataset(name enc.Name, version uint64, dataset enc.Wire) enc.Wire
 		return nil
 	}
 	name = append(name, enc.NewVersionComponent(version), enc.NewSegmentComponent(0))
-	wire, _, err := spec.Spec{}.MakeData(name,
+	data, err := spec.Spec{}.MakeData(name,
 		&ndn.DataConfig{
 			ContentType:  utils.IdPtr(ndn.ContentTypeBlob),
 			Freshness:    utils.IdPtr(time.Second),
@@ -76,5 +76,5 @@ func makeStatusDataset(name enc.Name, version uint64, dataset enc.Wire) enc.Wire
 		core.LogError("mgmt", "Unable to encode status dataset")
 		return nil
 	}
-	return wire
+	return data.Wire
 }
