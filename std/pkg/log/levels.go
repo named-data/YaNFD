@@ -15,6 +15,7 @@ type Level int
 // Log levels.
 const (
 	InvalidLevel Level = iota - 1
+	TraceLevel
 	DebugLevel
 	InfoLevel
 	WarnLevel
@@ -23,6 +24,7 @@ const (
 )
 
 var levelNames = [...]string{
+	TraceLevel: "trace",
 	DebugLevel: "debug",
 	InfoLevel:  "info",
 	WarnLevel:  "warn",
@@ -31,6 +33,7 @@ var levelNames = [...]string{
 }
 
 var levelStrings = map[string]Level{
+	"trace":   TraceLevel,
 	"debug":   DebugLevel,
 	"info":    InfoLevel,
 	"warn":    WarnLevel,

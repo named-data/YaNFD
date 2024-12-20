@@ -119,6 +119,11 @@ func (e *Entry) Fatal(msg string) {
 	os.Exit(1)
 }
 
+// Tracef level formatted message.
+func (e *Entry) Tracef(msg string, v ...interface{}) {
+	e.Trace(fmt.Sprintf(msg, v...))
+}
+
 // Debugf level formatted message.
 func (e *Entry) Debugf(msg string, v ...interface{}) {
 	e.Debug(fmt.Sprintf(msg, v...))

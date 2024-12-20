@@ -115,9 +115,9 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 	var incomingFaceId *uint64 = nil
 	var raw enc.Wire = nil
 
-	if e.log.Level <= log.DebugLevel {
+	if e.log.Level <= log.TraceLevel {
 		wire := reader.Range(0, reader.Length())
-		e.log.Debugf("Received packet bytes: %v", wire.Join())
+		e.log.Tracef("Received packet bytes: %v", wire.Join())
 	}
 
 	pkt, ctx, err := spec.ReadPacket(reader)
@@ -143,9 +143,9 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 		}
 		if err != nil || (pkt.Data == nil) == (pkt.Interest == nil) {
 			e.log.Errorf("Failed to parse packet in LpPacket: %v", err)
-			if e.log.Level <= log.DebugLevel {
+			if e.log.Level <= log.TraceLevel {
 				wire := reader.Range(0, reader.Length())
-				e.log.Debugf("Failed packet bytes: %v", wire.Join())
+				e.log.Tracef("Failed packet bytes: %v", wire.Join())
 			}
 			// Recoverable error. Should continue.
 			return nil
@@ -165,15 +165,15 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			e.log.Errorf("Received nack for an Data")
 			return nil
 		}
-		if e.log.Level <= log.DebugLevel {
+		if e.log.Level <= log.TraceLevel {
 			e.log.WithField("name", pkt.Interest.NameV.String()).
-				Debugf("Nack received for %v", nackReason)
+				Tracef("Nack received for %v", nackReason)
 		}
 		e.onNack(pkt.Interest.NameV, nackReason)
 	} else if pkt.Interest != nil {
-		if e.log.Level <= log.DebugLevel {
+		if e.log.Level <= log.TraceLevel {
 			e.log.WithField("name", pkt.Interest.NameV.String()).
-				Debug("Interest received.")
+				Trace("Interest received.")
 		}
 		e.onInterest(ndn.InterestHandlerArgs{
 			Interest:       pkt.Interest,
@@ -183,9 +183,9 @@ func (e *Engine) onPacket(reader enc.ParseReader) error {
 			IncomingFaceId: incomingFaceId,
 		})
 	} else if pkt.Data != nil {
-		if e.log.Level <= log.DebugLevel {
+		if e.log.Level <= log.TraceLevel {
 			e.log.WithField("name", pkt.Data.NameV.String()).
-				Debug("Data received.")
+				Trace("Data received.")
 		}
 		// PitToken is not used for now
 		e.onData(pkt.Data, ctx.Data_context.SigCovered(), raw, pitToken)
@@ -349,7 +349,7 @@ func (e *Engine) Start() error {
 	if e.face.IsRunning() {
 		return errors.New("Face is already running")
 	}
-	e.log.Info("Default engine start.")
+	e.log.Debug("Default engine start.")
 	e.face.SetCallback(e.onPacket, e.onError)
 	err := e.face.Open()
 	if err != nil {
@@ -363,7 +363,7 @@ func (e *Engine) Shutdown() error {
 	if !e.face.IsRunning() {
 		return errors.New("Face is not running")
 	}
-	e.log.Info("Default engine shutdown.")
+	e.log.Debug("Default engine shutdown.")
 	return e.face.Close()
 }
 
@@ -440,9 +440,9 @@ func (e *Engine) Express(interest *ndn.EncodedInterest, callback ndn.ExpressCall
 	err := e.face.Send(interest.Wire)
 	if err != nil {
 		e.log.Errorf("Failed to send Interest: %v", err)
-	} else if e.log.Level <= log.DebugLevel {
+	} else if e.log.Level <= log.TraceLevel {
 		e.log.WithField("name", finalName.String()).
-			Debug("Interest sent.")
+			Trace("Interest sent.")
 	}
 
 	return err
@@ -536,6 +536,7 @@ func NewEngine(face Face, timer ndn.Timer, cmdSigner ndn.Signer, cmdChecker ndn.
 		return nil
 	}
 	logger := log.WithField("module", "basic_engine")
+	logger.Level = log.InfoLevel
 	mgmtCfg := mgmt.NewConfig(face.IsLocal(), cmdSigner, spec.Spec{})
 	return &Engine{
 		face:       face,

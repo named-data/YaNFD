@@ -1,27 +1,67 @@
 package object
 
 import (
-	"time"
-
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
 type Client struct {
+	// underlying API engine.
+	engine ndn.Engine
+	// segment fetcher.
+	fetcher *rrSegFetcher
+
+	// stop the client
+	stop chan bool
+	// outgoing interest pipeline
+	outpipe chan ExpressRArgs
+	// incoming data pipeline for fetcher
+	seginpipe chan rrSegHandleDataArgs
+	// queue for segment fetcher
+	segfetch chan *ConsumeState
+	// check segment fetcher
+	segcheck chan bool
 }
 
-type ProduceArgs struct {
-	// name of the object to produce.
-	Name enc.Name
-	// raw data contents.
-	Content []byte
-	// version of the object (defaults to unix timestamp).
-	Version uint64
-	// time for which the object version can be cached (default 4s).
-	FreshnessPeriod time.Duration
-	// final expiry of the object (default 0 = no expiry).
-	Expiry time.Time
+func NewClient(engine ndn.Engine) *Client {
+	client := new(Client)
+	client.engine = engine
+	client.fetcher = newRrSegFetcher(client)
+
+	client.stop = make(chan bool)
+	client.outpipe = make(chan ExpressRArgs, 1024)
+	client.seginpipe = make(chan rrSegHandleDataArgs, 1024)
+	client.segfetch = make(chan *ConsumeState, 128)
+	client.segcheck = make(chan bool, 2)
+
+	return client
 }
 
-func (c *Client) Produce(args ProduceArgs) error {
+func (c *Client) Start() error {
+	go c.run()
 	return nil
+}
+
+func (c *Client) Stop() {
+	c.stop <- true
+}
+
+func (c *Client) Engine() ndn.Engine {
+	return c.engine
+}
+
+func (c *Client) run() {
+	for {
+		select {
+		case <-c.stop:
+			return
+		case args := <-c.outpipe:
+			c.expressRImpl(args)
+		case args := <-c.seginpipe:
+			c.fetcher.handleData(args.args, args.state)
+		case state := <-c.segfetch:
+			c.fetcher.add(state)
+		case <-c.segcheck:
+			c.fetcher.doCheck()
+		}
+	}
 }

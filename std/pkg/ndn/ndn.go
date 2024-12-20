@@ -185,6 +185,7 @@ type ExpressCallbackArgs struct {
 	RawData    enc.Wire
 	SigCovered enc.Wire
 	NackReason uint64
+	Error      error // for InterestResultError
 }
 
 // InterestHandler represents the callback function for an Interest handler.
