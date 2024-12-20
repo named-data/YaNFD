@@ -218,7 +218,8 @@ func (s *rrSegFetcher) handleData(args ndn.ExpressCallbackArgs, state *ConsumeSt
 
 		if state.wnd[1] == state.segCnt {
 			log.Debugf("consume: %s completed", state.name)
-			state.complete = true // removal is lazy
+			state.complete = true
+			s.remove(state)
 		}
 
 		state.callback(state) // progress
