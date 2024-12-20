@@ -74,13 +74,6 @@ func (s *rrSegFetcher) queueCheck() {
 
 // check for more work
 func (s *rrSegFetcher) doCheck() {
-	sent := false
-	defer func() {
-		if sent {
-			s.doCheck()
-		}
-	}()
-
 	if s.outstanding >= s.window {
 		return
 	}
@@ -125,7 +118,7 @@ func (s *rrSegFetcher) doCheck() {
 	seg := uint64(state.wnd[2])
 	s.outstanding++
 	state.wnd[2]++
-	sent = true
+	defer s.doCheck()
 
 	// queue outgoing interest for the next segment
 	args := ExpressRArgs{
