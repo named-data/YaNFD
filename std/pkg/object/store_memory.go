@@ -1,10 +1,16 @@
 package object
 
-import enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+import (
+	"sync"
+
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+)
 
 type MemoryStore struct {
 	// root of the store
 	root *memoryStoreNode
+	// thread safety
+	mutex sync.RWMutex
 }
 
 type memoryStoreNode struct {
@@ -25,6 +31,9 @@ func NewMemoryStore() *MemoryStore {
 }
 
 func (s *MemoryStore) Get(name enc.Name, prefix bool) ([]byte, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	if node := s.root.find(name); node != nil {
 		if node.wire == nil && prefix {
 			node = node.findNewest()
@@ -35,11 +44,17 @@ func (s *MemoryStore) Get(name enc.Name, prefix bool) ([]byte, error) {
 }
 
 func (s *MemoryStore) Put(name enc.Name, version uint64, wire []byte) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.root.insert(name, version, wire)
 	return nil
 }
 
 func (s *MemoryStore) Remove(name enc.Name, prefix bool) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.root.remove(name, prefix)
 	return nil
 }

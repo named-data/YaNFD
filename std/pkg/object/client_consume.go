@@ -149,9 +149,9 @@ func (c *Client) fetchMetadata(
 		Config: &ndn.InterestConfig{
 			CanBePrefix: true,
 			MustBeFresh: true,
-			Lifetime:    utils.IdPtr(time.Millisecond * 500),
+			Lifetime:    utils.IdPtr(time.Millisecond * 1000),
 		},
-		Retries: 30,
+		Retries: 3,
 	}
 	c.ExpressR(args, func(args ndn.ExpressCallbackArgs) {
 		if args.Result == ndn.InterestResultError {

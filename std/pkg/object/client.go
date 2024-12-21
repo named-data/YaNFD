@@ -3,6 +3,7 @@ package object
 import (
 	"errors"
 
+	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
@@ -45,6 +46,9 @@ func (c *Client) Start() error {
 	if !c.engine.IsRunning() {
 		return errors.New("client start when engine not running")
 	}
+
+	// catch all interests to the store
+	c.engine.AttachHandler(enc.Name{}, c.onInterest)
 
 	go c.run()
 	return nil
