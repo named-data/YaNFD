@@ -64,6 +64,10 @@ func (c *Client) Produce(args ProduceArgs) (enc.Name, error) {
 	basename := append(args.Name, enc.NewVersionComponent(version))
 	signer := sec.NewSha256Signer()
 
+	// use a transaction to ensure the entire object is written
+	c.store.Begin()
+	defer c.store.Commit()
+
 	var seg uint64
 	for seg = 0; len(content) > 0; seg++ {
 		name := append(basename, enc.NewSegmentComponent(seg))

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"sync"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	bolt "go.etcd.io/bbolt"
@@ -15,11 +16,14 @@ var ErrBoltNoBucket = errors.New("no bucket in bolt")
 // Store implementation using bbolt
 // Internally it uses a single bucket to store all data
 // Internal storage format is not stable. Do not rely on it.
+// Note: insertions to bolt are comically slow unless batched.
 //
 //	The key is the name of the object as a TLV encoded byte slice
 //	The value is the 8-byte version (big endian), followed by data wire
 type BoltStore struct {
-	db *bolt.DB
+	db   *bolt.DB
+	tx   *bolt.Tx
+	wmut sync.Mutex
 }
 
 func NewBoltStore(path string) (*BoltStore, error) {
@@ -87,18 +91,30 @@ func (s *BoltStore) Get(name enc.Name, prefix bool) (wire []byte, err error) {
 
 func (s *BoltStore) Put(name enc.Name, version uint64, wire []byte) error {
 	key := s.encodeName(name)
-	return s.db.Update(func(tx *bolt.Tx) error {
+
+	buf := make([]byte, 8, 8+len(wire))
+	binary.BigEndian.PutUint64(buf, version)
+	buf = append(buf, wire...)
+
+	// get lock after encoding data
+	s.wmut.Lock()
+	defer s.wmut.Unlock()
+
+	// insert data into bolt
+	update := func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(BoltBucket)
 		if bucket == nil {
 			return ErrBoltNoBucket
 		}
-
-		buf := make([]byte, 8, 8+len(wire))
-		binary.BigEndian.PutUint64(buf, version)
-		buf = append(buf, wire...)
-
 		return bucket.Put(key, buf)
-	})
+	}
+
+	// use current transaction if available otherwise create a new one
+	if s.tx != nil {
+		return update(s.tx)
+	} else {
+		return s.db.Update(update)
+	}
 }
 
 func (s *BoltStore) Remove(name enc.Name, prefix bool) error {
@@ -121,6 +137,43 @@ func (s *BoltStore) Remove(name enc.Name, prefix bool) error {
 			return bucket.Delete(key)
 		}
 	})
+}
+
+func (s *BoltStore) Begin() error {
+	// bolt has only one concurrent write transaction
+	// so this will block if there is already a write transaction
+	tx, err := s.db.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	s.wmut.Lock()
+	defer s.wmut.Unlock()
+
+	if s.tx != nil {
+		panic("bolt: write transaction already in progress")
+	}
+	s.tx = tx
+
+	return nil
+}
+
+func (s *BoltStore) Commit() error {
+	s.wmut.Lock()
+	defer s.wmut.Unlock()
+
+	err := s.tx.Commit()
+	s.tx = nil
+	return err
+}
+
+func (s *BoltStore) Rollback() error {
+	s.wmut.Lock()
+	defer s.wmut.Unlock()
+
+	err := s.tx.Rollback()
+	s.tx = nil
+	return err
 }
 
 func (s *BoltStore) encodeName(name enc.Name) []byte {

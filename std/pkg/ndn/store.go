@@ -13,4 +13,13 @@ type Store interface {
 	// removes a Data wire from the store
 	// if prefix is set, all names with the given prefix are removed
 	Remove(name enc.Name, prefix bool) error
+
+	// begin a write transaction (for put only)
+	// we support these primarily for perforamnce rather than correctness
+	// do not rely on atomicity of transactions as far as possible
+	Begin() error
+	// commit a write transaction
+	Commit() error
+	// rollback a write transaction
+	Rollback() error
 }

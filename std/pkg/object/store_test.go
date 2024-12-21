@@ -120,6 +120,54 @@ func testStore(t *testing.T, store ndn.Store) {
 	data, err = store.Get(name1[:2], true)
 	require.NoError(t, err)
 	require.Equal(t, wire5, data)
+
+	// tests for transaction
+	txname1, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v1")
+	txname2, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v5")
+	txname3, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v9")
+
+	// put data1 and data2 under transaction
+	// verify that neither can be seen
+	err = store.Begin()
+	require.NoError(t, err)
+	require.NoError(t, store.Put(txname1, 1, wire1))
+	data, err = store.Get(txname1, false)
+	require.NoError(t, err)
+	require.Equal(t, []byte(nil), data)
+
+	require.NoError(t, store.Put(txname2, 5, wire2))
+	data, err = store.Get(txname2, false)
+	require.NoError(t, err)
+	require.Equal(t, []byte(nil), data)
+
+	// commit transaction
+	require.NoError(t, store.Commit())
+
+	// verify that both data can be seen
+	data, err = store.Get(txname1, false)
+	require.NoError(t, err)
+	require.Equal(t, wire1, data)
+	data, err = store.Get(txname2, false)
+	require.NoError(t, err)
+	require.Equal(t, wire2, data)
+
+	// add data3 under transaction and rollback
+	err = store.Begin()
+	require.NoError(t, err)
+	require.NoError(t, store.Put(txname3, 9, wire3))
+	data, err = store.Get(txname3, false)
+	require.NoError(t, err)
+	require.Equal(t, []byte(nil), data)
+	store.Rollback()
+	data, err = store.Get(txname3, false)
+	require.NoError(t, err)
+	require.Equal(t, []byte(nil), data)
+
+	// insert data3 now without transaction
+	require.NoError(t, store.Put(txname3, 9, wire3))
+	data, err = store.Get(txname3, false)
+	require.NoError(t, err)
+	require.Equal(t, wire3, data)
 }
 
 func TestMemoryStore(t *testing.T) {

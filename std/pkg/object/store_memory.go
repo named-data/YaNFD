@@ -11,6 +11,11 @@ type MemoryStore struct {
 	root *memoryStoreNode
 	// thread safety
 	mutex sync.RWMutex
+
+	// active transaction
+	tx *memoryStoreNode
+	// transaction mutex
+	txMutex sync.Mutex
 }
 
 type memoryStoreNode struct {
@@ -47,7 +52,12 @@ func (s *MemoryStore) Put(name enc.Name, version uint64, wire []byte) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.root.insert(name, version, wire)
+	root := s.root
+	if s.tx != nil {
+		root = s.tx
+	}
+
+	root.insert(name, version, wire)
 	return nil
 }
 
@@ -56,6 +66,27 @@ func (s *MemoryStore) Remove(name enc.Name, prefix bool) error {
 	defer s.mutex.Unlock()
 
 	s.root.remove(name, prefix)
+	return nil
+}
+
+func (s *MemoryStore) Begin() error {
+	s.txMutex.Lock()
+	s.tx = &memoryStoreNode{}
+	return nil
+}
+
+func (s *MemoryStore) Commit() error {
+	defer s.txMutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.root.merge(s.tx)
+	s.tx = nil
+	return nil
+}
+
+func (s *MemoryStore) Rollback() error {
+	defer s.txMutex.Unlock()
+	s.tx = nil
 	return nil
 }
 
@@ -132,4 +163,23 @@ func (n *memoryStoreNode) remove(name enc.Name, prefix bool) bool {
 	}
 
 	return n.wire == nil && len(n.children) == 0
+}
+
+func (n *memoryStoreNode) merge(tx *memoryStoreNode) {
+	if tx.wire != nil {
+		n.wire = tx.wire
+		n.version = tx.version
+	}
+
+	for key, child := range tx.children {
+		if n.children == nil {
+			n.children = make(map[string]*memoryStoreNode)
+		}
+
+		if nchild := n.children[key]; nchild != nil {
+			nchild.merge(child)
+		} else {
+			n.children[key] = child
+		}
+	}
 }
