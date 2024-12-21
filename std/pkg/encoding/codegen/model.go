@@ -248,15 +248,15 @@ func (m *TlvModel) GenReadFrom(buf *bytes.Buffer) error {
 	})
 }
 
-func (m *TlvModel) detectParsingContext() {
-	m.WithParsingContext = false
-	for _, f := range m.Fields {
-		str, _ := f.GenParsingContextStruct()
-		if str != "" {
-			m.WithParsingContext = true
-		}
-	}
-}
+// func (m *TlvModel) detectParsingContext() {
+// 	m.WithParsingContext = false
+// 	for _, f := range m.Fields {
+// 		str, _ := f.GenParsingContextStruct()
+// 		if str != "" {
+// 			m.WithParsingContext = true
+// 		}
+// 	}
+// }
 
 func (m *TlvModel) genPublicEncode(buf *bytes.Buffer) error {
 	return template.Must(template.New("PublicEncode").Parse(`

@@ -25,12 +25,12 @@ func (f *StringField) GenEncodingLength() (string, error) {
 		g.printlnf("if value.%s != nil {", f.name)
 		g.printlne(GenTypeNumLen(f.typeNum))
 		g.printlne(GenNaturalNumberLen("len(*value."+f.name+")", true))
-		g.printlnf("l += uint(len(*value." + f.name + "))")
+		g.printlnf("l += uint(len(*value.%s))", f.name)
 		g.printlnf("}")
 	} else {
 		g.printlne(GenTypeNumLen(f.typeNum))
 		g.printlne(GenNaturalNumberLen("len(value."+f.name+")", true))
-		g.printlnf("l += uint(len(value." + f.name + "))")
+		g.printlnf("l += uint(len(value.%s))", f.name)
 	}
 	return g.output()
 }
@@ -45,14 +45,14 @@ func (f *StringField) GenEncodeInto() (string, error) {
 		g.printlnf("if value.%s != nil {", f.name)
 		g.printlne(GenEncodeTypeNum(f.typeNum))
 		g.printlne(GenNaturalNumberEncode("len(*value."+f.name+")", true))
-		g.printlnf("copy(buf[pos:], *value." + f.name + ")")
-		g.printlnf("pos += uint(len(*value." + f.name + "))")
+		g.printlnf("copy(buf[pos:], *value.%s)", f.name)
+		g.printlnf("pos += uint(len(*value.%s))", f.name)
 		g.printlnf("}")
 	} else {
 		g.printlne(GenEncodeTypeNum(f.typeNum))
 		g.printlne(GenNaturalNumberEncode("len(value."+f.name+")", true))
-		g.printlnf("copy(buf[pos:], value." + f.name + ")")
-		g.printlnf("pos += uint(len(value." + f.name + "))")
+		g.printlnf("copy(buf[pos:], value.%s)", f.name)
+		g.printlnf("pos += uint(len(value.%s))", f.name)
 	}
 	return g.output()
 }

@@ -29,7 +29,7 @@ func (f *BoolField) GenEncodingWirePlan() (string, error) {
 
 func (f *BoolField) GenEncodeInto() (string, error) {
 	g := strErrBuf{}
-	g.printlnf("if value." + f.name + " {")
+	g.printlnf("if value.%s {", f.name)
 	g.printlne(GenEncodeTypeNum(f.typeNum))
 	g.printlne(GenEncodeTypeNum(0))
 	g.printlnf("}")

@@ -57,7 +57,7 @@ func (f *NaturalField) GenReadFrom() (string, error) {
 		g.printlnf("{")
 		g.printlnf("tempVal := uint64(0)")
 		g.printlne(GenNaturalNumberDecode("tempVal"))
-		g.printlnf("value." + f.name + " = &tempVal")
+		g.printlnf("value.%s = &tempVal", f.name)
 		g.printlnf("}")
 		return g.output()
 	} else {

@@ -46,7 +46,7 @@ func (f *WireField) GenEncodingLength() (string, error) {
 	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenTypeNumLen(f.typeNum))
 	g.printlne(GenNaturalNumberLen("encoder."+f.name+"_length", true))
-	g.printlnf("l += encoder." + f.name + "_length")
+	g.printlnf("l += encoder.%s_length", f.name)
 	g.printlnf("}")
 	return g.output()
 }

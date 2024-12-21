@@ -36,8 +36,8 @@ func (f *BinaryField) GenEncodeInto() (string, error) {
 	g.printlnf("if value.%s != nil {", f.name)
 	g.printlne(GenEncodeTypeNum(f.typeNum))
 	g.printlne(GenNaturalNumberEncode("len(value."+f.name+")", true))
-	g.printlnf("copy(buf[pos:], value." + f.name + ")")
-	g.printlnf("pos += uint(len(value." + f.name + "))")
+	g.printlnf("copy(buf[pos:], value.%s)", f.name)
+	g.printlnf("pos += uint(len(value.%s))", f.name)
 	g.printlnf("}")
 	return g.output()
 }
