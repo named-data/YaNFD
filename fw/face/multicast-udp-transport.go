@@ -158,7 +158,7 @@ func (t *MulticastUDPTransport) sendFrame(frame []byte) {
 func (t *MulticastUDPTransport) runReceive() {
 	defer t.Close()
 
-	for {
+	for t.running.Load() {
 		err := readTlvStream(t.recvConn, func(b []byte) {
 			t.nInBytes += uint64(len(b))
 			t.linkService.handleIncomingFrame(b)
@@ -166,16 +166,13 @@ func (t *MulticastUDPTransport) runReceive() {
 			// Same as unicast UDP transport
 			return strings.Contains(err.Error(), "connection refused")
 		})
-		if err != nil {
-			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
-
+		if err != nil && t.running.Load() {
 			// Re-create the socket if connection is still running
-			if t.running.Load() {
-				err = t.connectRecv()
-				if err != nil {
-					core.LogError(t, "Unable to re-create receive connection: ", err)
-					return
-				}
+			core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
+			err = t.connectRecv()
+			if err != nil {
+				core.LogError(t, "Unable to re-create receive connection: ", err)
+				return
 			}
 		}
 	}
