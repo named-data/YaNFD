@@ -11,7 +11,8 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-const maxObjectSeg = 1e9
+// maximum number of segments in an object (for safety)
+const maxObjectSeg = 1e8
 
 // callback for consume API
 // return true to continue fetching the object
