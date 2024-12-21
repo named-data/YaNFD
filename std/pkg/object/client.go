@@ -7,26 +7,29 @@ import (
 )
 
 type Client struct {
-	// underlying API engine.
+	// underlying API engine
 	engine ndn.Engine
-	// segment fetcher.
-	fetcher *rrSegFetcher
+	// data storage
+	store ndn.Store
+	// segment fetcher
+	fetcher rrSegFetcher
 
 	// stop the client
 	stop chan bool
 	// outgoing interest pipeline
 	outpipe chan ExpressRArgs
-	// incoming data pipeline for fetcher
+	// [fetcher] incoming data pipeline
 	seginpipe chan rrSegHandleDataArgs
-	// queue for segment fetcher
+	// [fetcher] queue for new object fetch
 	segfetch chan *ConsumeState
-	// check segment fetcher
+	// [fetcher] recheck segment fetcher
 	segcheck chan bool
 }
 
-func NewClient(engine ndn.Engine) *Client {
+func NewClient(engine ndn.Engine, store ndn.Store) *Client {
 	client := new(Client)
 	client.engine = engine
+	client.store = store
 	client.fetcher = newRrSegFetcher(client)
 
 	client.stop = make(chan bool)

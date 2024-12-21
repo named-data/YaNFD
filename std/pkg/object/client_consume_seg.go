@@ -29,8 +29,8 @@ type rrSegHandleDataArgs struct {
 	args  ndn.ExpressCallbackArgs
 }
 
-func newRrSegFetcher(client *Client) *rrSegFetcher {
-	return &rrSegFetcher{
+func newRrSegFetcher(client *Client) rrSegFetcher {
+	return rrSegFetcher{
 		client:      client,
 		streams:     make([]*ConsumeState, 0),
 		window:      10,

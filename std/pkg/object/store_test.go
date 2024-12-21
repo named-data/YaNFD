@@ -5,11 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/object"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func testStore(t *testing.T, store object.Store) {
+func testStore(t *testing.T, store ndn.Store) {
 	// test get when empty
 	name1, _ := enc.NameFromStr("/ndn/edu/ucla/test/packet/v1")
 	name2, _ := enc.NameFromStr("/ndn/edu/ucla/test/packet/v5")
