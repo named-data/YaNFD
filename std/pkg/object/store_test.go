@@ -11,8 +11,7 @@ import (
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-func testStore(t *testing.T, store ndn.Store) {
-	// test get when empty
+func testStoreBasic(t *testing.T, store ndn.Store) {
 	name1, _ := enc.NameFromStr("/ndn/edu/ucla/test/packet/v1")
 	name2, _ := enc.NameFromStr("/ndn/edu/ucla/test/packet/v5")
 	name3, _ := enc.NameFromStr("/ndn/edu/ucla/test/packet/v9")
@@ -25,6 +24,7 @@ func testStore(t *testing.T, store ndn.Store) {
 	wire4 := []byte{0x0a, 0x0b, 0x0c}
 	wire5 := []byte{0x0d, 0x0e, 0x0f}
 
+	// test get when empty
 	data, err := store.Get(name1, false)
 	require.NoError(t, err)
 	require.Equal(t, []byte(nil), data)
@@ -120,18 +120,23 @@ func testStore(t *testing.T, store ndn.Store) {
 	data, err = store.Get(name1[:2], true)
 	require.NoError(t, err)
 	require.Equal(t, wire5, data)
+}
 
-	// tests for transaction
+func testStoreTxn(t *testing.T, store ndn.Store) {
 	txname1, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v1")
 	txname2, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v5")
 	txname3, _ := enc.NameFromStr("/ndn/edu/memphis/test/packet/v9")
 
+	wire1 := []byte{0x01, 0x02, 0x03}
+	wire2 := []byte{0x04, 0x05, 0x06}
+	wire3 := []byte{0x07, 0x08, 0x09}
+
 	// put data1 and data2 under transaction
 	// verify that neither can be seen
-	err = store.Begin()
+	err := store.Begin()
 	require.NoError(t, err)
 	require.NoError(t, store.Put(txname1, 1, wire1))
-	data, err = store.Get(txname1, false)
+	data, err := store.Get(txname1, false)
 	require.NoError(t, err)
 	require.Equal(t, []byte(nil), data)
 
@@ -173,7 +178,8 @@ func testStore(t *testing.T, store ndn.Store) {
 func TestMemoryStore(t *testing.T) {
 	utils.SetTestingT(t)
 	store := object.NewMemoryStore()
-	testStore(t, store)
+	testStoreBasic(t, store)
+	testStoreTxn(t, store)
 }
 
 func TestBoltStore(t *testing.T) {
@@ -181,8 +187,10 @@ func TestBoltStore(t *testing.T) {
 	filename := "test.db"
 	os.Remove(filename)
 	defer os.Remove(filename)
+
 	store, err := object.NewBoltStore(filename)
 	require.NoError(t, err)
-	testStore(t, store)
+	testStoreBasic(t, store)
+	testStoreTxn(t, store)
 	require.NoError(t, store.Close())
 }
