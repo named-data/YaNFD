@@ -47,8 +47,9 @@ func (c *Client) Start() error {
 		return errors.New("client start when engine not running")
 	}
 
-	// catch all interests to the store
-	c.engine.AttachHandler(enc.Name{}, c.onInterest)
+	if err := c.engine.AttachHandler(enc.Name{}, c.onInterest); err != nil {
+		return err
+	}
 
 	go c.run()
 	return nil

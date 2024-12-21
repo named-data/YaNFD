@@ -28,8 +28,8 @@ var ErrFailedToEncode = errors.New("failed to encode an NDN packet")
 // ErrWrongType is returned when the type of the packet to parse is not expected.
 var ErrWrongType = errors.New("packet to parse is not of desired type")
 
-// ErrPrefixPropViolation is returned when the prefix property is violated during handler registration.
-var ErrPrefixPropViolation = errors.New("a prefix or extention of the given handler prefix is already attached")
+// ErrMultipleHandlers is returned when multiple handlers are attached to the same prefix.
+var ErrMultipleHandlers = errors.New("multiple handlers attached to the same prefix")
 
 // ErrDeadlineExceed is returned when the deadline of the Interest passed.
 var ErrDeadlineExceed = errors.New("interest deadline exceeded")

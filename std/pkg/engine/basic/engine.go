@@ -76,13 +76,9 @@ func (e *Engine) Timer() ndn.Timer {
 func (e *Engine) AttachHandler(prefix enc.Name, handler ndn.InterestHandler) error {
 	e.fibLock.Lock()
 	defer e.fibLock.Unlock()
-
-	pred := func(cb fibEntry) bool {
-		return cb != nil
-	}
-	n := e.fib.FirstSatisfyOrNew(prefix, pred)
-	if n.Value() != nil || n.HasChildren() {
-		return ndn.ErrPrefixPropViolation
+	n := e.fib.MatchAlways(prefix)
+	if n.Value() != nil {
+		return ndn.ErrMultipleHandlers
 	}
 	n.SetValue(handler)
 	return nil
@@ -202,17 +198,18 @@ func (e *Engine) onInterest(args ndn.InterestHandlerArgs) {
 		e.fibLock.Lock()
 		defer e.fibLock.Unlock()
 		n := e.fib.PrefixMatch(name)
-		// We can directly return because of the prefix-free condition
-		return n.Value()
-		// If it does not hold, us the following:
-		// for n != nil && n.Value() == nil {
-		// 	n = n.Parent()
-		// }
-		// if n == nil {
-		// 	return nil
-		// } else {
-		// 	return n.Value()
-		// }
+
+		// If we have the prefix-free condition, we can return the value here
+		// directly. But we need longest prefix match now.
+		// return n.Value()
+
+		for n != nil && n.Value() == nil {
+			n = n.Parent()
+		}
+		if n != nil {
+			return n.Value()
+		}
+		return nil
 	}()
 	if handler == nil {
 		e.log.WithField("name", name.String()).Warn("No handler. Drop.")

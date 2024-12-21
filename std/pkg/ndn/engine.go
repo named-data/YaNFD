@@ -24,8 +24,6 @@ type Engine interface {
 	IsRunning() bool
 
 	// AttachHandler attaches an Interest handler to the namespace of prefix.
-	// Interest handlers are required to have non-overlapping namespace.
-	// That is, one handler's prefix must not be the prefix of another handler's prefix.
 	AttachHandler(prefix enc.Name, handler InterestHandler) error
 	// DetachHandler detaches an Interest handler from the namespace of prefix.
 	DetachHandler(prefix enc.Name) error
