@@ -1,7 +1,6 @@
 package svs
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -11,6 +10,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	stlv "github.com/zjkmxy/go-ndn/pkg/ndn/svs_2024"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -18,7 +18,7 @@ import (
 type SyncState int
 
 type MissingData struct {
-	NodeId   []byte
+	NodeId   enc.Name
 	StartSeq uint64
 	EndSeq   uint64
 }
@@ -43,7 +43,7 @@ type SvsNode struct {
 	SuppressionInterval time.Duration
 	BaseMatching        enc.Matching
 	ChannelSize         uint64
-	SelfNodeId          []byte
+	SelfNodeId          enc.Name
 
 	dataLock        sync.Mutex
 	timer           ndn.Timer
@@ -51,8 +51,8 @@ type SvsNode struct {
 	missChan        chan MissingData
 	stopChan        chan struct{}
 
-	localSv   StateVec
-	aggSv     StateVec
+	localSv   stlv.StateVector
+	aggSv     stlv.StateVector
 	state     SyncState
 	selfSeq   uint64
 	ownPrefix enc.Name
@@ -98,10 +98,10 @@ func CreateSvsNode(node *schema.Node) schema.NodeImpl {
 	return ret
 }
 
-func (v *StateVec) findSvsEntry(nodeId []byte) int {
+func findSvsEntry(v *stlv.StateVector, nodeId enc.Name) int {
 	// This is less efficient but enough for a demo.
 	for i, n := range v.Entries {
-		if bytes.Equal(n.NodeId, nodeId) {
+		if nodeId.Equal(n.NodeId) {
 			return i
 		}
 	}
@@ -111,7 +111,7 @@ func (v *StateVec) findSvsEntry(nodeId []byte) int {
 func (n *SvsNode) onSyncInt(event *schema.Event) any {
 	mNotifNode := event.Target
 	logger := mNotifNode.Logger("SvsNode") // the path will be the subchild
-	remoteSv, err := ParseStateVec(enc.NewWireReader(event.Content), true)
+	remoteSv, err := stlv.ParseStateVector(enc.NewWireReader(event.Content), true)
 	if err != nil {
 		logger.Error("Unable to parse state vector. Drop.")
 	}
@@ -124,9 +124,9 @@ func (n *SvsNode) onSyncInt(event *schema.Event) any {
 	// needFetch := false
 	needNotif := false
 	for _, cur := range remoteSv.Entries {
-		li := n.localSv.findSvsEntry(cur.NodeId)
+		li := findSvsEntry(&n.localSv, cur.NodeId)
 		if li == -1 {
-			n.localSv.Entries = append(n.localSv.Entries, &StateVecEntry{
+			n.localSv.Entries = append(n.localSv.Entries, &stlv.StateVectorEntry{
 				NodeId: cur.NodeId,
 				SeqNo:  cur.SeqNo,
 			})
@@ -151,7 +151,7 @@ func (n *SvsNode) onSyncInt(event *schema.Event) any {
 		}
 	}
 	for _, cur := range n.localSv.Entries {
-		li := remoteSv.findSvsEntry(cur.NodeId)
+		li := findSvsEntry(remoteSv, cur.NodeId)
 		if li == -1 {
 			needNotif = true
 		}
@@ -185,7 +185,7 @@ func (n *SvsNode) onSyncInt(event *schema.Event) any {
 		// Set the aggregation timer
 		if n.state == SyncSteady {
 			n.state = SyncSupression
-			n.aggSv = StateVec{Entries: make([]*StateVecEntry, len(remoteSv.Entries))}
+			n.aggSv = stlv.StateVector{Entries: make([]*stlv.StateVectorEntry, len(remoteSv.Entries))}
 			copy(n.aggSv.Entries, remoteSv.Entries)
 			n.cancelSyncTimer()
 			n.cancelSyncTimer = n.timer.Schedule(n.getAggIntv(), n.onSyncTimer)
@@ -211,11 +211,11 @@ func (n *SvsNode) MySequence() uint64 {
 	return n.selfSeq
 }
 
-func (n *SvsNode) aggregate(remoteSv *StateVec) {
+func (n *SvsNode) aggregate(remoteSv *stlv.StateVector) {
 	for _, cur := range remoteSv.Entries {
-		li := n.aggSv.findSvsEntry(cur.NodeId)
+		li := findSvsEntry(&n.aggSv, cur.NodeId)
 		if li == -1 {
-			n.aggSv.Entries = append(n.aggSv.Entries, &StateVecEntry{
+			n.aggSv.Entries = append(n.aggSv.Entries, &stlv.StateVectorEntry{
 				NodeId: cur.NodeId,
 				SeqNo:  cur.SeqNo,
 			})
@@ -234,7 +234,7 @@ func (n *SvsNode) onSyncTimer() {
 		n.state = SyncSteady
 		notNecessary = true
 		for _, cur := range n.localSv.Entries {
-			li := n.aggSv.findSvsEntry(cur.NodeId)
+			li := findSvsEntry(&n.aggSv, cur.NodeId)
 			if li == -1 || n.aggSv.Entries[li].SeqNo < cur.SeqNo {
 				notNecessary = false
 				break
@@ -276,7 +276,7 @@ func (n *SvsNode) NewData(mNode schema.MatchedNode, content enc.Wire) enc.Wire {
 	mLeafNode := mNode.Refine(newDataName)
 	ret := mLeafNode.Call("Provide", content).(enc.Wire)
 	if len(ret) > 0 {
-		li := n.localSv.findSvsEntry(n.SelfNodeId)
+		li := findSvsEntry(&n.localSv, n.SelfNodeId)
 		if li >= 0 {
 			n.localSv.Entries[li].SeqNo = n.selfSeq
 		}
@@ -302,12 +302,12 @@ func (n *SvsNode) onAttach(event *schema.Event) any {
 	defer n.dataLock.Unlock()
 
 	n.ownPrefix = event.TargetNode.Apply(n.BaseMatching).Name
-	n.ownPrefix = append(n.ownPrefix, enc.Component{Typ: enc.TypeGenericNameComponent, Val: n.SelfNodeId})
+	n.ownPrefix = append(n.ownPrefix, n.SelfNodeId...)
 
 	// OnMissingData callback
 
-	n.localSv = StateVec{Entries: make([]*StateVecEntry, 0)}
-	n.aggSv = StateVec{Entries: make([]*StateVecEntry, 0)}
+	n.localSv = stlv.StateVector{Entries: make([]*stlv.StateVectorEntry, 0)}
+	n.aggSv = stlv.StateVector{Entries: make([]*stlv.StateVectorEntry, 0)}
 	// n.onMiss = schema.NewEvent[*SvsOnMissingEvent]()
 	n.state = SyncSteady
 	n.missChan = make(chan MissingData, n.ChannelSize)
@@ -321,7 +321,7 @@ func (n *SvsNode) onAttach(event *schema.Event) any {
 
 	// initialize localSv
 	// TODO: this demo does not consider recovery from off-line. Should be done via ENV and storage policy.
-	n.localSv.Entries = append(n.localSv.Entries, &StateVecEntry{
+	n.localSv.Entries = append(n.localSv.Entries, &stlv.StateVectorEntry{
 		NodeId: n.SelfNodeId,
 		SeqNo:  0,
 	})

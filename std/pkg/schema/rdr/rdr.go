@@ -7,7 +7,7 @@ import (
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	rdrtlv "github.com/zjkmxy/go-ndn/pkg/ndn/rdr_2024"
+	rtlv "github.com/zjkmxy/go-ndn/pkg/ndn/rdr_2024"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
@@ -282,7 +282,7 @@ func (n *RdrNode) Provide(mNode schema.MatchedNode, content enc.Wire) uint64 {
 		Freshness:    utils.IdPtr(n.MetaFreshness),
 		FinalBlockID: utils.IdPtr(enc.NewSegmentComponent(0)),
 	}
-	metaData := &rdrtlv.MetaData{
+	metaData := &rtlv.MetaData{
 		Name:         dataName,
 		FinalBlockID: enc.NewSegmentComponent(segCnt - 1).Bytes(),
 		Size:         utils.IdPtr(content.Length()),
@@ -302,7 +302,7 @@ func (n *RdrNode) NeedCallback(mNode schema.MatchedNode, callback schema.Callbac
 		logger := mNode.Logger("RdrNode")
 		var err error = nil
 		var fullName enc.Name
-		var metadata *rdrtlv.MetaData
+		var metadata *rtlv.MetaData
 		var lastResult schema.NeedResult
 
 		if version == nil {
@@ -319,7 +319,7 @@ func (n *RdrNode) NeedCallback(mNode schema.MatchedNode, callback schema.Callbac
 				switch lastResult.Status {
 				case ndn.InterestResultData:
 					succeeded = true
-					metadata, err = rdrtlv.ParseMetaData(enc.NewWireReader(lastResult.Content), true)
+					metadata, err = rtlv.ParseMetaData(enc.NewWireReader(lastResult.Content), true)
 					if err != nil {
 						logger.Errorf("Unable to parse and extract name from the metadata packet: %v\n", err)
 						lastResult.Status = ndn.InterestResultError
@@ -456,7 +456,7 @@ func (n *GeneralObjNode) Provide(mNode schema.MatchedNode, content enc.Wire) uin
 		ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 		Freshness:   utils.IdPtr(n.MetaFreshness),
 	}
-	metaData := &rdrtlv.MetaData{
+	metaData := &rtlv.MetaData{
 		Name:         dataName,
 		FinalBlockID: enc.NewSegmentComponent(segCnt - 1).Bytes(),
 		Size:         utils.IdPtr(content.Length()),
@@ -472,11 +472,11 @@ func (n *GeneralObjNode) Provide(mNode schema.MatchedNode, content enc.Wire) uin
 		ContentType: utils.IdPtr(ndn.ContentTypeBlob),
 		Freshness:   utils.IdPtr(n.ManifestFreshness),
 	}
-	manifestData := &rdrtlv.ManifestData{
-		Entries: make([]*rdrtlv.ManifestDigest, segCnt),
+	manifestData := &rtlv.ManifestData{
+		Entries: make([]*rtlv.ManifestDigest, segCnt),
 	}
 	for i, v := range manifest {
-		manifestData.Entries[i] = &rdrtlv.ManifestDigest{
+		manifestData.Entries[i] = &rtlv.ManifestDigest{
 			SegNo:  uint64(i),
 			Digest: v,
 		}
@@ -495,7 +495,7 @@ func (n *GeneralObjNode) NeedCallback(mNode schema.MatchedNode, callback schema.
 		nameLen := len(mNode.Name)
 		logger := mNode.Logger("GeneralObjNode")
 		var err error = nil
-		var manifest *rdrtlv.ManifestData
+		var manifest *rtlv.ManifestData
 		var lastResult schema.NeedResult
 
 		// fetch the manifest
@@ -511,7 +511,7 @@ func (n *GeneralObjNode) NeedCallback(mNode schema.MatchedNode, callback schema.
 			switch lastResult.Status {
 			case ndn.InterestResultData:
 				succeeded = true
-				manifest, err = rdrtlv.ParseManifestData(enc.NewWireReader(lastResult.Content), true)
+				manifest, err = rtlv.ParseManifestData(enc.NewWireReader(lastResult.Content), true)
 				if err != nil {
 					logger.Errorf("Unable to parse the manifest packet: %v\n", err)
 					lastResult.Status = ndn.InterestResultError

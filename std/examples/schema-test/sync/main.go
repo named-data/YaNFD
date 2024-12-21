@@ -137,9 +137,9 @@ func main() {
 					mLeafNode := tree.Match(dataName)
 					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
 					if result.Status != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", missData.NodeId.String(), i, result.Status)
 					} else {
-						fmt.Printf("Fetched (%s, %d): %s", string(missData.NodeId), i, string(result.Content.Join()))
+						fmt.Printf("Fetched (%s, %d): %s", missData.NodeId.String(), i, string(result.Content.Join()))
 					}
 				}
 			case <-ctx.Done():

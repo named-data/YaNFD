@@ -259,10 +259,10 @@ func main() {
 					mLeafNode := tree.Match(dataName)
 					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
 					if result.Status != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", missData.NodeId.String(), i, result.Status)
 					} else {
 						dataLock.Lock()
-						fmt.Printf("Fetched (%s, %d)\n", string(missData.NodeId), i)
+						fmt.Printf("Fetched (%s, %d)\n", missData.NodeId.String(), i)
 						rec, err := crdt.ParseRecord(enc.NewWireReader(result.Content), false)
 						if err != nil {
 							log.Errorf("unable to parse record: %+v", err)

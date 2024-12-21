@@ -243,11 +243,11 @@ func main() {
 					mLeafNode := tree.Match(dataName)
 					result := <-mLeafNode.Call("NeedChan").(chan schema.NeedResult)
 					if result.Status != ndn.InterestResultData {
-						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", string(missData.NodeId), i, result.Status)
+						fmt.Printf("Data fetching failed for (%s, %d): %+v\n", missData.NodeId.String(), i, result.Status)
 					} else {
 						dataLock.Lock()
-						fmt.Printf("Fetched (%s, %d): %s\n", string(missData.NodeId), i, string(result.Content.Join()))
-						msg := fmt.Sprintf("%s[%d]: %s", string(missData.NodeId), i, string(result.Content.Join()))
+						fmt.Printf("Fetched (%s, %d): %s\n", missData.NodeId.String(), i, string(result.Content.Join()))
+						msg := fmt.Sprintf("%s[%d]: %s", missData.NodeId.String(), i, string(result.Content.Join()))
 						msgList = append(msgList, msg)
 						if wsConn != nil {
 							wsConn.WriteMessage(websocket.TextMessage, []byte(msg))

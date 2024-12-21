@@ -12,6 +12,7 @@ import (
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
+	stlv "github.com/zjkmxy/go-ndn/pkg/ndn/svs_2024"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -35,7 +36,7 @@ type SvSync struct {
 	suppress bool
 	merge    map[uint64]uint64
 
-	recvSv chan *StateVector
+	recvSv chan *stlv.StateVector
 }
 
 type SvSyncUpdate struct {
@@ -69,7 +70,7 @@ func NewSvSync(
 		suppress: false,
 		merge:    make(map[uint64]uint64),
 
-		recvSv: make(chan *StateVector, 128),
+		recvSv: make(chan *stlv.StateVector, 128),
 	}
 }
 
@@ -163,7 +164,7 @@ func (s *SvSync) hashName(nodeId enc.Name) uint64 {
 	return hash
 }
 
-func (s *SvSync) onReceiveStateVector(sv *StateVector) {
+func (s *SvSync) onReceiveStateVector(sv *stlv.StateVector) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -322,7 +323,7 @@ func (s *SvSync) onSyncInterest(interest ndn.Interest) {
 
 	// Decode state vector
 	raw := enc.Wire{interest.AppParam().Join()}
-	params, err := ParseStateVectorAppParam(enc.NewWireReader(raw), false)
+	params, err := stlv.ParseStateVectorAppParam(enc.NewWireReader(raw), false)
 	if err != nil || params.StateVector == nil {
 		log.Warnf("SvSync: onSyncInterest failed to parse StateVec: %+v", err)
 		return
@@ -333,9 +334,9 @@ func (s *SvSync) onSyncInterest(interest ndn.Interest) {
 
 // Call with mutex locked
 func (s *SvSync) encodeSv() enc.Wire {
-	entries := make([]*StateVectorEntry, 0, len(s.state))
+	entries := make([]*stlv.StateVectorEntry, 0, len(s.state))
 	for nodeId, seqNo := range s.state {
-		entries = append(entries, &StateVectorEntry{
+		entries = append(entries, &stlv.StateVectorEntry{
 			NodeId: s.names[nodeId],
 			SeqNo:  seqNo,
 		})
@@ -346,8 +347,8 @@ func (s *SvSync) encodeSv() enc.Wire {
 		return entries[i].NodeId.Compare(entries[j].NodeId) < 0
 	})
 
-	params := StateVectorAppParam{
-		StateVector: &StateVector{Entries: entries},
+	params := stlv.StateVectorAppParam{
+		StateVector: &stlv.StateVector{Entries: entries},
 	}
 
 	return params.Encode()
