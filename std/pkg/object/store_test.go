@@ -1,6 +1,7 @@
 package object_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -125,4 +126,15 @@ func TestMemoryStore(t *testing.T) {
 	utils.SetTestingT(t)
 	store := object.NewMemoryStore()
 	testStore(t, store)
+}
+
+func TestBoltStore(t *testing.T) {
+	utils.SetTestingT(t)
+	filename := "test.db"
+	os.Remove(filename)
+	defer os.Remove(filename)
+	store, err := object.NewBoltStore(filename)
+	require.NoError(t, err)
+	testStore(t, store)
+	require.NoError(t, store.Close())
 }
