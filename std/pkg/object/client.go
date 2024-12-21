@@ -1,6 +1,8 @@
 package object
 
 import (
+	"errors"
+
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 )
 
@@ -37,6 +39,10 @@ func NewClient(engine ndn.Engine) *Client {
 }
 
 func (c *Client) Start() error {
+	if !c.engine.IsRunning() {
+		return errors.New("client start when engine not running")
+	}
+
 	go c.run()
 	return nil
 }
@@ -49,6 +55,7 @@ func (c *Client) Engine() ndn.Engine {
 	return c.engine
 }
 
+// main goroutine for all client processing
 func (c *Client) run() {
 	for {
 		select {

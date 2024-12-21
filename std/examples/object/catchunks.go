@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
+
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: catchunks <name>")
 	}
@@ -20,8 +22,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid name: %s", os.Args[1])
 	}
-
-	log.SetLevel(log.DebugLevel)
 
 	// start face and engine
 	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
