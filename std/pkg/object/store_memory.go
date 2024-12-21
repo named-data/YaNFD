@@ -17,7 +17,7 @@ type memoryStoreNode struct {
 	// name component
 	comp enc.Component
 	// children
-	children map[uint64]*memoryStoreNode
+	children map[string]*memoryStoreNode
 	// data wire
 	wire []byte
 	// version of this wire
@@ -68,8 +68,8 @@ func (n *memoryStoreNode) find(name enc.Name) *memoryStoreNode {
 		return nil
 	}
 
-	cHash := name[0].Hash()
-	if child := n.children[cHash]; child != nil {
+	key := name[0].String()
+	if child := n.children[key]; child != nil {
 		return child.find(name[1:])
 	} else {
 		return nil
@@ -95,16 +95,16 @@ func (n *memoryStoreNode) insert(name enc.Name, version uint64, wire []byte) {
 	}
 
 	if n.children == nil {
-		n.children = make(map[uint64]*memoryStoreNode)
+		n.children = make(map[string]*memoryStoreNode)
 	}
 
-	cHash := name[0].Hash()
-	if child := n.children[cHash]; child != nil {
+	key := name[0].String()
+	if child := n.children[key]; child != nil {
 		child.insert(name[1:], version, wire)
 	} else {
 		child = &memoryStoreNode{comp: name[0]}
 		child.insert(name[1:], version, wire)
-		n.children[cHash] = child
+		n.children[key] = child
 	}
 }
 
@@ -123,11 +123,11 @@ func (n *memoryStoreNode) remove(name enc.Name, prefix bool) bool {
 		return false
 	}
 
-	cHash := name[0].Hash()
-	if child := n.children[cHash]; child != nil {
+	key := name[0].String()
+	if child := n.children[key]; child != nil {
 		prune := child.remove(name[1:], prefix)
 		if prune {
-			delete(n.children, cHash)
+			delete(n.children, key)
 		}
 	}
 
