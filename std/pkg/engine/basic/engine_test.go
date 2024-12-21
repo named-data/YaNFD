@@ -29,7 +29,7 @@ func executeTest(t *testing.T, main func(*dummy.DummyFace, *basic_engine.Engine,
 
 	main(face, engine, timer, signer)
 
-	require.NoError(t, engine.Shutdown())
+	require.NoError(t, engine.Stop())
 }
 
 func TestEngineStart(t *testing.T) {

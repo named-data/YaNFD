@@ -11,6 +11,7 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/zjkmxy/go-ndn/pkg/engine/face"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
@@ -20,16 +21,6 @@ import (
 
 const DefaultInterestLife = 4 * time.Second
 const TimeoutMargin = 10 * time.Millisecond
-
-type Face interface {
-	Open() error
-	Close() error
-	Send(pkt enc.Wire) error
-	IsRunning() bool
-	IsLocal() bool
-	SetCallback(onPkt func(r enc.ParseReader) error,
-		onError func(err error) error)
-}
 
 type fibEntry = ndn.InterestHandler
 
@@ -46,7 +37,7 @@ type pendInt struct {
 type pitEntry = []*pendInt
 
 type Engine struct {
-	face  Face
+	face  face.Face
 	timer ndn.Timer
 
 	// fib contains the registered Interest handlers.
@@ -266,25 +257,30 @@ func (e *Engine) onInterest(args ndn.InterestHandlerArgs) {
 func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitToken []byte) {
 	e.pitLock.Lock()
 	defer e.pitLock.Unlock()
+
 	n := e.pit.PrefixMatch(pkt.NameV)
 	if n == nil {
 		e.log.WithField("name", pkt.NameV.String()).Warn("Received Data for an unknown interest. Drop.")
 		return
 	}
+
 	for cur := n; cur != nil; cur = cur.Parent() {
 		curListSize := len(cur.Value())
 		if curListSize <= 0 {
 			continue
 		}
+
 		newList := make([]*pendInt, 0, curListSize)
 		for _, entry := range cur.Value() {
-			// CanBePrefix
+			// we don't check MustBeFresh, as it is the job of the cache/forwarder.
+
+			// check CanBePrefix
 			if cur.Depth() < len(pkt.NameV) && !entry.canBePrefix {
 				newList = append(newList, entry)
 				continue
 			}
-			// We don't check MustBeFresh, as it is the job of the cache/forwarder.
-			// ImplicitDigest256
+
+			// check ImplicitDigest256
 			if entry.impSha256 != nil {
 				h := sha256.New()
 				for _, buf := range raw {
@@ -296,12 +292,13 @@ func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitTo
 					continue
 				}
 			}
+
 			// entry satisfied
 			entry.timeoutCancel()
 			if entry.callback == nil {
-				e.log.Fatalf("PIT has empty entry. This should not happen. Please check the implementation.")
-				continue
+				panic("[BUG] PIT has empty entry")
 			}
+
 			entry.callback(ndn.ExpressCallbackArgs{
 				Result:     ndn.InterestResultData,
 				Data:       pkt,
@@ -310,8 +307,10 @@ func (e *Engine) onData(pkt *spec.Data, sigCovered enc.Wire, raw enc.Wire, pitTo
 				NackReason: spec.NackReasonNone,
 			})
 		}
+
 		cur.SetValue(newList)
 	}
+
 	n.DeleteIf(func(lst []*pendInt) bool {
 		return len(lst) == 0
 	})
@@ -340,31 +339,32 @@ func (e *Engine) onNack(name enc.Name, reason uint64) {
 }
 
 func (e *Engine) onError(err error) error {
-	e.log.Errorf("Error on face, quit: %v", err)
+	e.log.Errorf("error on face, quit: %v", err)
 	// TODO: Handle Interest cancellation
 	return err
 }
 
 func (e *Engine) Start() error {
 	if e.face.IsRunning() {
-		return errors.New("Face is already running")
+		return errors.New("face is already running")
 	}
-	e.log.Debug("Default engine start.")
 	e.face.SetCallback(e.onPacket, e.onError)
 	err := e.face.Open()
 	if err != nil {
-		e.log.Errorf("Face failed to open: %v", err)
 		return err
 	}
 	return nil
 }
 
-func (e *Engine) Shutdown() error {
+func (e *Engine) Stop() error {
 	if !e.face.IsRunning() {
-		return errors.New("Face is not running")
+		return errors.New("face is not running")
 	}
-	e.log.Debug("Default engine shutdown.")
 	return e.face.Close()
+}
+
+func (e *Engine) IsRunning() bool {
+	return e.face.IsRunning()
 }
 
 func (e *Engine) Express(interest *ndn.EncodedInterest, callback ndn.ExpressCallbackFunc) error {
@@ -531,7 +531,7 @@ func (e *Engine) UnregisterRoute(prefix enc.Name) error {
 	return nil
 }
 
-func NewEngine(face Face, timer ndn.Timer, cmdSigner ndn.Signer, cmdChecker ndn.SigChecker) *Engine {
+func NewEngine(face face.Face, timer ndn.Timer, cmdSigner ndn.Signer, cmdChecker ndn.SigChecker) *Engine {
 	if face == nil || timer == nil || cmdSigner == nil || cmdChecker == nil {
 		return nil
 	}

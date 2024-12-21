@@ -5,40 +5,32 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-var app *basic_engine.Engine
-
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
-
 func main() {
-	timer := basic_engine.NewTimer()
-	// face := basic_engine.NewWebSocketFace("ws", "localhost:9696", true)
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
 	log.SetLevel(log.InfoLevel)
 	logger := log.WithField("module", "main")
+
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	app := engine.NewBasicEngine(face)
 	err := app.Start()
 	if err != nil {
-		logger.Errorf("Unable to start engine: %+v", err)
+		logger.Fatalf("Unable to start engine: %+v", err)
 		return
 	}
-	defer app.Shutdown()
+	defer app.Stop()
 
 	name, _ := enc.NameFromStr("/example/testApp/randomData")
-	name = append(name, enc.NewTimestampComponent(utils.MakeTimestamp(timer.Now())))
+	name = append(name, enc.NewTimestampComponent(utils.MakeTimestamp(time.Now())))
 
 	intCfg := &ndn.InterestConfig{
 		MustBeFresh: true,
 		Lifetime:    utils.IdPtr(6 * time.Second),
-		Nonce:       utils.ConvertNonce(timer.Nonce()),
+		Nonce:       utils.ConvertNonce(app.Timer().Nonce()),
 	}
 	interest, err := app.Spec().MakeInterest(name, intCfg, nil, nil)
 	if err != nil {

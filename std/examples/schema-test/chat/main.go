@@ -18,12 +18,11 @@ import (
 
 	"github.com/gorilla/websocket"
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	"github.com/zjkmxy/go-ndn/pkg/schema/svs"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
 
 var homeHtmlTmp []byte
@@ -89,10 +88,6 @@ var wsConn *websocket.Conn // 1 ws connection supported
 var msgList []string
 var dataLock sync.Mutex
 var nodeId string
-
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(homeHtml))
@@ -202,15 +197,14 @@ func main() {
 	})
 
 	// Start engine
-	timer := basic_engine.NewTimer()
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
-	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	app := engine.NewBasicEngine(face)
 	err = app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
 	}
-	defer app.Shutdown()
+	defer app.Stop()
 
 	// Attach schema
 	prefix, _ := enc.NameFromStr("/example/schema/chatApp")

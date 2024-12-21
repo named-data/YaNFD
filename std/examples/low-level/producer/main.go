@@ -9,20 +9,15 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	sec_pib "github.com/zjkmxy/go-ndn/pkg/security/pib"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
-var app *basic_engine.Engine
+var app ndn.Engine
 var pib *sec_pib.SqlitePib
-
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
 
 func onInterest(args ndn.InterestHandlerArgs) {
 	interest := args.Interest
@@ -58,23 +53,21 @@ func onInterest(args ndn.InterestHandlerArgs) {
 }
 
 func main() {
-	timer := basic_engine.NewTimer()
-	// face := basic_engine.NewWebSocketFace("ws", "localhost:9696", true)
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
+	log.SetLevel(log.InfoLevel)
+	logger := log.WithField("module", "main")
+
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	app = engine.NewBasicEngine(face)
+	err := app.Start()
+	if err != nil {
+		logger.Fatalf("Unable to start engine: %+v", err)
+		return
+	}
+	defer app.Stop()
 
 	homedir, _ := os.UserHomeDir()
 	tpm := sec_pib.NewFileTpm(filepath.Join(homedir, ".ndn/ndnsec-key-file"))
 	pib = sec_pib.NewSqlitePib(filepath.Join(homedir, ".ndn/pib.db"), tpm)
-
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	log.SetLevel(log.InfoLevel)
-	logger := log.WithField("module", "main")
-	err := app.Start()
-	if err != nil {
-		logger.Errorf("Unable to start engine: %+v", err)
-		return
-	}
-	defer app.Shutdown()
 
 	prefix, _ := enc.NameFromStr("/example/testApp")
 	err = app.AttachHandler(prefix, onInterest)

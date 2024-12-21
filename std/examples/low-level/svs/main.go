@@ -5,20 +5,15 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/sync"
 )
 
-var app *basic_engine.Engine
-
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
-
 func main() {
+	log.SetLevel(log.InfoLevel)
+	logger := log.WithField("module", "main")
+
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <nodeId>", os.Args[0])
 	}
@@ -30,17 +25,14 @@ func main() {
 	}
 
 	// Create a new engine
-	timer := basic_engine.NewTimer()
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
-	app = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	log.SetLevel(log.InfoLevel)
-	logger := log.WithField("module", "main")
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	app := engine.NewBasicEngine(face)
 	err = app.Start()
 	if err != nil {
-		logger.Errorf("Unable to start engine: %+v", err)
+		logger.Fatalf("Unable to start engine: %+v", err)
 		return
 	}
-	defer app.Shutdown()
+	defer app.Stop()
 
 	// Start SVS instance
 	group, _ := enc.NameFromStr("/ndn/svs")

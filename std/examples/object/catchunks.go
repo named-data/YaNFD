@@ -5,16 +5,10 @@ import (
 	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/object"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 )
-
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -28,18 +22,19 @@ func main() {
 	}
 
 	log.SetLevel(log.DebugLevel)
-	timer := basic_engine.NewTimer()
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
 
-	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
-	err = app.Start()
+	// start face and engine
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	engine := engine.NewBasicEngine(face)
+	err = engine.Start()
 	if err != nil {
 		log.Errorf("Unable to start engine: %+v", err)
 		return
 	}
-	defer app.Shutdown()
+	defer engine.Stop()
 
-	cli := object.NewClient(app)
+	// start object client
+	cli := object.NewClient(engine)
 	err = cli.Start()
 	if err != nil {
 		log.Errorf("Unable to start object client: %+v", err)

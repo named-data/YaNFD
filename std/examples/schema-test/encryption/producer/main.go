@@ -5,14 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
+	"github.com/zjkmxy/go-ndn/pkg/engine"
 	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
 	"github.com/zjkmxy/go-ndn/pkg/schema"
 	_ "github.com/zjkmxy/go-ndn/pkg/schema/demosec"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
@@ -66,10 +65,6 @@ const SchemaJson = `{
 }`
 const HmacKey = "Hello, World!"
 
-func passAll(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
-}
-
 func main() {
 	log.SetLevel(log.InfoLevel)
 	logger := log.WithField("module", "main")
@@ -81,15 +76,14 @@ func main() {
 	})
 
 	// Start engine
-	timer := basic_engine.NewTimer()
-	face := basic_engine.NewStreamFace("unix", "/var/run/nfd/nfd.sock", true)
-	app := basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), passAll)
+	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
+	app := engine.NewBasicEngine(face)
 	err := app.Start()
 	if err != nil {
 		logger.Fatalf("Unable to start engine: %+v", err)
 		return
 	}
-	defer app.Shutdown()
+	defer app.Stop()
 
 	// Attach schema
 	prefix, _ := enc.NameFromStr("/example/schema/encryptionApp")
@@ -107,7 +101,7 @@ func main() {
 	cipherText := ckMNode.Call("Encrypt", ck, enc.Wire{[]byte("Hello, world!")}).(enc.Wire)
 
 	// Produce data
-	ver := utils.MakeTimestamp(timer.Now())
+	ver := utils.MakeTimestamp(time.Now())
 	path, _ = enc.NamePatternFromStr("/randomData/<v=time>")
 	node := tree.At(path)
 	mNode := node.Apply(enc.Matching{

@@ -1,6 +1,6 @@
 //go:build js && wasm
 
-package basic
+package face
 
 import (
 	"errors"
