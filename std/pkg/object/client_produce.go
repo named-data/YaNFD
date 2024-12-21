@@ -6,7 +6,7 @@ import (
 
 	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/schema/rdr"
+	rdr "github.com/zjkmxy/go-ndn/pkg/ndn/rdr_2024"
 	sec "github.com/zjkmxy/go-ndn/pkg/security"
 	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
