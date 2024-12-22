@@ -1,4 +1,4 @@
-PACKAGE = github.com/zjkmxy/go-ndn
+PACKAGE = github.com/pulsejet/ndnd/std
 
 gondn_tlv_gen: clean
 	go build ${PACKAGE}/cmd/gondn_tlv_gen
