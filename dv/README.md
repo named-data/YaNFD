@@ -10,7 +10,7 @@ The specification of the ndn-dv protocol can be found in [SPEC.md](./SPEC.md)
 A sample configuration file is provided in [dv.sample.yml](./dv.sample.yml)
 
 ```bash
-go-ndn-dv /etc/ndn/dv.yml
+ndn-dv /etc/ndn/dv.yml
 ```
 
 ## Building from source
@@ -18,7 +18,7 @@ go-ndn-dv /etc/ndn/dv.yml
 ndn-dv requires [Go 1.23](https://go.dev/doc/install) or later.
 
 ```bash
-CGO_ENABLED=0 go build -o go-ndn-dv cmd/main/main.go
+CGO_ENABLED=0 go build -o ndn-dv cmd/ndn-dv/main.go
 ```
 
 ## Publications
