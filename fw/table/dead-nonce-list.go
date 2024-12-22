@@ -10,8 +10,8 @@ package table
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/utils/priority_queue"
 	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/utils/priority_queue"
 )
 
 // DeadNonceList represents the Dead Nonce List for a forwarding thread.

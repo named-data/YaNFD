@@ -9,15 +9,15 @@ import (
 
 func TestBasics(t *testing.T) {
 	q := priority_queue.New[int, int]()
-	assert.Equal(t, q.Len(), 0)
+	assert.Equal(t, 0, q.Len())
 	q.Push(1, 1)
 	q.Push(2, 3)
 	q.Push(3, 2)
-	assert.Equal(t, q.Len(), 3)
-	assert.Equal(t, q.PeekPriority(), 1)
-	assert.Equal(t, q.Pop(), 1)
-	assert.Equal(t, q.PeekPriority(), 2)
-	assert.Equal(t, q.Pop(), 3)
-	assert.Equal(t, q.Pop(), 2)
-	assert.Equal(t, q.Len(), 0)
+	assert.Equal(t, 3, q.Len())
+	assert.Equal(t, 1, q.PeekPriority())
+	assert.Equal(t, 1, q.Pop())
+	assert.Equal(t, 2, q.PeekPriority())
+	assert.Equal(t, 3, q.Pop())
+	assert.Equal(t, 2, q.Pop())
+	assert.Equal(t, 0, q.Len())
 }

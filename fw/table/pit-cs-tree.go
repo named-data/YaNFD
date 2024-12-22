@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/pulsejet/ndnd/fw/core"
-	pq "github.com/pulsejet/ndnd/fw/utils/priority_queue"
 	enc "github.com/pulsejet/ndnd/std/encoding"
 	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	pq "github.com/pulsejet/ndnd/std/utils/priority_queue"
 )
 
 const expiredPitTickerInterval = 100 * time.Millisecond

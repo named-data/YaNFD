@@ -1,17 +1,18 @@
 package priority_queue
 
 import (
-	"github.com/pulsejet/ndnd/std/utils/heap"
+	"container/heap"
+
 	"golang.org/x/exp/constraints"
 )
 
-type item[V any, P constraints.Ordered] struct {
+type Item[V any, P constraints.Ordered] struct {
 	object   V
 	priority P
 	index    int
 }
 
-type wrapper[V any, P constraints.Ordered] []*item[V, P]
+type wrapper[V any, P constraints.Ordered] []*Item[V, P]
 
 // Queue represents a priority queue with MINIMUM priority.
 type Queue[V any, P constraints.Ordered] struct {
@@ -32,13 +33,13 @@ func (pq *wrapper[V, P]) Swap(i, j int) {
 	(*pq)[j].index = j
 }
 
-func (pq *wrapper[V, P]) Push(x *item[V, P]) {
-	item := x
+func (pq *wrapper[V, P]) Push(x any) {
+	item := x.(*Item[V, P])
 	item.index = len(*pq)
 	*pq = append(*pq, item)
 }
 
-func (pq *wrapper[V, P]) Pop() *item[V, P] {
+func (pq *wrapper[V, P]) Pop() any {
 	old := *pq
 	n := len(old)
 	item := old[n-1]
@@ -50,17 +51,17 @@ func (pq *wrapper[V, P]) Pop() *item[V, P] {
 
 // Len returns the length of the priroity queue.
 func (pq *Queue[V, P]) Len() int {
-	return len(pq.pq)
+	return pq.pq.Len()
 }
 
 // Push pushes the 'value' onto the priority queue.
-func (pq *Queue[V, P]) Push(value V, priority P) int {
-	ret := &item[V, P]{
+func (pq *Queue[V, P]) Push(value V, priority P) *Item[V, P] {
+	ret := &Item[V, P]{
 		object:   value,
 		priority: priority,
 	}
-	heap.Push[*item[V, P]](&pq.pq, ret)
-	return ret.index
+	heap.Push(&pq.pq, ret)
+	return ret
 }
 
 // Peek returns the minimum element of the priority queue without removing it.
@@ -75,20 +76,14 @@ func (pq *Queue[V, P]) PeekPriority() P {
 
 // Pop removes and returns the minimum element of the priority queue.
 func (pq *Queue[V, P]) Pop() V {
-	return heap.Pop[*item[V, P]](&pq.pq).object
+	return heap.Pop(&pq.pq).(*Item[V, P]).object
 }
 
-// Update modifies the priority and value of the item with 'index' in the queue.
-// returns the updated index.
-func (pq *Queue[V, P]) Update(index int, value V, priority P) int {
-	if index < 0 || index >= len(pq.pq) {
-		return -1
-	}
-	it := pq.pq[index]
-	it.object = value
-	it.priority = priority
-	heap.Fix[*item[V, P]](&pq.pq, it.index)
-	return it.index
+// Update modifies the priority and value of the item
+func (pq *Queue[V, P]) Update(item *Item[V, P], value V, priority P) {
+	item.object = value
+	item.priority = priority
+	heap.Fix(&pq.pq, item.index)
 }
 
 // New creates a new priority queue. Not required to call.
