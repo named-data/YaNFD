@@ -123,15 +123,24 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 	var linkService *face.NDNLPLinkService
 
 	if URI.Scheme() == "udp4" || URI.Scheme() == "udp6" {
-		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() &&
-			!remoteAddr.IsLinkLocalUnicast() {
+		// Validate that remote endpoint is an IP address
+		remoteAddr := net.ParseIP(URI.Path())
+		if remoteAddr == nil {
+			core.LogWarn(f, "Cannot create face with non-IP remote address ", URI)
+			response = makeControlResponse(406, "URI must be IP", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		// Validate that remote endpoint is a unicast address
+		if !(remoteAddr.IsGlobalUnicast() || remoteAddr.IsLinkLocalUnicast() || remoteAddr.IsLoopback()) {
 			core.LogWarn(f, "Cannot create unicast UDP face to non-unicast address ", URI)
 			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
+		// Check face persistency
 		persistency := face.PersistencyPersistent
 		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) ||
 			*params.FacePersistency == uint64(face.PersistencyPermanent)) {
@@ -144,6 +153,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 			return
 		}
 
+		// Check congestion control
 		baseCongestionMarkingInterval := 100 * time.Millisecond
 		if params.BaseCongestionMarkInterval != nil {
 			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkInterval) * time.Nanosecond
@@ -203,15 +213,24 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 		linkService = face.MakeNDNLPLinkService(transport, options)
 		linkService.Run(nil)
 	} else if URI.Scheme() == "tcp4" || URI.Scheme() == "tcp6" {
-		// Check that remote endpoint is not a unicast address
-		if remoteAddr := net.ParseIP(URI.Path()); remoteAddr != nil && !remoteAddr.IsGlobalUnicast() &&
-			!remoteAddr.IsLinkLocalUnicast() {
+		// Validate that remote endpoint is an IP address
+		remoteAddr := net.ParseIP(URI.Path())
+		if remoteAddr == nil {
+			core.LogWarn(f, "Cannot create face with non-IP remote address ", URI)
+			response = makeControlResponse(406, "URI must be IP", nil)
+			f.manager.sendResponse(response, interest, pitToken, inFace)
+			return
+		}
+
+		// Validate that remote endpoint is a unicast address
+		if !(remoteAddr.IsGlobalUnicast() || remoteAddr.IsLinkLocalUnicast() || remoteAddr.IsLoopback()) {
 			core.LogWarn(f, "Cannot create unicast TCP face to non-unicast address ", URI)
 			response = makeControlResponse(406, "URI must be unicast", nil)
 			f.manager.sendResponse(response, interest, pitToken, inFace)
 			return
 		}
 
+		// Check face persistency
 		persistency := face.PersistencyPersistent
 		if params.FacePersistency != nil && (*params.FacePersistency == uint64(face.PersistencyPersistent) ||
 			*params.FacePersistency == uint64(face.PersistencyPermanent)) {
@@ -224,6 +243,7 @@ func (f *FaceModule) create(interest *spec.Interest, pitToken []byte, inFace uin
 			return
 		}
 
+		// Check congestion control
 		baseCongestionMarkingInterval := 100 * time.Millisecond
 		if params.BaseCongestionMarkInterval != nil {
 			baseCongestionMarkingInterval = time.Duration(*params.BaseCongestionMarkInterval) * time.Nanosecond
