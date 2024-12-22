@@ -10,13 +10,13 @@ package mgmt
 import (
 	"time"
 
-	"github.com/named-data/YaNFD/core"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	"github.com/pulsejet/ndnd/fw/core"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/ndn"
+	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	sec "github.com/pulsejet/ndnd/std/security"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 const (

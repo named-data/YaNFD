@@ -8,12 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/engine"
-	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	"github.com/zjkmxy/go-ndn/pkg/schema"
-	"github.com/zjkmxy/go-ndn/pkg/schema/demosec"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/engine"
+	"github.com/pulsejet/ndnd/std/log"
+	"github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	"github.com/pulsejet/ndnd/std/schema"
+	"github.com/pulsejet/ndnd/std/schema/demosec"
 )
 
 const (

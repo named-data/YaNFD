@@ -7,7 +7,7 @@
 
 package table
 
-import spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+import spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
 
 // CsReplacementPolicy represents a cache replacement policy for the Content Store.
 type CsReplacementPolicy interface {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	enc "github.com/pulsejet/ndnd/std/encoding"
 )
 
 const CostInfinity = uint64(16)

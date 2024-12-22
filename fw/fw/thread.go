@@ -13,12 +13,12 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/defn"
-	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/table"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/pulsejet/ndnd/fw/defn"
+	"github.com/pulsejet/ndnd/fw/dispatch"
+	"github.com/pulsejet/ndnd/fw/table"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 // MaxFwThreads Maximum number of forwarding threads

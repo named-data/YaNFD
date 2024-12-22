@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zjkmxy/go-ndn/pkg/log"
+	"github.com/pulsejet/ndnd/std/log"
 )
 
 var shouldPrintTraceLogs = false

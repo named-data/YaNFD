@@ -12,8 +12,8 @@ import (
 	"net"
 
 	"github.com/gorilla/websocket"
-	"github.com/named-data/YaNFD/core"
-	defn "github.com/named-data/YaNFD/defn"
+	"github.com/pulsejet/ndnd/fw/core"
+	defn "github.com/pulsejet/ndnd/fw/defn"
 )
 
 // WebSocketTransport communicates with web applications via WebSocket.

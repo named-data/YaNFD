@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pulsejet/go-ndn-dv/config"
-	"github.com/pulsejet/go-ndn-dv/nfdc"
-	"github.com/pulsejet/go-ndn-dv/table"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
-	ndn_sync "github.com/zjkmxy/go-ndn/pkg/sync"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	"github.com/pulsejet/ndnd/dv/config"
+	"github.com/pulsejet/ndnd/dv/nfdc"
+	"github.com/pulsejet/ndnd/dv/table"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/ndn"
+	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
+	ndn_sync "github.com/pulsejet/ndnd/std/sync"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 type Router struct {

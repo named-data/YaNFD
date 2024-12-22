@@ -7,7 +7,7 @@
 
 package fw
 
-import "github.com/named-data/YaNFD/core"
+import "github.com/pulsejet/ndnd/fw/core"
 
 // fwQueueSize is the maxmimum number of packets that can be buffered to be processed by a forwarding thread.
 var fwQueueSize int

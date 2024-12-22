@@ -11,7 +11,7 @@ import (
 	"container/list"
 	"sync"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	enc "github.com/pulsejet/ndnd/std/encoding"
 )
 
 type fibStrategyTreeEntry struct {

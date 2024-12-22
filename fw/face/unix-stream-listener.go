@@ -13,8 +13,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/named-data/YaNFD/core"
-	defn "github.com/named-data/YaNFD/defn"
+	"github.com/pulsejet/ndnd/fw/core"
+	defn "github.com/pulsejet/ndnd/fw/defn"
 )
 
 // UnixStreamListener listens for incoming Unix stream connections.

@@ -8,7 +8,7 @@
 package dispatch
 
 import (
-	"github.com/named-data/YaNFD/defn"
+	"github.com/pulsejet/ndnd/fw/defn"
 )
 
 // FWThread provides an interface that forwarding threads can satisfy

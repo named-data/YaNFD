@@ -12,13 +12,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/defn"
-	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/face"
-	"github.com/named-data/YaNFD/fw"
-	"github.com/named-data/YaNFD/mgmt"
-	"github.com/named-data/YaNFD/table"
+	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/pulsejet/ndnd/fw/defn"
+	"github.com/pulsejet/ndnd/fw/dispatch"
+	"github.com/pulsejet/ndnd/fw/face"
+	"github.com/pulsejet/ndnd/fw/fw"
+	"github.com/pulsejet/ndnd/fw/mgmt"
+	"github.com/pulsejet/ndnd/fw/table"
 )
 
 // YaNFDConfig is the configuration of YaNFD.

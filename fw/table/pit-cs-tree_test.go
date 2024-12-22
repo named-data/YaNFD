@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	"github.com/pulsejet/ndnd/std/utils"
 	"github.com/stretchr/testify/assert"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
 )
 
 var VALID_DATA_1 = []byte{

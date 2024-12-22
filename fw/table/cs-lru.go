@@ -10,7 +10,7 @@ package table
 import (
 	"container/list"
 
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
+	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
 )
 
 // CsLRU is a least recently used (LRU) replacement policy for the Content Store.

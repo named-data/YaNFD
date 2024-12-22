@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/named-data/YaNFD/core"
+	"github.com/pulsejet/ndnd/fw/core"
 )
 
 func getDocstrings(

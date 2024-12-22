@@ -8,7 +8,7 @@
 package table
 
 import (
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	enc "github.com/pulsejet/ndnd/std/encoding"
 )
 
 type networkRegionTable struct {

@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/named-data/YaNFD/core"
+	"github.com/pulsejet/ndnd/fw/core"
 )
 
 // faceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.

@@ -3,11 +3,11 @@ package dv
 import (
 	"time"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	ndn_sync "github.com/zjkmxy/go-ndn/pkg/sync"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/log"
+	"github.com/pulsejet/ndnd/std/ndn"
+	svs_2024 "github.com/pulsejet/ndnd/std/ndn/svs_2024"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 func (dv *Router) advertSyncSendInterest() (err error) {
@@ -24,9 +24,9 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 
 	// State Vector for our group
 	// TODO: switch to new TLV types
-	sv := &ndn_sync.StateVectorAppParam{
-		StateVector: &ndn_sync.StateVector{
-			Entries: []*ndn_sync.StateVectorEntry{{
+	sv := &svs_2024.StateVectorAppParam{
+		StateVector: &svs_2024.StateVector{
+			Entries: []*svs_2024.StateVectorEntry{{
 				NodeId: dv.config.RouterName(),
 				SeqNo:  dv.advertSyncSeq,
 			}},
@@ -64,7 +64,7 @@ func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
 
 	// TODO: verify signature on Sync Interest
 
-	params, err := ndn_sync.ParseStateVectorAppParam(enc.NewWireReader(args.Interest.AppParam()), true)
+	params, err := svs_2024.ParseStateVectorAppParam(enc.NewWireReader(args.Interest.AppParam()), true)
 	if err != nil || params.StateVector == nil {
 		log.Warnf("advertSyncOnInterest: failed to parse StateVec: %+v", err)
 		return

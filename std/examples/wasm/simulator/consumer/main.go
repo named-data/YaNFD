@@ -5,13 +5,13 @@ package main
 import (
 	"fmt"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
-	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	"github.com/zjkmxy/go-ndn/pkg/schema"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
+	"github.com/pulsejet/ndnd/std/log"
+	"github.com/pulsejet/ndnd/std/ndn"
+	"github.com/pulsejet/ndnd/std/schema"
+	sec "github.com/pulsejet/ndnd/std/security"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 const SchemaJson = `{

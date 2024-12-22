@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
-	"github.com/pulsejet/go-ndn-dv/cmd"
-	"github.com/zjkmxy/go-ndn/pkg/log"
+	"github.com/pulsejet/ndnd/dv/cmd"
+	"github.com/pulsejet/ndnd/std/log"
 )
 
 func main() {

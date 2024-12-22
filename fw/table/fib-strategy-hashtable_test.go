@@ -11,8 +11,8 @@ import (
 	"sort"
 	"testing"
 
+	enc "github.com/pulsejet/ndnd/std/encoding"
 	"github.com/stretchr/testify/assert"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
 )
 
 func TestFindNextHopsEncEnc_HT(t *testing.T) {

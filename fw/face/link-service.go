@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/named-data/YaNFD/core"
-	defn "github.com/named-data/YaNFD/defn"
-	"github.com/named-data/YaNFD/dispatch"
-	"github.com/named-data/YaNFD/fw"
+	"github.com/pulsejet/ndnd/fw/core"
+	defn "github.com/pulsejet/ndnd/fw/defn"
+	"github.com/pulsejet/ndnd/fw/dispatch"
+	"github.com/pulsejet/ndnd/fw/fw"
 )
 
 // LinkService is an interface for link service implementations

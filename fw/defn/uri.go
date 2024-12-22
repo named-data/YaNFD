@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/named-data/YaNFD/core"
+	"github.com/pulsejet/ndnd/fw/core"
 )
 
 // URIType represents the type of the URI.

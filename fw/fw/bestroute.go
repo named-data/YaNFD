@@ -12,10 +12,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/defn"
-	"github.com/named-data/YaNFD/table"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/pulsejet/ndnd/fw/defn"
+	"github.com/pulsejet/ndnd/fw/table"
+	enc "github.com/pulsejet/ndnd/std/encoding"
 )
 
 const BestRouteSuppressionTime = 500 * time.Millisecond

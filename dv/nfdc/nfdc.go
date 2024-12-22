@@ -3,9 +3,9 @@ package nfdc
 import (
 	"time"
 
-	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
+	"github.com/pulsejet/ndnd/std/log"
+	"github.com/pulsejet/ndnd/std/ndn"
+	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
 )
 
 type NfdMgmtCmd struct {

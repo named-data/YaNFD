@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
 	"github.com/stretchr/testify/assert"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
 )
 
 func TestBasePitEntryGetters(t *testing.T) {

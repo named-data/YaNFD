@@ -3,12 +3,10 @@ package cmd
 import (
 	"errors"
 
-	"github.com/pulsejet/go-ndn-dv/config"
-	"github.com/pulsejet/go-ndn-dv/dv"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
+	"github.com/pulsejet/ndnd/dv/config"
+	"github.com/pulsejet/ndnd/dv/dv"
+	"github.com/pulsejet/ndnd/std/engine"
+	"github.com/pulsejet/ndnd/std/ndn"
 )
 
 type DvConfig struct {
@@ -33,7 +31,7 @@ func (dc DvConfig) Parse() error {
 }
 
 type DvExecutor struct {
-	engine *basic_engine.Engine
+	engine ndn.Engine
 	router *dv.Router
 }
 
@@ -47,9 +45,7 @@ func NewDvExecutor(dc DvConfig) (*DvExecutor, error) {
 	}
 
 	// Start NDN engine
-	face := basic_engine.NewStreamFace("unix", dc.Nfd.Unix, true)
-	timer := basic_engine.NewTimer()
-	dve.engine = basic_engine.NewEngine(face, timer, sec.NewSha256IntSigner(timer), dve.noValidate)
+	dve.engine = engine.NewBasicEngine(engine.NewUnixFace(dc.Nfd.Unix))
 
 	// Create the DV router
 	dve.router, err = dv.NewRouter(dc.Config, dve.engine)
@@ -65,7 +61,7 @@ func (dve *DvExecutor) Start() error {
 	if err != nil {
 		return errors.New("failed to start dv app: " + err.Error())
 	}
-	defer dve.engine.Shutdown()
+	defer dve.engine.Stop()
 
 	err = dve.router.Start() // blocks forever
 	if err != nil {
@@ -81,8 +77,4 @@ func (dve *DvExecutor) Stop() {
 
 func (dve *DvExecutor) Router() *dv.Router {
 	return dve.router
-}
-
-func (dve *DvExecutor) noValidate(enc.Name, enc.Wire, ndn.Signature) bool {
-	return true
 }

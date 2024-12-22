@@ -18,7 +18,7 @@ We have received reports that YaNFD operates properly on Windows 10 (with minor 
 ## Install the YaNFD binary
 
 ```bash
-go install github.com/named-data/YaNFD/cmd/yanfd@latest
+go install github.com/pulsejet/ndnd/fw/cmd/yanfd@latest
 ```
 
 ## Install YaNFD from Windows Store
@@ -68,7 +68,7 @@ sudo make install
 To build and install YaNFD on Windows, please run the `go build` command in the `Makefile` manually:
 
 ```powershell
-go build github.com/named-data/YaNFD/cmd/yanfd
+go build github.com/pulsejet/ndnd/fw/cmd/yanfd
 ```
 
 At the moment, you will need to manually install the executable (`yanfd.exe`) and the configuration file (`yanfd.sample.yml`) to a location of your choice.

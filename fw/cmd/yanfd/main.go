@@ -14,8 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/executor"
+	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/pulsejet/ndnd/fw/executor"
 )
 
 // Version of YaNFD.

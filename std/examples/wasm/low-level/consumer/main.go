@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	basic_engine "github.com/zjkmxy/go-ndn/pkg/engine/basic"
-	"github.com/zjkmxy/go-ndn/pkg/log"
-	"github.com/zjkmxy/go-ndn/pkg/ndn"
-	sec "github.com/zjkmxy/go-ndn/pkg/security"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
+	"github.com/pulsejet/ndnd/std/log"
+	"github.com/pulsejet/ndnd/std/ndn"
+	sec "github.com/pulsejet/ndnd/std/security"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 var app *basic_engine.Engine

@@ -10,7 +10,7 @@ package face
 import (
 	"strconv"
 
-	defn "github.com/named-data/YaNFD/defn"
+	defn "github.com/pulsejet/ndnd/fw/defn"
 )
 
 // NullTransport is a transport that drops all packets.

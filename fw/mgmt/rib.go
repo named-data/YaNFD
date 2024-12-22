@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/named-data/YaNFD/core"
-	"github.com/named-data/YaNFD/face"
-	"github.com/named-data/YaNFD/table"
-	enc "github.com/zjkmxy/go-ndn/pkg/encoding"
-	mgmt "github.com/zjkmxy/go-ndn/pkg/ndn/mgmt_2022"
-	spec "github.com/zjkmxy/go-ndn/pkg/ndn/spec_2022"
-	"github.com/zjkmxy/go-ndn/pkg/utils"
+	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/pulsejet/ndnd/fw/face"
+	"github.com/pulsejet/ndnd/fw/table"
+	enc "github.com/pulsejet/ndnd/std/encoding"
+	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	"github.com/pulsejet/ndnd/std/utils"
 )
 
 // RIBModule is the module that handles RIB Management.

@@ -3,7 +3,7 @@ package priority_queue_test
 import (
 	"testing"
 
-	"github.com/named-data/YaNFD/utils/priority_queue"
+	"github.com/pulsejet/ndnd/fw/utils/priority_queue"
 	"github.com/stretchr/testify/assert"
 )
 

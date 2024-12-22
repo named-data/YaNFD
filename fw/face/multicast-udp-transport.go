@@ -13,9 +13,9 @@ import (
 	"net"
 	"strings"
 
-	"github.com/named-data/YaNFD/core"
-	defn "github.com/named-data/YaNFD/defn"
-	"github.com/named-data/YaNFD/face/impl"
+	"github.com/pulsejet/ndnd/fw/core"
+	defn "github.com/pulsejet/ndnd/fw/defn"
+	"github.com/pulsejet/ndnd/fw/face/impl"
 )
 
 // MulticastUDPTransport is a multicast UDP transport.

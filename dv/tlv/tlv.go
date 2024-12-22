@@ -1,7 +1,7 @@
 //go:generate gondn_tlv_gen
 package tlv
 
-import enc "github.com/zjkmxy/go-ndn/pkg/encoding"
+import enc "github.com/pulsejet/ndnd/std/encoding"
 
 type Packet struct {
 	//+field:struct:Advertisement

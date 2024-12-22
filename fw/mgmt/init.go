@@ -8,7 +8,7 @@
 package mgmt
 
 import (
-	"github.com/named-data/YaNFD/core"
+	"github.com/pulsejet/ndnd/fw/core"
 )
 
 // enableLocalhopManagement determines whether management will listen for command and dataset Interests
