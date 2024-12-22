@@ -1,0 +1,14 @@
+/yanfd
+/yanfd.exe
+/yanfdui
+/yanfdui.exe
+
+*.test
+*.out
+*.prof
+
+.vscode
+.idea
+publish/**
+resource.syso
+temp/
