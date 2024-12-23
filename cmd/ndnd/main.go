@@ -34,6 +34,6 @@ func main() {
 
 	// Parse the command line arguments
 	args := os.Args
-	args[0] = "ndnd"
+	args[0] = tree.Name
 	tree.Execute(args)
 }
