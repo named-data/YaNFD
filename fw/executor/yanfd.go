@@ -23,10 +23,12 @@ import (
 
 // YaNFDConfig is the configuration of YaNFD.
 type YaNFDConfig struct {
-	Version           string
-	ConfigFileName    string
-	DisableUnix       bool
-	LogFile           string
+	Version string
+	LogFile string
+
+	Config  *core.Config
+	BaseDir string
+
 	CpuProfile        string
 	MemProfile        string
 	BlockProfile      string
@@ -57,7 +59,7 @@ func NewYaNFD(config *YaNFDConfig) *YaNFD {
 	}
 
 	// Initialize config file
-	core.LoadConfig(config.ConfigFileName)
+	core.LoadConfig(config.Config, config.BaseDir)
 	core.InitializeLogger(config.LogFile)
 	face.Configure()
 	fw.Configure()
@@ -175,7 +177,7 @@ func (y *YaNFD) Start() {
 			}
 		}
 	}
-	if core.GetConfig().Faces.Unix.Enabled && !y.config.DisableUnix {
+	if core.GetConfig().Faces.Unix.Enabled {
 		// Set up Unix stream listener
 		y.unixListener, err = face.MakeUnixStreamListener(defn.MakeUnixFaceURI(face.UnixSocketPath))
 		if err != nil {

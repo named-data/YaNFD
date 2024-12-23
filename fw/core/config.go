@@ -8,15 +8,12 @@
 package core
 
 import (
-	"os"
 	"path/filepath"
-
-	"github.com/goccy/go-yaml"
 )
 
 var (
-	configFileDir string  = ""
-	config        *Config = DefaultConfig()
+	baseDir string  = ""
+	config  *Config = DefaultConfig()
 )
 
 type Config struct {
@@ -189,20 +186,12 @@ func DefaultConfig() *Config {
 	return c
 }
 
-// LoadConfig loads the YaNFD configuration from the specified configuration file.
-func LoadConfig(file string) {
-	f, err := os.Open(file)
-	if err != nil {
-		LogFatal("Config", "Unable to load configuration file: ", err)
+func LoadConfig(cfg *Config, basedir string) {
+	if cfg == nil {
+		LogFatal("Config", "Config is nil")
 	}
-	defer f.Close()
-
-	dec := yaml.NewDecoder(f, yaml.Strict())
-	if err = dec.Decode(config); err != nil {
-		LogFatal("Config", "Unable to load configuration: ", err)
-	}
-
-	configFileDir = filepath.Dir(file)
+	config = cfg
+	baseDir = basedir
 }
 
 func GetConfig() *Config {
@@ -214,5 +203,5 @@ func ResolveConfigFileRelPath(target string) (abs string) {
 	if filepath.IsAbs(target) {
 		return target
 	}
-	return filepath.Join(configFileDir, target)
+	return filepath.Join(baseDir, target)
 }
