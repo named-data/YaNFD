@@ -52,9 +52,11 @@ func (dv *Router) ribUpdate(ns *table.NeighborState) {
 
 	// If advert changed, increment sequence number
 	if dirty {
-		go dv.fibUpdate()
-		go dv.advertSyncNotifyNew()
-		go dv.prefixDataFetchAll()
+		go func() {
+			dv.fibUpdate()
+			dv.advertSyncNotifyNew()
+			dv.prefixDataFetchAll()
+		}()
 	}
 }
 
@@ -79,8 +81,10 @@ func (dv *Router) checkDeadNeighbors() {
 	}
 
 	if dirty {
-		go dv.fibUpdate()
-		go dv.advertSyncNotifyNew()
+		go func() {
+			dv.fibUpdate()
+			dv.advertSyncNotifyNew()
+		}()
 	}
 }
 

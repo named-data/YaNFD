@@ -107,7 +107,7 @@ func (ns *NeighborState) RecvPing(faceId uint64, active bool) (error, bool) {
 		}
 
 		ns.isFaceActive = active
-		log.Infof("Neighbor %s face ID changed from %d to %d", ns.Name, ns.faceId, faceId)
+		log.Infof("neighbor: %s face ID changed from %d to %d", ns.Name, ns.faceId, faceId)
 		ns.routeUnregister()
 		ns.routeRegister(faceId)
 		return nil, true
