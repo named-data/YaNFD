@@ -21,19 +21,19 @@ type PingServer struct {
 }
 
 func RunPingServer(args []string) {
-	PingServer{
+	(&PingServer{
 		args:   args,
 		signer: sec.NewSha256Signer(),
-	}.Run()
+	}).run()
 }
 
-func (ps PingServer) usage() {
+func (ps *PingServer) usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s <prefix>\n", ps.args[0])
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "Starts a NDN ping server that responds to Interests under a prefix.\n")
 }
 
-func (ps PingServer) Run() {
+func (ps *PingServer) run() {
 	log.SetLevel(log.InfoLevel)
 
 	if len(ps.args) < 2 {

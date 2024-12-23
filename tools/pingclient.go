@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,20 +20,31 @@ type PingClient struct {
 	prefix enc.Name
 	name   enc.Name
 	app    ndn.Engine
+
+	nRecv    int
+	nNack    int
+	nTimeout int
+
+	totalTime  time.Duration
+	totalCount int
+
+	rttMin time.Duration
+	rttMax time.Duration
+	rttAvg time.Duration
 }
 
 func RunPingClient(args []string) {
-	PingClient{args: args}.Run()
+	(&PingClient{args: args}).run()
 }
 
-func (pc PingClient) usage() {
+func (pc *PingClient) usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s <prefix>\n", pc.args[0])
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "Ping a NDN name prefix using Interests with name ndn:/name/prefix/ping/number.\n")
 	fmt.Fprintf(os.Stderr, "The numbers in the Interests are randomly generated\n")
 }
 
-func (pc PingClient) send(seq uint64) {
+func (pc *PingClient) send(seq uint64) {
 	name := append(pc.name, enc.NewSequenceNumComponent(seq))
 
 	cfg := &ndn.InterestConfig{
@@ -46,20 +58,32 @@ func (pc PingClient) send(seq uint64) {
 		return
 	}
 
+	pc.totalCount++
 	t1 := time.Now()
+
 	err = pc.app.Express(interest, func(args ndn.ExpressCallbackArgs) {
 		t2 := time.Now()
 
 		switch args.Result {
 		case ndn.InterestResultNack:
 			fmt.Printf("nack from %s: seq=%d with reason=%d\n", pc.prefix, seq, args.NackReason)
+			pc.nNack++
 		case ndn.InterestResultTimeout:
 			fmt.Printf("timeout from %s: seq=%d\n", pc.prefix, seq)
+			pc.nTimeout++
 		case ndn.InterestCancelled:
 			fmt.Printf("canceled from %s: seq=%d\n", pc.prefix, seq)
+			pc.nNack++
 		case ndn.InterestResultData:
-			ms := float64(t2.Sub(t1).Microseconds()) / 1000.0
-			fmt.Printf("content from %s: seq=%d, time=%f ms\n", pc.prefix, seq, ms)
+			fmt.Printf("content from %s: seq=%d, time=%f ms\n",
+				pc.prefix, seq,
+				float64(t2.Sub(t1).Microseconds())/1000.0)
+
+			pc.nRecv++
+			pc.totalTime += t2.Sub(t1)
+			pc.rttMin = min(pc.rttMin, t2.Sub(t1))
+			pc.rttMax = max(pc.rttMax, t2.Sub(t1))
+			pc.rttAvg = pc.totalTime / time.Duration(pc.nRecv)
 		}
 	})
 	if err != nil {
@@ -67,7 +91,22 @@ func (pc PingClient) send(seq uint64) {
 	}
 }
 
-func (pc PingClient) Run() {
+func (pc *PingClient) stats() {
+	if pc.totalCount == 0 {
+		fmt.Printf("No interests transmitted\n")
+		return
+	}
+
+	fmt.Printf("\n--- %s ping statistics ---\n", pc.prefix)
+	fmt.Printf("%d interests transmitted, %d received, %d%% lost\n",
+		pc.totalCount, pc.nRecv, (pc.nNack+pc.nTimeout)*100/pc.totalCount)
+	fmt.Printf("rtt min/avg/max = %f/%f/%f ms\n",
+		float64(pc.rttMin.Microseconds())/1000.0,
+		float64(pc.rttAvg.Microseconds())/1000.0,
+		float64(pc.rttMax.Microseconds())/1000.0)
+}
+
+func (pc *PingClient) run() {
 	log.SetLevel(log.InfoLevel)
 
 	if len(pc.args) < 2 {
@@ -95,7 +134,7 @@ func (pc PingClient) Run() {
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
 
 	ticker := time.NewTicker(1 * time.Second)
-	seq := uint64(0)
+	seq := rand.Uint64()
 
 	fmt.Printf("PING %s\n", pc.name)
 	pc.send(seq)
@@ -106,7 +145,7 @@ func (pc PingClient) Run() {
 			seq++
 			pc.send(seq)
 		case <-sigchan:
-			fmt.Println("Interrupted")
+			pc.stats()
 			return
 		}
 	}
