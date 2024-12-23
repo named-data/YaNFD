@@ -82,5 +82,6 @@ func PutChunks(args []string) {
 	}
 
 	// wait forever
+	// TODO: quit on SIGTERM, SIGINT or face failure
 	select {}
 }
