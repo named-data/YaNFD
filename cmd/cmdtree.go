@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 const banner = `
@@ -25,7 +26,8 @@ func (c *CmdTree) Usage(args []string) {
 	fmt.Fprintf(os.Stderr, "%s (%s)\n\n", c.Help, c.Name)
 	fmt.Fprintf(os.Stderr, "Usage: %s [command]\n", args[0])
 	for _, sub := range c.Sub {
-		fmt.Fprintf(os.Stderr, "  %s\t\t%s\n", sub.Name, sub.Help)
+		spaces := strings.Repeat(" ", 16-len(sub.Name))
+		fmt.Fprintf(os.Stderr, "  %s%s%s\n", sub.Name, spaces, sub.Help)
 	}
 	fmt.Fprintln(os.Stderr)
 	os.Exit(2)
@@ -45,7 +47,7 @@ func (c *CmdTree) Execute(args []string) {
 
 	// recursively search for subcommand
 	for _, sub := range c.Sub {
-		if args[1] == sub.Name {
+		if len(sub.Name) > 0 && args[1] == sub.Name {
 			name := args[0] + " " + args[1]
 			sargs := append([]string{name}, args[2:]...)
 			sub.Execute(sargs)

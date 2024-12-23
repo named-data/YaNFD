@@ -1,6 +1,7 @@
-package main
+package tools
 
 import (
+	"fmt"
 	"os"
 
 	enc "github.com/pulsejet/ndnd/std/encoding"
@@ -9,17 +10,25 @@ import (
 	"github.com/pulsejet/ndnd/std/object"
 )
 
-func main() {
+func putChunksUsage(args []string) {
+	fmt.Fprintf(os.Stderr, "Usage: %s <name>\n", args[0])
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "Publish data under the specified prefix.\n")
+	fmt.Fprintf(os.Stderr, "This tool expects data from the standard input.\n")
+}
+
+func PutChunks(args []string) {
 	log.SetLevel(log.InfoLevel)
 
-	if len(os.Args) < 2 {
-		log.Fatalf("Usage: putchunks <name>")
+	if len(args) < 2 {
+		putChunksUsage(args)
+		os.Exit(3)
 	}
 
 	// get name from cli
-	name, err := enc.NameFromStr(os.Args[1])
+	name, err := enc.NameFromStr(args[1])
 	if err != nil {
-		log.Fatalf("Invalid name: %s", os.Args[1])
+		log.Fatalf("Invalid name: %s", args[1])
 	}
 
 	// start face and engine

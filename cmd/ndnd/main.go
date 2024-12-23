@@ -6,6 +6,7 @@ import (
 	"github.com/pulsejet/ndnd/cmd"
 	dv "github.com/pulsejet/ndnd/dv/executor"
 	fw "github.com/pulsejet/ndnd/fw/executor"
+	tools "github.com/pulsejet/ndnd/tools"
 )
 
 func main() {
@@ -29,6 +30,16 @@ func main() {
 				Help: "Start the NDN Distance Vector Routing Daemon",
 				Fun:  dv.Main,
 			}},
+		}, {
+			// tools separator
+		}, {
+			Name: "put",
+			Help: "Publish data under prefix",
+			Fun:  tools.PutChunks,
+		}, {
+			Name: "cat",
+			Help: "Retrieve data under prefix",
+			Fun:  tools.CatChunks,
 		}},
 	}
 
