@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"flag"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -21,13 +22,22 @@ type PingClient struct {
 	name   enc.Name
 	app    ndn.Engine
 
+	// command line configuration
+	interval int
+	timeout  int
+	count    int
+	seq      uint64 // changes with each ping
+
+	// stat counters
 	nRecv    int
 	nNack    int
 	nTimeout int
 
+	// stat time counters
 	totalTime  time.Duration
 	totalCount int
 
+	// stat rtt counters
 	rttMin time.Duration
 	rttMax time.Duration
 	rttAvg time.Duration
@@ -48,7 +58,7 @@ func (pc *PingClient) send(seq uint64) {
 	name := append(pc.name, enc.NewSequenceNumComponent(seq))
 
 	cfg := &ndn.InterestConfig{
-		Lifetime: utils.IdPtr(4 * time.Second),
+		Lifetime: utils.IdPtr(time.Duration(pc.timeout) * time.Millisecond),
 		Nonce:    utils.ConvertNonce(pc.app.Timer().Nonce()),
 	}
 
@@ -109,18 +119,40 @@ func (pc *PingClient) stats() {
 func (pc *PingClient) run() {
 	log.SetLevel(log.InfoLevel)
 
-	if len(pc.args) < 2 {
+	flagset := flag.NewFlagSet("ping", flag.ExitOnError)
+	flagset.Usage = func() {
 		pc.usage()
+		flagset.PrintDefaults()
+	}
+
+	flagset.IntVar(&pc.interval, "i", 1000, "ping interval, in milliseconds")
+	flagset.IntVar(&pc.timeout, "t", 4000, "timeout for each ping, in milliseconds")
+	flagset.IntVar(&pc.count, "c", 0, "number of pings to send")
+	flagset.Uint64Var(&pc.seq, "s", 0, "start sequence number")
+
+	// get name prefix
+	flagset.Parse(pc.args[1:])
+	prefix := flagset.Arg(0)
+	if prefix == "" {
+		flagset.Usage()
 		os.Exit(3)
 	}
 
-	prefix, err := enc.NameFromStr(pc.args[1])
+	// parse name prefix
+	prefixN, err := enc.NameFromStr(prefix)
 	if err != nil {
 		log.Fatalf("Invalid prefix: %s", pc.args[1])
 	}
-	pc.prefix = prefix
-	pc.name = append(prefix, enc.NewStringComponent(enc.TypeGenericNameComponent, "ping"))
+	pc.prefix = prefixN
+	pc.name = append(prefixN,
+		enc.NewStringComponent(enc.TypeGenericNameComponent, "ping"))
 
+	// initialize sequence number
+	if pc.seq == 0 {
+		pc.seq = rand.Uint64()
+	}
+
+	// start the engine
 	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
 	pc.app = engine.NewBasicEngine(face)
 	err = pc.app.Start()
@@ -130,23 +162,32 @@ func (pc *PingClient) run() {
 	}
 	defer pc.app.Stop()
 
+	// quit on signal
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
 
-	ticker := time.NewTicker(1 * time.Second)
-	seq := rand.Uint64()
-
+	// start main ping routine
 	fmt.Printf("PING %s\n", pc.name)
-	pc.send(seq)
 
-	for {
-		select {
-		case <-ticker.C:
-			seq++
-			pc.send(seq)
-		case <-sigchan:
-			pc.stats()
-			return
+	func() {
+		// initial ping
+		pc.send(pc.seq)
+
+		// send ping periodically
+		ticker := time.NewTicker(time.Duration(pc.interval) * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				pc.seq++
+				pc.send(pc.seq)
+				if pc.count > 0 && pc.totalCount >= pc.count {
+					return
+				}
+			case <-sigchan:
+				return
+			}
 		}
-	}
+	}()
+
+	pc.stats()
 }

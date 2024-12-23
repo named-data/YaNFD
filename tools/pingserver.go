@@ -18,6 +18,7 @@ type PingServer struct {
 	args   []string
 	app    ndn.Engine
 	signer ndn.Signer
+	nRecv  int
 }
 
 func RunPingServer(args []string) {
@@ -72,10 +73,14 @@ func (ps *PingServer) run() {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
 	<-sigchan
+
+	fmt.Printf("\n--- %s ping server statistics ---\n", name)
+	fmt.Printf("%d Interests processed\n", ps.nRecv)
 }
 
 func (ps *PingServer) onInterest(args ndn.InterestHandlerArgs) {
 	fmt.Printf("interest received: %s\n", args.Interest.Name())
+	ps.nRecv++
 
 	data, err := ps.app.Spec().MakeData(
 		args.Interest.Name(),
