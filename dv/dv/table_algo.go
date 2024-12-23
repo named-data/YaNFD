@@ -86,6 +86,8 @@ func (dv *Router) checkDeadNeighbors() {
 
 // Update the FIB
 func (dv *Router) fibUpdate() {
+	log.Infof("Sychronizing updates to forwarding table")
+
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 

@@ -152,34 +152,47 @@ func (dv *Router) configureFace() (err error) {
 
 // Register interest handlers for DV prefixes.
 func (dv *Router) register() (err error) {
-	// Advertisement Sync
-	err = dv.engine.AttachHandler(dv.config.AdvertisementSyncPrefix(), func(args ndn.InterestHandlerArgs) {
-		go dv.advertSyncOnInterest(args)
-	})
+	// Advertisement Sync (active)
+	err = dv.engine.AttachHandler(dv.config.AdvertisementSyncActivePrefix(),
+		func(args ndn.InterestHandlerArgs) {
+			go dv.advertSyncOnInterest(args, true)
+		})
+	if err != nil {
+		return err
+	}
+
+	// Advertisement Sync (passive)
+	err = dv.engine.AttachHandler(dv.config.AdvertisementSyncPassivePrefix(),
+		func(args ndn.InterestHandlerArgs) {
+			go dv.advertSyncOnInterest(args, false)
+		})
 	if err != nil {
 		return err
 	}
 
 	// Advertisement Data
-	err = dv.engine.AttachHandler(dv.config.AdvertisementDataPrefix(), func(args ndn.InterestHandlerArgs) {
-		go dv.advertDataOnInterest(args)
-	})
+	err = dv.engine.AttachHandler(dv.config.AdvertisementDataPrefix(),
+		func(args ndn.InterestHandlerArgs) {
+			go dv.advertDataOnInterest(args)
+		})
 	if err != nil {
 		return err
 	}
 
 	// Prefix Data
-	err = dv.engine.AttachHandler(dv.config.PrefixTableDataPrefix(), func(args ndn.InterestHandlerArgs) {
-		go dv.pfx.OnDataInterest(args)
-	})
+	err = dv.engine.AttachHandler(dv.config.PrefixTableDataPrefix(),
+		func(args ndn.InterestHandlerArgs) {
+			go dv.pfx.OnDataInterest(args)
+		})
 	if err != nil {
 		return err
 	}
 
 	// Readvertise Data
-	err = dv.engine.AttachHandler(dv.config.ReadvertisePrefix(), func(args ndn.InterestHandlerArgs) {
-		go dv.readvertiseOnInterest(args)
-	})
+	err = dv.engine.AttachHandler(dv.config.ReadvertisePrefix(),
+		func(args ndn.InterestHandlerArgs) {
+			go dv.readvertiseOnInterest(args)
+		})
 	if err != nil {
 		return err
 	}

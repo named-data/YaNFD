@@ -18,7 +18,8 @@ This page describes the protocol specification of NDN Distance Vector Routing (n
 
 ## 2. Format and Naming
 
-- **Advertisement Sync group**: `/localhop/<network>/32=DV/32=ADS`
+- **Advertisement Sync (active)**: `/localhop/<network>/32=DV/32=ADS/32=ACT`
+- **Advertisement Sync (passive)**: `/localhop/<network>/32=DV/32=ADS/32=PSV`
 - **Advertisement Data**: `/localhop/<router>/32=DV/32=ADV/58=<seq>`
 - **Prefix Sync group**: `/<network>/32=DV/32=PFS`
 - **Prefix Data**: `/<router>/32=DV/32=PFX/58=<seq>`
@@ -111,7 +112,13 @@ ndn-dv uses a local variant of SVS v2 for advertisement synchronization
 1. Sync Interests are propagated only one hop, using `localhop` and a `HopLimit` of 2.
 1. On receiving a Sync Interest, the router updates the sequence number for the sending neighbor.
 1. However, the outgoing state vector does not change, and always only contains the router itself.
-1. The incoming face of a advertisement Sync Interest is used to set up data routes to neighbors.
+1. The incoming face of a Advertisement Sync Interest is used to set up data routes to neighbors.
+
+To allow for asymmetric face configurations, two types of Sync Interests are used:
+
+1. Active Advertisement Sync Interests are sent to neighbors explicity registered with the router. These are multicast to all neighbors by registering a FIB entry for the active Sync prefix.
+2. Passive Advertisement Sync Interests are sent to all neighbors, on the incoming face of the neighbor's Sync Interest. These are multicast to all neighbors by registering a FIB entry for the passive Sync prefix.
+3. When processing a Sync Interest, an active Sync Interest always takes precedence over any passive Sync Interest for purposes of determining the outgoing face to a neighbor.
 
 ### Update Processing
 

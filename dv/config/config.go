@@ -30,6 +30,10 @@ type Config struct {
 	routerNameN enc.Name
 	// Advertisement Sync Prefix
 	advSyncPfxN enc.Name
+	// Advertisement Sync Prefix (Active)
+	advSyncActivePfxN enc.Name
+	// Advertisement Sync Prefix (Passive)
+	advSyncPassivePfxN enc.Name
 	// Advertisement Data Prefix
 	advDataPfxN enc.Name
 	// Prefix Table Sync Prefix
@@ -81,6 +85,12 @@ func (c *Config) Parse() (err error) {
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADS"),
 	)...)
+	c.advSyncActivePfxN = append(c.advSyncPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ACT"),
+	)
+	c.advSyncPassivePfxN = append(c.advSyncPfxN,
+		enc.NewStringComponent(enc.TypeKeywordNameComponent, "PSV"),
+	)
 	c.advDataPfxN = append(Localhop, append(c.routerNameN,
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "DV"),
 		enc.NewStringComponent(enc.TypeKeywordNameComponent, "ADV"),
@@ -110,6 +120,14 @@ func (c *Config) RouterName() enc.Name {
 
 func (c *Config) AdvertisementSyncPrefix() enc.Name {
 	return c.advSyncPfxN
+}
+
+func (c *Config) AdvertisementSyncActivePrefix() enc.Name {
+	return c.advSyncActivePfxN
+}
+
+func (c *Config) AdvertisementSyncPassivePrefix() enc.Name {
+	return c.advSyncPassivePfxN
 }
 
 func (c *Config) AdvertisementDataPrefix() enc.Name {

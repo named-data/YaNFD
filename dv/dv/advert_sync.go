@@ -3,6 +3,7 @@ package dv
 import (
 	"time"
 
+	"github.com/pulsejet/ndnd/dv/table"
 	enc "github.com/pulsejet/ndnd/std/encoding"
 	"github.com/pulsejet/ndnd/std/log"
 	"github.com/pulsejet/ndnd/std/ndn"
@@ -11,8 +12,24 @@ import (
 )
 
 func (dv *Router) advertSyncSendInterest() (err error) {
+	// Sync Interests for our outgoing connections
+	err = dv.advertSyncSendInterestImpl(dv.config.AdvertisementSyncActivePrefix())
+	if err != nil {
+		log.Warnf("advertSyncSendInterest: failed to send active sync interest: %+v", err)
+	}
+
+	// Sync Interests for incoming connections
+	err = dv.advertSyncSendInterestImpl(dv.config.AdvertisementSyncPassivePrefix())
+	if err != nil {
+		log.Warnf("advertSyncSendInterest: failed to send passive sync interest: %+v", err)
+	}
+
+	return err
+}
+
+func (dv *Router) advertSyncSendInterestImpl(prefix enc.Name) (err error) {
 	// SVS v2 Sync Interest
-	syncName := append(dv.config.AdvertisementSyncPrefix(), enc.NewVersionComponent(2))
+	syncName := append(prefix, enc.NewVersionComponent(2))
 
 	// Sync Interest parameters for SVS
 	cfg := &ndn.InterestConfig{
@@ -49,7 +66,7 @@ func (dv *Router) advertSyncSendInterest() (err error) {
 	return nil
 }
 
-func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
+func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs, active bool) {
 	// Check if app param is present
 	if args.Interest.AppParam() == nil {
 		log.Warn("advertSyncOnInterest: received Sync Interest with no AppParam, ignoring")
@@ -74,6 +91,17 @@ func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
 	dv.mutex.Lock()
 	defer dv.mutex.Unlock()
 
+	// FIB needs update if face changes for any neighbor
+	fibDirty := false
+	markRecvPing := func(ns *table.NeighborState) {
+		err, faceDirty := ns.RecvPing(*args.IncomingFaceId, active)
+		if err != nil {
+			log.Warnf("advertSyncOnInterest: failed to update neighbor: %+v", err)
+		}
+		fibDirty = fibDirty || faceDirty
+	}
+
+	// There should only be one entry in the StateVector, but check all anyway
 	for _, entry := range params.StateVector.Entries {
 		// Parse name from NodeId
 		nodeId := entry.NodeId
@@ -87,7 +115,7 @@ func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
 		if ns != nil {
 			if ns.AdvertSeq >= entry.SeqNo {
 				// Nothing has changed, skip
-				ns.RecvPing(*args.IncomingFaceId)
+				markRecvPing(ns)
 				continue
 			}
 		} else {
@@ -97,10 +125,15 @@ func (dv *Router) advertSyncOnInterest(args ndn.InterestHandlerArgs) {
 			ns = dv.neighbors.Add(nodeId)
 		}
 
-		ns.RecvPing(*args.IncomingFaceId)
+		markRecvPing(ns)
 		ns.AdvertSeq = entry.SeqNo
 
 		go dv.advertDataFetch(nodeId, entry.SeqNo)
+	}
+
+	// Update FIB if needed
+	if fibDirty {
+		go dv.fibUpdate()
 	}
 }
 

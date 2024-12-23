@@ -7,6 +7,7 @@ import (
 	"github.com/pulsejet/ndnd/dv/nfdc"
 	"github.com/pulsejet/ndnd/dv/tlv"
 	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/log"
 	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
 	"github.com/pulsejet/ndnd/std/utils"
 )
@@ -35,6 +36,8 @@ type NeighborState struct {
 	lastSeen time.Time
 	// latest known face ID
 	faceId uint64
+	// the received advertisement is active face
+	isFaceActive bool
 }
 
 func NewNeighborTable(config *config.Config, nfdc *nfdc.NfdMgmtThread) *NeighborTable {
@@ -91,23 +94,34 @@ func (ns *NeighborState) IsDead() bool {
 // Call this when a ping is received from a face.
 // This will automatically register the face route with the neighbor
 // and update the last seen time for the neighbor.
-func (ns *NeighborState) RecvPing(faceId uint64) error {
+// Return => true if the face ID has changed
+func (ns *NeighborState) RecvPing(faceId uint64, active bool) (error, bool) {
 	// Update last seen time for neighbor
 	ns.lastSeen = time.Now()
 
 	// If face ID has changed, re-register face.
 	if ns.faceId != faceId {
+		if ns.isFaceActive && !active {
+			// This ping is passive, but we already have an active ping.
+			return nil, false // ignore this ping.
+		}
+
+		ns.isFaceActive = active
+		log.Infof("Neighbor %s face ID changed from %d to %d", ns.Name, ns.faceId, faceId)
 		ns.routeUnregister()
 		ns.routeRegister(faceId)
+		return nil, true
 	}
 
-	return nil
+	return nil, false
 }
 
 // Called when the neighbor is removed from the neighbor table.
 func (ns *NeighborState) delete() {
-	ns.Advert = nil
 	ns.routeUnregister()
+	ns.Advert = nil
+	ns.faceId = 0
+	ns.isFaceActive = false
 }
 
 func (ns *NeighborState) localRoute() enc.Name {
@@ -120,31 +134,26 @@ func (ns *NeighborState) localRoute() enc.Name {
 func (ns *NeighborState) routeRegister(faceId uint64) {
 	ns.faceId = faceId
 
-	// For fetching advertisements from neighbor
-	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-		Module: "rib",
-		Cmd:    "register",
-		Args: &mgmt.ControlArgs{
-			Name:   ns.localRoute(),
-			FaceId: utils.IdPtr(faceId),
-			Origin: utils.IdPtr(config.NlsrOrigin),
-			Cost:   utils.IdPtr(uint64(0)),
-		},
-		Retries: 3,
-	})
+	register := func(route enc.Name) {
+		ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+			Module: "rib",
+			Cmd:    "register",
+			Args: &mgmt.ControlArgs{
+				Name:   route,
+				FaceId: utils.IdPtr(faceId),
+				Origin: utils.IdPtr(config.NlsrOrigin),
+				Cost:   utils.IdPtr(uint64(0)),
+			},
+			Retries: 3,
+		})
+	}
 
+	// For fetching advertisements from neighbor
+	register(ns.localRoute())
+	// Passive advertisement sync to neighbor
+	register(ns.nt.config.AdvertisementSyncPassivePrefix())
 	// For prefix table sync group
-	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-		Module: "rib",
-		Cmd:    "register",
-		Args: &mgmt.ControlArgs{
-			Name:   ns.nt.config.PrefixTableSyncPrefix(),
-			FaceId: utils.IdPtr(faceId),
-			Origin: utils.IdPtr(config.NlsrOrigin),
-			Cost:   utils.IdPtr(uint64(0)),
-		},
-		Retries: 3,
-	})
+	register(ns.nt.config.PrefixTableSyncPrefix())
 }
 
 // Single attempt to unregister the route
@@ -152,33 +161,31 @@ func (ns *NeighborState) routeUnregister() {
 	if ns.faceId == 0 {
 		return // not set
 	}
-	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-		Module: "rib",
-		Cmd:    "unregister",
-		Args: &mgmt.ControlArgs{
-			Name:   ns.localRoute(),
-			FaceId: utils.IdPtr(ns.faceId),
-			Origin: utils.IdPtr(config.NlsrOrigin),
-		},
-		Retries: 1,
-	})
+
+	unregister := func(route enc.Name) {
+		ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
+			Module: "rib",
+			Cmd:    "unregister",
+			Args: &mgmt.ControlArgs{
+				Name:   route,
+				FaceId: utils.IdPtr(ns.faceId),
+				Origin: utils.IdPtr(config.NlsrOrigin),
+			},
+			Retries: 1,
+		})
+	}
+
+	// Always remove local data route to neighbor
+	unregister(ns.localRoute())
 
 	// If there are multiple neighbors on this face, we do not
 	// want to unregister the global routes to the face.
 	for _, ons := range ns.nt.neighbors {
-		if ons.faceId == ns.faceId {
+		if ons != ns && ons.faceId == ns.faceId {
 			return // skip global unregistration
 		}
 	}
 
-	ns.nt.nfdc.Exec(nfdc.NfdMgmtCmd{
-		Module: "rib",
-		Cmd:    "unregister",
-		Args: &mgmt.ControlArgs{
-			Name:   ns.nt.config.PrefixTableSyncPrefix(),
-			FaceId: utils.IdPtr(ns.faceId),
-			Origin: utils.IdPtr(config.NlsrOrigin),
-		},
-		Retries: 1,
-	})
+	unregister(ns.nt.config.AdvertisementSyncPassivePrefix())
+	unregister(ns.nt.config.PrefixTableSyncPrefix())
 }
