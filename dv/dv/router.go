@@ -8,6 +8,7 @@ import (
 	"github.com/pulsejet/ndnd/dv/nfdc"
 	"github.com/pulsejet/ndnd/dv/table"
 	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/pulsejet/ndnd/std/log"
 	"github.com/pulsejet/ndnd/std/ndn"
 	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
 	ndn_sync "github.com/pulsejet/ndnd/std/sync"
@@ -81,6 +82,10 @@ func NewRouter(config *config.Config, engine ndn.Engine) (*Router, error) {
 
 // Start the DV router. Blocks until Stop() is called.
 func (dv *Router) Start() (err error) {
+	log.Infof("Starting DV router")
+	defer log.Infof("Stopping DV router")
+
+	// Initialize channels
 	dv.stop = make(chan bool, 1)
 
 	// Start timers
