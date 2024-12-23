@@ -12,12 +12,12 @@ import (
 )
 
 func Main(args []string) {
-	var cfgFile string = "/etc/ndn/dv.yml"
-	if len(args) >= 2 {
-		cfgFile = args[1]
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-file>\n", args[0])
+		os.Exit(2)
 	}
 
-	cfgBytes, err := os.ReadFile(cfgFile)
+	cfgBytes, err := os.ReadFile(args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to read configuration file: %s\n", err)
 		os.Exit(3)

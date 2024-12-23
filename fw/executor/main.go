@@ -19,7 +19,7 @@ func Main(args []string) {
 
 	flagset := flag.NewFlagSet("yanfd", flag.ExitOnError)
 	flagset.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [configfile] [options]\n", args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-file> [options]\n", args[0])
 		flagset.PrintDefaults()
 	}
 
@@ -43,7 +43,8 @@ func Main(args []string) {
 
 	configfile := flagset.Arg(0)
 	if configfile == "" {
-		configfile = "/usr/local/etc/ndn/yanfd.yml"
+		flagset.Usage()
+		os.Exit(3)
 	}
 	config.BaseDir = filepath.Dir(configfile)
 
