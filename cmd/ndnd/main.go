@@ -33,13 +33,21 @@ func main() {
 		}, {
 			// tools separator
 		}, {
-			Name: "put",
-			Help: "Publish data under prefix",
-			Fun:  tools.PutChunks,
+			Name: "ping",
+			Help: "Send Interests to an NDN ping server",
+			Fun:  tools.RunPingClient,
+		}, {
+			Name: "pingserver",
+			Help: "Start an NDN ping server under a prefix",
+			Fun:  tools.RunPingServer,
 		}, {
 			Name: "cat",
-			Help: "Retrieve data under prefix",
+			Help: "Retrieve data under a prefix",
 			Fun:  tools.CatChunks,
+		}, {
+			Name: "put",
+			Help: "Publish data under a prefix",
+			Fun:  tools.PutChunks,
 		}},
 	}
 
