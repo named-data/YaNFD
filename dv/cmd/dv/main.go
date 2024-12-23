@@ -8,6 +8,6 @@ import (
 
 func main() {
 	args := os.Args
-	args[0] = "yanfd"
+	args[0] = "ndn-dv"
 	executor.Main(args)
 }
