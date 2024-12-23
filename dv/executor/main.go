@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,12 +19,14 @@ func Main(args []string) {
 
 	cfgBytes, err := os.ReadFile(cfgFile)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Unable to read configuration file: %s\n", err)
+		os.Exit(3)
 	}
 
 	dc := DefaultConfig()
 	if err = yaml.Unmarshal(cfgBytes, &dc); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Unable to parse configuration file: %s\n", err)
+		os.Exit(3)
 	}
 
 	log.SetLevel(log.InfoLevel)

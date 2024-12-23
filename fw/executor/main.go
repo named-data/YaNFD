@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -20,7 +19,7 @@ func Main(args []string) {
 
 	flagset := flag.NewFlagSet("yanfd", flag.ExitOnError)
 	flagset.Usage = func() {
-		fmt.Printf("Usage: %s [configfile] [options]\n", args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [configfile] [options]\n", args[0])
 		flagset.PrintDefaults()
 	}
 
@@ -35,32 +34,31 @@ func Main(args []string) {
 	flagset.Parse(args[1:])
 
 	if printVersion {
-		fmt.Println("YaNFD: Yet another NDN Forwarding Daemon")
-		fmt.Println("Version: ", Version)
-		fmt.Println("Copyright (C) 2020-2024 University of California")
-		fmt.Println("Released under the terms of the MIT License")
+		fmt.Fprintln(os.Stderr, "YaNFD: Yet another NDN Forwarding Daemon")
+		fmt.Fprintln(os.Stderr, "Version: ", Version)
+		fmt.Fprintln(os.Stderr, "Copyright (C) 2020-2024 University of California")
+		fmt.Fprintln(os.Stderr, "Released under the terms of the MIT License")
 		return
 	}
 
 	configfile := flagset.Arg(0)
-	if configfile == "help" {
-		flagset.Usage()
-		return
-	} else if configfile == "" {
+	if configfile == "" {
 		configfile = "/usr/local/etc/ndn/yanfd.yml"
 	}
 	config.BaseDir = filepath.Dir(configfile)
 
 	f, err := os.Open(configfile)
 	if err != nil {
-		panic(errors.New("Unable to open configuration file: " + err.Error()))
+		fmt.Fprintln(os.Stderr, "Unable to open configuration file: "+err.Error())
+		os.Exit(3)
 	}
 	defer f.Close()
 
 	config.Config = core.DefaultConfig()
 	dec := yaml.NewDecoder(f, yaml.Strict())
 	if err = dec.Decode(config.Config); err != nil {
-		panic(errors.New("Unable to parse configuration file: " + err.Error()))
+		fmt.Fprintln(os.Stderr, "Unable to parse configuration file: "+err.Error())
+		os.Exit(3)
 	}
 
 	// create YaNFD instance
