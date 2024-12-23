@@ -10,25 +10,33 @@ import (
 	"github.com/pulsejet/ndnd/std/object"
 )
 
-func putChunksUsage(args []string) {
-	fmt.Fprintf(os.Stderr, "Usage: %s <name>\n", args[0])
+type PutChunks struct {
+	args []string
+}
+
+func RunPutChunks(args []string) {
+	(&PutChunks{args: args}).run()
+}
+
+func (pc *PutChunks) usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s <name>\n", pc.args[0])
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "Publish data under the specified prefix.\n")
 	fmt.Fprintf(os.Stderr, "This tool expects data from the standard input.\n")
 }
 
-func PutChunks(args []string) {
+func (pc *PutChunks) run() {
 	log.SetLevel(log.InfoLevel)
 
-	if len(args) < 2 {
-		putChunksUsage(args)
+	if len(pc.args) < 2 {
+		pc.usage()
 		os.Exit(3)
 	}
 
 	// get name from cli
-	name, err := enc.NameFromStr(args[1])
+	name, err := enc.NameFromStr(pc.args[1])
 	if err != nil {
-		log.Fatalf("Invalid name: %s", args[1])
+		log.Fatalf("Invalid name: %s", pc.args[1])
 	}
 
 	// start face and engine

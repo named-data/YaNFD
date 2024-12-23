@@ -43,11 +43,11 @@ func main() {
 		}, {
 			Name: "cat",
 			Help: "Retrieve data under a prefix",
-			Fun:  tools.CatChunks,
+			Fun:  tools.RunCatChunks,
 		}, {
 			Name: "put",
 			Help: "Publish data under a prefix",
-			Fun:  tools.PutChunks,
+			Fun:  tools.RunPutChunks,
 		}},
 	}
 

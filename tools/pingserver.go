@@ -18,7 +18,9 @@ type PingServer struct {
 	args   []string
 	app    ndn.Engine
 	signer ndn.Signer
-	nRecv  int
+
+	name  enc.Name
+	nRecv int
 }
 
 func RunPingServer(args []string) {
@@ -42,11 +44,12 @@ func (ps *PingServer) run() {
 		os.Exit(3)
 	}
 
-	name, err := enc.NameFromStr(ps.args[1])
+	prefix, err := enc.NameFromStr(ps.args[1])
 	if err != nil {
-		log.Fatalf("Invalid name: %s", ps.args[1])
+		log.Fatalf("Invalid prefix: %s", ps.args[1])
 	}
-	name = append(name, enc.NewStringComponent(enc.TypeGenericNameComponent, "ping"))
+	ps.name = append(prefix,
+		enc.NewStringComponent(enc.TypeGenericNameComponent, "ping"))
 
 	face := engine.NewUnixFace("/var/run/nfd/nfd.sock")
 	ps.app = engine.NewBasicEngine(face)
@@ -57,24 +60,28 @@ func (ps *PingServer) run() {
 	}
 	defer ps.app.Stop()
 
-	err = ps.app.AttachHandler(name, ps.onInterest)
+	err = ps.app.AttachHandler(ps.name, ps.onInterest)
 	if err != nil {
 		log.Fatalf("Unable to register handler: %+v", err)
 		return
 	}
-	err = ps.app.RegisterRoute(name)
+
+	err = ps.app.RegisterRoute(ps.name)
 	if err != nil {
 		log.Fatalf("Unable to register route: %+v", err)
 		return
 	}
 
-	fmt.Printf("PING SERVER %s\n", name)
+	fmt.Printf("PING SERVER %s\n", ps.name)
+	defer ps.stats()
 
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
 	<-sigchan
+}
 
-	fmt.Printf("\n--- %s ping server statistics ---\n", name)
+func (ps *PingServer) stats() {
+	fmt.Printf("\n--- %s ping server statistics ---\n", ps.name)
 	fmt.Printf("%d Interests processed\n", ps.nRecv)
 }
 

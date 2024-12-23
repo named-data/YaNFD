@@ -168,26 +168,24 @@ func (pc *PingClient) run() {
 
 	// start main ping routine
 	fmt.Printf("PING %s\n", pc.name)
+	defer pc.stats()
 
-	func() {
-		// initial ping
-		pc.send(pc.seq)
+	// initial ping
+	pc.send(pc.seq)
 
-		// send ping periodically
-		ticker := time.NewTicker(time.Duration(pc.interval) * time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-				pc.seq++
-				pc.send(pc.seq)
-				if pc.count > 0 && pc.totalCount >= pc.count {
-					return
-				}
-			case <-sigchan:
+	// send ping periodically
+	ticker := time.NewTicker(time.Duration(pc.interval) * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			pc.seq++
+			pc.send(pc.seq)
+			if pc.count > 0 && pc.totalCount >= pc.count {
+				time.Sleep(time.Duration(pc.timeout) * time.Millisecond)
 				return
 			}
+		case <-sigchan:
+			return
 		}
-	}()
-
-	pc.stats()
+	}
 }

@@ -11,25 +11,33 @@ import (
 	"github.com/pulsejet/ndnd/std/object"
 )
 
-func catChunksUsage(args []string) {
-	fmt.Fprintf(os.Stderr, "Usage: %s <name>\n", args[0])
+type CatChunks struct {
+	args []string
+}
+
+func RunCatChunks(args []string) {
+	(&CatChunks{args: args}).run()
+}
+
+func (cc *CatChunks) usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s <name>\n", cc.args[0])
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "Retrieves an object with the specified name.\n")
 	fmt.Fprintf(os.Stderr, "The object contents are written to stdout on success.\n")
 }
 
-func CatChunks(args []string) {
+func (cc *CatChunks) run() {
 	log.SetLevel(log.InfoLevel)
 
-	if len(args) < 2 {
-		catChunksUsage(args)
+	if len(cc.args) < 2 {
+		cc.usage()
 		os.Exit(3)
 	}
 
 	// get name from cli
-	name, err := enc.NameFromStr(args[1])
+	name, err := enc.NameFromStr(cc.args[1])
 	if err != nil {
-		log.Fatalf("Invalid name: %s", args[1])
+		log.Fatalf("Invalid name: %s", cc.args[1])
 	}
 
 	// start face and engine
