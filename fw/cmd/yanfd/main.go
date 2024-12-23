@@ -14,5 +14,7 @@ import (
 )
 
 func main() {
-	executor.Main(os.Args)
+	args := os.Args
+	args[0] = "yanfd"
+	executor.Main(args)
 }

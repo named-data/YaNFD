@@ -20,7 +20,7 @@ func Main(args []string) {
 
 	flagset := flag.NewFlagSet("yanfd", flag.ExitOnError)
 	flagset.Usage = func() {
-		fmt.Printf("Usage: %s [configfile] [options]\n", "yanfd")
+		fmt.Printf("Usage: %s [configfile] [options]\n", args[0])
 		flagset.PrintDefaults()
 	}
 

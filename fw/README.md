@@ -24,17 +24,19 @@ To view a list of available options, specify the `-help` argument.
 
 ## Configuration
 
-YaNFD's configuration is split into two components: startup configuration and runtime configuration.
-Startup configuration sets default ports, queue sizes, logging levels, and other important options.
-Meanwhile, runtime configuration is used to create NDN faces, set routes and strategies, and other related tasks.
+YaNFD's configuration has two components.
+*Startup configuration* sets default ports, queue sizes, logging levels, and other important options.
+*Runtime configuration* is used to create NDN faces, set routes and strategies, and other related tasks.
 
-Startup configuration for YaNFD is performed via a YAML file, by default read from `/usr/local/etc/ndn/yanfd.yml` on Unix-like systems. You can specify the configuration file location as the first CLI argument when starting YaNFD.
+*Startup configuration* for YaNFD is performed via a YAML file, by default read from `/usr/local/etc/ndn/yanfd.yml`.
+A sample configuration file is provided at [yanfd.sample.yml](yanfd.sample.yml).
+You can specify the configuration file location as the first CLI argument when starting YaNFD.
 
 ```bash
 yanfd /path/to/yanfd.yml
 ```
 
-Runtime configuration is performed via the [NFD Management Protocol](https://redmine.named-data.net/projects/nfd/wiki/Management).
+*Runtime configuration* is performed via the [NFD Management Protocol](https://redmine.named-data.net/projects/nfd/wiki/Management).
 At the moment, this requires the installation of the [NFD](https://github.com/named-data/NFD) package to obtain the `nfdc` configuration utility.
 
 ## Building from source
