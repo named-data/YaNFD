@@ -17,7 +17,7 @@ func main() {
 			Name: "fw",
 			Help: "NDN Forwarding Daemon",
 			Sub: []*cmd.CmdTree{{
-				Name: "start",
+				Name: "run",
 				Help: "Start the NDN Forwarding Daemon",
 				Fun:  fw.Main,
 			}},
@@ -25,7 +25,7 @@ func main() {
 			Name: "dv",
 			Help: "NDN Distance Vector Routing Daemon",
 			Sub: []*cmd.CmdTree{{
-				Name: "start",
+				Name: "run",
 				Help: "Start the NDN Distance Vector Routing Daemon",
 				Fun:  dv.Main,
 			}},
