@@ -260,9 +260,11 @@ func (l *linkServiceBase) dispatchData(pkt *defn.Pkt) {
 	// threads matching every prefix. We need to do this because producers do
 	// not attach PIT tokens to their data packets.
 	if l.Scope() == defn.Local {
-		for _, thread := range fw.HashNameToAllPrefixFwThreads(pkt.Name) {
-			core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", thread)
-			dispatch.GetFWThread(thread).QueueData(pkt)
+		for i, match := range fw.HashNameToAllPrefixFwThreads(pkt.Name) {
+			if match {
+				core.LogTrace(l, "Prefix dispatched local-origin Data packet to thread ", i)
+				dispatch.GetFWThread(i).QueueData(pkt)
+			}
 		}
 		return
 	}
