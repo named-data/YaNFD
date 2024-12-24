@@ -136,7 +136,7 @@ func (t *UnicastUDPTransport) runReceive() {
 		// This happens if the other side is not listening (ICMP)
 		return strings.Contains(err.Error(), "connection refused")
 	})
-	if err != nil {
+	if err != nil && t.running.Load() {
 		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
 }
