@@ -434,7 +434,7 @@ func (t *Thread) processIncomingData(packet *defn.Pkt) {
 	// Check for matching PIT entries
 	pitEntries := t.pitCS.FindInterestPrefixMatchByDataEnc(data, pitToken)
 	if len(pitEntries) == 0 {
-		// Unsolicated Data - nothing more to do
+		// Unsolicited Data - nothing more to do
 		core.LogDebug(t, "Unsolicited data ", packet.Name, " FaceID=", *packet.IncomingFaceID, " - DROP")
 		return
 	}

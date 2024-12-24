@@ -197,7 +197,7 @@ func (f *FibStrategyTree) ClearNextHopsEnc(name enc.Name) {
 	defer f.fibStrategyRWMutex.Unlock()
 
 	if name == nil {
-		return // In some wierd case, when RibEntry.updateNexthops() is called, the name becomes nil.
+		return // In some weird case, when RibEntry.updateNexthops() is called, the name becomes nil.
 	}
 	node := f.root.findExactMatchEntryEnc(name)
 	if node != nil {

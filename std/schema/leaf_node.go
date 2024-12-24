@@ -33,7 +33,7 @@ func (n *LeafNode) Provide(
 		panic("NTSchema tree compromised.")
 	}
 
-	// Construst the Data
+	// Construct the Data
 	node := n.Node
 	engine := n.Node.engine
 	spec := engine.Spec()

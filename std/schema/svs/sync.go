@@ -25,7 +25,7 @@ type MissingData struct {
 
 const (
 	SyncSteady SyncState = iota
-	SyncSupression
+	SyncSuppression
 )
 
 // SvsNode implements the StateVectorSync but works for only one instance.
@@ -173,18 +173,18 @@ func (n *SvsNode) onSyncInt(event *schema.Event) any {
 	// TODO: Have trouble understanding this mechanism from the Spec.
 	// From StateVectorSync Spec 4.4,
 	// "Incoming Sync Interest is outdated: Node moves to Suppression State."
-	// implies the state becomes Supression State when `remote any< local`
+	// implies the state becomes Suppression State when `remote any< local`
 	// From StateVectorSync Spec 6, the box below
 	// "local_state_vector any< x"
-	// implies the state becomes Supression State when `local any< remote`
+	// implies the state becomes Suppression State when `local any< remote`
 	// Contradiction. The wrong one should be the figure.
-	// Since supression is an optimization that does not affect the demo, ignore for now.
+	// Since suppression is an optimization that does not affect the demo, ignore for now.
 	// Report this issue to the team when have time.
 
-	if needNotif || n.state == SyncSupression {
+	if needNotif || n.state == SyncSuppression {
 		// Set the aggregation timer
 		if n.state == SyncSteady {
-			n.state = SyncSupression
+			n.state = SyncSuppression
 			n.aggSv = stlv.StateVector{Entries: make([]*stlv.StateVectorEntry, len(remoteSv.Entries))}
 			copy(n.aggSv.Entries, remoteSv.Entries)
 			n.cancelSyncTimer()
@@ -228,9 +228,9 @@ func (n *SvsNode) aggregate(remoteSv *stlv.StateVector) {
 func (n *SvsNode) onSyncTimer() {
 	n.dataLock.Lock()
 	defer n.dataLock.Unlock()
-	// If in supression state, first test necessity
+	// If in suppression state, first test necessity
 	notNecessary := false
-	if n.state == SyncSupression {
+	if n.state == SyncSuppression {
 		n.state = SyncSteady
 		notNecessary = true
 		for _, cur := range n.localSv.Entries {

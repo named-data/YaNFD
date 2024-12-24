@@ -160,7 +160,7 @@ func (n *ExpressPoint) OnInterest(args ndn.InterestHandlerArgs, matching enc.Mat
 // TODO: (Urgent) NeedXXX needs a way for the user to optionally specify the deadline of the Interest
 // without touching anything else in intConfig
 func (n *ExpressPoint) NeedCallback(
-	mNode MatchedNode, callback Callback, appParam enc.Wire, intConfig *ndn.InterestConfig, supress bool,
+	mNode MatchedNode, callback Callback, appParam enc.Wire, intConfig *ndn.InterestConfig, suppress bool,
 ) error {
 	if mNode.Node != n.Node {
 		panic("NTSchema tree compromised.")
@@ -225,7 +225,7 @@ func (n *ExpressPoint) NeedCallback(
 		// storageSearched = true
 	}
 
-	// Construst Interest
+	// Construct Interest
 	interest, err := spec.MakeInterest(mNode.Name, intConfig, appParam, signer)
 	if err != nil {
 		logger.Errorf("Unable to encode Interest in Need(): %+v", err)
@@ -240,7 +240,7 @@ func (n *ExpressPoint) NeedCallback(
 	// if !storageSearched {
 	// 	// Since it is not useful generally, skip for now.
 	// }
-	if n.SupressInt || supress {
+	if n.SupressInt || suppress {
 		go callback(&Event{
 			TargetNode: node,
 			NeedStatus: utils.IdPtr(ndn.InterestResultNack),
@@ -335,7 +335,7 @@ func (n *ExpressPoint) NeedCallback(
 
 // NeedChan is the channel version of Need()
 func (n *ExpressPoint) NeedChan(
-	mNode MatchedNode, appParam enc.Wire, intConfig *ndn.InterestConfig, supress bool,
+	mNode MatchedNode, appParam enc.Wire, intConfig *ndn.InterestConfig, suppress bool,
 ) chan NeedResult {
 	ret := make(chan NeedResult, 1)
 	callback := func(event *Event) any {
@@ -350,7 +350,7 @@ func (n *ExpressPoint) NeedChan(
 		close(ret)
 		return nil
 	}
-	n.NeedCallback(mNode, callback, appParam, intConfig, supress)
+	n.NeedCallback(mNode, callback, appParam, intConfig, suppress)
 	return ret
 }
 
@@ -426,16 +426,16 @@ func initExpressPointDesc() {
 						return err
 					}
 				}
-				var supress bool = false
+				var suppress bool = false
 				if len(args) >= 4 {
-					supress, ok = args[3].(bool)
+					suppress, ok = args[3].(bool)
 					if !ok {
-						err := ndn.ErrInvalidValue{Item: "supress", Value: args[0]}
+						err := ndn.ErrInvalidValue{Item: "suppress", Value: args[0]}
 						mNode.Logger("ExpressPoint").Error(err.Error())
 						return err
 					}
 				}
-				return QueryInterface[*ExpressPoint](mNode.Node).NeedCallback(mNode, callback, appParam, intConfig, supress)
+				return QueryInterface[*ExpressPoint](mNode.Node).NeedCallback(mNode, callback, appParam, intConfig, suppress)
 			},
 			"NeedChan": func(mNode MatchedNode, args ...any) any {
 				if len(args) > 3 {
@@ -462,16 +462,16 @@ func initExpressPointDesc() {
 						return err
 					}
 				}
-				var supress bool = false
+				var suppress bool = false
 				if len(args) >= 3 {
-					supress, ok = args[2].(bool)
+					suppress, ok = args[2].(bool)
 					if !ok {
-						err := ndn.ErrInvalidValue{Item: "supress", Value: args[0]}
+						err := ndn.ErrInvalidValue{Item: "suppress", Value: args[0]}
 						mNode.Logger("ExpressPoint").Error(err.Error())
 						return err
 					}
 				}
-				return QueryInterface[*ExpressPoint](mNode.Node).NeedChan(mNode, appParam, intConfig, supress)
+				return QueryInterface[*ExpressPoint](mNode.Node).NeedChan(mNode, appParam, intConfig, suppress)
 			},
 		},
 		Create: CreateExpressPoint,

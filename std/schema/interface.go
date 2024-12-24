@@ -344,7 +344,7 @@ func NamePropertyDesc(prop PropKey) PropertyDesc {
 	}
 }
 
-// Call calls the specified function provided by the node with give agruments.
+// Call calls the specified function provided by the node with given arguments.
 func (mNode MatchedNode) Call(funcName string, args ...any) any {
 	f, ok := mNode.Node.desc.Functions[funcName]
 	if !ok {

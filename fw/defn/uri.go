@@ -357,7 +357,7 @@ func (u *URI) IsCanonical() bool {
 		return ip != nil && u.port > 0 && ((u.scheme == "tcp4" && ip.To4() != nil) ||
 			(u.scheme == "tcp6" && ip.To16() != nil && !isIPv4))
 	case unixURI:
-		// Do not check whether file exists, because it may fail due to lack of priviledge in testing environment
+		// Do not check whether file exists, because it may fail due to lack of privilege in testing environment
 		return u.scheme == "unix" && u.path != "" && u.port == 0
 	default:
 		// Of unknown type

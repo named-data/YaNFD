@@ -203,7 +203,7 @@ func (s *SvSync) onReceiveStateVector(sv *stlv.StateVector) {
 			}
 		}
 
-		// [Spec] Suppresion state
+		// [Spec] Suppression state
 		if s.suppress {
 			// [Spec] For every incoming Sync Interest, aggregate
 			// the state vector into a MergedStateVector.
@@ -226,7 +226,7 @@ func (s *SvSync) onReceiveStateVector(sv *stlv.StateVector) {
 	}
 
 	if !isOutdated {
-		// [Spec] Suppresion state: Move to Steady State.
+		// [Spec] Suppression state: Move to Steady State.
 		// [Spec] Steady state: Reset Sync Interest timer.
 		s.enterSteadyState()
 		return
@@ -242,7 +242,7 @@ func (s *SvSync) onReceiveStateVector(sv *stlv.StateVector) {
 
 	// [Spec] When entering Suppression State, reset
 	// the Sync Interest timer to SuppressionTimeout
-	s.ticker.Reset(s.getSuppresionTimeout())
+	s.ticker.Reset(s.getSuppressionTimeout())
 }
 
 func (s *SvSync) timerExpired() {
@@ -369,7 +369,7 @@ func (s *SvSync) getPeriodicTimeout() time.Duration {
 	return time.Duration(rand.Int64N(int64(max-min))) + min
 }
 
-func (s *SvSync) getSuppresionTimeout() time.Duration {
+func (s *SvSync) getSuppressionTimeout() time.Duration {
 	// [Spec] Exponential decay function
 	// [Spec] c = SuppressionPeriod  // constant factor
 	// [Spec] v = random(0, c)       // uniform random value

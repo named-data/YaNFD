@@ -15,7 +15,7 @@ type Store interface {
 	Remove(name enc.Name, prefix bool) error
 
 	// begin a write transaction (for put only)
-	// we support these primarily for perforamnce rather than correctness
+	// we support these primarily for performance rather than correctness
 	// do not rely on atomicity of transactions as far as possible
 	Begin() error
 	// commit a write transaction
