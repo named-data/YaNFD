@@ -25,7 +25,7 @@ import (
 const MaxFwThreads = 32
 
 // Threads contains all forwarding threads
-var Threads map[int]*Thread
+var Threads []*Thread
 var LOCALHOST = []byte{0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f, 0x73, 0x74}
 
 // HashNameToFwThread hashes an NDN name to a forwarding thread.

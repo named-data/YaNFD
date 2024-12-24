@@ -96,7 +96,7 @@ func (y *YaNFD) Start() {
 		os.Exit(2)
 	}
 
-	fw.Threads = make(map[int]*fw.Thread)
+	fw.Threads = make([]*fw.Thread, fw.NumFwThreads)
 	var fwForDispatch []dispatch.FWThread
 	for i := 0; i < fw.NumFwThreads; i++ {
 		newThread := fw.NewThread(i)
