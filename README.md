@@ -1,3 +1,9 @@
+<div align="center">
+  <a href="https://named-data.net/">
+    <img alt height="65" src="ndn-logo.svg"/>
+  </a>
+</div>
+
 # Named Data Networking Daemon
 
 NDNd is a Golang implementation of the Named Data Networking (NDN) [protocol](https://named-data.net) stack.
