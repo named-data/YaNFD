@@ -8,6 +8,8 @@
 
 [![build](https://github.com/named-data/ndnd/actions/workflows/build.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/build.yml)
 [![test](https://github.com/named-data/ndnd/actions/workflows/test.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/named-data/ndnd)](https://goreportcard.com/report/github.com/named-data/ndnd)
+[![release](https://img.shields.io/github/v/release/named-data/ndnd)](https://github.com/named-data/ndnd/releases)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE.md)
 [![Go Reference](https://pkg.go.dev/badge/github.com/named-data/ndnd.svg)](https://pkg.go.dev/github.com/named-data/ndnd)
 
