@@ -4,8 +4,8 @@ import (
 	"errors"
 	"io"
 
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	defn "github.com/named-data/ndnd/fw/defn"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 func readTlvStream(

@@ -12,10 +12,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 const BestRouteSuppressionTime = 500 * time.Millisecond

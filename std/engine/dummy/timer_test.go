@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pulsejet/ndnd/std/engine/dummy"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/std/engine/dummy"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

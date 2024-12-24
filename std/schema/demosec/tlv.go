@@ -1,7 +1,7 @@
 //go:generate gondn_tlv_gen
 package demosec
 
-import enc "github.com/pulsejet/ndnd/std/encoding"
+import enc "github.com/named-data/ndnd/std/encoding"
 
 // +tlv-model:nocopy
 type EncryptedContent struct {

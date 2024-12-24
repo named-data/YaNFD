@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	def "github.com/pulsejet/ndnd/std/encoding/tests/gen_signature"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	def "github.com/named-data/ndnd/std/encoding/tests/gen_signature"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

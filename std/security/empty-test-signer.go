@@ -1,8 +1,8 @@
 package security
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 // emptySigner is a signer used for test only. It gives an empty signature value.

@@ -1,8 +1,8 @@
 package mgmt_2022
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 type MgmtConfig struct {

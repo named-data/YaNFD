@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/schema"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/schema"
 )
 
 type ContentKey struct {

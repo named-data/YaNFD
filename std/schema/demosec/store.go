@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	sec "github.com/pulsejet/ndnd/std/security"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/ndn/spec_2022"
+	sec "github.com/named-data/ndnd/std/security"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type DemoHmacKey struct {

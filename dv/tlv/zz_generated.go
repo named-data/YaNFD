@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type PacketEncoder struct {

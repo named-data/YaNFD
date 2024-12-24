@@ -3,7 +3,7 @@ package ndn
 import (
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // Signature is the abstract of the signature of a packet.

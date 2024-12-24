@@ -1,10 +1,10 @@
 package dv
 
 import (
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
 )
 
 // Compute the RIB chnages for this neighbor

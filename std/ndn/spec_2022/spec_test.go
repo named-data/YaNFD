@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	"github.com/pulsejet/ndnd/std/security"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	basic_engine "github.com/named-data/ndnd/std/engine/basic"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/std/security"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

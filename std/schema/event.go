@@ -3,8 +3,8 @@ package schema
 import (
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 // Event represents the context of a triggered event

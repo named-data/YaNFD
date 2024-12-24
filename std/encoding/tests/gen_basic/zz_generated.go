@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type FakeMetaInfoEncoder struct {

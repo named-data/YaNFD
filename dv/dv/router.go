@@ -4,15 +4,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/nfdc"
-	"github.com/pulsejet/ndnd/dv/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	ndn_sync "github.com/pulsejet/ndnd/std/sync"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/nfdc"
+	"github.com/named-data/ndnd/dv/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	ndn_sync "github.com/named-data/ndnd/std/sync"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type Router struct {

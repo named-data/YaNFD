@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	stlv "github.com/pulsejet/ndnd/std/ndn/svs_2024"
-	"github.com/pulsejet/ndnd/std/schema"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	stlv "github.com/named-data/ndnd/std/ndn/svs_2024"
+	"github.com/named-data/ndnd/std/schema"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type SyncState int

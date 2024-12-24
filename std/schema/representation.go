@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type SchemaDesc struct {

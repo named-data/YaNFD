@@ -4,7 +4,7 @@ package spec_2022
 import (
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type KeyLocator struct {

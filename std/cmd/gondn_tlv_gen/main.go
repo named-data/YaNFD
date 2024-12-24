@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pulsejet/ndnd/std/encoding/codegen"
+	"github.com/named-data/ndnd/std/encoding/codegen"
 )
 
 var (

@@ -13,12 +13,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/dispatch"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/dispatch"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 const lpPacketOverhead = 1 + 3

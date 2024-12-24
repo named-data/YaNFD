@@ -10,7 +10,7 @@ package fw
 import (
 	"reflect"
 
-	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/core"
 )
 
 //const strategyDir = "strategy"

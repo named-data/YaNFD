@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type Name []Component

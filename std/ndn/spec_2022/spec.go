@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 const (

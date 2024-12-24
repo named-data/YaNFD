@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type WebSocketFace struct {

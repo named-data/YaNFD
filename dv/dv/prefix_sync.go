@@ -3,13 +3,13 @@ package dv
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/dv/table"
-	"github.com/pulsejet/ndnd/dv/tlv"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	ndn_sync "github.com/pulsejet/ndnd/std/sync"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/table"
+	"github.com/named-data/ndnd/dv/tlv"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	ndn_sync "github.com/named-data/ndnd/std/sync"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // Fetch all required prefix data

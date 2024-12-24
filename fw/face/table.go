@@ -12,10 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/dispatch"
-	"github.com/pulsejet/ndnd/fw/table"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/dispatch"
+	"github.com/named-data/ndnd/fw/table"
 )
 
 // FaceTable is the global face table for this forwarder

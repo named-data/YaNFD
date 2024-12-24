@@ -3,10 +3,10 @@ package executor
 import (
 	"errors"
 
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/dv"
-	"github.com/pulsejet/ndnd/std/engine"
-	"github.com/pulsejet/ndnd/std/ndn"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/dv"
+	"github.com/named-data/ndnd/std/engine"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 type DvConfig struct {

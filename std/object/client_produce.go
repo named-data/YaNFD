@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	rdr "github.com/pulsejet/ndnd/std/ndn/rdr_2024"
-	sec "github.com/pulsejet/ndnd/std/security"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	rdr "github.com/named-data/ndnd/std/ndn/rdr_2024"
+	sec "github.com/named-data/ndnd/std/security"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // size of produced segment (~800B for header)

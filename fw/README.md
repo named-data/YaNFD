@@ -16,7 +16,7 @@ We have received reports that YaNFD operates properly on Windows and macOS; this
 Install the YaNFD binary with the following command:
 
 ```bash
-go install github.com/pulsejet/ndnd/fw/cmd/yanfd@latest
+go install github.com/named-data/ndnd/fw/cmd/yanfd@latest
 ```
 
 To run YaNFD, run the `yanfd` (or `yanfd.exe`) executable.
@@ -55,7 +55,7 @@ sudo make install
 To build and install YaNFD on Windows, run the `go build` command in the `Makefile` manually:
 
 ```powershell
-go build github.com/pulsejet/ndnd/fw/cmd/yanfd
+go build github.com/named-data/ndnd/fw/cmd/yanfd
 ```
 
 ## Publications

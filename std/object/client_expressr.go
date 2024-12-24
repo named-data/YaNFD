@@ -1,10 +1,10 @@
 package object
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // arguments for the express retry API

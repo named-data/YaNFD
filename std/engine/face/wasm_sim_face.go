@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"syscall/js"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
 )
 
 type WasmSimFace struct {

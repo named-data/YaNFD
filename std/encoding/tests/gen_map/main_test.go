@@ -3,9 +3,9 @@ package gen_map_test
 import (
 	"testing"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	def "github.com/pulsejet/ndnd/std/encoding/tests/gen_map"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	def "github.com/named-data/ndnd/std/encoding/tests/gen_map"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

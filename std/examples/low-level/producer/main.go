@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/engine"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	sec_pib "github.com/pulsejet/ndnd/std/security/pib"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/engine"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	sec_pib "github.com/named-data/ndnd/std/security/pib"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 var app ndn.Engine

@@ -10,7 +10,7 @@ package main
 import (
 	"os"
 
-	"github.com/pulsejet/ndnd/fw/executor"
+	"github.com/named-data/ndnd/fw/executor"
 )
 
 func main() {

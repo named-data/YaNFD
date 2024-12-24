@@ -6,11 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/engine"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/schema"
-	_ "github.com/pulsejet/ndnd/std/schema/rdr"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/engine"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/schema"
+	_ "github.com/named-data/ndnd/std/schema/rdr"
 )
 
 const SchemaJson = `{

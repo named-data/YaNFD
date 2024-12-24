@@ -10,7 +10,7 @@ package dispatch
 import (
 	"sync"
 
-	"github.com/pulsejet/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/defn"
 )
 
 // Face provides an interface that faces can satisfy (to avoid circular dependency between faces and forwarding)

@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/face/impl"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/face/impl"
 )
 
 // TCPListener listens for incoming TCP unicast connections.

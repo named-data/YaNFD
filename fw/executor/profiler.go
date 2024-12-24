@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/core"
 )
 
 type Profiler struct {

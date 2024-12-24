@@ -8,12 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/schema"
-	sec "github.com/pulsejet/ndnd/std/security"
+	enc "github.com/named-data/ndnd/std/encoding"
+	basic_engine "github.com/named-data/ndnd/std/engine/basic"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/schema"
+	sec "github.com/named-data/ndnd/std/security"
 )
 
 const SchemaJson = `{

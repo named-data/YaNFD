@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	defn "github.com/pulsejet/ndnd/fw/defn"
+	defn "github.com/named-data/ndnd/fw/defn"
 )
 
 // transport provides an interface for transports for specific face types

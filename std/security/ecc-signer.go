@@ -6,10 +6,10 @@ import (
 	"crypto/sha256"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	basic_engine "github.com/named-data/ndnd/std/engine/basic"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // eccSigner is a signer that uses ECC key to sign packets.

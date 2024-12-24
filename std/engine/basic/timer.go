@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/pulsejet/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 type Timer struct{}

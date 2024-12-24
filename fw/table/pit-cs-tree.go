@@ -4,10 +4,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	pq "github.com/pulsejet/ndnd/std/utils/priority_queue"
+	"github.com/named-data/ndnd/fw/core"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	pq "github.com/named-data/ndnd/std/utils/priority_queue"
 )
 
 const expiredPitTickerInterval = 100 * time.Millisecond

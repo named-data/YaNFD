@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // +tlv-model:nocopy,private,ordered

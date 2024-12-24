@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // LeafNode is a leaf of the NTSchema tree, a point where Data packets can be named.

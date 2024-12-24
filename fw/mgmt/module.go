@@ -8,7 +8,7 @@
 package mgmt
 
 import (
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 // Module represents a management module

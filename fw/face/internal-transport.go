@@ -10,11 +10,11 @@ package face
 import (
 	"strconv"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // InternalTransport is a transport for use by internal YaNFD modules (e.g., management).

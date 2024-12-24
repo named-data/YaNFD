@@ -10,8 +10,8 @@ package table
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/named-data/ndnd/fw/core"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // tableQueueSize is the maxmimum size of queues in the tables.

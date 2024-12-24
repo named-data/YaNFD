@@ -8,12 +8,12 @@
 package mgmt
 
 import (
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/face"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/face"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 // FIBModule is the module that handles FIB Management.

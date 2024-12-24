@@ -10,13 +10,13 @@ package mgmt
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/dispatch"
-	"github.com/pulsejet/ndnd/fw/fw"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/dispatch"
+	"github.com/named-data/ndnd/fw/fw"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 // ForwarderStatusModule is the module that provide forwarder status information.

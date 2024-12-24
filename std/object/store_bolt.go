@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 	bolt "go.etcd.io/bbolt"
 )
 

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	rtlv "github.com/pulsejet/ndnd/std/ndn/rdr_2024"
-	"github.com/pulsejet/ndnd/std/schema"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	rtlv "github.com/named-data/ndnd/std/ndn/rdr_2024"
+	"github.com/named-data/ndnd/std/schema"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // SegmentedNode handles the segmentation and reassembly

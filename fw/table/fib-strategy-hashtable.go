@@ -16,7 +16,7 @@ package table
 import (
 	"sync"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 type virtualDetails struct {

@@ -1,6 +1,6 @@
 package ndn
 
-import enc "github.com/pulsejet/ndnd/std/encoding"
+import enc "github.com/named-data/ndnd/std/encoding"
 
 type Store interface {
 	// returns a Data wire matching the given name

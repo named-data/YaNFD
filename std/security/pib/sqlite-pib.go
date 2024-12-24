@@ -4,10 +4,10 @@ import (
 	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 type SqliteCert struct {

@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/encoding/tests/gen_basic"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/encoding/tests/gen_basic"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

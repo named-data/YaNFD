@@ -3,10 +3,10 @@ package table
 import (
 	"fmt"
 
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/tlv"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/tlv"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
 )
 
 // Routing Information Base (RIB)

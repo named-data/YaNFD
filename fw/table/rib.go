@@ -11,7 +11,7 @@ import (
 	"container/list"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // RibTable represents the Routing Information Base (RIB).

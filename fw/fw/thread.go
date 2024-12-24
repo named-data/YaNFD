@@ -13,12 +13,12 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/dispatch"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/dispatch"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // MaxFwThreads Maximum number of forwarding threads

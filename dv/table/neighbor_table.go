@@ -3,13 +3,13 @@ package table
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/nfdc"
-	"github.com/pulsejet/ndnd/dv/tlv"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/nfdc"
+	"github.com/named-data/ndnd/dv/tlv"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type NeighborTable struct {

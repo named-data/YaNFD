@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/pulsejet/ndnd/dv/executor"
+	"github.com/named-data/ndnd/dv/executor"
 )
 
 func main() {

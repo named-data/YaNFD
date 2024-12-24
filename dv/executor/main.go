@@ -8,7 +8,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/pulsejet/ndnd/std/log"
+	"github.com/named-data/ndnd/std/log"
 )
 
 func Main(args []string) {

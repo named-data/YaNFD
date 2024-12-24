@@ -10,7 +10,7 @@ package face
 import (
 	"strconv"
 
-	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/core"
 )
 
 // NullLinkService is a link service that drops all packets.

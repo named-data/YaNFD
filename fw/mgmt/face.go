@@ -13,13 +13,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/face"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/face"
+	enc "github.com/named-data/ndnd/std/encoding"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // FaceModule is the module that handles Face Management.

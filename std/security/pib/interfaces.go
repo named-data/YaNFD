@@ -1,8 +1,8 @@
 package sqlitepib
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 // Tpm is a sceure storage that holds the private key

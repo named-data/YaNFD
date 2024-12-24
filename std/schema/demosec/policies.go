@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/schema"
-	sec "github.com/pulsejet/ndnd/std/security"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/schema"
+	sec "github.com/named-data/ndnd/std/security"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // KeyStoragePolicy is a policy that stored HMAC keys in a memory storage.

@@ -10,9 +10,9 @@ package fw
 import (
 	"strconv"
 
-	"github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	"github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // StrategyPrefix is the prefix of all strategy names for YaNFD

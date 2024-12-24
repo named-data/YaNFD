@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/dispatch"
-	"github.com/pulsejet/ndnd/fw/fw"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/dispatch"
+	"github.com/named-data/ndnd/fw/fw"
 )
 
 // LinkService is an interface for link service implementations

@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/core"
 )
 
 // faceQueueSize is the maximum number of packets that can be buffered to be sent or received on a face.

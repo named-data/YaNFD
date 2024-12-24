@@ -164,8 +164,8 @@ func (g *Generator) Generate(packName string) {
 			"strings"
 			"time"
 
-			enc "github.com/pulsejet/ndnd/std/encoding"
-			"github.com/pulsejet/ndnd/std/ndn"
+			enc "github.com/named-data/ndnd/std/encoding"
+			"github.com/named-data/ndnd/std/ndn"
 		)
 	`))
 	err := templ.Execute(&g.buf, packName)

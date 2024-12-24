@@ -1,4 +1,4 @@
-module github.com/pulsejet/ndnd
+module github.com/named-data/ndnd
 
 go 1.23
 

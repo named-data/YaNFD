@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/tlv"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	"github.com/pulsejet/ndnd/std/security"
-	ndn_sync "github.com/pulsejet/ndnd/std/sync"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/tlv"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	"github.com/named-data/ndnd/std/security"
+	ndn_sync "github.com/named-data/ndnd/std/sync"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type PrefixTable struct {

@@ -1,11 +1,11 @@
 package engine
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/engine/basic"
-	"github.com/pulsejet/ndnd/std/engine/face"
-	"github.com/pulsejet/ndnd/std/ndn"
-	sec "github.com/pulsejet/ndnd/std/security"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/engine/basic"
+	"github.com/named-data/ndnd/std/engine/face"
+	"github.com/named-data/ndnd/std/ndn"
+	sec "github.com/named-data/ndnd/std/security"
 )
 
 // TODO: this API will change once there is a real security model

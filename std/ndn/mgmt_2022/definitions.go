@@ -2,7 +2,7 @@
 package mgmt_2022
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 const (

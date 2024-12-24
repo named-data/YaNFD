@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pulsejet/ndnd/std/log"
+	"github.com/named-data/ndnd/std/log"
 )
 
 var shouldPrintTraceLogs = false

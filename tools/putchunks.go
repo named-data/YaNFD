@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/engine"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/object"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/engine"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/object"
 )
 
 type PutChunks struct {

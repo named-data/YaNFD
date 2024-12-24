@@ -1,6 +1,6 @@
 package face
 
-import enc "github.com/pulsejet/ndnd/std/encoding"
+import enc "github.com/named-data/ndnd/std/encoding"
 
 type Face interface {
 	Open() error

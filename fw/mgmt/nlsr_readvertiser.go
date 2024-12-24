@@ -3,11 +3,11 @@ package mgmt
 import (
 	"sync"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	"github.com/pulsejet/ndnd/fw/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	ndn_mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	"github.com/named-data/ndnd/fw/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	ndn_mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // Simple readvertiser that echoes the register command to NLSR.

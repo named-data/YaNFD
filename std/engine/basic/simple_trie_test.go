@@ -3,9 +3,9 @@ package basic_test
 import (
 	"testing"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	basic_engine "github.com/pulsejet/ndnd/std/engine/basic"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	basic_engine "github.com/named-data/ndnd/std/engine/basic"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/require"
 )
 

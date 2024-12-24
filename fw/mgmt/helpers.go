@@ -10,13 +10,13 @@ package mgmt
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	sec "github.com/pulsejet/ndnd/std/security"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	sec "github.com/named-data/ndnd/std/security"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 const (

@@ -3,12 +3,12 @@ package dv
 import (
 	"time"
 
-	"github.com/pulsejet/ndnd/dv/table"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/log"
-	"github.com/pulsejet/ndnd/std/ndn"
-	svs_2024 "github.com/pulsejet/ndnd/std/ndn/svs_2024"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/table"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/log"
+	"github.com/named-data/ndnd/std/ndn"
+	svs_2024 "github.com/named-data/ndnd/std/ndn/svs_2024"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 func (dv *Router) advertSyncSendInterest() (err error) {

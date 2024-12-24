@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"github.com/pulsejet/ndnd/cmd"
-	dv "github.com/pulsejet/ndnd/dv/executor"
-	fw "github.com/pulsejet/ndnd/fw/executor"
-	tools "github.com/pulsejet/ndnd/tools"
+	"github.com/named-data/ndnd/cmd"
+	dv "github.com/named-data/ndnd/dv/executor"
+	fw "github.com/named-data/ndnd/fw/executor"
+	tools "github.com/named-data/ndnd/tools"
 )
 
 func main() {

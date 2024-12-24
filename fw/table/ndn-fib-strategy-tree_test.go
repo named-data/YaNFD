@@ -11,7 +11,7 @@ import (
 	"sort"
 	"testing"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 
 	"github.com/stretchr/testify/assert"
 )

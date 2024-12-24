@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
+	"github.com/named-data/ndnd/std/utils"
 	"github.com/stretchr/testify/assert"
 )
 

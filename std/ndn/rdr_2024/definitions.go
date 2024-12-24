@@ -1,7 +1,7 @@
 //go:generate gondn_tlv_gen
 package rdr
 
-import enc "github.com/pulsejet/ndnd/std/encoding"
+import enc "github.com/named-data/ndnd/std/encoding"
 
 type ManifestDigest struct {
 	//+field:natural

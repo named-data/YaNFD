@@ -3,7 +3,7 @@ package priority_queue_test
 import (
 	"testing"
 
-	"github.com/pulsejet/ndnd/std/utils/priority_queue"
+	"github.com/named-data/ndnd/std/utils/priority_queue"
 	"github.com/stretchr/testify/assert"
 )
 

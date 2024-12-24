@@ -8,8 +8,8 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	"github.com/pulsejet/ndnd/std/ndn"
+	enc "github.com/named-data/ndnd/std/encoding"
+	"github.com/named-data/ndnd/std/ndn"
 )
 
 // HmacValidate verifies the sha256 digest.

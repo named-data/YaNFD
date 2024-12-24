@@ -3,7 +3,7 @@ package ndn
 import (
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
+	enc "github.com/named-data/ndnd/std/encoding"
 )
 
 // Engine represents a running NDN App low-level engine.

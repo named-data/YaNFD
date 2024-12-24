@@ -1,11 +1,11 @@
 package table
 
 import (
-	"github.com/pulsejet/ndnd/dv/config"
-	"github.com/pulsejet/ndnd/dv/nfdc"
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	mgmt "github.com/pulsejet/ndnd/std/ndn/mgmt_2022"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/dv/config"
+	"github.com/named-data/ndnd/dv/nfdc"
+	enc "github.com/named-data/ndnd/std/encoding"
+	mgmt "github.com/named-data/ndnd/std/ndn/mgmt_2022"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 type FibEntry struct {

@@ -8,8 +8,8 @@
 package defn
 
 import (
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 // Pkt represents a pending packet to be sent or recently

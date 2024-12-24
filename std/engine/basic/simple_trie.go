@@ -1,6 +1,6 @@
 package basic
 
-import enc "github.com/pulsejet/ndnd/std/encoding"
+import enc "github.com/named-data/ndnd/std/encoding"
 
 // NameTrie is a simple implementation of a Name trie (node/subtree) used for PIT and FIB.
 // It is slow due to the usage of String(). Subject to change when it explicitly affects performance.

@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pulsejet/ndnd/fw/core"
-	defn "github.com/pulsejet/ndnd/fw/defn"
-	"github.com/pulsejet/ndnd/fw/face/impl"
-	"github.com/pulsejet/ndnd/std/utils"
+	"github.com/named-data/ndnd/fw/core"
+	defn "github.com/named-data/ndnd/fw/defn"
+	"github.com/named-data/ndnd/fw/face/impl"
+	"github.com/named-data/ndnd/std/utils"
 )
 
 // UnicastTCPTransport is a unicast TCP transport.

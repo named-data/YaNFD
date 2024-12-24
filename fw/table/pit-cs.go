@@ -10,8 +10,8 @@ package table
 import (
 	"time"
 
-	enc "github.com/pulsejet/ndnd/std/encoding"
-	spec "github.com/pulsejet/ndnd/std/ndn/spec_2022"
+	enc "github.com/named-data/ndnd/std/encoding"
+	spec "github.com/named-data/ndnd/std/ndn/spec_2022"
 )
 
 // PitCsTable dictates what functionality a Pit-Cs table should implement
