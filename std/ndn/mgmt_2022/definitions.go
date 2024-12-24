@@ -75,12 +75,6 @@ type ControlArgs struct {
 	//+field:natural:optional
 	Count *uint64 `tlv:"0x84"`
 	//+field:natural:optional
-	BaseCongestionMarkInterval *uint64 `tlv:"0x87"`
-	//+field:natural:optional
-	DefaultCongestionThreshold *uint64 `tlv:"0x88"`
-	//+field:natural:optional
-	Mtu *uint64 `tlv:"0x89"`
-	//+field:natural:optional
 	Flags *uint64 `tlv:"0x6c"`
 	//+field:natural:optional
 	Mask *uint64 `tlv:"0x70"`
@@ -90,6 +84,12 @@ type ControlArgs struct {
 	ExpirationPeriod *uint64 `tlv:"0x6d"`
 	//+field:natural:optional
 	FacePersistency *uint64 `tlv:"0x85"`
+	//+field:natural:optional
+	BaseCongestionMarkInterval *uint64 `tlv:"0x87"`
+	//+field:natural:optional
+	DefaultCongestionThreshold *uint64 `tlv:"0x88"`
+	//+field:natural:optional
+	Mtu *uint64 `tlv:"0x89"`
 }
 
 // +tlv-model:dict

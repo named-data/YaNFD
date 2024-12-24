@@ -349,45 +349,6 @@ func (encoder *ControlArgsEncoder) Init(value *ControlArgs) {
 			l += 9
 		}
 	}
-	if value.BaseCongestionMarkInterval != nil {
-		l += 1
-		switch x := *value.BaseCongestionMarkInterval; {
-		case x <= 0xff:
-			l += 2
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-	}
-	if value.DefaultCongestionThreshold != nil {
-		l += 1
-		switch x := *value.DefaultCongestionThreshold; {
-		case x <= 0xff:
-			l += 2
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-	}
-	if value.Mtu != nil {
-		l += 1
-		switch x := *value.Mtu; {
-		case x <= 0xff:
-			l += 2
-		case x <= 0xffff:
-			l += 3
-		case x <= 0xffffffff:
-			l += 5
-		default:
-			l += 9
-		}
-	}
 	if value.Flags != nil {
 		l += 1
 		switch x := *value.Flags; {
@@ -444,6 +405,45 @@ func (encoder *ControlArgsEncoder) Init(value *ControlArgs) {
 	if value.FacePersistency != nil {
 		l += 1
 		switch x := *value.FacePersistency; {
+		case x <= 0xff:
+			l += 2
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+	}
+	if value.BaseCongestionMarkInterval != nil {
+		l += 1
+		switch x := *value.BaseCongestionMarkInterval; {
+		case x <= 0xff:
+			l += 2
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+	}
+	if value.DefaultCongestionThreshold != nil {
+		l += 1
+		switch x := *value.DefaultCongestionThreshold; {
+		case x <= 0xff:
+			l += 2
+		case x <= 0xffff:
+			l += 3
+		case x <= 0xffffffff:
+			l += 5
+		default:
+			l += 9
+		}
+	}
+	if value.Mtu != nil {
+		l += 1
+		switch x := *value.Mtu; {
 		case x <= 0xff:
 			l += 2
 		case x <= 0xffff:
@@ -648,72 +648,6 @@ func (encoder *ControlArgsEncoder) EncodeInto(value *ControlArgs, buf []byte) {
 			pos += 9
 		}
 	}
-	if value.BaseCongestionMarkInterval != nil {
-		buf[pos] = byte(135)
-		pos += 1
-		switch x := *value.BaseCongestionMarkInterval; {
-		case x <= 0xff:
-			buf[pos] = 1
-			buf[pos+1] = byte(x)
-			pos += 2
-		case x <= 0xffff:
-			buf[pos] = 2
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 4
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 8
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-	}
-	if value.DefaultCongestionThreshold != nil {
-		buf[pos] = byte(136)
-		pos += 1
-		switch x := *value.DefaultCongestionThreshold; {
-		case x <= 0xff:
-			buf[pos] = 1
-			buf[pos+1] = byte(x)
-			pos += 2
-		case x <= 0xffff:
-			buf[pos] = 2
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 4
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 8
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-	}
-	if value.Mtu != nil {
-		buf[pos] = byte(137)
-		pos += 1
-		switch x := *value.Mtu; {
-		case x <= 0xff:
-			buf[pos] = 1
-			buf[pos+1] = byte(x)
-			pos += 2
-		case x <= 0xffff:
-			buf[pos] = 2
-			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
-			pos += 3
-		case x <= 0xffffffff:
-			buf[pos] = 4
-			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
-			pos += 5
-		default:
-			buf[pos] = 8
-			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
-			pos += 9
-		}
-	}
 	if value.Flags != nil {
 		buf[pos] = byte(108)
 		pos += 1
@@ -827,6 +761,72 @@ func (encoder *ControlArgsEncoder) EncodeInto(value *ControlArgs, buf []byte) {
 			pos += 9
 		}
 	}
+	if value.BaseCongestionMarkInterval != nil {
+		buf[pos] = byte(135)
+		pos += 1
+		switch x := *value.BaseCongestionMarkInterval; {
+		case x <= 0xff:
+			buf[pos] = 1
+			buf[pos+1] = byte(x)
+			pos += 2
+		case x <= 0xffff:
+			buf[pos] = 2
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 4
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 8
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+	}
+	if value.DefaultCongestionThreshold != nil {
+		buf[pos] = byte(136)
+		pos += 1
+		switch x := *value.DefaultCongestionThreshold; {
+		case x <= 0xff:
+			buf[pos] = 1
+			buf[pos+1] = byte(x)
+			pos += 2
+		case x <= 0xffff:
+			buf[pos] = 2
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 4
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 8
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+	}
+	if value.Mtu != nil {
+		buf[pos] = byte(137)
+		pos += 1
+		switch x := *value.Mtu; {
+		case x <= 0xff:
+			buf[pos] = 1
+			buf[pos+1] = byte(x)
+			pos += 2
+		case x <= 0xffff:
+			buf[pos] = 2
+			binary.BigEndian.PutUint16(buf[pos+1:], uint16(x))
+			pos += 3
+		case x <= 0xffffffff:
+			buf[pos] = 4
+			binary.BigEndian.PutUint32(buf[pos+1:], uint32(x))
+			pos += 5
+		default:
+			buf[pos] = 8
+			binary.BigEndian.PutUint64(buf[pos+1:], uint64(x))
+			pos += 9
+		}
+	}
 }
 
 func (encoder *ControlArgsEncoder) Encode(value *ControlArgs) enc.Wire {
@@ -852,14 +852,14 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 	var handled_Cost bool = false
 	var handled_Capacity bool = false
 	var handled_Count bool = false
-	var handled_BaseCongestionMarkInterval bool = false
-	var handled_DefaultCongestionThreshold bool = false
-	var handled_Mtu bool = false
 	var handled_Flags bool = false
 	var handled_Mask bool = false
 	var handled_Strategy bool = false
 	var handled_ExpirationPeriod bool = false
 	var handled_FacePersistency bool = false
+	var handled_BaseCongestionMarkInterval bool = false
+	var handled_DefaultCongestionThreshold bool = false
+	var handled_Mtu bool = false
 
 	progress := -1
 	_ = progress
@@ -1052,75 +1052,6 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 						value.Count = &tempVal
 					}
 				}
-			case 135:
-				if true {
-					handled = true
-					handled_BaseCongestionMarkInterval = true
-					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
-						{
-							for i := 0; i < int(l); i++ {
-								x := byte(0)
-								x, err = reader.ReadByte()
-								if err != nil {
-									if err == io.EOF {
-										err = io.ErrUnexpectedEOF
-									}
-									break
-								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
-							}
-						}
-						value.BaseCongestionMarkInterval = &tempVal
-					}
-				}
-			case 136:
-				if true {
-					handled = true
-					handled_DefaultCongestionThreshold = true
-					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
-						{
-							for i := 0; i < int(l); i++ {
-								x := byte(0)
-								x, err = reader.ReadByte()
-								if err != nil {
-									if err == io.EOF {
-										err = io.ErrUnexpectedEOF
-									}
-									break
-								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
-							}
-						}
-						value.DefaultCongestionThreshold = &tempVal
-					}
-				}
-			case 137:
-				if true {
-					handled = true
-					handled_Mtu = true
-					{
-						tempVal := uint64(0)
-						tempVal = uint64(0)
-						{
-							for i := 0; i < int(l); i++ {
-								x := byte(0)
-								x, err = reader.ReadByte()
-								if err != nil {
-									if err == io.EOF {
-										err = io.ErrUnexpectedEOF
-									}
-									break
-								}
-								tempVal = uint64(tempVal<<8) | uint64(x)
-							}
-						}
-						value.Mtu = &tempVal
-					}
-				}
 			case 108:
 				if true {
 					handled = true
@@ -1219,6 +1150,75 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 						value.FacePersistency = &tempVal
 					}
 				}
+			case 135:
+				if true {
+					handled = true
+					handled_BaseCongestionMarkInterval = true
+					{
+						tempVal := uint64(0)
+						tempVal = uint64(0)
+						{
+							for i := 0; i < int(l); i++ {
+								x := byte(0)
+								x, err = reader.ReadByte()
+								if err != nil {
+									if err == io.EOF {
+										err = io.ErrUnexpectedEOF
+									}
+									break
+								}
+								tempVal = uint64(tempVal<<8) | uint64(x)
+							}
+						}
+						value.BaseCongestionMarkInterval = &tempVal
+					}
+				}
+			case 136:
+				if true {
+					handled = true
+					handled_DefaultCongestionThreshold = true
+					{
+						tempVal := uint64(0)
+						tempVal = uint64(0)
+						{
+							for i := 0; i < int(l); i++ {
+								x := byte(0)
+								x, err = reader.ReadByte()
+								if err != nil {
+									if err == io.EOF {
+										err = io.ErrUnexpectedEOF
+									}
+									break
+								}
+								tempVal = uint64(tempVal<<8) | uint64(x)
+							}
+						}
+						value.DefaultCongestionThreshold = &tempVal
+					}
+				}
+			case 137:
+				if true {
+					handled = true
+					handled_Mtu = true
+					{
+						tempVal := uint64(0)
+						tempVal = uint64(0)
+						{
+							for i := 0; i < int(l); i++ {
+								x := byte(0)
+								x, err = reader.ReadByte()
+								if err != nil {
+									if err == io.EOF {
+										err = io.ErrUnexpectedEOF
+									}
+									break
+								}
+								tempVal = uint64(tempVal<<8) | uint64(x)
+							}
+						}
+						value.Mtu = &tempVal
+					}
+				}
 			default:
 				if !ignoreCritical && ((typ <= 31) || ((typ & 1) == 1)) {
 					return nil, enc.ErrUnrecognizedField{TypeNum: typ}
@@ -1261,15 +1261,6 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 	if !handled_Count && err == nil {
 		value.Count = nil
 	}
-	if !handled_BaseCongestionMarkInterval && err == nil {
-		value.BaseCongestionMarkInterval = nil
-	}
-	if !handled_DefaultCongestionThreshold && err == nil {
-		value.DefaultCongestionThreshold = nil
-	}
-	if !handled_Mtu && err == nil {
-		value.Mtu = nil
-	}
 	if !handled_Flags && err == nil {
 		value.Flags = nil
 	}
@@ -1284,6 +1275,15 @@ func (context *ControlArgsParsingContext) Parse(reader enc.ParseReader, ignoreCr
 	}
 	if !handled_FacePersistency && err == nil {
 		value.FacePersistency = nil
+	}
+	if !handled_BaseCongestionMarkInterval && err == nil {
+		value.BaseCongestionMarkInterval = nil
+	}
+	if !handled_DefaultCongestionThreshold && err == nil {
+		value.DefaultCongestionThreshold = nil
+	}
+	if !handled_Mtu && err == nil {
+		value.Mtu = nil
 	}
 
 	if err != nil {
@@ -1335,15 +1335,6 @@ func (value *ControlArgs) ToDict() map[string]any {
 	if value.Count != nil {
 		dict["Count"] = *value.Count
 	}
-	if value.BaseCongestionMarkInterval != nil {
-		dict["BaseCongestionMarkInterval"] = *value.BaseCongestionMarkInterval
-	}
-	if value.DefaultCongestionThreshold != nil {
-		dict["DefaultCongestionThreshold"] = *value.DefaultCongestionThreshold
-	}
-	if value.Mtu != nil {
-		dict["Mtu"] = *value.Mtu
-	}
 	if value.Flags != nil {
 		dict["Flags"] = *value.Flags
 	}
@@ -1358,6 +1349,15 @@ func (value *ControlArgs) ToDict() map[string]any {
 	}
 	if value.FacePersistency != nil {
 		dict["FacePersistency"] = *value.FacePersistency
+	}
+	if value.BaseCongestionMarkInterval != nil {
+		dict["BaseCongestionMarkInterval"] = *value.BaseCongestionMarkInterval
+	}
+	if value.DefaultCongestionThreshold != nil {
+		dict["DefaultCongestionThreshold"] = *value.DefaultCongestionThreshold
+	}
+	if value.Mtu != nil {
+		dict["Mtu"] = *value.Mtu
 	}
 	return dict
 }
@@ -1461,42 +1461,6 @@ func DictToControlArgs(dict map[string]any) (*ControlArgs, error) {
 	if err != nil {
 		return nil, err
 	}
-	if vv, ok := dict["BaseCongestionMarkInterval"]; ok {
-		if v, ok := vv.(uint64); ok {
-			value.BaseCongestionMarkInterval = &v
-		} else {
-			err = enc.ErrIncompatibleType{Name: "BaseCongestionMarkInterval", TypeNum: 135, ValType: "uint64", Value: vv}
-		}
-	} else {
-		value.BaseCongestionMarkInterval = nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if vv, ok := dict["DefaultCongestionThreshold"]; ok {
-		if v, ok := vv.(uint64); ok {
-			value.DefaultCongestionThreshold = &v
-		} else {
-			err = enc.ErrIncompatibleType{Name: "DefaultCongestionThreshold", TypeNum: 136, ValType: "uint64", Value: vv}
-		}
-	} else {
-		value.DefaultCongestionThreshold = nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if vv, ok := dict["Mtu"]; ok {
-		if v, ok := vv.(uint64); ok {
-			value.Mtu = &v
-		} else {
-			err = enc.ErrIncompatibleType{Name: "Mtu", TypeNum: 137, ValType: "uint64", Value: vv}
-		}
-	} else {
-		value.Mtu = nil
-	}
-	if err != nil {
-		return nil, err
-	}
 	if vv, ok := dict["Flags"]; ok {
 		if v, ok := vv.(uint64); ok {
 			value.Flags = &v
@@ -1553,6 +1517,42 @@ func DictToControlArgs(dict map[string]any) (*ControlArgs, error) {
 		}
 	} else {
 		value.FacePersistency = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if vv, ok := dict["BaseCongestionMarkInterval"]; ok {
+		if v, ok := vv.(uint64); ok {
+			value.BaseCongestionMarkInterval = &v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "BaseCongestionMarkInterval", TypeNum: 135, ValType: "uint64", Value: vv}
+		}
+	} else {
+		value.BaseCongestionMarkInterval = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if vv, ok := dict["DefaultCongestionThreshold"]; ok {
+		if v, ok := vv.(uint64); ok {
+			value.DefaultCongestionThreshold = &v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "DefaultCongestionThreshold", TypeNum: 136, ValType: "uint64", Value: vv}
+		}
+	} else {
+		value.DefaultCongestionThreshold = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if vv, ok := dict["Mtu"]; ok {
+		if v, ok := vv.(uint64); ok {
+			value.Mtu = &v
+		} else {
+			err = enc.ErrIncompatibleType{Name: "Mtu", TypeNum: 137, ValType: "uint64", Value: vv}
+		}
+	} else {
+		value.Mtu = nil
 	}
 	if err != nil {
 		return nil, err
