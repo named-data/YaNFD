@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://named-data.net/">
-    <img alt height="65" src="ndn-logo.svg"/>
+    <img alt height="65" src="logo.svg"/>
   </a>
 
   <h1> Named Data Networking Daemon </h1>
