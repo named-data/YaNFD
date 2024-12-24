@@ -11,18 +11,22 @@ jobs:
         go-version: [1.23.x]
         os: [ubuntu-latest]
       fail-fast: false
+
     steps:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Go imports check
         uses: zjkmxy/golang-github-actions@v1.1.3
         with:
           run: imports
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Test
         run: go test ./...
         env:
