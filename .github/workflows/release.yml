@@ -1,4 +1,4 @@
-name: go-vod
+name: release
 
 on:
   push:
