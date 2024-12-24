@@ -24,7 +24,7 @@ type Multicast struct {
 }
 
 func init() {
-	strategyTypes = append(strategyTypes,func() Strategy {
+	strategyTypes = append(strategyTypes, func() Strategy {
 		return &Multicast{}
 	})
 	StrategyVersions["multicast"] = []uint64{1}
