@@ -8,7 +8,7 @@
 
 [![build](https://github.com/named-data/ndnd/actions/workflows/build.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/build.yml)
 [![test](https://github.com/named-data/ndnd/actions/workflows/test.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/test.yml)
-[![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE.md)
 [![Go Reference](https://pkg.go.dev/badge/github.com/named-data/ndnd.svg)](https://pkg.go.dev/github.com/named-data/ndnd)
 
 NDNd is a Golang implementation of the Named Data Networking (NDN) [protocol](https://named-data.net) stack.
@@ -93,4 +93,4 @@ These can be used directly using the `ndnd` CLI.
 
 Contributions to NDNd are greatly appreciated and can be made through GitHub pull requests and issues.
 
-NDNd is free software distributed under the permissive [MIT license](LICENSE).
+NDNd is free software distributed under the permissive [MIT license](LICENSE.md).
