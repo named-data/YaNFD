@@ -7,6 +7,9 @@ all: ndnd
 ndnd: clean
 	CGO_ENABLED=0 go build -o ndnd cmd/ndnd/main.go
 
+install:
+	install -m 755 ndnd /usr/local/bin
+
 clean:
 	rm -f ndnd coverage.out
 

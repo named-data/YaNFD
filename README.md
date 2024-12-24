@@ -8,7 +8,7 @@ See the project [overview](https://named-data.net/project/), architecture [detai
 
 NDNd is written in pure Go and requires [Go 1.23](https://go.dev/doc/install) or later.
 
-Once Go is installed, run `make` to build the `ndnd` executable.
+Once Go is installed, run `make` to build the `ndnd` executable, followed by `make install` to install it globally.
 
 # 🌟 Usage
 
