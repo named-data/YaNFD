@@ -434,7 +434,7 @@ func componentFromStrInto(s string, ret *Component) error {
 		if err != nil {
 			return err
 		}
-		if ret.Typ <= TypeInvalidComponent || int(ret.Typ) > 0xffff {
+		if ret.Typ <= TypeInvalidComponent || ret.Typ > 0xffff {
 			return ErrFormat{"invalid component type: " + valStr}
 		}
 	}
