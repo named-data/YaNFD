@@ -8,7 +8,6 @@
 package fw
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/named-data/ndnd/fw/core"
@@ -25,7 +24,9 @@ type Multicast struct {
 }
 
 func init() {
-	strategyTypes = append(strategyTypes, reflect.TypeOf(new(Multicast)))
+	strategyTypes = append(strategyTypes,func() Strategy {
+		return &Multicast{}
+	})
 	StrategyVersions["multicast"] = []uint64{1}
 }
 

@@ -8,7 +8,6 @@
 package fw
 
 import (
-	"reflect"
 	"sort"
 	"time"
 
@@ -27,7 +26,9 @@ type BestRoute struct {
 }
 
 func init() {
-	strategyTypes = append(strategyTypes, reflect.TypeOf(new(BestRoute)))
+	strategyTypes = append(strategyTypes, func() Strategy {
+		return &BestRoute{}
+	})
 	StrategyVersions["best-route"] = []uint64{1}
 }
 
