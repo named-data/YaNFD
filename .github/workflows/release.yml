@@ -1,0 +1,41 @@
+name: go-vod
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  binary:
+    name: Binary
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ndnd-linux-amd64 cmd/ndnd/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ndnd-linux-aarch64 cmd/ndnd/main.go
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ndnd-macos-amd64 cmd/ndnd/main.go
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o ndnd-macos-aarch64 cmd/ndnd/main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ndnd-windows-amd64.exe cmd/ndnd/main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -o ndnd-windows-aarch64.exe cmd/ndnd/main.go
+
+      - name: Upload to releases
+        uses: svenstaro/upload-release-action@v2
+        id: attach_to_release
+        with:
+          file: ndnd-*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+          make_latest: false
