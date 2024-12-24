@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	enc "github.com/named-data/ndnd/std/encoding"
@@ -61,12 +62,14 @@ func (pc *PutChunks) run() {
 	// read from stdin till eof
 	var content enc.Wire
 	for {
-		buf := make([]byte, 1e6) // 1MB
-		n, err := os.Stdin.Read(buf)
+		buf := make([]byte, 8192)
+		n, err := io.ReadFull(os.Stdin, buf)
+		if n > 0 {
+			content = append(content, buf[:n])
+		}
 		if err != nil {
 			break
 		}
-		content = append(content, buf[:n])
 	}
 
 	// produce object
