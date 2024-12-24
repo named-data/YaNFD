@@ -354,7 +354,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 
 		// Local cache policy
 		if l.options.IsLocalCachePolicyEnabled && LP.CachePolicy != nil {
-			pkt.CachePolicy = &LP.CachePolicy.CachePolicyType
+			pkt.CachePolicy = utils.IdPtr(LP.CachePolicy.CachePolicyType)
 		}
 
 		// PIT Token
