@@ -57,7 +57,7 @@ It is compatible with the management tools and protocols developed for the [NFD]
 To start the forwarder locally, run the following:
 
 ```bash
-ndnd fw start yanfd.config.yml
+ndnd fw run yanfd.config.yml
 ```
 
 A full configuration example can be found in [fw/yanfd.sample.yml](fw/yanfd.sample.yml).
@@ -70,7 +70,7 @@ The `ndnd/dv` package implements `ndn-dv`, an NDN Distance Vector routing daemon
 To start the routing daemon bound to the local forwarder, run the following:
 
 ```bash
-ndnd dv start dv.config.yml
+ndnd dv run dv.config.yml
 ```
 
 A full configuration example can be found in [dv/dv.sample.yml](dv/dv.sample.yml).
