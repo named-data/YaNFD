@@ -51,7 +51,7 @@ func (c *Client) Produce(args ProduceArgs) (enc.Name, error) {
 		args.FreshnessPeriod = 4 * time.Second
 	}
 
-	lastSeg := uint64(contentSize / pSegmentSize)
+	lastSeg := uint64((contentSize - 1) / pSegmentSize)
 	finalBlockId := enc.NewSegmentComponent(lastSeg)
 
 	cfg := &ndn.DataConfig{
