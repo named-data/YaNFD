@@ -93,7 +93,7 @@ func (t *UnixStreamTransport) runReceive() {
 		t.nInBytes += uint64(len(b))
 		t.linkService.handleIncomingFrame(b)
 	}, nil)
-	if err != nil {
+	if err != nil && t.running.Load() {
 		core.LogWarn(t, "Unable to read from socket (", err, ") - Face DOWN")
 	}
 }

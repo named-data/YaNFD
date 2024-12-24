@@ -253,7 +253,7 @@ func (t *UnicastTCPTransport) runReceive() {
 				*t.expirationTime = time.Now().Add(tcpLifetime)
 				t.linkService.handleIncomingFrame(b)
 			}, nil)
-			if err == nil {
+			if err == nil || t.closed {
 				break // EOF
 			}
 
