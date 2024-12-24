@@ -1,3 +1,22 @@
 /ndnd
 /ndnd.exe
+/gondn_tlv_gen
+/gondn_tlv_gen.exe
 coverage.out
+
+# Compiler folders
+.vscode
+.idea
+
+# Temporary
+.env
+_build
+*~
+*.sw*
+*.DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+/temp/
+*.wasm
