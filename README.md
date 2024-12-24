@@ -6,6 +6,10 @@
   <h1> Named Data Networking Daemon </h1>
 </div>
 
+[![build](https://github.com/named-data/ndnd/actions/workflows/build.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/build.yml)
+[![test](https://github.com/named-data/ndnd/actions/workflows/test.yml/badge.svg)](https://github.com/named-data/ndnd/actions/workflows/test.yml)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+
 NDNd is a Golang implementation of the Named Data Networking (NDN) [protocol](https://named-data.net) stack.
 
 See the project [overview](https://named-data.net/project/), architecture [details](https://named-data.net/project/archoverview/) and the [tutorial](https://101.named-data.net/) for more info on NDN.
