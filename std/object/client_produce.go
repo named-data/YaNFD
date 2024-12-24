@@ -2,6 +2,7 @@ package object
 
 import (
 	"errors"
+	"runtime"
 	"time"
 
 	enc "github.com/named-data/ndnd/std/encoding"
@@ -84,6 +85,7 @@ func (c *Client) Produce(args ProduceArgs) (enc.Name, error) {
 			// remove the content from the content slice
 			content[0] = content[0][sizeLeft:]
 			if len(content[0]) == 0 {
+				content[0] = nil // gc
 				content = content[1:]
 			}
 		}
@@ -96,6 +98,11 @@ func (c *Client) Produce(args ProduceArgs) (enc.Name, error) {
 		err = c.store.Put(name, version, data.Wire.Join())
 		if err != nil {
 			return nil, err
+		}
+
+		// force run GC every ~80MB to prevent excessive memory usage
+		if seg%10000 == 0 {
+			runtime.GC() // slow
 		}
 	}
 
