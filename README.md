@@ -14,6 +14,28 @@ Once Go is installed, run `make` to build the `ndnd` executable.
 
 NDNd provides several independent modules that can be used separately or together.
 
+You can use the `ndnd` CLI to list available modules and get more info on their usage.
+
+```text
+root@0037b98ec2ac:~# ndnd
+  _   _ ____  _   _     _
+ | \ | |  _ \| \ | | __| |
+ |  \| | | | |  \| |/ _  |
+ | |\  | |_| | |\  | (_| |
+ |_| \_|____/|_| \_|\____|
+
+Named Data Networking Daemon (ndnd)
+
+Usage: ndnd [command]
+  fw              NDN Forwarding Daemon
+  dv              NDN Distance Vector Routing Daemon
+
+  ping            Send Interests to an NDN ping server
+  pingserver      Start an NDN ping server under a prefix
+  cat             Retrieve data under a prefix
+  put             Publish data under a prefix
+```
+
 ## 🔀 Network Forwarder
 
 The `ndnd/fw` package implements YaNFD, a packet forwarder for the NDN platform.
