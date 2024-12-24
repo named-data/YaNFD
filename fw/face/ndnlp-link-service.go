@@ -296,7 +296,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 		IncomingFaceID: utils.IdPtr(l.faceID),
 	}
 
-	L2, _, err := spec.ReadPacket(enc.NewBufferReader(wire))
+	L2, err := ReadPacketFast(enc.NewBufferReader(wire))
 	if err != nil {
 		core.LogError(l, err)
 		return
@@ -370,7 +370,7 @@ func (l *NDNLPLinkService) handleIncomingFrame(frame []byte) {
 		}
 
 		// Parse inner packet in place
-		L3, _, err := spec.ReadPacket(enc.NewBufferReader(wire))
+		L3, err := ReadPacketFast(enc.NewBufferReader(wire))
 		if err != nil {
 			return
 		}
@@ -441,4 +441,11 @@ func (op *NDNLPLinkServiceOptions) Flags() (ret uint64) {
 		ret |= FaceFlagCongestionMarking
 	}
 	return
+}
+
+// Reads a packet without validating the internal fields
+func ReadPacketFast(reader enc.ParseReader) (*spec.Packet, error) {
+	context := spec.PacketParsingContext{}
+	context.Init()
+	return context.Parse(reader, false)
 }
