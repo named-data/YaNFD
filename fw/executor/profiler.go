@@ -11,7 +11,6 @@ import (
 type Profiler struct {
 	config  *YaNFDConfig
 	cpuFile *os.File
-	memFile *os.File
 	block   *pprof.Profile
 }
 
@@ -28,19 +27,6 @@ func (p *Profiler) Start() (err error) {
 
 		core.LogInfo("Main", "Profiling CPU - outputting to ", p.config.CpuProfile)
 		pprof.StartCPUProfile(p.cpuFile)
-	}
-
-	if p.config.MemProfile != "" {
-		memProfileFile, err := os.Create(p.config.MemProfile)
-		if err != nil {
-			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
-		}
-
-		core.LogInfo("Main", "Profiling memory - outputting to ", p.config.MemProfile)
-		runtime.GC()
-		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
-			core.LogFatal("Main", "Unable to write memory profile: ", err)
-		}
 	}
 
 	if p.config.BlockProfile != "" {
@@ -64,8 +50,18 @@ func (p *Profiler) Stop() {
 		blockProfileFile.Close()
 	}
 
-	if p.memFile != nil {
-		p.memFile.Close()
+	if p.config.MemProfile != "" {
+		memProfileFile, err := os.Create(p.config.MemProfile)
+		if err != nil {
+			core.LogFatal("Main", "Unable to open output file for memory profile: ", err)
+		}
+		defer memProfileFile.Close()
+
+		core.LogInfo("Main", "Profiling memory - outputting to ", p.config.MemProfile)
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
+			core.LogFatal("Main", "Unable to write memory profile: ", err)
+		}
 	}
 
 	if p.cpuFile != nil {
